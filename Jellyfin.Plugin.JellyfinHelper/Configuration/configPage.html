@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Jellyfin Cleaner</title>
+    <title>Jellyfin Helper</title>
     <style>
         .stats-container {
             max-width: 900px;
@@ -73,6 +73,7 @@
             opacity: 0.7;
         }
 
+        /* noinspection CssUnusedSymbol */
         .stat-card .stat-value {
             font-size: 1.8em;
             font-weight: 700;
@@ -80,6 +81,7 @@
             margin: 0;
         }
 
+        /* noinspection CssUnusedSymbol */
         .stat-card .stat-detail {
             font-size: 0.85em;
             opacity: 0.6;
@@ -175,17 +177,25 @@
             background: rgba(255, 255, 255, 0.05);
         }
 
+        /* noinspection CssUnusedSymbol */
         .total-bar .bar-segment {
             height: 100%;
             transition: width 0.5s ease;
         }
 
+        /* noinspection CssUnusedSymbol */
         .bar-video { background: #00a4dc; }
+        /* noinspection CssUnusedSymbol */
         .bar-subtitle { background: #e67e22; }
+        /* noinspection CssUnusedSymbol */
         .bar-image { background: #2ecc71; }
+        /* noinspection CssUnusedSymbol */
         .bar-trickplay { background: #e74c3c; }
+        /* noinspection CssUnusedSymbol */
         .bar-nfo { background: #9b59b6; }
+        /* noinspection CssUnusedSymbol */
         .bar-audio { background: #f1c40f; }
+        /* noinspection CssUnusedSymbol */
         .bar-other { background: #95a5a6; }
 
         .legend {
@@ -217,7 +227,7 @@
             <div class="content-primary">
                 <div class="stats-container">
                     <div class="stats-header">
-                        <h2>Jellyfin Cleaner — Media Statistics</h2>
+                        <h2>Jellyfin Helper — Media Statistics</h2>
                         <button id="btnRefresh" class="refresh-btn" is="emby-button">
                             &#x21bb; Scan Libraries
                         </button>
@@ -390,7 +400,7 @@
                 result.style.display = 'none';
 
                 var apiClient = ApiClient;
-                var url = apiClient.getUrl('JellyfinCleaner/Statistics');
+                var url = apiClient.getUrl('JellyfinHelper/Statistics');
 
                 apiClient.ajax({
                     type: 'GET',
@@ -408,7 +418,7 @@
                     result.style.display = 'block';
                     btn.disabled = false;
                     btn.innerHTML = '&#x21bb; Scan Libraries';
-                    console.error('Jellyfin Cleaner: Error loading statistics', err);
+                    console.error('Jellyfin Helper: Error loading statistics', err);
                 });
             }
 
