@@ -67,12 +67,14 @@ jobs:
         unzip ${PLUGIN_NAME}_test-build.zip -d jellyfin-plugins/FiletreeCleaner/
 
     - name: Start Jellyfin container
+      # Image tag must match the targetAbi in manifest.json (currently 10.11.0.0).
+      # Use 'unstable' because 10.11 is not yet a stable release.
       run: |
         docker run -d \
           --name jellyfin-test \
           -p 8096:8096 \
           -v ${{ github.workspace }}/jellyfin-plugins:/config/plugins \
-          jellyfin/jellyfin:latest
+          jellyfin/jellyfin:unstable
 
     - name: Wait for Jellyfin to start
       run: |
