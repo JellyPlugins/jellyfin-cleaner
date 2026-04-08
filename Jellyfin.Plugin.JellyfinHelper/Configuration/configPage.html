@@ -319,10 +319,14 @@
             font-weight: 700;
         }
 
+        /* noinspection CssUnusedSymbol — applied dynamically in JS */
         .health-ok { color: #2ecc71; }
+        /* noinspection CssUnusedSymbol */
         .health-warn { color: #e67e22; }
+        /* noinspection CssUnusedSymbol */
         .health-bad { color: #e74c3c; }
 
+        /* noinspection CssUnusedSymbol — applied dynamically in JS */
         .health-item .health-label {
             font-size: 0.8em;
             opacity: 0.6;
@@ -785,7 +789,7 @@
                 // === TRENDS TAB (placeholder, filled async) ===
                 html += '<div class="tab-content" id="tab-trends">';
                 html += '<div class="section-title">Library Growth Trend</div>';
-                html += '<div id="trendChartContainer"><div class="trend-empty">Loading trend data…</div></div>';
+                html += '<div id="trendChartContainer" class="trend-container"><div class="trend-empty">Loading trend data…</div></div>';
                 html += '</div>'; // end trends tab
 
                 return html;
