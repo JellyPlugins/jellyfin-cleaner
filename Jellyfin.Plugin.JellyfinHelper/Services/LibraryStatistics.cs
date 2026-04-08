@@ -1,4 +1,7 @@
-﻿namespace Jellyfin.Plugin.JellyfinHelper.Services;
+﻿using System;
+using System.Collections.Generic;
+
+namespace Jellyfin.Plugin.JellyfinHelper.Services;
 
 /// <summary>
 /// Statistics for a single library.
@@ -89,4 +92,58 @@ public class LibraryStatistics
     /// Gets the total size of all files in this library in bytes.
     /// </summary>
     public long TotalSize => VideoSize + SubtitleSize + ImageSize + NfoSize + AudioSize + TrickplaySize + OtherSize;
+
+    // === Codec/Quality Breakdown ===
+
+    /// <summary>
+    /// Gets the container format breakdown (extension → count), e.g. "mkv" → 150.
+    /// </summary>
+    public Dictionary<string, int> ContainerFormats { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the resolution breakdown (tier → count), e.g. "4K" → 20, "1080p" → 100.
+    /// </summary>
+    public Dictionary<string, int> Resolutions { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the video codec breakdown (codec → count), e.g. "HEVC" → 80, "H.264" → 50.
+    /// </summary>
+    public Dictionary<string, int> VideoCodecs { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the container format size breakdown (extension → total bytes).
+    /// </summary>
+    public Dictionary<string, long> ContainerSizes { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the resolution size breakdown (tier → total bytes).
+    /// </summary>
+    public Dictionary<string, long> ResolutionSizes { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the video codec size breakdown (codec → total bytes).
+    /// </summary>
+    public Dictionary<string, long> VideoCodecSizes { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    // === Health Check Counters ===
+
+    /// <summary>
+    /// Gets or sets the number of video files without any subtitle file in the same directory.
+    /// </summary>
+    public int VideosWithoutSubtitles { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of video files without any image/poster in the same directory.
+    /// </summary>
+    public int VideosWithoutImages { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of video files without any NFO metadata in the same directory.
+    /// </summary>
+    public int VideosWithoutNfo { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of directories with only metadata but no video (orphaned metadata).
+    /// </summary>
+    public int OrphanedMetadataDirectories { get; set; }
 }

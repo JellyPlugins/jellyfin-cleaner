@@ -707,4 +707,281 @@ public class MediaStatisticsServiceTests
 
         Assert.Equal(2175, stats.TotalSize);
     }
+
+    // === Resolution Parsing Tests ===
+
+    [Theory]
+    [InlineData("Movie.2160p.BluRay.mkv", "4K")]
+    [InlineData("Movie.4K.HDR.mkv", "4K")]
+    [InlineData("Movie.UHD.mkv", "4K")]
+    [InlineData("Movie.1080p.WEB-DL.mkv", "1080p")]
+    [InlineData("Movie.1080i.HDTV.ts", "1080p")]
+    [InlineData("Movie.720p.BluRay.mkv", "720p")]
+    [InlineData("Movie.480p.DVDRip.mkv", "480p")]
+    [InlineData("Movie.SD.mkv", "480p")]
+    [InlineData("Movie.576p.mkv", "576p")]
+    [InlineData("Movie.mkv", "Unknown")]
+    [InlineData("Movie.NoResolution.mkv", "Unknown")]
+    public void ParseResolution_VariousFilenames_ReturnsCorrectTier(string fileName, string expected)
+    {
+        Assert.Equal(expected, MediaStatisticsService.ParseResolution(fileName));
+    }
+
+    // === Codec Parsing Tests ===
+
+    [Theory]
+    [InlineData("Movie.x265.mkv", "HEVC")]
+    [InlineData("Movie.H265.mkv", "HEVC")]
+    [InlineData("Movie.H.265.mkv", "HEVC")]
+    [InlineData("Movie.HEVC.mkv", "HEVC")]
+    [InlineData("Movie.x264.mkv", "H.264")]
+    [InlineData("Movie.H264.mkv", "H.264")]
+    [InlineData("Movie.H.264.mkv", "H.264")]
+    [InlineData("Movie.AVC.mkv", "H.264")]
+    [InlineData("Movie.AV1.mkv", "AV1")]
+    [InlineData("Movie.VP9.mkv", "VP9")]
+    [InlineData("Movie.MPEG2.mkv", "MPEG")]
+    [InlineData("Movie.XviD.mkv", "XviD")]
+    [InlineData("Movie.DivX.mkv", "DivX")]
+    [InlineData("Movie.mkv", "Unknown")]
+    public void ParseCodec_VariousFilenames_ReturnsCorrectCodec(string fileName, string expected)
+    {
+        Assert.Equal(expected, MediaStatisticsService.ParseCodec(fileName));
+    }
+
+    // === Container Format Tracking ===
+
+    [Fact]
+    public void CalculateStatistics_TracksContainerFormats()
+    {
+        var libraryPath = TestPath("media", "movies");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film1.mkv"), Name = "Film1.mkv", Length = 1_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film2.mkv"), Name = "Film2.mkv", Length = 2_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film3.mp4"), Name = "Film3.mp4", Length = 3_000, IsDirectory = false }
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(2, stats.ContainerFormats["MKV"]);
+        Assert.Equal(1, stats.ContainerFormats["MP4"]);
+        Assert.Equal(3_000, stats.ContainerSizes["MKV"]);
+        Assert.Equal(3_000, stats.ContainerSizes["MP4"]);
+    }
+
+    // === Resolution Tracking in Statistics ===
+
+    [Fact]
+    public void CalculateStatistics_TracksResolutions()
+    {
+        var libraryPath = TestPath("media", "movies");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.1080p.mkv"), Name = "Film.1080p.mkv", Length = 5_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.4K.mkv"), Name = "Film.4K.mkv", Length = 10_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.mkv"), Name = "Film.mkv", Length = 1_000, IsDirectory = false }
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(1, stats.Resolutions["1080p"]);
+        Assert.Equal(1, stats.Resolutions["4K"]);
+        Assert.Equal(1, stats.Resolutions["Unknown"]);
+    }
+
+    // === Codec Tracking in Statistics ===
+
+    [Fact]
+    public void CalculateStatistics_TracksCodecs()
+    {
+        var libraryPath = TestPath("media", "movies");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.x265.mkv"), Name = "Film.x265.mkv", Length = 5_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.x264.mkv"), Name = "Film.x264.mkv", Length = 8_000, IsDirectory = false }
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(1, stats.VideoCodecs["HEVC"]);
+        Assert.Equal(1, stats.VideoCodecs["H.264"]);
+        Assert.Equal(5_000, stats.VideoCodecSizes["HEVC"]);
+        Assert.Equal(8_000, stats.VideoCodecSizes["H.264"]);
+    }
+
+    // === Health Check: Videos Without Subtitles ===
+
+    [Fact]
+    public void CalculateStatistics_VideoWithoutSubtitles_DetectedInHealthCheck()
+    {
+        var libraryPath = TestPath("media", "movies");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.mkv"), Name = "Film.mkv", Length = 1_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "poster.jpg"), Name = "poster.jpg", Length = 100, IsDirectory = false }
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+
+        Assert.Equal(1, result.TotalVideosWithoutSubtitles);
+        Assert.Equal(0, result.TotalVideosWithoutImages);
+    }
+
+    // === Health Check: Videos With All Companions ===
+
+    [Fact]
+    public void CalculateStatistics_VideoWithAllCompanions_NoHealthIssues()
+    {
+        var libraryPath = TestPath("media", "movies");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.mkv"), Name = "Film.mkv", Length = 1_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.srt"), Name = "Film.srt", Length = 50, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "poster.jpg"), Name = "poster.jpg", Length = 100, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.nfo"), Name = "Film.nfo", Length = 10, IsDirectory = false }
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+
+        Assert.Equal(0, result.TotalVideosWithoutSubtitles);
+        Assert.Equal(0, result.TotalVideosWithoutImages);
+        Assert.Equal(0, result.TotalVideosWithoutNfo);
+    }
+
+    // === Health Check: Orphaned Metadata Directories ===
+
+    [Fact]
+    public void CalculateStatistics_OrphanedMetadataDirectory_Detected()
+    {
+        var libraryPath = TestPath("media", "movies");
+        var subDirPath = TestPath("media", "movies", "DeletedFilm");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns([]);
+        var subDir = new FileSystemMetadata { FullName = subDirPath, Name = "DeletedFilm", IsDirectory = true };
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([subDir]);
+
+        // Subdirectory has metadata but no video
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "DeletedFilm", "Film.nfo"), Name = "Film.nfo", Length = 10, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "DeletedFilm", "poster.jpg"), Name = "poster.jpg", Length = 100, IsDirectory = false }
+        };
+        _fileSystemMock.Setup(f => f.GetFiles(subDirPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(subDirPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+
+        Assert.Equal(1, result.TotalOrphanedMetadataDirectories);
+    }
+
+    // === Aggregated Totals Across Libraries ===
+
+    [Fact]
+    public void CalculateStatistics_AggregatesCodecsAcrossLibraries()
+    {
+        var moviePath = TestPath("media", "movies");
+        var tvPath = TestPath("media", "tv");
+
+        var movieFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [moviePath]
+        };
+        var tvFolder = new VirtualFolderInfo
+        {
+            Name = "TV",
+            CollectionType = CollectionTypeOptions.tvshows,
+            Locations = [tvPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([movieFolder, tvFolder]);
+
+        _fileSystemMock.Setup(f => f.GetFiles(moviePath, false)).Returns([
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.x265.mkv"), Name = "Film.x265.mkv", Length = 5_000, IsDirectory = false }
+        ]);
+        _fileSystemMock.Setup(f => f.GetDirectories(moviePath, false)).Returns([]);
+
+        _fileSystemMock.Setup(f => f.GetFiles(tvPath, false)).Returns([
+            new FileSystemMetadata { FullName = TestPath("media", "tv", "Episode.x265.mkv"), Name = "Episode.x265.mkv", Length = 3_000, IsDirectory = false }
+        ]);
+        _fileSystemMock.Setup(f => f.GetDirectories(tvPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+
+        Assert.Equal(2, result.TotalVideoCodecs["HEVC"]);
+        Assert.Equal(8_000, result.TotalVideoCodecSizes["HEVC"]);
+        Assert.Equal(2, result.TotalVideoFileCount);
+    }
 }

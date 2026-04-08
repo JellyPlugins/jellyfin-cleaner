@@ -2,221 +2,307 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jellyfin Helper</title>
     <style>
-        .stats-container {
-            max-width: 900px;
-            margin: 1em auto;
+        /* === Layout === */
+        .jh-container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0.5em 1em 2em;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
-        .stats-header {
+        .jh-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.8em;
             margin-bottom: 1.5em;
         }
 
-        .stats-header h2 {
-            margin: 0;
-        }
+        .jh-header h2 { margin: 0; font-size: 1.4em; }
 
-        .refresh-btn {
-            padding: 0.5em 1.2em;
+        .jh-refresh-btn {
+            padding: 0.55em 1.3em;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             background: #00a4dc;
             color: #fff;
             cursor: pointer;
-            font-size: 0.95em;
-            transition: background 0.2s;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: background 0.2s, transform 0.1s;
+            white-space: nowrap;
         }
+        .jh-refresh-btn:hover { background: #0090c4; transform: translateY(-1px); }
+        .jh-refresh-btn:active { transform: translateY(0); }
+        .jh-refresh-btn:disabled { background: #555; cursor: not-allowed; transform: none; }
 
-        .refresh-btn:hover {
-            background: #0088b8;
+        /* === Section Titles === */
+        .jh-section {
+            margin: 2em 0 0.8em;
+            padding-bottom: 0.35em;
+            border-bottom: 2px solid #00a4dc;
+            font-size: 1.05em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
         }
+        .jh-section-icon { font-size: 1.2em; }
 
-        .refresh-btn:disabled {
-            background: #555;
-            cursor: not-allowed;
-        }
-
-        .stats-grid {
+        /* === Stat Cards Grid === */
+        .jh-cards {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.2em;
-            margin-bottom: 2em;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1em;
         }
 
-        @media (max-width: 600px) {
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
+        .jh-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 1em 1.2em;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
-
-        .stat-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 1.2em 1.5em;
-            transition: border-color 0.2s;
-        }
-
-        .stat-card:hover {
+        .jh-card:hover {
             border-color: #00a4dc;
+            box-shadow: 0 2px 12px rgba(0,164,220,0.15);
         }
 
-        .stat-card h3 {
-            margin: 0 0 0.3em 0;
-            font-size: 0.85em;
+        /* noinspection CssUnusedSymbol */
+        .jh-card-label {
+            margin: 0 0 0.25em;
+            font-size: 0.75em;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            opacity: 0.7;
+            opacity: 0.65;
+            font-weight: 600;
         }
-
         /* noinspection CssUnusedSymbol */
-        .stat-card .stat-value {
-            font-size: 1.8em;
-            font-weight: 700;
+        .jh-card-value {
+            font-size: 1.6em;
+            font-weight: 800;
             color: #00a4dc;
             margin: 0;
+            line-height: 1.2;
         }
+        /* noinspection CssUnusedSymbol */
+        .jh-card-detail {
+            font-size: 0.8em;
+            opacity: 0.55;
+            margin-top: 0.25em;
+        }
+
+        /* === Storage Bar === */
+        .jh-bar-wrap {
+            display: flex;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 0.8em 0;
+            background: rgba(255,255,255,0.06);
+        }
+        /* noinspection CssUnusedSymbol */
+        .jh-bar-seg { height: 100%; transition: width 0.6s ease; min-width: 2px; }
 
         /* noinspection CssUnusedSymbol */
-        .stat-card .stat-detail {
-            font-size: 0.85em;
-            opacity: 0.6;
-            margin-top: 0.3em;
+        .c-video { background: #00a4dc; }
+        /* noinspection CssUnusedSymbol */
+        .c-audio { background: #f1c40f; }
+        /* noinspection CssUnusedSymbol */
+        .c-subtitle { background: #e67e22; }
+        /* noinspection CssUnusedSymbol */
+        .c-image { background: #2ecc71; }
+        /* noinspection CssUnusedSymbol */
+        .c-trickplay { background: #e74c3c; }
+        /* noinspection CssUnusedSymbol */
+        .c-nfo { background: #9b59b6; }
+        /* noinspection CssUnusedSymbol */
+        .c-other { background: #7f8c8d; }
+
+        .jh-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6em 1.2em;
+            font-size: 0.82em;
+        }
+        .jh-legend-item { display: flex; align-items: center; gap: 0.35em; }
+        .jh-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+        /* === Donut Charts (CSS-only) === */
+        .jh-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5em;
         }
 
-        .library-table {
+        .jh-chart-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 1.2em;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .jh-chart-card h4 { margin: 0 0 0.8em; font-size: 0.9em; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.04em; }
+
+        .jh-donut-wrap {
+            position: relative;
+            width: 160px;
+            height: 160px;
+        }
+        .jh-donut-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        /* noinspection CssUnusedSymbol */
+        .jh-donut-seg { fill: none; stroke-width: 28; transition: stroke-dasharray 0.6s ease; }
+        .jh-donut-center {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        /* noinspection CssUnusedSymbol */
+        .jh-donut-total { font-size: 1.5em; font-weight: 800; color: #00a4dc; display: block; }
+        /* noinspection CssUnusedSymbol */
+        .jh-donut-label { font-size: 0.7em; opacity: 0.5; }
+
+        .jh-chart-legend {
+            margin-top: 1em;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3em;
+        }
+        /* noinspection CssUnusedSymbol */
+        .jh-chart-leg-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.82em;
+            padding: 0.2em 0;
+        }
+        /* noinspection CssUnusedSymbol */
+        .jh-chart-leg-left { display: flex; align-items: center; gap: 0.4em; }
+        /* noinspection CssUnusedSymbol */
+        .jh-chart-leg-right { font-weight: 600; opacity: 0.8; }
+
+        /* === Health Check Cards === */
+        .jh-health-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1em;
+        }
+        /* noinspection CssUnusedSymbol */
+        .jh-health-item {
+            background: rgba(255,255,255,0.04);
+            border-radius: 10px;
+            padding: 1em 1.2em;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.8em;
+            border-left: 4px solid transparent;
+            transition: border-color 0.2s;
+        }
+        /* noinspection CssUnusedSymbol */
+        .jh-health-item.jh-ok { border-left-color: #2ecc71; }
+        /* noinspection CssUnusedSymbol */
+        .jh-health-item.jh-warn { border-left-color: #f39c12; }
+        /* noinspection CssUnusedSymbol */
+        .jh-health-item.jh-danger { border-left-color: #e74c3c; }
+        /* noinspection CssUnusedSymbol */
+        .jh-health-icon { font-size: 1.6em; line-height: 1; flex-shrink: 0; }
+        /* noinspection CssUnusedSymbol */
+        .jh-health-text { flex: 1; }
+        /* noinspection CssUnusedSymbol */
+        .jh-health-count { font-size: 1.3em; font-weight: 800; }
+        /* noinspection CssUnusedSymbol */
+        .jh-health-desc { font-size: 0.8em; opacity: 0.6; margin-top: 0.15em; }
+
+        /* === Table === */
+        .jh-table-wrap { overflow-x: auto; margin-top: 0.5em; -webkit-overflow-scrolling: touch; }
+
+        .jh-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 0.5em;
+            min-width: 600px;
         }
-
-        .library-table th,
-        .library-table td {
-            padding: 0.6em 0.8em;
+        .jh-table th, .jh-table td {
+            padding: 0.55em 0.7em;
             text-align: right;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            font-size: 0.9em;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            font-size: 0.85em;
+            white-space: nowrap;
         }
-
-        .library-table th {
-            text-align: right;
-            font-weight: 600;
-            opacity: 0.7;
-            font-size: 0.8em;
+        .jh-table th {
+            font-weight: 700;
+            opacity: 0.65;
+            font-size: 0.75em;
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
+        .jh-table th:first-child, .jh-table td:first-child { text-align: left; }
+        .jh-table tbody tr:hover { background: rgba(255,255,255,0.03); }
 
-        .library-table th:first-child,
-        .library-table td:first-child {
-            text-align: left;
-        }
-
-        .library-table tbody tr:hover {
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        .section-title {
-            font-size: 1.1em;
-            font-weight: 600;
-            margin: 1.5em 0 0.5em 0;
-            padding-bottom: 0.3em;
-            border-bottom: 2px solid #00a4dc;
-        }
-
-        .loading-overlay {
-            text-align: center;
-            padding: 3em;
-            opacity: 0.6;
-        }
-
-        .loading-overlay .spinner {
-            display: inline-block;
-            width: 32px;
-            height: 32px;
-            border: 3px solid rgba(255, 255, 255, 0.2);
-            border-top-color: #00a4dc;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .error-msg {
-            color: #e74c3c;
-            padding: 1em;
-            text-align: center;
-        }
-
-        .badge {
+        /* noinspection CssUnusedSymbol */
+        .jh-badge {
             display: inline-block;
             padding: 0.15em 0.5em;
-            border-radius: 3px;
-            font-size: 0.75em;
-            font-weight: 600;
+            border-radius: 4px;
+            font-size: 0.72em;
+            font-weight: 700;
             text-transform: uppercase;
         }
+        /* noinspection CssUnusedSymbol */
+        .jh-badge-movies { background: #e67e22; color: #fff; }
+        /* noinspection CssUnusedSymbol */
+        .jh-badge-tvshows { background: #2ecc71; color: #fff; }
+        /* noinspection CssUnusedSymbol */
+        .jh-badge-music { background: #9b59b6; color: #fff; }
+        /* noinspection CssUnusedSymbol */
+        .jh-badge-other { background: #7f8c8d; color: #fff; }
 
-        .badge-movies { background: #e67e22; color: #fff; }
-        .badge-tvshows { background: #2ecc71; color: #fff; }
-        .badge-music { background: #9b59b6; color: #fff; }
-        .badge-other { background: #95a5a6; color: #fff; }
+        /* === Loading / Error === */
+        .jh-loading {
+            text-align: center;
+            padding: 3em 1em;
+            opacity: 0.6;
+        }
+        .jh-spinner {
+            display: inline-block;
+            width: 36px; height: 36px;
+            border: 3px solid rgba(255,255,255,0.15);
+            border-top-color: #00a4dc;
+            border-radius: 50%;
+            animation: jh-spin 0.7s linear infinite;
+        }
+        @keyframes jh-spin { to { transform: rotate(360deg); } }
 
-        .total-bar {
-            display: flex;
-            height: 8px;
-            border-radius: 4px;
-            overflow: hidden;
-            margin: 1em 0;
-            background: rgba(255, 255, 255, 0.05);
+        /* noinspection CssUnusedSymbol */
+        .jh-error { color: #e74c3c; padding: 1.5em; text-align: center; font-size: 0.95em; }
+
+        .jh-placeholder {
+            text-align: center;
+            padding: 3em 1em;
+            opacity: 0.45;
+            font-size: 0.95em;
         }
 
-        /* noinspection CssUnusedSymbol */
-        .total-bar .bar-segment {
-            height: 100%;
-            transition: width 0.5s ease;
-        }
-
-        /* noinspection CssUnusedSymbol */
-        .bar-video { background: #00a4dc; }
-        /* noinspection CssUnusedSymbol */
-        .bar-subtitle { background: #e67e22; }
-        /* noinspection CssUnusedSymbol */
-        .bar-image { background: #2ecc71; }
-        /* noinspection CssUnusedSymbol */
-        .bar-trickplay { background: #e74c3c; }
-        /* noinspection CssUnusedSymbol */
-        .bar-nfo { background: #9b59b6; }
-        /* noinspection CssUnusedSymbol */
-        .bar-audio { background: #f1c40f; }
-        /* noinspection CssUnusedSymbol */
-        .bar-other { background: #95a5a6; }
-
-        .legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1em;
-            margin-bottom: 1.5em;
-            font-size: 0.85em;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 0.4em;
-        }
-
-        .legend-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 2px;
-            flex-shrink: 0;
+        /* === Mobile refinements === */
+        @media (max-width: 480px) {
+            .jh-container { padding: 0.5em 0.6em 2em; }
+            .jh-header h2 { font-size: 1.15em; }
+            .jh-cards { grid-template-columns: 1fr 1fr; gap: 0.7em; }
+            .jh-card { padding: 0.8em 0.9em; }
+            /* noinspection CssUnusedSymbol */
+            .jh-card-value { font-size: 1.3em; }
+            .jh-charts { grid-template-columns: 1fr; }
+            .jh-health-grid { grid-template-columns: 1fr; }
+            .jh-section { font-size: 0.9em; }
         }
     </style>
 </head>
@@ -225,24 +311,20 @@
          data-require="emby-button">
         <div data-role="content">
             <div class="content-primary">
-                <div class="stats-container">
-                    <div class="stats-header">
-                        <h2>Jellyfin Helper — Media Statistics</h2>
-                        <button id="btnRefresh" class="refresh-btn" is="emby-button">
-                            &#x21bb; Scan Libraries
-                        </button>
+                <div class="jh-container">
+                    <div class="jh-header">
+                        <h2>📊 Jellyfin Helper</h2>
+                        <button id="btnRefresh" class="jh-refresh-btn" is="emby-button">&#x21bb; Scan Libraries</button>
                     </div>
 
-                    <div id="statsContent">
-                        <div class="loading-overlay" id="loadingIndicator" style="display:none;">
-                            <div class="spinner"></div>
-                            <p>Scanning libraries… This may take a while for large collections.</p>
-                        </div>
-                        <div id="statsPlaceholder" style="text-align:center; padding:3em; opacity:0.5;">
-                            <p>Click <strong>Scan Libraries</strong> to analyze your media folders.</p>
-                        </div>
-                        <div id="statsResult" style="display:none;"></div>
+                    <div id="jhLoading" class="jh-loading" style="display:none;">
+                        <div class="jh-spinner"></div>
+                        <p>Scanning libraries… This may take a while for large collections.</p>
                     </div>
+                    <div id="jhPlaceholder" class="jh-placeholder">
+                        <p>Click <strong>Scan Libraries</strong> to analyze your media folders.</p>
+                    </div>
+                    <div id="jhResult" style="display:none;"></div>
                 </div>
             </div>
         </div>
@@ -252,146 +334,220 @@
         (function () {
             'use strict';
 
-            function formatBytes(bytes) {
+            // Color palette
+            var COLORS = [
+                '#00a4dc', '#e67e22', '#2ecc71', '#e74c3c', '#9b59b6',
+                '#f1c40f', '#1abc9c', '#3498db', '#e91e63', '#ff9800',
+                '#00bcd4', '#8bc34a', '#ff5722', '#607d8b', '#795548'
+            ];
+
+            function fmt(bytes) {
                 if (bytes === 0) return '0 B';
-                var units = ['B', 'KB', 'MB', 'GB', 'TB'];
+                var u = ['B','KB','MB','GB','TB'];
                 var i = Math.floor(Math.log(bytes) / Math.log(1024));
-                if (i >= units.length) i = units.length - 1;
-                return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + units[i];
+                if (i >= u.length) i = u.length - 1;
+                return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + u[i];
             }
 
-            function formatCount(count, singular, plural) {
-                return count + ' ' + (count === 1 ? singular : (plural || singular + 's'));
+            function num(n) { return n.toLocaleString(); }
+
+            function pct(part, total) {
+                if (total === 0) return '0';
+                return (part / total * 100).toFixed(1);
             }
 
-            function getCollectionBadge(type) {
+            function badge(type) {
                 var t = (type || '').toLowerCase();
-                if (t === 'tvshows') return '<span class="badge badge-tvshows">TV Shows</span>';
-                if (t === 'movies' || t === '') return '<span class="badge badge-movies">Movies</span>';
-                if (t === 'music') return '<span class="badge badge-music">Music</span>';
-                return '<span class="badge badge-other">' + (type || 'Mixed') + '</span>';
+                if (t === 'tvshows') return '<span class="jh-badge jh-badge-tvshows">TV</span>';
+                if (t === 'movies' || t === 'homevideos' || t === 'musicvideos') return '<span class="jh-badge jh-badge-movies">Movies</span>';
+                if (t === 'music') return '<span class="jh-badge jh-badge-music">Music</span>';
+                return '<span class="jh-badge jh-badge-other">' + (type || 'Other') + '</span>';
             }
 
-            function buildBarSegments(data) {
-                var total = data.TotalMovieVideoSize + data.TotalTvShowVideoSize +
-                    data.TotalSubtitleSize + data.TotalImageSize + data.TotalTrickplaySize +
-                    data.TotalNfoSize + data.TotalMusicAudioSize;
+            function sortedEntries(obj) {
+                return Object.keys(obj).map(function(k) { return [k, obj[k]]; })
+                    .sort(function(a,b) { return b[1] - a[1]; });
+            }
 
-                // Add "other" from all libraries
-                var otherSize = 0;
-                for (var i = 0; i < data.Libraries.length; i++) {
-                    otherSize += data.Libraries[i].OtherSize;
-                    total += data.Libraries[i].OtherSize;
+            // Build donut chart SVG + legend
+            function buildDonut(title, countsObj, sizesObj, totalCount) {
+                var entries = sortedEntries(countsObj);
+                if (entries.length === 0) return '';
+
+                var h = '<div class="jh-chart-card">';
+                h += '<h4>' + title + '</h4>';
+                h += '<div class="jh-donut-wrap">';
+                h += '<svg class="jh-donut-svg" viewBox="0 0 200 200">';
+
+                var r = 86, circ = 2 * Math.PI * r;
+                var offset = 0;
+                for (var i = 0; i < entries.length; i++) {
+                    var p = totalCount > 0 ? entries[i][1] / totalCount : 0;
+                    var dash = p * circ;
+                    var color = COLORS[i % COLORS.length];
+                    h += '<circle class="jh-donut-seg" cx="100" cy="100" r="' + r + '" stroke="' + color + '" stroke-dasharray="' + dash.toFixed(2) + ' ' + (circ - dash).toFixed(2) + '" stroke-dashoffset="' + (-offset).toFixed(2) + '"/>';
+                    offset += dash;
                 }
 
-                if (total === 0) return '';
+                h += '</svg>';
+                h += '<div class="jh-donut-center"><span class="jh-donut-total">' + num(totalCount) + '</span><span class="jh-donut-label">files</span></div>';
+                h += '</div>';
 
-                var videoTotal = data.TotalMovieVideoSize + data.TotalTvShowVideoSize;
-                var segments = [
-                    { cls: 'bar-video', pct: (videoTotal / total * 100), label: 'Video' },
-                    { cls: 'bar-audio', pct: (data.TotalMusicAudioSize / total * 100), label: 'Audio' },
-                    { cls: 'bar-subtitle', pct: (data.TotalSubtitleSize / total * 100), label: 'Subtitles' },
-                    { cls: 'bar-image', pct: (data.TotalImageSize / total * 100), label: 'Images' },
-                    { cls: 'bar-trickplay', pct: (data.TotalTrickplaySize / total * 100), label: 'Trickplay' },
-                    { cls: 'bar-nfo', pct: (data.TotalNfoSize / total * 100), label: 'Metadata' },
-                    { cls: 'bar-other', pct: (otherSize / total * 100), label: 'Other' }
-                ];
+                h += '<div class="jh-chart-legend">';
+                for (var j = 0; j < entries.length; j++) {
+                    var key = entries[j][0];
+                    var cnt = entries[j][1];
+                    var sz = (sizesObj && sizesObj[key]) ? sizesObj[key] : 0;
+                    var color2 = COLORS[j % COLORS.length];
+                    h += '<div class="jh-chart-leg-row">';
+                    h += '<span class="jh-chart-leg-left"><span class="jh-legend-dot" style="background:' + color2 + '"></span>' + key + ' — ' + num(cnt) + ' (' + pct(cnt, totalCount) + '%)</span>';
+                    h += '<span class="jh-chart-leg-right">' + fmt(sz) + '</span>';
+                    h += '</div>';
+                }
+                h += '</div></div>';
+                return h;
+            }
 
-                var barHtml = '<div class="total-bar">';
-                for (var s = 0; s < segments.length; s++) {
-                    if (segments[s].pct > 0) {
-                        barHtml += '<div class="bar-segment ' + segments[s].cls + '" style="width:' + segments[s].pct.toFixed(2) + '%" title="' + segments[s].label + '"></div>';
+            function buildHealthItem(icon, count, total, labelBad, labelGood) {
+                var severity = 'jh-ok';
+                var ratioText;
+                if (total > 0) {
+                    var r = count / total;
+                    if (r > 0.5) severity = 'jh-danger';
+                    else if (r > 0) severity = 'jh-warn';
+                    ratioText = num(count) + ' of ' + num(total);
+                } else {
+                    ratioText = 'No video files';
+                }
+
+                var h = '<div class="jh-health-item ' + severity + '">';
+                h += '<div class="jh-health-icon">' + icon + '</div>';
+                h += '<div class="jh-health-text">';
+                if (count === 0 && total > 0) {
+                    h += '<div class="jh-health-count" style="color:#2ecc71">✓ All good</div>';
+                    h += '<div class="jh-health-desc">' + labelGood + '</div>';
+                } else {
+                    h += '<div class="jh-health-count">' + ratioText + '</div>';
+                    h += '<div class="jh-health-desc">' + labelBad + '</div>';
+                }
+                h += '</div></div>';
+                return h;
+            }
+
+            function renderStats(d) {
+                var h = '';
+
+                // === OVERVIEW CARDS ===
+                h += '<div class="jh-section"><span class="jh-section-icon">📦</span> Storage Overview</div>';
+                h += '<div class="jh-cards">';
+
+                var movieFiles = 0; for (var m = 0; m < d.Movies.length; m++) movieFiles += d.Movies[m].VideoFileCount;
+                h += '<div class="jh-card"><p class="jh-card-label">🎬 Movies</p><p class="jh-card-value">' + fmt(d.TotalMovieVideoSize) + '</p><p class="jh-card-detail">' + num(movieFiles) + ' files</p></div>';
+
+                var tvFiles = 0; for (var t = 0; t < d.TvShows.length; t++) tvFiles += d.TvShows[t].VideoFileCount;
+                h += '<div class="jh-card"><p class="jh-card-label">📺 TV Shows</p><p class="jh-card-value">' + fmt(d.TotalTvShowVideoSize) + '</p><p class="jh-card-detail">' + num(tvFiles) + ' episodes</p></div>';
+
+                if (d.TotalMusicAudioSize > 0) {
+                    var musicFiles = 0; for (var mu = 0; mu < d.Music.length; mu++) musicFiles += d.Music[mu].AudioFileCount;
+                    h += '<div class="jh-card"><p class="jh-card-label">🎵 Music</p><p class="jh-card-value">' + fmt(d.TotalMusicAudioSize) + '</p><p class="jh-card-detail">' + num(musicFiles) + ' tracks</p></div>';
+                }
+
+                h += '<div class="jh-card"><p class="jh-card-label">🖼️ Trickplay</p><p class="jh-card-value">' + fmt(d.TotalTrickplaySize) + '</p><p class="jh-card-detail">';
+                var tpf = 0; for (var tp = 0; tp < d.Libraries.length; tp++) tpf += d.Libraries[tp].TrickplayFolderCount;
+                h += num(tpf) + ' folders</p></div>';
+
+                h += '<div class="jh-card"><p class="jh-card-label">📝 Subtitles</p><p class="jh-card-value">' + fmt(d.TotalSubtitleSize) + '</p><p class="jh-card-detail">';
+                var sf = 0; for (var sb = 0; sb < d.Libraries.length; sb++) sf += d.Libraries[sb].SubtitleFileCount;
+                h += num(sf) + ' files</p></div>';
+
+                h += '<div class="jh-card"><p class="jh-card-label">🏷️ Metadata</p><p class="jh-card-value">' + fmt(d.TotalNfoSize) + '</p><p class="jh-card-detail">';
+                var nf = 0; for (var n = 0; n < d.Libraries.length; n++) nf += d.Libraries[n].NfoFileCount;
+                h += num(nf) + ' NFO files</p></div>';
+                h += '</div>';
+
+                // === STORAGE DISTRIBUTION BAR ===
+                var totalAll = d.TotalMovieVideoSize + d.TotalTvShowVideoSize + d.TotalMusicAudioSize + d.TotalSubtitleSize + d.TotalImageSize + d.TotalTrickplaySize + d.TotalNfoSize;
+                var otherAll = 0; for (var o = 0; o < d.Libraries.length; o++) otherAll += d.Libraries[o].OtherSize;
+                totalAll += otherAll;
+
+                if (totalAll > 0) {
+                    var vidTotal = d.TotalMovieVideoSize + d.TotalTvShowVideoSize;
+                    var segs = [
+                        {cls:'c-video', s:vidTotal, l:'Video'},
+                        {cls:'c-audio', s:d.TotalMusicAudioSize, l:'Audio'},
+                        {cls:'c-subtitle', s:d.TotalSubtitleSize, l:'Subtitles'},
+                        {cls:'c-image', s:d.TotalImageSize, l:'Images'},
+                        {cls:'c-trickplay', s:d.TotalTrickplaySize, l:'Trickplay'},
+                        {cls:'c-nfo', s:d.TotalNfoSize, l:'Metadata'},
+                        {cls:'c-other', s:otherAll, l:'Other'}
+                    ];
+                    h += '<div class="jh-bar-wrap">';
+                    for (var si = 0; si < segs.length; si++) {
+                        if (segs[si].s > 0) {
+                            h += '<div class="jh-bar-seg ' + segs[si].cls + '" style="width:' + (segs[si].s / totalAll * 100).toFixed(2) + '%" title="' + segs[si].l + ': ' + fmt(segs[si].s) + '"></div>';
+                        }
                     }
-                }
-                barHtml += '</div>';
-
-                barHtml += '<div class="legend">';
-                var legendItems = [
-                    { cls: 'bar-video', label: 'Video (' + formatBytes(videoTotal) + ')' },
-                    { cls: 'bar-audio', label: 'Audio (' + formatBytes(data.TotalMusicAudioSize) + ')' },
-                    { cls: 'bar-subtitle', label: 'Subtitles (' + formatBytes(data.TotalSubtitleSize) + ')' },
-                    { cls: 'bar-image', label: 'Images (' + formatBytes(data.TotalImageSize) + ')' },
-                    { cls: 'bar-trickplay', label: 'Trickplay (' + formatBytes(data.TotalTrickplaySize) + ')' },
-                    { cls: 'bar-nfo', label: 'Metadata (' + formatBytes(data.TotalNfoSize) + ')' },
-                    { cls: 'bar-other', label: 'Other (' + formatBytes(otherSize) + ')' }
-                ];
-                for (var l = 0; l < legendItems.length; l++) {
-                    barHtml += '<div class="legend-item"><div class="legend-dot ' + legendItems[l].cls + '"></div>' + legendItems[l].label + '</div>';
-                }
-                barHtml += '</div>';
-
-                return barHtml;
-            }
-
-            function renderStats(data) {
-                var html = '';
-
-                // Summary cards
-                html += '<div class="stats-grid">';
-                html += '<div class="stat-card"><h3>🎬 Video Data — Movies</h3>';
-                html += '<p class="stat-value">' + formatBytes(data.TotalMovieVideoSize) + '</p>';
-                var movieFiles = 0;
-                for (var m = 0; m < data.Movies.length; m++) movieFiles += data.Movies[m].VideoFileCount;
-                html += '<p class="stat-detail">' + formatCount(movieFiles, 'file') + ' across ' + formatCount(data.Movies.length, 'library', 'libraries') + '</p>';
-                html += '</div>';
-
-                html += '<div class="stat-card"><h3>📺 Video Data — TV Shows</h3>';
-                html += '<p class="stat-value">' + formatBytes(data.TotalTvShowVideoSize) + '</p>';
-                var tvFiles = 0;
-                for (var t = 0; t < data.TvShows.length; t++) tvFiles += data.TvShows[t].VideoFileCount;
-                html += '<p class="stat-detail">' + formatCount(tvFiles, 'episode') + ' across ' + formatCount(data.TvShows.length, 'library', 'libraries') + '</p>';
-                html += '</div>';
-
-                html += '<div class="stat-card"><h3>🖼️ Trickplay Data</h3>';
-                html += '<p class="stat-value">' + formatBytes(data.TotalTrickplaySize) + '</p>';
-                var trickplayFolders = 0;
-                for (var tp = 0; tp < data.Libraries.length; tp++) trickplayFolders += data.Libraries[tp].TrickplayFolderCount;
-                html += '<p class="stat-detail">' + formatCount(trickplayFolders, 'folder') + '</p>';
-                html += '</div>';
-
-                html += '<div class="stat-card"><h3>📝 Subtitles</h3>';
-                html += '<p class="stat-value">' + formatBytes(data.TotalSubtitleSize) + '</p>';
-                var subFiles = 0;
-                for (var sb = 0; sb < data.Libraries.length; sb++) subFiles += data.Libraries[sb].SubtitleFileCount;
-                html += '<p class="stat-detail">' + formatCount(subFiles, 'file') + '</p>';
-                html += '</div>';
-                html += '</div>';
-
-                // Storage distribution bar
-                html += '<div class="section-title">Storage Distribution</div>';
-                html += buildBarSegments(data);
-
-                // Per-library breakdown table
-                html += '<div class="section-title">Per-Library Breakdown</div>';
-                html += '<table class="library-table">';
-                html += '<thead><tr>';
-                html += '<th>Library</th><th>Type</th><th>Video</th><th>Subtitles</th><th>Images</th><th>Trickplay</th><th>Other</th><th>Total</th>';
-                html += '</tr></thead><tbody>';
-
-                for (var i = 0; i < data.Libraries.length; i++) {
-                    var lib = data.Libraries[i];
-                    html += '<tr>';
-                    html += '<td>' + lib.LibraryName + '</td>';
-                    html += '<td>' + getCollectionBadge(lib.CollectionType) + '</td>';
-                    html += '<td>' + formatBytes(lib.VideoSize) + '</td>';
-                    html += '<td>' + formatBytes(lib.SubtitleSize) + '</td>';
-                    html += '<td>' + formatBytes(lib.ImageSize) + '</td>';
-                    html += '<td>' + formatBytes(lib.TrickplaySize) + '</td>';
-                    html += '<td>' + formatBytes(lib.OtherSize + lib.NfoSize + lib.AudioSize) + '</td>';
-                    html += '<td><strong>' + formatBytes(lib.TotalSize) + '</strong></td>';
-                    html += '</tr>';
+                    h += '</div><div class="jh-legend">';
+                    for (var li = 0; li < segs.length; li++) {
+                        if (segs[li].s > 0) {
+                            h += '<div class="jh-legend-item"><div class="jh-legend-dot ' + segs[li].cls + '"></div>' + segs[li].l + ' ' + fmt(segs[li].s) + ' (' + pct(segs[li].s, totalAll) + '%)</div>';
+                        }
+                    }
+                    h += '</div>';
                 }
 
-                html += '</tbody></table>';
+                // === CODEC / QUALITY CHARTS ===
+                h += '<div class="jh-section"><span class="jh-section-icon">🎞️</span> Codec &amp; Quality Analysis</div>';
+                h += '<div class="jh-charts">';
+                h += buildDonut('Video Codecs', d.TotalVideoCodecs, d.TotalVideoCodecSizes, d.TotalVideoFileCount);
+                h += buildDonut('Resolutions', d.TotalResolutions, d.TotalResolutionSizes, d.TotalVideoFileCount);
+                h += buildDonut('Container Formats', d.TotalContainerFormats, d.TotalContainerSizes, d.TotalVideoFileCount);
+                h += '</div>';
 
-                return html;
+                // === LIBRARY HEALTH CHECK ===
+                h += '<div class="jh-section"><span class="jh-section-icon">🩺</span> Library Health Check</div>';
+                h += '<div class="jh-health-grid">';
+                h += buildHealthItem('📝', d.TotalVideosWithoutSubtitles, d.TotalVideoFileCount,
+                    'videos without subtitles in their folder',
+                    'All videos have subtitle files');
+                h += buildHealthItem('🖼️', d.TotalVideosWithoutImages, d.TotalVideoFileCount,
+                    'videos without poster/artwork',
+                    'All videos have artwork');
+                h += buildHealthItem('🏷️', d.TotalVideosWithoutNfo, d.TotalVideoFileCount,
+                    'videos without NFO metadata',
+                    'All videos have NFO files');
+                h += buildHealthItem('🗑️', d.TotalOrphanedMetadataDirectories, d.TotalOrphanedMetadataDirectories,
+                    'orphaned metadata folders (no video)',
+                    'No orphaned metadata found');
+                h += '</div>';
+
+                // === PER-LIBRARY BREAKDOWN TABLE ===
+                h += '<div class="jh-section"><span class="jh-section-icon">📚</span> Per-Library Breakdown</div>';
+                h += '<div class="jh-table-wrap"><table class="jh-table">';
+                h += '<thead><tr><th>Library</th><th>Type</th><th>Video</th><th>Subs</th><th>Images</th><th>Trickplay</th><th>Other</th><th>Total</th></tr></thead><tbody>';
+                for (var i = 0; i < d.Libraries.length; i++) {
+                    var lib = d.Libraries[i];
+                    h += '<tr>';
+                    h += '<td>' + lib.LibraryName + '</td>';
+                    h += '<td>' + badge(lib.CollectionType) + '</td>';
+                    h += '<td>' + fmt(lib.VideoSize) + '</td>';
+                    h += '<td>' + fmt(lib.SubtitleSize) + '</td>';
+                    h += '<td>' + fmt(lib.ImageSize) + '</td>';
+                    h += '<td>' + fmt(lib.TrickplaySize) + '</td>';
+                    h += '<td>' + fmt(lib.OtherSize + lib.NfoSize + lib.AudioSize) + '</td>';
+                    h += '<td><strong>' + fmt(lib.TotalSize) + '</strong></td>';
+                    h += '</tr>';
+                }
+                h += '</tbody></table></div>';
+
+                return h;
             }
 
             function loadStatistics() {
                 var btn = document.getElementById('btnRefresh');
-                var loading = document.getElementById('loadingIndicator');
-                var placeholder = document.getElementById('statsPlaceholder');
-                var result = document.getElementById('statsResult');
+                var loading = document.getElementById('jhLoading');
+                var placeholder = document.getElementById('jhPlaceholder');
+                var result = document.getElementById('jhResult');
 
                 btn.disabled = true;
                 btn.textContent = '⏳ Scanning…';
@@ -402,24 +558,23 @@
                 var apiClient = ApiClient;
                 var url = apiClient.getUrl('JellyfinHelper/Statistics');
 
-                apiClient.ajax({
-                    type: 'GET',
-                    url: url,
-                    dataType: 'json'
-                }).then(function (data) {
-                    loading.style.display = 'none';
-                    result.innerHTML = renderStats(data);
-                    result.style.display = 'block';
-                    btn.disabled = false;
-                    btn.innerHTML = '&#x21bb; Scan Libraries';
-                }, function (err) {
-                    loading.style.display = 'none';
-                    result.innerHTML = '<div class="error-msg">❌ Failed to load statistics. Make sure you are an administrator.</div>';
-                    result.style.display = 'block';
-                    btn.disabled = false;
-                    btn.innerHTML = '&#x21bb; Scan Libraries';
-                    console.error('Jellyfin Helper: Error loading statistics', err);
-                });
+                apiClient.ajax({ type: 'GET', url: url, dataType: 'json' }).then(
+                    function (data) {
+                        loading.style.display = 'none';
+                        result.innerHTML = renderStats(data);
+                        result.style.display = 'block';
+                        btn.disabled = false;
+                        btn.innerHTML = '&#x21bb; Scan Libraries';
+                    },
+                    function (err) {
+                        loading.style.display = 'none';
+                        result.innerHTML = '<div class="jh-error">❌ Failed to load statistics. Make sure you are an administrator.</div>';
+                        result.style.display = 'block';
+                        btn.disabled = false;
+                        btn.innerHTML = '&#x21bb; Scan Libraries';
+                        console.error('Jellyfin Helper: Error loading statistics', err);
+                    }
+                );
             }
 
             document.getElementById('btnRefresh').addEventListener('click', loadStatistics);

@@ -15,11 +15,27 @@ Automatically deletes top-level media folders whose entire directory tree contai
 - **TV show folders are checked as a whole** — if at least one video exists anywhere in the tree (even in a deeply nested subdirectory), the entire show folder is kept untouched
 - **`.trickplay` folders are skipped** — they are handled by the Trickplay Folder Cleaner task
 
-### 📊 Media Library Statistics
-A settings page that provides an overview of your media library disk usage, broken down by category:
-- **Video Data in Movies** / **Video Data in Series** / **Audio Data in Music**
-- **Trickplay Data**, **Subtitle Data**, **Image Data**, **NFO/Metadata Data**
-- Per-library breakdown with file counts
+### 📊 Media Library Statistics Dashboard
+A comprehensive settings page that provides deep insight into your media library:
+
+**Storage Overview**
+- Stat cards for Movies, TV Shows, Music, Trickplay, Subtitles, and Metadata — each with file counts and formatted sizes
+- Color-coded storage distribution bar with legend and percentages
+
+**Codec & Quality Analysis**
+- Interactive SVG donut charts for **Video Codecs** (HEVC, H.264, AV1, VP9, …), **Resolutions** (4K, 1080p, 720p, …), and **Container Formats** (MKV, MP4, …)
+- Each chart shows file count, percentage, and total size per category
+- Parsed from filenames using high-performance source-generated regex
+
+**Library Health Check**
+- Videos without subtitles, artwork, or NFO metadata — with color-coded severity indicators (green/yellow/red)
+- Detection of orphaned metadata directories (folders with metadata but no video file)
+
+**Per-Library Breakdown**
+- Detailed table with per-library sizes for video, subtitles, images, trickplay, and other files
+- Horizontally scrollable on mobile devices
+
+The entire dashboard is **fully responsive** and optimized for both desktop and mobile browsers.
 
 ### 🔍 Dry Run Mode
 Both cleanup tasks have a corresponding **Dry Run** variant that logs what *would* be deleted without actually deleting anything. Use these to verify the cleanup behavior before enabling the actual cleanup tasks.

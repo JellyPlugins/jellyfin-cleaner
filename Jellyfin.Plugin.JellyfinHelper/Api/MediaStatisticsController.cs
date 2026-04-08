@@ -14,7 +14,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Api;
 /// </summary>
 [ApiController]
 [Authorize(Policy = "RequiresElevation")]
-[Route("JellyfinCleaner")]
+[Route("JellyfinHelper")]
 [Produces(MediaTypeNames.Application.Json)]
 public class MediaStatisticsController : ControllerBase
 {
