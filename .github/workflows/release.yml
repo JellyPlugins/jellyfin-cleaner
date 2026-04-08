@@ -160,4 +160,7 @@ jobs:
 
           This PR was created automatically by the release workflow.
         branch: chore/update-metadata-${{ env.VERSION }}
+        add-paths: |
+          manifest.json
+          build.yaml
         delete-branch: true
