@@ -6,8 +6,7 @@ targetAbi: "10.11.0.0"
 framework: "net9.0"
 overview: "Cleans up orphaned .trickplay folders, empty media folders, and shows library statistics."
 description: >
-  A Jellyfin plugin that automatically cleans up orphaned .trickplay folders,
-  media folders that no longer contain any video files, and provides media library statistics.
+  A Jellyfin plugin that automatically cleans up orphaned .trickplay folders, media folders that no longer contain any video files, and provides media library statistics.
 
 category: "General"
 owner: "JellyPlugins"
