@@ -7,6 +7,7 @@ on:
 
 env:
   PLUGIN_NAME: FiletreeCleaner
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
