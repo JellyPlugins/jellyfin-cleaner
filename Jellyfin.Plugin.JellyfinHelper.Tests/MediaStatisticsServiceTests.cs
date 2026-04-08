@@ -707,4 +707,467 @@ public class MediaStatisticsServiceTests
 
         Assert.Equal(2175, stats.TotalSize);
     }
+
+    // ===== Video Codec Parsing Tests =====
+
+    [Theory]
+    [InlineData("Movie.x265.mkv", "HEVC")]
+    [InlineData("Movie.HEVC.mkv", "HEVC")]
+    [InlineData("Movie.H.265.mkv", "HEVC")]
+    [InlineData("Movie.h265.mkv", "HEVC")]
+    [InlineData("Movie.x264.mkv", "H.264")]
+    [InlineData("Movie.H.264.mkv", "H.264")]
+    [InlineData("Movie.AVC.mkv", "H.264")]
+    [InlineData("Movie.AV1.mkv", "AV1")]
+    [InlineData("Movie.VP9.webm", "VP9")]
+    [InlineData("Movie.XviD.avi", "XviD")]
+    [InlineData("Movie.DivX.avi", "DivX")]
+    [InlineData("Movie.MPEG2.mpg", "MPEG")]
+    [InlineData("Movie.mkv", "Unknown")]
+    public void ParseVideoCodec_DetectsCorrectCodec(string fileName, string expected)
+    {
+        var result = MediaStatisticsService.ParseVideoCodec(fileName);
+        Assert.Equal(expected, result);
+    }
+
+    // ===== Resolution Parsing Tests =====
+
+    [Theory]
+    [InlineData("Movie.2160p.mkv", "4K")]
+    [InlineData("Movie.4K.mkv", "4K")]
+    [InlineData("Movie.UHD.mkv", "4K")]
+    [InlineData("Movie.1080p.mkv", "1080p")]
+    [InlineData("Movie.1080i.mkv", "1080p")]
+    [InlineData("Movie.720p.mkv", "720p")]
+    [InlineData("Movie.480p.mkv", "480p")]
+    [InlineData("Movie.SD.mkv", "480p")]
+    [InlineData("Movie.576p.mkv", "576p")]
+    [InlineData("Movie.mkv", "Unknown")]
+    public void ParseResolution_DetectsCorrectResolution(string fileName, string expected)
+    {
+        var result = MediaStatisticsService.ParseResolution(fileName);
+        Assert.Equal(expected, result);
+    }
+
+    // ===== Audio Codec Parsing Tests =====
+
+    [Theory]
+    [InlineData("Song.FLAC.mp3", ".mp3", "FLAC")]
+    [InlineData("Song.AAC.m4a", ".m4a", "AAC")]
+    [InlineData("Song.Opus.ogg", ".ogg", "Opus")]
+    [InlineData("Song.DTS.mkv", ".mkv", "DTS")]
+    [InlineData("Song.AC3.mkv", ".mkv", "AC3")]
+    [InlineData("Song.EAC3.mkv", ".mkv", "EAC3")]
+    [InlineData("Song.TrueHD.mkv", ".mkv", "TrueHD")]
+    [InlineData("Song.Vorbis.ogg", ".ogg", "Vorbis")]
+    [InlineData("Song.ALAC.m4a", ".m4a", "ALAC")]
+    [InlineData("Song.PCM.wav", ".wav", "PCM")]
+    public void ParseAudioCodec_FromFilenameTag_DetectsCorrectCodec(string fileName, string ext, string expected)
+    {
+        var result = MediaStatisticsService.ParseAudioCodec(fileName, ext);
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData("Song.flac", ".flac", "FLAC")]
+    [InlineData("Track.mp3", ".mp3", "MP3")]
+    [InlineData("Music.ogg", ".ogg", "Vorbis")]
+    [InlineData("Sound.opus", ".opus", "Opus")]
+    [InlineData("Audio.wav", ".wav", "WAV")]
+    [InlineData("Music.wma", ".wma", "WMA")]
+    [InlineData("Song.m4a", ".m4a", "AAC")]
+    [InlineData("Music.aac", ".aac", "AAC")]
+    [InlineData("Lossless.ape", ".ape", "APE")]
+    [InlineData("Music.wv", ".wv", "WavPack")]
+    [InlineData("HiRes.dsf", ".dsf", "DSD")]
+    [InlineData("HiRes.dff", ".dff", "DSD")]
+    public void ParseAudioCodec_FromExtension_DetectsCorrectCodec(string fileName, string ext, string expected)
+    {
+        var result = MediaStatisticsService.ParseAudioCodec(fileName, ext);
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void ParseAudioCodec_UnknownExtension_ReturnsUnknown()
+    {
+        var result = MediaStatisticsService.ParseAudioCodec("file.xyz", ".xyz");
+        Assert.Equal("Unknown", result);
+    }
+
+    // ===== Container Format Tracking Tests =====
+
+    [Fact]
+    public void CalculateStatistics_VideoFiles_TracksContainerFormats()
+    {
+        var libraryPath = TestPath("media", "movies");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film1.mkv"), Name = "Film1.mkv", Length = 1000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film2.mkv"), Name = "Film2.mkv", Length = 2000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film3.mp4"), Name = "Film3.mp4", Length = 3000, IsDirectory = false },
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(2, stats.ContainerFormats["MKV"]);
+        Assert.Equal(1, stats.ContainerFormats["MP4"]);
+        Assert.Equal(3000, stats.ContainerSizes["MKV"]);
+        Assert.Equal(3000, stats.ContainerSizes["MP4"]);
+    }
+
+    // ===== Audio Codec Tracking in Statistics =====
+
+    [Fact]
+    public void CalculateStatistics_AudioFiles_TracksAudioCodecs()
+    {
+        var libraryPath = TestPath("media", "music");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Music",
+            CollectionType = CollectionTypeOptions.music,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = TestPath("media", "music", "Song1.flac"), Name = "Song1.flac", Length = 30_000_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "music", "Song2.flac"), Name = "Song2.flac", Length = 25_000_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "music", "Song3.mp3"), Name = "Song3.mp3", Length = 5_000_000, IsDirectory = false },
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(2, stats.AudioCodecs["FLAC"]);
+        Assert.Equal(1, stats.AudioCodecs["MP3"]);
+        Assert.Equal(55_000_000, stats.AudioCodecSizes["FLAC"]);
+        Assert.Equal(5_000_000, stats.AudioCodecSizes["MP3"]);
+    }
+
+    // ===== Health Check Tests =====
+
+    [Fact]
+    public void CalculateStatistics_VideoWithoutSubtitles_CountedInHealthCheck()
+    {
+        var libraryPath = TestPath("media", "movies");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.mkv"), Name = "Film.mkv", Length = 1_000_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "poster.jpg"), Name = "poster.jpg", Length = 100_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.nfo"), Name = "Film.nfo", Length = 5_000, IsDirectory = false },
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(1, stats.VideosWithoutSubtitles);
+        Assert.Equal(0, stats.VideosWithoutImages);
+        Assert.Equal(0, stats.VideosWithoutNfo);
+    }
+
+    [Fact]
+    public void CalculateStatistics_VideoWithAllMetadata_NoHealthWarnings()
+    {
+        var libraryPath = TestPath("media", "movies");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.mkv"), Name = "Film.mkv", Length = 1_000_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.srt"), Name = "Film.srt", Length = 50_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "poster.jpg"), Name = "poster.jpg", Length = 100_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.nfo"), Name = "Film.nfo", Length = 5_000, IsDirectory = false },
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(0, stats.VideosWithoutSubtitles);
+        Assert.Equal(0, stats.VideosWithoutImages);
+        Assert.Equal(0, stats.VideosWithoutNfo);
+        Assert.Equal(0, stats.OrphanedMetadataDirectories);
+    }
+
+    [Fact]
+    public void CalculateStatistics_OrphanedMetadata_DetectedCorrectly()
+    {
+        var libraryPath = TestPath("media", "movies");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        // Directory with subtitles but no video
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.srt"), Name = "Film.srt", Length = 50_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.nfo"), Name = "Film.nfo", Length = 5_000, IsDirectory = false },
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(1, stats.OrphanedMetadataDirectories);
+    }
+
+    // ===== Resolution & Codec Tracking in Statistics =====
+
+    [Fact]
+    public void CalculateStatistics_VideoWithCodecInFilename_TracksVideoCodecs()
+    {
+        var libraryPath = TestPath("media", "movies");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.x265.1080p.mkv"), Name = "Film.x265.1080p.mkv", Length = 2_000_000_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film2.x264.720p.mkv"), Name = "Film2.x264.720p.mkv", Length = 1_500_000_000, IsDirectory = false },
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(1, stats.VideoCodecs["HEVC"]);
+        Assert.Equal(1, stats.VideoCodecs["H.264"]);
+        Assert.Equal(1, stats.Resolutions["1080p"]);
+        Assert.Equal(1, stats.Resolutions["720p"]);
+    }
+
+    // ===== MediaStatisticsResult Aggregation Tests =====
+
+    [Fact]
+    public void MediaStatisticsResult_Aggregation_SumsCorrectly()
+    {
+        var result = new MediaStatisticsResult();
+
+        var movieLib = new LibraryStatistics
+        {
+            LibraryName = "Movies",
+            CollectionType = "movies",
+            VideoSize = 100,
+            VideoFileCount = 5,
+            AudioSize = 10,
+            AudioFileCount = 2,
+        };
+
+        var tvLib = new LibraryStatistics
+        {
+            LibraryName = "TV",
+            CollectionType = "tvshows",
+            VideoSize = 200,
+            VideoFileCount = 10,
+        };
+
+        var musicLib = new LibraryStatistics
+        {
+            LibraryName = "Music",
+            CollectionType = "music",
+            AudioSize = 50,
+            AudioFileCount = 20,
+        };
+
+        result.Libraries.Add(movieLib);
+        result.Libraries.Add(tvLib);
+        result.Libraries.Add(musicLib);
+        result.Movies.Add(movieLib);
+        result.TvShows.Add(tvLib);
+        result.Music.Add(musicLib);
+
+        Assert.Equal(100, result.TotalMovieVideoSize);
+        Assert.Equal(200, result.TotalTvShowVideoSize);
+        Assert.Equal(50, result.TotalMusicAudioSize);
+        Assert.Equal(15, result.TotalVideoFileCount);
+        Assert.Equal(22, result.TotalAudioFileCount);
+    }
+
+    // ===== StatisticsSnapshot Tests =====
+
+    [Fact]
+    public void StatisticsSnapshot_FromResult_CapturesCorrectValues()
+    {
+        var result = new MediaStatisticsResult();
+        result.ScanTimestamp = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+
+        var lib1 = new LibraryStatistics
+        {
+            LibraryName = "Movies",
+            CollectionType = "movies",
+            VideoSize = 5000,
+            VideoFileCount = 10,
+            SubtitleSize = 100,
+            ImageSize = 200,
+            NfoSize = 50,
+            TrickplaySize = 300,
+        };
+
+        var lib2 = new LibraryStatistics
+        {
+            LibraryName = "Music",
+            CollectionType = "music",
+            AudioSize = 1000,
+            AudioFileCount = 50,
+        };
+
+        result.Libraries.Add(lib1);
+        result.Libraries.Add(lib2);
+        result.Movies.Add(lib1);
+        result.Music.Add(lib2);
+
+        var snapshot = StatisticsSnapshot.FromResult(result);
+
+        Assert.Equal(result.ScanTimestamp, snapshot.Timestamp);
+        Assert.Equal(10, snapshot.TotalVideoFileCount);
+        Assert.Equal(50, snapshot.TotalAudioFileCount);
+        Assert.Equal(5000, snapshot.TotalMovieVideoSize);
+        Assert.Equal(0, snapshot.TotalTvShowVideoSize);
+        Assert.Equal(1000, snapshot.TotalMusicAudioSize);
+        Assert.Equal(300, snapshot.TotalTrickplaySize);
+        Assert.Equal(100, snapshot.TotalSubtitleSize);
+        Assert.Equal(200, snapshot.TotalImageSize);
+        Assert.Equal(50, snapshot.TotalNfoSize);
+        Assert.Equal(5650 + 1000, snapshot.TotalSize);
+        Assert.Equal(2, snapshot.LibrarySizes.Count);
+        Assert.Equal(5650, snapshot.LibrarySizes["Movies"]);
+        Assert.Equal(1000, snapshot.LibrarySizes["Music"]);
+    }
+
+    [Fact]
+    public void StatisticsSnapshot_FromResult_NullThrows()
+    {
+        Assert.Throws<ArgumentNullException>(() => StatisticsSnapshot.FromResult(null!));
+    }
+
+    // ===== PathValidator Tests =====
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("   ", false)]
+    public void PathValidator_IsSafePath_RejectsEmptyInput(string? path, bool expected)
+    {
+        Assert.Equal(expected, PathValidator.IsSafePath(path, "/base"));
+    }
+
+    [Fact]
+    public void PathValidator_IsSafePath_RejectsTraversal()
+    {
+        Assert.False(PathValidator.IsSafePath("/base/../etc/passwd", "/base"));
+        Assert.False(PathValidator.IsSafePath("/base/sub/../../etc", "/base"));
+    }
+
+    [Fact]
+    public void PathValidator_IsSafePath_RejectsNullBytes()
+    {
+        Assert.False(PathValidator.IsSafePath("/base/file\0.txt", "/base"));
+    }
+
+    [Fact]
+    public void PathValidator_SanitizeFileName_RemovesDirectoryComponents()
+    {
+        var result = PathValidator.SanitizeFileName("../../etc/passwd");
+        Assert.Equal("passwd", result);
+    }
+
+    [Fact]
+    public void PathValidator_SanitizeFileName_HandlesEmptyInput()
+    {
+        Assert.Equal("export", PathValidator.SanitizeFileName(""));
+        Assert.Equal("export", PathValidator.SanitizeFileName("   "));
+    }
+
+    [Fact]
+    public void PathValidator_SanitizeFileName_PreservesValidName()
+    {
+        Assert.Equal("report.csv", PathValidator.SanitizeFileName("report.csv"));
+    }
+
+    // ===== MediaExtensions Codec Mapping Tests =====
+
+    [Fact]
+    public void MediaExtensions_AudioExtensionToCodec_ContainsAllAudioExtensions()
+    {
+        // Every audio extension should have a codec mapping
+        foreach (var ext in MediaExtensions.AudioExtensions)
+        {
+            Assert.True(
+                MediaExtensions.AudioExtensionToCodec.ContainsKey(ext),
+                $"Audio extension '{ext}' has no codec mapping in AudioExtensionToCodec");
+        }
+    }
+
+    [Fact]
+    public void MediaExtensions_AudioExtensionToCodec_ReturnsCorrectCodecs()
+    {
+        Assert.Equal("FLAC", MediaExtensions.AudioExtensionToCodec[".flac"]);
+        Assert.Equal("MP3", MediaExtensions.AudioExtensionToCodec[".mp3"]);
+        Assert.Equal("AAC", MediaExtensions.AudioExtensionToCodec[".aac"]);
+        Assert.Equal("AAC", MediaExtensions.AudioExtensionToCodec[".m4a"]);
+        Assert.Equal("Opus", MediaExtensions.AudioExtensionToCodec[".opus"]);
+        Assert.Equal("Vorbis", MediaExtensions.AudioExtensionToCodec[".ogg"]);
+        Assert.Equal("DSD", MediaExtensions.AudioExtensionToCodec[".dsf"]);
+    }
+
+    [Fact]
+    public void MediaExtensions_AudioExtensionToCodec_IsCaseInsensitive()
+    {
+        Assert.Equal("FLAC", MediaExtensions.AudioExtensionToCodec[".FLAC"]);
+        Assert.Equal("MP3", MediaExtensions.AudioExtensionToCodec[".Mp3"]);
+    }
 }

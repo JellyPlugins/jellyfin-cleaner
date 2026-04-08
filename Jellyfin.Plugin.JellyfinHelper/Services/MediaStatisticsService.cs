@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
@@ -11,7 +13,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services;
 /// <summary>
 /// Service that calculates media file statistics per library type.
 /// </summary>
-public class MediaStatisticsService
+public partial class MediaStatisticsService
 {
     private readonly ILibraryManager _libraryManager;
     private readonly IFileSystem _fileSystem;
@@ -63,7 +65,6 @@ public class MediaStatisticsService
 
             result.Libraries.Add(libraryStats);
 
-            // Aggregate into category totals
             if (isTvShows)
             {
                 result.TvShows.Add(libraryStats);
@@ -94,36 +95,68 @@ public class MediaStatisticsService
     {
         try
         {
-            var files = _fileSystem.GetFiles(directoryPath, false);
+            var files = _fileSystem.GetFiles(directoryPath, false).ToList();
+
+            bool hasVideo = false;
+            bool hasSubs = false;
+            bool hasImage = false;
+            bool hasNfo = false;
+            bool hasAnyNonTrickplayFile = false;
+
             foreach (var file in files)
             {
                 var ext = Path.GetExtension(file.FullName);
                 var size = file.Length;
+                hasAnyNonTrickplayFile = true;
 
                 if (MediaExtensions.VideoExtensions.Contains(ext))
                 {
                     stats.VideoSize += size;
                     stats.VideoFileCount++;
+                    hasVideo = true;
+
+                    // Container format tracking
+                    var container = ext.TrimStart('.').ToUpperInvariant();
+                    FileSystemHelper.IncrementCount(stats.ContainerFormats, container);
+                    FileSystemHelper.AccumulateValue(stats.ContainerSizes, container, size);
+
+                    // Resolution parsing from filename
+                    var resolution = ParseResolution(file.Name);
+                    FileSystemHelper.IncrementCount(stats.Resolutions, resolution);
+                    FileSystemHelper.AccumulateValue(stats.ResolutionSizes, resolution, size);
+
+                    // Video codec parsing from filename
+                    var codec = ParseVideoCodec(file.Name);
+                    FileSystemHelper.IncrementCount(stats.VideoCodecs, codec);
+                    FileSystemHelper.AccumulateValue(stats.VideoCodecSizes, codec, size);
                 }
                 else if (MediaExtensions.SubtitleExtensions.Contains(ext))
                 {
                     stats.SubtitleSize += size;
                     stats.SubtitleFileCount++;
+                    hasSubs = true;
                 }
                 else if (MediaExtensions.ImageExtensions.Contains(ext))
                 {
                     stats.ImageSize += size;
                     stats.ImageFileCount++;
+                    hasImage = true;
                 }
                 else if (MediaExtensions.NfoExtensions.Contains(ext))
                 {
                     stats.NfoSize += size;
                     stats.NfoFileCount++;
+                    hasNfo = true;
                 }
                 else if (MediaExtensions.AudioExtensions.Contains(ext))
                 {
                     stats.AudioSize += size;
                     stats.AudioFileCount++;
+
+                    // Audio codec parsing from filename and extension
+                    var audioCodec = ParseAudioCodec(file.Name, ext);
+                    FileSystemHelper.IncrementCount(stats.AudioCodecs, audioCodec);
+                    FileSystemHelper.AccumulateValue(stats.AudioCodecSizes, audioCodec, size);
                 }
                 else
                 {
@@ -132,13 +165,37 @@ public class MediaStatisticsService
                 }
             }
 
-            // Check for trickplay folders
+            // Health checks — per-directory analysis
+            if (hasVideo)
+            {
+                int videoCount = files.Count(f => MediaExtensions.VideoExtensions.Contains(Path.GetExtension(f.FullName)));
+                if (!hasSubs)
+                {
+                    stats.VideosWithoutSubtitles += videoCount;
+                }
+
+                if (!hasImage)
+                {
+                    stats.VideosWithoutImages += videoCount;
+                }
+
+                if (!hasNfo)
+                {
+                    stats.VideosWithoutNfo += videoCount;
+                }
+            }
+            else if (hasAnyNonTrickplayFile && (hasSubs || hasImage || hasNfo))
+            {
+                stats.OrphanedMetadataDirectories++;
+            }
+
+            // Recurse into subdirectories
             var subDirs = _fileSystem.GetDirectories(directoryPath, false);
             foreach (var subDir in subDirs)
             {
                 if (subDir.Name.EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
                 {
-                    var trickplaySize = CalculateDirectorySize(subDir.FullName);
+                    var trickplaySize = FileSystemHelper.CalculateDirectorySize(_fileSystem, subDir.FullName, _logger);
                     stats.TrickplaySize += trickplaySize;
                     stats.TrickplayFolderCount++;
                 }
@@ -155,30 +212,216 @@ public class MediaStatisticsService
     }
 
     /// <summary>
-    /// Calculates the total size of all files in a directory tree.
+    /// Parses a resolution tier from a video filename.
     /// </summary>
-    /// <param name="directoryPath">The directory path.</param>
-    /// <returns>The total size in bytes.</returns>
-    private long CalculateDirectorySize(string directoryPath)
+    /// <param name="fileName">The video filename.</param>
+    /// <returns>A resolution label such as "4K", "1080p", "720p", "480p", or "Unknown".</returns>
+    internal static string ParseResolution(string fileName)
     {
-        long totalSize = 0;
-
-        try
+        if (ResolutionRegex4K().IsMatch(fileName))
         {
-            var files = _fileSystem.GetFiles(directoryPath, false);
-            totalSize += files.Sum(f => f.Length);
-
-            var subDirs = _fileSystem.GetDirectories(directoryPath, false);
-            foreach (var subDir in subDirs)
-            {
-                totalSize += CalculateDirectorySize(subDir.FullName);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _logger.LogWarning(ex, "Could not access directory {Path}", directoryPath);
+            return "4K";
         }
 
-        return totalSize;
+        if (ResolutionRegex1080().IsMatch(fileName))
+        {
+            return "1080p";
+        }
+
+        if (ResolutionRegex720().IsMatch(fileName))
+        {
+            return "720p";
+        }
+
+        if (ResolutionRegex480().IsMatch(fileName))
+        {
+            return "480p";
+        }
+
+        if (ResolutionRegex576().IsMatch(fileName))
+        {
+            return "576p";
+        }
+
+        return "Unknown";
     }
+
+    /// <summary>
+    /// Parses a video codec from a video filename.
+    /// </summary>
+    /// <param name="fileName">The video filename.</param>
+    /// <returns>A codec label such as "HEVC", "H.264", "AV1", "VP9", "MPEG", or "Unknown".</returns>
+    internal static string ParseVideoCodec(string fileName)
+    {
+        if (CodecRegexHevc().IsMatch(fileName))
+        {
+            return "HEVC";
+        }
+
+        if (CodecRegexH264().IsMatch(fileName))
+        {
+            return "H.264";
+        }
+
+        if (CodecRegexAv1().IsMatch(fileName))
+        {
+            return "AV1";
+        }
+
+        if (CodecRegexVp9().IsMatch(fileName))
+        {
+            return "VP9";
+        }
+
+        if (CodecRegexMpeg().IsMatch(fileName))
+        {
+            return "MPEG";
+        }
+
+        if (CodecRegexXvid().IsMatch(fileName))
+        {
+            return "XviD";
+        }
+
+        if (CodecRegexDivx().IsMatch(fileName))
+        {
+            return "DivX";
+        }
+
+        return "Unknown";
+    }
+
+    /// <summary>
+    /// Parses an audio codec from a filename and its extension.
+    /// </summary>
+    /// <param name="fileName">The audio filename.</param>
+    /// <param name="extension">The file extension (with leading dot).</param>
+    /// <returns>A codec label such as "AAC", "FLAC", "MP3", "Opus", "Vorbis", "WAV", "WMA", or "Unknown".</returns>
+    internal static string ParseAudioCodec(string fileName, string extension)
+    {
+        // First try to detect from filename tags (e.g. "Song.FLAC.mp3" or "[AAC]")
+        if (AudioCodecRegexFlac().IsMatch(fileName))
+        {
+            return "FLAC";
+        }
+
+        if (AudioCodecRegexAac().IsMatch(fileName))
+        {
+            return "AAC";
+        }
+
+        if (AudioCodecRegexOpus().IsMatch(fileName))
+        {
+            return "Opus";
+        }
+
+        if (AudioCodecRegexDts().IsMatch(fileName))
+        {
+            return "DTS";
+        }
+
+        if (AudioCodecRegexAc3().IsMatch(fileName))
+        {
+            return "AC3";
+        }
+
+        if (AudioCodecRegexEac3().IsMatch(fileName))
+        {
+            return "EAC3";
+        }
+
+        if (AudioCodecRegexTrueHd().IsMatch(fileName))
+        {
+            return "TrueHD";
+        }
+
+        if (AudioCodecRegexVorbis().IsMatch(fileName))
+        {
+            return "Vorbis";
+        }
+
+        if (AudioCodecRegexPcm().IsMatch(fileName))
+        {
+            return "PCM";
+        }
+
+        if (AudioCodecRegexAlac().IsMatch(fileName))
+        {
+            return "ALAC";
+        }
+
+        // Fall back to extension-based detection via MediaExtensions mapping
+        return MediaExtensions.AudioExtensionToCodec.TryGetValue(extension, out var codecFromExt)
+            ? codecFromExt
+            : "Unknown";
+    }
+
+    // Source-generated regex patterns for resolution detection
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(](2160p|4k|uhd)[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex ResolutionRegex4K();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(]1080[pi][\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex ResolutionRegex1080();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(]720p[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex ResolutionRegex720();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(](480p|sd)[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex ResolutionRegex480();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(]576p[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex ResolutionRegex576();
+
+    // Source-generated regex patterns for video codec detection
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(](hevc|h\.?265|x\.?265)[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex CodecRegexHevc();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(](h\.?264|x\.?264|avc)[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex CodecRegexH264();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(]av1[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex CodecRegexAv1();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(]vp9[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex CodecRegexVp9();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(](mpeg[24]?|mp2v)[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex CodecRegexMpeg();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(]xvid[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex CodecRegexXvid();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(]divx[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex CodecRegexDivx();
+
+    // Source-generated regex patterns for audio codec detection
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(]flac[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex AudioCodecRegexFlac();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(]aac[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex AudioCodecRegexAac();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(]opus[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex AudioCodecRegexOpus();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(](dts[\-_ ]?(hd|ma|x)?|dts)[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex AudioCodecRegexDts();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(](ac[\-_ ]?3|dolby[\-_ ]?digital)[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex AudioCodecRegexAc3();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(](eac[\-_ ]?3|ddp|dolby[\-_ ]?digital[\-_ ]?plus|atmos)[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex AudioCodecRegexEac3();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(](truehd|true[\-_ ]?hd)[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex AudioCodecRegexTrueHd();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(]vorbis[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex AudioCodecRegexVorbis();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(](pcm|lpcm)[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex AudioCodecRegexPcm();
+
+    [GeneratedRegex(@"(?i)[\.\-_ \[\(]alac[\.\-_ \]\)]", RegexOptions.None)]
+    private static partial Regex AudioCodecRegexAlac();
 }

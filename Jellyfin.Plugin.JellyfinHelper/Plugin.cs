@@ -25,7 +25,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     }
 
     /// <inheritdoc />
-    public override string Name => "Jellyfin Cleaner";
+    public override string Name => "Jellyfin Helper";
 
     /// <inheritdoc />
     public override Guid Id => Guid.Parse("0c737645-5cbb-4bd8-80c7-d377b560aaa4");

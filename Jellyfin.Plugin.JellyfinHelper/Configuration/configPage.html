@@ -5,7 +5,7 @@
     <title>Jellyfin Helper</title>
     <style>
         .stats-container {
-            max-width: 900px;
+            max-width: 960px;
             margin: 1em auto;
         }
 
@@ -14,21 +14,32 @@
             align-items: center;
             justify-content: space-between;
             margin-bottom: 1.5em;
+            flex-wrap: wrap;
+            gap: 0.5em;
         }
 
         .stats-header h2 {
             margin: 0;
         }
 
-        .refresh-btn {
+        .header-actions {
+            display: flex;
+            gap: 0.5em;
+            flex-wrap: wrap;
+        }
+
+        .refresh-btn, .export-btn {
             padding: 0.5em 1.2em;
             border: none;
             border-radius: 4px;
-            background: #00a4dc;
             color: #fff;
             cursor: pointer;
             font-size: 0.95em;
             transition: background 0.2s;
+        }
+
+        .refresh-btn {
+            background: #00a4dc;
         }
 
         .refresh-btn:hover {
@@ -36,6 +47,19 @@
         }
 
         .refresh-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        .export-btn {
+            background: #2ecc71;
+        }
+
+        .export-btn:hover {
+            background: #27ae60;
+        }
+
+        .export-btn:disabled {
             background: #555;
             cursor: not-allowed;
         }
@@ -218,6 +242,152 @@
             border-radius: 2px;
             flex-shrink: 0;
         }
+
+        /* Donut chart styles */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5em;
+            margin: 1em 0 2em 0;
+        }
+
+        @media (max-width: 700px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 1.2em;
+            text-align: center;
+        }
+
+        .chart-box h4 {
+            margin: 0 0 0.8em 0;
+            font-size: 0.95em;
+            opacity: 0.8;
+        }
+
+        .donut-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .donut-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5em;
+            justify-content: center;
+            margin-top: 0.8em;
+            font-size: 0.8em;
+        }
+
+        .donut-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3em;
+        }
+
+        .donut-legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* Health check styles */
+        .health-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1em;
+            margin: 1em 0;
+        }
+
+        .health-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            padding: 0.8em 1em;
+            text-align: center;
+        }
+
+        .health-item .health-value {
+            font-size: 1.5em;
+            font-weight: 700;
+        }
+
+        .health-ok { color: #2ecc71; }
+        .health-warn { color: #e67e22; }
+        .health-bad { color: #e74c3c; }
+
+        .health-item .health-label {
+            font-size: 0.8em;
+            opacity: 0.6;
+            margin-top: 0.2em;
+        }
+
+        /* Trend graph */
+        .trend-container {
+            margin: 1em 0 2em 0;
+        }
+
+        .trend-chart {
+            width: 100%;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .trend-empty {
+            text-align: center;
+            padding: 2em;
+            opacity: 0.5;
+            font-size: 0.9em;
+        }
+
+        /* Tabs */
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1.5em;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tab-btn {
+            padding: 0.6em 1.2em;
+            border: none;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+            font-size: 0.95em;
+            opacity: 0.6;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: opacity 0.2s, border-color 0.2s;
+        }
+
+        .tab-btn:hover {
+            opacity: 0.9;
+        }
+
+        .tab-btn.active {
+            opacity: 1;
+            border-bottom-color: #00a4dc;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -228,9 +398,13 @@
                 <div class="stats-container">
                     <div class="stats-header">
                         <h2>Jellyfin Helper — Media Statistics</h2>
-                        <button id="btnRefresh" class="refresh-btn" is="emby-button">
-                            &#x21bb; Scan Libraries
-                        </button>
+                        <div class="header-actions">
+                            <button id="btnExportJson" class="export-btn" disabled>📥 JSON</button>
+                            <button id="btnExportCsv" class="export-btn" disabled>📥 CSV</button>
+                            <button id="btnRefresh" class="refresh-btn" is="emby-button">
+                                &#x21bb; Scan Libraries
+                            </button>
+                        </div>
                     </div>
 
                     <div id="statsContent">
@@ -252,6 +426,12 @@
         (function () {
             'use strict';
 
+            var DONUT_COLORS = [
+                '#00a4dc', '#e67e22', '#2ecc71', '#e74c3c', '#9b59b6',
+                '#f1c40f', '#1abc9c', '#3498db', '#e91e63', '#ff9800',
+                '#795548', '#607d8b', '#8bc34a', '#00bcd4', '#ff5722'
+            ];
+
             function formatBytes(bytes) {
                 if (bytes === 0) return '0 B';
                 var units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -272,12 +452,68 @@
                 return '<span class="badge badge-other">' + (type || 'Mixed') + '</span>';
             }
 
+            // SVG donut chart generator
+            function renderDonutChart(data, size) {
+                size = size || 160;
+                var entries = [];
+                var total = 0;
+                for (var key in data) {
+                    if (data.hasOwnProperty(key) && data[key] > 0) {
+                        entries.push({ label: key, value: data[key] });
+                        total += data[key];
+                    }
+                }
+                if (total === 0) return '<p style="opacity:0.5;">No data</p>';
+
+                // Sort by value descending
+                entries.sort(function (a, b) { return b.value - a.value; });
+
+                var cx = size / 2, cy = size / 2, r = size * 0.38, strokeWidth = size * 0.18;
+                var circumference = 2 * Math.PI * r;
+                var offset = 0;
+
+                var svg = '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '">';
+
+                // Background circle
+                svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="' + strokeWidth + '"/>';
+
+                for (var i = 0; i < entries.length; i++) {
+                    var pct = entries[i].value / total;
+                    var dashLen = pct * circumference;
+                    var dashGap = circumference - dashLen;
+                    var color = DONUT_COLORS[i % DONUT_COLORS.length];
+
+                    svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" ' +
+                        'stroke="' + color + '" stroke-width="' + strokeWidth + '" ' +
+                        'stroke-dasharray="' + dashLen.toFixed(2) + ' ' + dashGap.toFixed(2) + '" ' +
+                        'stroke-dashoffset="' + (-offset).toFixed(2) + '" ' +
+                        'transform="rotate(-90 ' + cx + ' ' + cy + ')">' +
+                        '<title>' + entries[i].label + ': ' + (pct * 100).toFixed(1) + '%</title></circle>';
+
+                    offset += dashLen;
+                }
+
+                svg += '</svg>';
+
+                // Legend
+                var legend = '<div class="donut-legend">';
+                for (var j = 0; j < entries.length; j++) {
+                    var c = DONUT_COLORS[j % DONUT_COLORS.length];
+                    var p = (entries[j].value / total * 100).toFixed(1);
+                    legend += '<div class="donut-legend-item">' +
+                        '<div class="donut-legend-dot" style="background:' + c + '"></div>' +
+                        entries[j].label + ' (' + p + '%)</div>';
+                }
+                legend += '</div>';
+
+                return '<div class="donut-container">' + svg + '</div>' + legend;
+            }
+
             function buildBarSegments(data) {
                 var total = data.TotalMovieVideoSize + data.TotalTvShowVideoSize +
                     data.TotalSubtitleSize + data.TotalImageSize + data.TotalTrickplaySize +
                     data.TotalNfoSize + data.TotalMusicAudioSize;
 
-                // Add "other" from all libraries
                 var otherSize = 0;
                 for (var i = 0; i < data.Libraries.length; i++) {
                     otherSize += data.Libraries[i].OtherSize;
@@ -323,8 +559,124 @@
                 return barHtml;
             }
 
+            // Aggregate dictionaries across libraries
+            function aggregateDict(libraries, prop) {
+                var result = {};
+                for (var i = 0; i < libraries.length; i++) {
+                    var dict = libraries[i][prop];
+                    if (dict) {
+                        for (var key in dict) {
+                            if (dict.hasOwnProperty(key)) {
+                                result[key] = (result[key] || 0) + dict[key];
+                            }
+                        }
+                    }
+                }
+                return result;
+            }
+
+            function renderHealthChecks(data) {
+                var totalNoSubs = 0, totalNoImages = 0, totalNoNfo = 0, totalOrphaned = 0;
+                for (var i = 0; i < data.Libraries.length; i++) {
+                    totalNoSubs += data.Libraries[i].VideosWithoutSubtitles || 0;
+                    totalNoImages += data.Libraries[i].VideosWithoutImages || 0;
+                    totalNoNfo += data.Libraries[i].VideosWithoutNfo || 0;
+                    totalOrphaned += data.Libraries[i].OrphanedMetadataDirectories || 0;
+                }
+
+                var html = '<div class="health-grid">';
+
+                html += '<div class="health-item"><div class="health-value ' + (totalNoSubs > 0 ? 'health-warn' : 'health-ok') + '">' + totalNoSubs + '</div>';
+                html += '<div class="health-label">Videos without subtitles</div></div>';
+
+                html += '<div class="health-item"><div class="health-value ' + (totalNoImages > 0 ? 'health-warn' : 'health-ok') + '">' + totalNoImages + '</div>';
+                html += '<div class="health-label">Videos without images</div></div>';
+
+                html += '<div class="health-item"><div class="health-value ' + (totalNoNfo > 0 ? 'health-warn' : 'health-ok') + '">' + totalNoNfo + '</div>';
+                html += '<div class="health-label">Videos without NFO</div></div>';
+
+                html += '<div class="health-item"><div class="health-value ' + (totalOrphaned > 0 ? 'health-bad' : 'health-ok') + '">' + totalOrphaned + '</div>';
+                html += '<div class="health-label">Orphaned metadata dirs</div></div>';
+
+                html += '</div>';
+                return html;
+            }
+
+            function renderTrendChart(snapshots) {
+                if (!snapshots || snapshots.length < 2) {
+                    return '<div class="trend-empty">Not enough historical data yet. Trend data is collected with each scan.</div>';
+                }
+
+                var width = 880, height = 180, padL = 60, padR = 20, padT = 15, padB = 30;
+                var chartW = width - padL - padR;
+                var chartH = height - padT - padB;
+
+                // Find min/max
+                var maxSize = 0;
+                for (var i = 0; i < snapshots.length; i++) {
+                    if (snapshots[i].totalSize > maxSize) maxSize = snapshots[i].totalSize;
+                }
+                if (maxSize === 0) maxSize = 1;
+
+                // Build points
+                var points = [];
+                var step = snapshots.length > 1 ? chartW / (snapshots.length - 1) : 0;
+                for (var j = 0; j < snapshots.length; j++) {
+                    var x = padL + j * step;
+                    var y = padT + chartH - (snapshots[j].totalSize / maxSize * chartH);
+                    points.push(x.toFixed(1) + ',' + y.toFixed(1));
+                }
+
+                var svg = '<svg width="100%" viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="xMidYMid meet">';
+
+                // Grid lines
+                for (var g = 0; g <= 4; g++) {
+                    var gy = padT + (chartH / 4) * g;
+                    var val = maxSize - (maxSize / 4) * g;
+                    svg += '<line x1="' + padL + '" y1="' + gy + '" x2="' + (width - padR) + '" y2="' + gy + '" stroke="rgba(255,255,255,0.06)" />';
+                    svg += '<text x="' + (padL - 5) + '" y="' + (gy + 4) + '" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="10">' + formatBytes(val) + '</text>';
+                }
+
+                // Area fill
+                var areaPoints = padL + ',' + (padT + chartH) + ' ' + points.join(' ') + ' ' + (padL + (snapshots.length - 1) * step) + ',' + (padT + chartH);
+                svg += '<polygon points="' + areaPoints + '" fill="rgba(0,164,220,0.15)" />';
+
+                // Line
+                svg += '<polyline points="' + points.join(' ') + '" fill="none" stroke="#00a4dc" stroke-width="2" />';
+
+                // Data points
+                for (var k = 0; k < points.length; k++) {
+                    var coords = points[k].split(',');
+                    var ts = snapshots[k].timestamp ? new Date(snapshots[k].timestamp).toLocaleDateString() : '';
+                    svg += '<circle cx="' + coords[0] + '" cy="' + coords[1] + '" r="3" fill="#00a4dc">' +
+                        '<title>' + ts + ': ' + formatBytes(snapshots[k].totalSize) + '</title></circle>';
+                }
+
+                // X-axis labels (first and last)
+                if (snapshots.length > 0) {
+                    var firstDate = snapshots[0].timestamp ? new Date(snapshots[0].timestamp).toLocaleDateString() : '';
+                    var lastDate = snapshots[snapshots.length - 1].timestamp ? new Date(snapshots[snapshots.length - 1].timestamp).toLocaleDateString() : '';
+                    svg += '<text x="' + padL + '" y="' + (height - 5) + '" text-anchor="start" fill="rgba(255,255,255,0.4)" font-size="10">' + firstDate + '</text>';
+                    svg += '<text x="' + (width - padR) + '" y="' + (height - 5) + '" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="10">' + lastDate + '</text>';
+                }
+
+                svg += '</svg>';
+                return '<div class="trend-chart">' + svg + '</div>';
+            }
+
             function renderStats(data) {
                 var html = '';
+
+                // Tab bar
+                html += '<div class="tab-bar">';
+                html += '<button class="tab-btn active" data-tab="overview">Overview</button>';
+                html += '<button class="tab-btn" data-tab="codecs">Codecs</button>';
+                html += '<button class="tab-btn" data-tab="health">Health</button>';
+                html += '<button class="tab-btn" data-tab="trends">Trends</button>';
+                html += '</div>';
+
+                // === OVERVIEW TAB ===
+                html += '<div class="tab-content active" id="tab-overview">';
 
                 // Summary cards
                 html += '<div class="stats-grid">';
@@ -342,6 +694,11 @@
                 html += '<p class="stat-detail">' + formatCount(tvFiles, 'episode') + ' across ' + formatCount(data.TvShows.length, 'library', 'libraries') + '</p>';
                 html += '</div>';
 
+                html += '<div class="stat-card"><h3>🎵 Music / Audio</h3>';
+                html += '<p class="stat-value">' + formatBytes(data.TotalMusicAudioSize) + '</p>';
+                html += '<p class="stat-detail">' + formatCount(data.TotalAudioFileCount, 'file') + '</p>';
+                html += '</div>';
+
                 html += '<div class="stat-card"><h3>🖼️ Trickplay Data</h3>';
                 html += '<p class="stat-value">' + formatBytes(data.TotalTrickplaySize) + '</p>';
                 var trickplayFolders = 0;
@@ -355,6 +712,11 @@
                 for (var sb = 0; sb < data.Libraries.length; sb++) subFiles += data.Libraries[sb].SubtitleFileCount;
                 html += '<p class="stat-detail">' + formatCount(subFiles, 'file') + '</p>';
                 html += '</div>';
+
+                html += '<div class="stat-card"><h3>📊 Total Files</h3>';
+                html += '<p class="stat-value">' + formatCount(data.TotalVideoFileCount + data.TotalAudioFileCount, 'media file') + '</p>';
+                html += '<p class="stat-detail">' + formatCount(data.TotalVideoFileCount, 'video') + ', ' + formatCount(data.TotalAudioFileCount, 'audio') + '</p>';
+                html += '</div>';
                 html += '</div>';
 
                 // Storage distribution bar
@@ -365,7 +727,7 @@
                 html += '<div class="section-title">Per-Library Breakdown</div>';
                 html += '<table class="library-table">';
                 html += '<thead><tr>';
-                html += '<th>Library</th><th>Type</th><th>Video</th><th>Subtitles</th><th>Images</th><th>Trickplay</th><th>Other</th><th>Total</th>';
+                html += '<th>Library</th><th>Type</th><th>Video</th><th>Audio</th><th>Subtitles</th><th>Images</th><th>Trickplay</th><th>Total</th>';
                 html += '</tr></thead><tbody>';
 
                 for (var i = 0; i < data.Libraries.length; i++) {
@@ -374,17 +736,113 @@
                     html += '<td>' + lib.LibraryName + '</td>';
                     html += '<td>' + getCollectionBadge(lib.CollectionType) + '</td>';
                     html += '<td>' + formatBytes(lib.VideoSize) + '</td>';
+                    html += '<td>' + formatBytes(lib.AudioSize) + '</td>';
                     html += '<td>' + formatBytes(lib.SubtitleSize) + '</td>';
                     html += '<td>' + formatBytes(lib.ImageSize) + '</td>';
                     html += '<td>' + formatBytes(lib.TrickplaySize) + '</td>';
-                    html += '<td>' + formatBytes(lib.OtherSize + lib.NfoSize + lib.AudioSize) + '</td>';
                     html += '<td><strong>' + formatBytes(lib.TotalSize) + '</strong></td>';
                     html += '</tr>';
                 }
 
                 html += '</tbody></table>';
+                html += '</div>'; // end overview tab
+
+                // === CODECS TAB ===
+                html += '<div class="tab-content" id="tab-codecs">';
+
+                var videoCodecs = aggregateDict(data.Libraries, 'VideoCodecs');
+                var audioCodecs = aggregateDict(data.Libraries, 'AudioCodecs');
+                var containers = aggregateDict(data.Libraries, 'ContainerFormats');
+                var resolutions = aggregateDict(data.Libraries, 'Resolutions');
+
+                html += '<div class="charts-row">';
+
+                html += '<div class="chart-box"><h4>🎬 Video Codecs</h4>';
+                html += renderDonutChart(videoCodecs);
+                html += '</div>';
+
+                html += '<div class="chart-box"><h4>🎵 Audio Codecs</h4>';
+                html += renderDonutChart(audioCodecs);
+                html += '</div>';
+
+                html += '<div class="chart-box"><h4>📦 Container Formats</h4>';
+                html += renderDonutChart(containers);
+                html += '</div>';
+
+                html += '<div class="chart-box"><h4>📐 Resolutions</h4>';
+                html += renderDonutChart(resolutions);
+                html += '</div>';
+
+                html += '</div>'; // charts-row
+                html += '</div>'; // end codecs tab
+
+                // === HEALTH TAB ===
+                html += '<div class="tab-content" id="tab-health">';
+                html += '<div class="section-title">Library Health Checks</div>';
+                html += renderHealthChecks(data);
+                html += '</div>'; // end health tab
+
+                // === TRENDS TAB (placeholder, filled async) ===
+                html += '<div class="tab-content" id="tab-trends">';
+                html += '<div class="section-title">Library Growth Trend</div>';
+                html += '<div id="trendChartContainer"><div class="trend-empty">Loading trend data…</div></div>';
+                html += '</div>'; // end trends tab
 
                 return html;
+            }
+
+            function initTabs() {
+                var tabBtns = document.querySelectorAll('.tab-btn');
+                for (var i = 0; i < tabBtns.length; i++) {
+                    tabBtns[i].addEventListener('click', function () {
+                        var tabId = this.getAttribute('data-tab');
+
+                        // Deactivate all
+                        var allBtns = document.querySelectorAll('.tab-btn');
+                        var allContent = document.querySelectorAll('.tab-content');
+                        for (var j = 0; j < allBtns.length; j++) allBtns[j].classList.remove('active');
+                        for (var k = 0; k < allContent.length; k++) allContent[k].classList.remove('active');
+
+                        // Activate selected
+                        this.classList.add('active');
+                        var target = document.getElementById('tab-' + tabId);
+                        if (target) target.classList.add('active');
+                    });
+                }
+            }
+
+            function loadTrendData() {
+                var apiClient = ApiClient;
+                var url = apiClient.getUrl('JellyfinCleaner/Statistics/History');
+
+                apiClient.ajax({
+                    type: 'GET',
+                    url: url,
+                    dataType: 'json'
+                }).then(function (snapshots) {
+                    var container = document.getElementById('trendChartContainer');
+                    if (container) {
+                        container.innerHTML = renderTrendChart(snapshots);
+                    }
+                }, function () {
+                    var container = document.getElementById('trendChartContainer');
+                    if (container) {
+                        container.innerHTML = '<div class="trend-empty">Could not load trend data.</div>';
+                    }
+                });
+            }
+
+            function triggerExport(format) {
+                var apiClient = ApiClient;
+                var url = apiClient.getUrl('JellyfinCleaner/Statistics/Export/' + format);
+
+                // Create a temporary link and trigger download
+                var link = document.createElement('a');
+                link.href = url;
+                link.download = '';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             }
 
             function loadStatistics() {
@@ -400,7 +858,7 @@
                 result.style.display = 'none';
 
                 var apiClient = ApiClient;
-                var url = apiClient.getUrl('JellyfinHelper/Statistics');
+                var url = apiClient.getUrl('JellyfinCleaner/Statistics');
 
                 apiClient.ajax({
                     type: 'GET',
@@ -412,6 +870,16 @@
                     result.style.display = 'block';
                     btn.disabled = false;
                     btn.innerHTML = '&#x21bb; Scan Libraries';
+
+                    // Enable export buttons
+                    document.getElementById('btnExportJson').disabled = false;
+                    document.getElementById('btnExportCsv').disabled = false;
+
+                    // Initialize tabs
+                    initTabs();
+
+                    // Load trend data async
+                    loadTrendData();
                 }, function (err) {
                     loading.style.display = 'none';
                     result.innerHTML = '<div class="error-msg">❌ Failed to load statistics. Make sure you are an administrator.</div>';
@@ -423,6 +891,8 @@
             }
 
             document.getElementById('btnRefresh').addEventListener('click', loadStatistics);
+            document.getElementById('btnExportJson').addEventListener('click', function () { triggerExport('Json'); });
+            document.getElementById('btnExportCsv').addEventListener('click', function () { triggerExport('Csv'); });
         })();
     </script>
 </body>

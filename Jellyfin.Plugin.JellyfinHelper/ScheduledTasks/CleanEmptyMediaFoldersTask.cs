@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.JellyfinHelper.Services;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Tasks;
@@ -89,10 +90,7 @@ public class CleanEmptyMediaFoldersTask : IScheduledTask
             _logger.LogInformation("Starting empty media folder cleanup.");
         }
 
-        var libraryFolders = _libraryManager.GetVirtualFolders()
-            .SelectMany(f => f.Locations)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var libraryFolders = LibraryPathResolver.GetDistinctLibraryLocations(_libraryManager);
 
         int totalDeleted = 0;
 

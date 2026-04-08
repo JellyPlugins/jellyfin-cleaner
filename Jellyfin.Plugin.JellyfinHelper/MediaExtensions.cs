@@ -100,6 +100,32 @@ internal static class MediaExtensions
         ".ogg",
         ".wma",
         ".m4a",
-        ".opus"
+        ".opus",
+        ".ape",
+        ".wv",
+        ".mka",
+        ".dsf",
+        ".dff"
+    };
+
+    /// <summary>
+    /// Gets a mapping from audio file extension (with leading dot) to a human-readable codec name.
+    /// Used as a fallback when no codec tag is found in the filename.
+    /// </summary>
+    internal static Dictionary<string, string> AudioExtensionToCodec { get; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { ".mp3", "MP3" },
+        { ".flac", "FLAC" },
+        { ".wav", "WAV" },
+        { ".aac", "AAC" },
+        { ".ogg", "Vorbis" },
+        { ".wma", "WMA" },
+        { ".m4a", "AAC" },
+        { ".opus", "Opus" },
+        { ".ape", "APE" },
+        { ".wv", "WavPack" },
+        { ".mka", "Unknown" },
+        { ".dsf", "DSD" },
+        { ".dff", "DSD" }
     };
 }

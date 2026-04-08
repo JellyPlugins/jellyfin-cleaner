@@ -2,16 +2,40 @@
   {
     "guid": "0c737645-5cbb-4bd8-80c7-d377b560aaa4",
     "name": "Jellyfin Helper",
-    "description": "Cleans up orphaned .trickplay folders, media folders without video files, and provides media library statistics.",
-    "overview": "Cleans up orphaned .trickplay folders, empty media folders, and shows library statistics.",
+    "description": "Cleans up orphaned .trickplay folders, media folders without video files, and provides media library statistics with audio codec analysis, export, caching, and historical trends.",
+    "overview": "Cleans up orphaned .trickplay folders, empty media folders, and shows library statistics with export and trend tracking.",
     "owner": "JellyPlugins",
     "category": "General",
     "versions": [
       {
+        "version": "2.0.1",
+        "changelog": "Added audio codec analysis (AAC, FLAC, MP3, Opus, DTS, AC3, TrueHD, etc.), JSON/CSV export, historical trend graph, 5-minute IMemoryCache caching, rate limiting, input validation, path traversal protection, and shared utility refactoring (LibraryPathResolver, FileSystemHelper).",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/JellyPlugins/jellyfin-helper/releases/download/2.0.1/JellyfinHelper_2.0.1.zip",
+        "checksum": "placeholder",
+        "timestamp": "2026-04-09T00:00:00Z"
+      },
+      {
         "version": "2.0.0",
-        "changelog": "Renamed to Jellyfin Helper. Added media library statistics page. Trickplay folder cleanup, empty media folder cleanup, dry-run modes.",
+        "changelog": "Breaking changes: Renamed to Jellyfin Helper. Added media library statistics page. Trickplay folder cleanup, empty media folder cleanup, dry-run modes.",
         "targetAbi": "10.11.0.0",
         "sourceUrl": "https://github.com/JellyPlugins/jellyfin-helper/releases/download/2.0.0/JellyfinHelper_2.0.0.zip",
+        "checksum": "placeholder",
+        "timestamp": "2026-04-09T00:00:00Z"
+      },
+      {
+        "version": "1.0.1",
+        "changelog": "Improvements and bug fixes.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/JellyPlugins/jellyfin-helper/releases/download/1.0.1/JellyfinHelper_1.0.1.zip",
+        "checksum": "placeholder",
+        "timestamp": "2026-04-09T00:00:00Z"
+      },
+      {
+        "version": "1.0.0",
+        "changelog": "Initial version with trickplay folder cleanup, empty media folder cleanup, and dry-run modes for both.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/JellyPlugins/jellyfin-helper/releases/download/1.0.0/JellyfinHelper_1.0.0.zip",
         "checksum": "placeholder",
         "timestamp": "2026-04-09T00:00:00Z"
       }
