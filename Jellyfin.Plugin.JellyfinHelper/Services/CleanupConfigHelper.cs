@@ -65,6 +65,14 @@ public static class CleanupConfigHelper
                 return false;
             }
 
+            // Fallback: also exclude by name pattern in case CollectionType is null/unknown
+            // (e.g. for manually created or migrated libraries)
+            if (name.Contains("collection", StringComparison.OrdinalIgnoreCase)
+                || name.Contains("boxset", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
             // If whitelist is set, only include listed libraries
             if (includedSet.Count > 0 && !includedSet.Contains(name))
             {
@@ -80,8 +88,12 @@ public static class CleanupConfigHelper
             return true;
         });
 
+        // Additional safety: filter out any locations that point to Jellyfin's internal
+        // collections directory (typically /config/data/collections or similar).
         return filteredFolders
             .SelectMany(f => f.Locations)
+            .Where(loc => !loc.Contains("/collections", StringComparison.OrdinalIgnoreCase)
+                       && !loc.Contains("\\collections", StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
     }

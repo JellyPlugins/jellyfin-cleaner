@@ -174,13 +174,28 @@ public class CleanEmptyMediaFoldersTask : IScheduledTask
                     continue;
                 }
 
+                // Skip boxset/collection folders — these are Jellyfin-internal and must never be deleted.
+                // They typically have "[boxset]" in the folder name or reside under a collections path.
+                if (topDir.Name.Contains("[boxset]", StringComparison.OrdinalIgnoreCase)
+                    || topDir.Name.Contains("[collection]", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 // Check the entire tree in a single pass: does it contain any files at all,
-                // and does it contain any video files? This avoids traversing the tree twice.
-                var (hasAnyFiles, hasVideoFiles) = AnalyzeDirectoryRecursive(topDir.FullName);
+                // any video files, or any audio files? This avoids traversing the tree multiple times.
+                var (hasAnyFiles, hasVideoFiles, hasAudioFiles) = AnalyzeDirectoryRecursive(topDir.FullName);
 
                 // If the folder tree is completely empty (no files at all), skip it.
                 // Empty folders are often pre-created by tools like Radarr/Sonarr for "wanted" media.
                 if (!hasAnyFiles)
+                {
+                    continue;
+                }
+
+                // If the folder contains audio files, it belongs to a music library → skip it.
+                // Music folders only have audio files (no video), so they must not be treated as orphaned.
+                if (hasAudioFiles)
                 {
                     continue;
                 }
@@ -238,23 +253,30 @@ public class CleanEmptyMediaFoldersTask : IScheduledTask
 
     /// <summary>
     /// Analyzes a directory tree in a single recursive pass, determining whether
-    /// any files exist and whether any of them are video files.
+    /// any files exist, whether any of them are video files, and whether any are audio files.
     /// </summary>
     /// <param name="directoryPath">The directory to analyze.</param>
-    /// <returns>A tuple indicating whether any files exist and whether any video files exist.</returns>
-    private (bool HasAnyFiles, bool HasVideoFiles) AnalyzeDirectoryRecursive(string directoryPath)
+    /// <returns>A tuple indicating whether any files exist, whether any video files exist, and whether any audio files exist.</returns>
+    private (bool HasAnyFiles, bool HasVideoFiles, bool HasAudioFiles) AnalyzeDirectoryRecursive(string directoryPath)
     {
         bool hasAnyFiles = false;
+        bool hasAudioFiles = false;
 
         // Check files in the directory itself
         var files = _fileSystem.GetFiles(directoryPath, false);
         foreach (var file in files)
         {
             hasAnyFiles = true;
-            if (MediaExtensions.VideoExtensions.Contains(Path.GetExtension(file.FullName)))
+            var ext = Path.GetExtension(file.FullName);
+            if (MediaExtensions.VideoExtensions.Contains(ext))
             {
-                // Video found – no need to scan further
-                return (true, true);
+                // Video found – no need to scan further (video takes priority)
+                return (true, true, hasAudioFiles);
+            }
+
+            if (MediaExtensions.AudioExtensions.Contains(ext))
+            {
+                hasAudioFiles = true;
             }
         }
 
@@ -262,16 +284,17 @@ public class CleanEmptyMediaFoldersTask : IScheduledTask
         var subDirs = _fileSystem.GetDirectories(directoryPath, false);
         foreach (var subDir in subDirs)
         {
-            var (subHasAnyFiles, subHasVideoFiles) = AnalyzeDirectoryRecursive(subDir.FullName);
+            var (subHasAnyFiles, subHasVideoFiles, subHasAudioFiles) = AnalyzeDirectoryRecursive(subDir.FullName);
             hasAnyFiles |= subHasAnyFiles;
+            hasAudioFiles |= subHasAudioFiles;
             if (subHasVideoFiles)
             {
                 // Video found deeper in the tree – no need to scan further
-                return (true, true);
+                return (true, true, hasAudioFiles);
             }
         }
 
-        return (hasAnyFiles, false);
+        return (hasAnyFiles, false, hasAudioFiles);
     }
 
     private void PurgeExpiredTrashForAllLibraries(IReadOnlyList<string> libraryFolders, int retentionDays)

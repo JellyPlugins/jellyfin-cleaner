@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.4] — 2026-04-09
+
+### Fixed
+- **Critical: Music folders and Boxset/Collection folders are now fully protected** — Multiple layers of protection added:
+  - Audio files (`.mp3`, `.flac`, `.wav`, `.aac`, `.m4a`, `.ogg`, `.opus`, `.wma`, `.ape`, `.alac`) are now recognized as valid media content, so folders containing only audio are no longer flagged as "empty".
+  - Folders with `[boxset]` or `[collection]` tags in their name are always skipped, regardless of library type.
+  - Collections path locations (`/collections`) are filtered out at the library location level.
+  - **Bug fix**: `GetFilteredLibraryLocations()` computed a `safeLocations` variable with collections-path filtering but then returned the unfiltered list — now correctly returns the filtered list.
+
+### Changed
+- **Test coverage** increased to 196 tests (15 new tests for audio recognition, boxset/collection protection, and collections path filtering).
+
+## [2.0.3] — 2026-04-09
+
+### Fixed
+- **Scan Libraries button** now works reliably with retry-based DOM initialization.
+- Plugin description override for Jellyfin dashboard.
+- Removed unused `ThumbImageUrl` property.
+
 ## [2.0.2] — 2026-04-09
 
 ### Fixed

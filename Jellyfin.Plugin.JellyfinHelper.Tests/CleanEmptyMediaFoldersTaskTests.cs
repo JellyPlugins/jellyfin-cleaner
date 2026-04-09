@@ -439,6 +439,124 @@ public class CleanEmptyMediaFoldersTaskTests
         VerifyLogContains("Would have deleted 1 folders", LogLevel.Information);
     }
 
+    [Fact]
+    public async Task ExecuteInternalAsync_FolderWithAudioFiles_IsSkipped()
+    {
+        const string libraryPath = "/media/movies";
+        const string musicDir = "/media/movies/SomeArtist";
+
+        SetupLibrary(libraryPath);
+        SetupTopLevelDirs(libraryPath, ("SomeArtist", musicDir));
+
+        SetupFilesWithFullNames(musicDir, "/media/movies/SomeArtist/track01.mp3", "/media/movies/SomeArtist/track02.flac");
+        SetupSubDirs(musicDir);
+
+        await _task.ExecuteInternalAsync(true, new Progress<double>(), CancellationToken.None);
+
+        VerifyLogNeverContains("[Dry Run] Would delete empty media folder", LogLevel.Information);
+    }
+
+    [Fact]
+    public async Task ExecuteInternalAsync_FolderWithNestedAudioFiles_IsSkipped()
+    {
+        const string libraryPath = "/media/music";
+        const string artistDir = "/media/music/Drake";
+        const string albumDir = "/media/music/Drake/Album1";
+
+        SetupLibrary(libraryPath);
+        SetupTopLevelDirs(libraryPath, ("Drake", artistDir));
+
+        SetupFiles(artistDir, "artist.nfo");
+        SetupSubDirs(artistDir, ("Album1", albumDir));
+
+        SetupFilesWithFullNames(albumDir, "/media/music/Drake/Album1/song.mp3");
+        SetupSubDirs(albumDir);
+
+        await _task.ExecuteInternalAsync(true, new Progress<double>(), CancellationToken.None);
+
+        VerifyLogNeverContains("[Dry Run] Would delete empty media folder", LogLevel.Information);
+    }
+
+    [Fact]
+    public async Task ExecuteInternalAsync_BoxsetFolder_IsSkipped()
+    {
+        const string libraryPath = "/config/data/collections";
+        const string boxsetDir = "/config/data/collections/Star Wars Filmreihe [boxset]";
+
+        SetupLibrary(libraryPath);
+        SetupTopLevelDirs(libraryPath, ("Star Wars Filmreihe [boxset]", boxsetDir));
+
+        SetupFiles(boxsetDir);
+        SetupSubDirs(boxsetDir);
+
+        await _task.ExecuteInternalAsync(true, new Progress<double>(), CancellationToken.None);
+
+        VerifyLogNeverContains("[Dry Run] Would delete empty media folder", LogLevel.Information);
+    }
+
+    [Fact]
+    public async Task ExecuteInternalAsync_CollectionFolder_IsSkipped()
+    {
+        const string libraryPath = "/some/path";
+        const string collectionDir = "/some/path/My Favorites [collection]";
+
+        SetupLibrary(libraryPath);
+        SetupTopLevelDirs(libraryPath, ("My Favorites [collection]", collectionDir));
+
+        SetupFiles(collectionDir, "collection.xml");
+        SetupSubDirs(collectionDir);
+
+        await _task.ExecuteInternalAsync(true, new Progress<double>(), CancellationToken.None);
+
+        VerifyLogNeverContains("[Dry Run] Would delete empty media folder", LogLevel.Information);
+    }
+
+    [Theory]
+    [InlineData(".mp3")]
+    [InlineData(".flac")]
+    [InlineData(".wav")]
+    [InlineData(".aac")]
+    [InlineData(".m4a")]
+    [InlineData(".opus")]
+    [InlineData(".wma")]
+    [InlineData(".ape")]
+    [InlineData(".MP3")]
+    [InlineData(".FLAC")]
+    public async Task ExecuteInternalAsync_VariousAudioExtensions_FolderIsSkipped(string extension)
+    {
+        const string libraryPath = "/media/music";
+        const string artistDir = "/media/music/Artist";
+
+        SetupLibrary(libraryPath);
+        SetupTopLevelDirs(libraryPath, ("Artist", artistDir));
+
+        SetupFilesWithFullNames(artistDir, "/media/music/Artist/track" + extension);
+        SetupSubDirs(artistDir);
+
+        await _task.ExecuteInternalAsync(true, new Progress<double>(), CancellationToken.None);
+
+        VerifyLogNeverContains("[Dry Run] Would delete empty media folder", LogLevel.Information);
+    }
+
+    [Fact]
+    public async Task ExecuteInternalAsync_CollectionsPathLibrary_IsFilteredOutByLocation()
+    {
+        const string collectionsPath = "/config/data/collections";
+
+        // Library with null CollectionType but location contains "collections"
+        var folder = new VirtualFolderInfo
+        {
+            Name = "My Collections",
+            Locations = [collectionsPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([folder]);
+
+        await _task.ExecuteInternalAsync(true, new Progress<double>(), CancellationToken.None);
+
+        // Should not be scanned due to path-based filter
+        _fileSystemMock.Verify(f => f.GetDirectories(collectionsPath, false), Times.Never);
+    }
+
     // ========== Helper methods ==========
 
     private void SetupLibrary(string libraryPath)
