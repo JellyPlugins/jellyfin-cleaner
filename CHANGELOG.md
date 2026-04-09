@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] — 2026-04-09
+
+### Fixed
+- **Plugin Logo 404** — `logo.png` now included as physical file in release ZIP alongside `meta.json` with `"imagePath": "logo.png"`. Jellyfin 10.11 serves plugin images from disk, not from embedded resources.
+- **SanitizeFileName Null-Char** — `PathValidator.SanitizeFileName` now correctly replaces `\0` (null byte) and all invalid filename characters.
+- **Duplicate Config UI** — Removed duplicated "Cleanup Statistics" section in `configPage.html`.
+
+### Changed
+- **Plugin.cs** — Removed unused `GetThumbImage()` method and `System.IO`/`System.Reflection` imports.
+- **Release ZIP** — Now contains `logo.png` + auto-generated `meta.json` (with guid, version, imagePath, assembly).
+
+---
+
 ## [1.0.2] — 2026-04-09
 
 ### Fixed

@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
@@ -39,16 +37,6 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// Gets the current plugin instance.
     /// </summary>
     public static Plugin? Instance { get; private set; }
-
-    /// <summary>
-    /// Gets the plugin thumb image stream from the embedded resource.
-    /// </summary>
-    /// <returns>The image stream, or null if the resource is not found.</returns>
-    public Stream? GetThumbImage()
-    {
-        return Assembly.GetExecutingAssembly().GetManifestResourceStream(
-            GetType().Namespace + ".logo.png");
-    }
 
     /// <inheritdoc />
     public IEnumerable<PluginPageInfo> GetPages()
