@@ -60,14 +60,22 @@ internal static class PathValidator
             return "export";
         }
 
-        // Strip any directory separators
-        var name = Path.GetFileName(fileName);
-
-        // Remove invalid filename characters
-        foreach (var c in Path.GetInvalidFileNameChars())
+        // Replace invalid filename characters first (except directory separators,
+        // which are needed by Path.GetFileName to strip directory components).
+        // This avoids passing characters like '\0' into Path.GetFileName, which
+        // can behave unexpectedly on some platforms.
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var name = fileName;
+        foreach (var c in invalidChars)
         {
-            name = name.Replace(c, '_');
+            if (c != Path.DirectorySeparatorChar && c != Path.AltDirectorySeparatorChar)
+            {
+                name = name.Replace(c, '_');
+            }
         }
+
+        // Strip any directory separators
+        name = Path.GetFileName(name);
 
         return string.IsNullOrWhiteSpace(name) ? "export" : name;
     }
