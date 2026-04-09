@@ -5,14 +5,11 @@ on:
   push:
     branches: [main]
     paths:
-    - "manifest.json"
     - "Jellyfin.Plugin.JellyfinHelper/**"
-    - "build.yaml"
     - "Directory.Build.props"
 
 permissions:
   contents: write
-  pull-requests: write
 
 env:
   PLUGIN_NAME: JellyfinHelper
@@ -21,7 +18,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Skip if this push is from the metadata update PR
     if: "!contains(github.event.head_commit.message, '[skip release]')"
 
     steps:
@@ -40,13 +36,25 @@ jobs:
         VERSION=$(jq -r '.[0].versions[0].version' manifest.json)
         echo "VERSION=$VERSION" >> $GITHUB_ENV
 
+    - name: Check if tag already exists (remote)
+      run: |
+        if git ls-remote --tags origin | grep -q "refs/tags/$VERSION$"; then
+          echo "TAG_EXISTS=true" >> $GITHUB_ENV
+          echo "::warning::Tag $VERSION already exists — skipping entire release."
+        else
+          echo "TAG_EXISTS=false" >> $GITHUB_ENV
+        fi
+
     - name: Restore
+      if: env.TAG_EXISTS == 'false'
       run: dotnet restore
 
     - name: Run tests
+      if: env.TAG_EXISTS == 'false'
       run: dotnet test --configuration Release --no-restore --verbosity normal
 
     - name: Publish plugin
+      if: env.TAG_EXISTS == 'false'
       run: |
         dotnet publish Jellyfin.Plugin.JellyfinHelper/Jellyfin.Plugin.JellyfinHelper.csproj \
           -c Release \
@@ -57,68 +65,28 @@ jobs:
           -p:InformationalVersion=${VERSION}
 
     - name: Create release package
+      if: env.TAG_EXISTS == 'false'
       run: |
         mkdir package
         cp publish/*.dll package/
-        cp publish/*.pdb package/ 2>/dev/null || true
         cd package
         zip ../${PLUGIN_NAME}_${VERSION}.zip *
 
-    - name: Upload build artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: ${{ env.PLUGIN_NAME }}_${{ env.VERSION }}
-        path: ${{ env.PLUGIN_NAME }}_${{ env.VERSION }}.zip
-        retention-days: 5
-
-  release:
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-
-    - name: Install jq and yq
-      run: |
-        sudo apt-get update && sudo apt-get install -y jq
-        sudo wget -qO /usr/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-        sudo chmod +x /usr/bin/yq
-
-    - name: Read version and changelog from manifest
-      run: |
-        VERSION=$(jq -r '.[0].versions[0].version' manifest.json)
-        CHANGELOG=$(jq -r '.[0].versions[0].changelog' manifest.json)
-
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-        echo "CHANGELOG<<EOF" >> $GITHUB_ENV
-        echo "$CHANGELOG" >> $GITHUB_ENV
-        echo "EOF" >> $GITHUB_ENV
-
-    - name: Download build artifact
-      uses: actions/download-artifact@v8
-      with:
-        name: ${{ env.PLUGIN_NAME }}_${{ env.VERSION }}
-
     - name: Generate checksums
+      if: env.TAG_EXISTS == 'false'
       run: |
         md5sum ${PLUGIN_NAME}_${VERSION}.zip | cut -d ' ' -f1 > checksum_md5.txt
         sha256sum ${PLUGIN_NAME}_${VERSION}.zip | cut -d ' ' -f1 > checksum_sha256.txt
         echo "CHECKSUM=$(cat checksum_md5.txt)" >> $GITHUB_ENV
         echo "CHECKSUM_SHA256=$(cat checksum_sha256.txt)" >> $GITHUB_ENV
 
-    - name: Check if tag already exists
-      id: tag_check
+    - name: Read changelog from manifest
+      if: env.TAG_EXISTS == 'false'
       run: |
-        if git rev-parse "$VERSION" >/dev/null 2>&1; then
-          echo "TAG_EXISTS=true" >> $GITHUB_ENV
-          echo "::warning::Tag $VERSION already exists — skipping release."
-        else
-          echo "TAG_EXISTS=false" >> $GITHUB_ENV
-        fi
+        CHANGELOG=$(jq -r '.[0].versions[0].changelog' manifest.json)
+        echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+        echo "$CHANGELOG" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
 
     - name: Create tag
       if: env.TAG_EXISTS == 'false'
@@ -146,7 +114,7 @@ jobs:
           ${{ env.PLUGIN_NAME }}_${{ env.VERSION }}.zip
           checksum_sha256.txt
 
-    - name: Update manifest and build.yaml metadata
+    - name: Update metadata and push directly to main
       if: env.TAG_EXISTS == 'false'
       run: |
         DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${VERSION}/${PLUGIN_NAME}_${VERSION}.zip"
@@ -159,8 +127,10 @@ jobs:
            .[0].versions[0].timestamp = (now | todateiso8601) |
            .[0].versions[0].sourceUrl = $url
            ' manifest.json > manifest.tmp
-
         mv manifest.tmp manifest.json
+
+        sudo wget -qO /usr/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+        sudo chmod +x /usr/bin/yq
 
         yq eval -i '
           .version = strenv(VERSION) |
@@ -169,19 +139,11 @@ jobs:
           .changelog = strenv(CHANGELOG)
         ' build.yaml
 
-    - name: Create metadata update PR
-      if: env.TAG_EXISTS == 'false'
-      uses: peter-evans/create-pull-request@v7
-      with:
-        commit-message: "chore: update release metadata for ${{ env.VERSION }} [skip release]"
-        title: "chore: update release metadata for ${{ env.VERSION }}"
-        body: |
-          Automated PR to update `manifest.json` and `build.yaml` with release metadata for version `${{ env.VERSION }}`.
+        echo "$CHECKSUM" > checksum_md5.txt
+        echo "$CHECKSUM_SHA256" > checksum_sha256.txt
 
-          - ✅ Checksum: `${{ env.CHECKSUM }}`
-          - ✅ Timestamp: updated
-          - ✅ Source URL: updated
-
-          This PR was created automatically by the release workflow.
-        branch: chore/update-metadata-${{ env.VERSION }}
-        delete-branch: true
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add manifest.json build.yaml checksum_md5.txt checksum_sha256.txt
+        git commit -m "chore: update release metadata for ${VERSION} [skip release]"
+        git push origin main
