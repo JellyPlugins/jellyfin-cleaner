@@ -776,6 +776,7 @@
                 }
 
                 html += '</tbody></table>';
+                html += '<div id="cleanup-stats-container"></div>';
                 html += '</div>'; // end overview tab
 
                 // === CODECS TAB ===
@@ -1090,8 +1091,8 @@
             function loadCleanupStats() {
                 var apiClient = ApiClient;
                 apiClient.ajax({ type: 'GET', url: apiClient.getUrl('JellyfinHelper/Cleanup/Statistics'), dataType: 'json' }).then(function (stats) {
-                    var overviewTab = document.getElementById('tab-overview');
-                    if (!overviewTab) return;
+                    var cleanupContainer = document.getElementById('cleanup-stats-container');
+                    if (!cleanupContainer) return;
                     var h = '<div class="section-title">🧹 Cleanup Statistics</div>';
                     h += '<div class="stats-grid">';
                     h += '<div class="stat-card highlight"><h3>Total Space Freed</h3>';
@@ -1101,7 +1102,7 @@
                     var lastTs = stats.LastCleanupTimestamp && stats.LastCleanupTimestamp !== '0001-01-01T00:00:00' ? new Date(stats.LastCleanupTimestamp).toLocaleString() : 'Never';
                     h += '<p class="stat-detail">Last cleanup: ' + lastTs + '</p></div>';
                     h += '</div>';
-                    overviewTab.insertAdjacentHTML('beforeend', h);
+                    cleanupContainer.innerHTML = h;
                 });
             }
 

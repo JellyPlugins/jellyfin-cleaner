@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/JellyPlugins/jellyfin-helper/main/Jellyfin.Plugin.JellyfinHelper/logo.png",
     "versions": [
       {
+        "version": "1.0.3",
+        "changelog": "Fixed plugin logo 404 (logo.png now included as physical file in release ZIP with meta.json imagePath), fixed SanitizeFileName null-char handling, removed duplicate Cleanup Statistics UI section, removed unused GetThumbImage method, 244 tests.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/JellyPlugins/jellyfin-helper/releases/download/1.0.3/JellyfinHelper_1.0.3.zip",
+        "checksum": "",
+        "timestamp": "2026-04-09T10:57:00Z"
+      },
+      {
         "version": "1.0.2",
         "changelog": "Fixed subtitle false positives (explicit ISO 639 allowlists instead of naive 2-3 letter heuristic), moved SubtitleFlags/KnownLanguageCodes to MediaExtensions, ArrIntegrationService now uses IHttpClientFactory, CleanupTrackingService thread-safety with lock, specific exception handling, removed _ = ex anti-pattern, 244 tests.",
         "targetAbi": "10.11.0.0",
