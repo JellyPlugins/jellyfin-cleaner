@@ -15,24 +15,22 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services;
 /// </summary>
 public class ArrIntegrationService
 {
-    private static readonly HttpClient SharedHttpClient = new()
-    {
-        Timeout = TimeSpan.FromSeconds(30)
-    };
-
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
     };
 
+    private readonly HttpClient _httpClient;
     private readonly ILogger _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ArrIntegrationService"/> class.
     /// </summary>
+    /// <param name="httpClient">The HTTP client (should be obtained from <c>IHttpClientFactory</c>).</param>
     /// <param name="logger">The logger.</param>
-    public ArrIntegrationService(ILogger logger)
+    public ArrIntegrationService(HttpClient httpClient, ILogger logger)
     {
+        _httpClient = httpClient;
         _logger = logger;
     }
 
@@ -56,7 +54,7 @@ public class ArrIntegrationService
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Add("X-Api-Key", apiKey);
 
-            var response = await SharedHttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -72,7 +70,7 @@ public class ArrIntegrationService
                 Path = m.Path ?? string.Empty,
             }).ToList();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException)
         {
             _logger.LogError(ex, "Failed to fetch movies from Radarr at {Url}", baseUrl);
             return new List<ArrMovie>();
@@ -99,7 +97,7 @@ public class ArrIntegrationService
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Add("X-Api-Key", apiKey);
 
-            var response = await SharedHttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -116,7 +114,7 @@ public class ArrIntegrationService
                 TotalEpisodeCount = s.Statistics?.TotalEpisodeCount ?? 0,
             }).ToList();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException)
         {
             _logger.LogError(ex, "Failed to fetch series from Sonarr at {Url}", baseUrl);
             return new List<ArrSeries>();
@@ -135,6 +133,11 @@ public class ArrIntegrationService
     {
         var result = new ArrComparisonResult();
 
+        // Ensure case-insensitive comparison regardless of caller's HashSet comparer
+        var jellyfinNames = jellyfinFolderNames.Comparer == StringComparer.OrdinalIgnoreCase
+            ? jellyfinFolderNames
+            : new HashSet<string>(jellyfinFolderNames, StringComparer.OrdinalIgnoreCase);
+
         foreach (var movie in radarrMovies)
         {
             var folderName = System.IO.Path.GetFileName(movie.Path.TrimEnd('/').TrimEnd('\\'));
@@ -143,7 +146,7 @@ public class ArrIntegrationService
                 continue;
             }
 
-            if (jellyfinFolderNames.Contains(folderName))
+            if (jellyfinNames.Contains(folderName))
             {
                 result.InBoth.Add(movie.Title);
             }
@@ -164,7 +167,7 @@ public class ArrIntegrationService
                 .Where(n => !string.IsNullOrEmpty(n)),
             StringComparer.OrdinalIgnoreCase);
 
-        foreach (var folderName in jellyfinFolderNames.Where(f => !radarrFolderNames.Contains(f)))
+        foreach (var folderName in jellyfinNames.Where(f => !radarrFolderNames.Contains(f)))
         {
             result.InJellyfinOnly.Add(folderName);
         }
@@ -184,6 +187,11 @@ public class ArrIntegrationService
     {
         var result = new ArrComparisonResult();
 
+        // Ensure case-insensitive comparison regardless of caller's HashSet comparer
+        var jellyfinNames = jellyfinFolderNames.Comparer == StringComparer.OrdinalIgnoreCase
+            ? jellyfinFolderNames
+            : new HashSet<string>(jellyfinFolderNames, StringComparer.OrdinalIgnoreCase);
+
         foreach (var series in sonarrSeries)
         {
             var folderName = System.IO.Path.GetFileName(series.Path.TrimEnd('/').TrimEnd('\\'));
@@ -192,7 +200,7 @@ public class ArrIntegrationService
                 continue;
             }
 
-            if (jellyfinFolderNames.Contains(folderName))
+            if (jellyfinNames.Contains(folderName))
             {
                 result.InBoth.Add(series.Title);
             }
@@ -212,7 +220,7 @@ public class ArrIntegrationService
                 .Where(n => !string.IsNullOrEmpty(n)),
             StringComparer.OrdinalIgnoreCase);
 
-        foreach (var folderName in jellyfinFolderNames.Where(f => !sonarrFolderNames.Contains(f)))
+        foreach (var folderName in jellyfinNames.Where(f => !sonarrFolderNames.Contains(f)))
         {
             result.InJellyfinOnly.Add(folderName);
         }

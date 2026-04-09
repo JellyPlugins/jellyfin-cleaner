@@ -315,6 +315,7 @@ public class CleanOrphanedSubtitlesTask : IScheduledTask
 
     /// <summary>
     /// Determines whether a string segment is a known subtitle suffix (language code or flag).
+    /// Uses explicit allowlists to avoid false positives with non-language segments like "DTS", "HDR", etc.
     /// </summary>
     private static bool IsSubtitleSuffix(string segment)
     {
@@ -323,24 +324,7 @@ public class CleanOrphanedSubtitlesTask : IScheduledTask
             return false;
         }
 
-        // Common flags
-        if (segment.Equals("forced", StringComparison.OrdinalIgnoreCase) ||
-            segment.Equals("sdh", StringComparison.OrdinalIgnoreCase) ||
-            segment.Equals("hi", StringComparison.OrdinalIgnoreCase) ||
-            segment.Equals("cc", StringComparison.OrdinalIgnoreCase) ||
-            segment.Equals("default", StringComparison.OrdinalIgnoreCase) ||
-            segment.Equals("foreign", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // ISO 639-1 (2-letter) or ISO 639-2 (3-letter) language codes
-        if (segment.Length is 2 or 3 && segment.All(char.IsLetter))
-        {
-            return true;
-        }
-
-        return false;
+        return MediaExtensions.SubtitleFlags.Contains(segment) || MediaExtensions.KnownLanguageCodes.Contains(segment);
     }
 
     /// <inheritdoc />

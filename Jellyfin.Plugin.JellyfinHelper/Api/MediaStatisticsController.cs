@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Net.Mime;
 using System.Text;
 using System.Text.Json;
@@ -49,6 +50,7 @@ public class MediaStatisticsController : ControllerBase
     private readonly IFileSystem _fileSystem;
     private readonly MediaStatisticsService _statisticsService;
     private readonly StatisticsHistoryService _historyService;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly IMemoryCache _cache;
     private readonly ILogger<MediaStatisticsController> _logger;
 
@@ -58,6 +60,7 @@ public class MediaStatisticsController : ControllerBase
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="fileSystem">The file system.</param>
     /// <param name="applicationPaths">The application paths.</param>
+    /// <param name="httpClientFactory">The HTTP client factory for Arr API requests.</param>
     /// <param name="cache">The memory cache.</param>
     /// <param name="logger">The controller logger.</param>
     /// <param name="serviceLogger">The statistics service logger.</param>
@@ -66,6 +69,7 @@ public class MediaStatisticsController : ControllerBase
         ILibraryManager libraryManager,
         IFileSystem fileSystem,
         IApplicationPaths applicationPaths,
+        IHttpClientFactory httpClientFactory,
         IMemoryCache cache,
         ILogger<MediaStatisticsController> logger,
         ILogger<MediaStatisticsService> serviceLogger,
@@ -75,6 +79,7 @@ public class MediaStatisticsController : ControllerBase
         _fileSystem = fileSystem;
         _statisticsService = new MediaStatisticsService(libraryManager, fileSystem, serviceLogger);
         _historyService = new StatisticsHistoryService(applicationPaths, historyLogger);
+        _httpClientFactory = httpClientFactory;
         _cache = cache;
         _logger = logger;
     }
@@ -322,7 +327,8 @@ public class MediaStatisticsController : ControllerBase
             return BadRequest(new { message = "Radarr URL and API key must be configured." });
         }
 
-        var arrService = new ArrIntegrationService(_logger);
+        var httpClient = _httpClientFactory.CreateClient("ArrIntegration");
+        var arrService = new ArrIntegrationService(httpClient, _logger);
         var radarrMovies = await arrService.GetRadarrMoviesAsync(config.RadarrUrl, config.RadarrApiKey, cancellationToken).ConfigureAwait(false);
 
         // Get Jellyfin movie folder names
@@ -348,7 +354,8 @@ public class MediaStatisticsController : ControllerBase
             return BadRequest(new { message = "Sonarr URL and API key must be configured." });
         }
 
-        var arrService = new ArrIntegrationService(_logger);
+        var httpClient = _httpClientFactory.CreateClient("ArrIntegration");
+        var arrService = new ArrIntegrationService(httpClient, _logger);
         var sonarrSeries = await arrService.GetSonarrSeriesAsync(config.SonarrUrl, config.SonarrApiKey, cancellationToken).ConfigureAwait(false);
 
         // Get Jellyfin TV show folder names

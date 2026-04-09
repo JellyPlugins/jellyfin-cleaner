@@ -194,8 +194,7 @@ public static class TrashService
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Ignore access errors
-            _ = ex;
+            // Access errors are expected for inaccessible trash directories
         }
 
         return (totalSize, itemCount);
@@ -226,6 +225,12 @@ public static class TrashService
             out timestamp);
     }
 
+    /// <summary>
+    /// Calculates the total size of all files in a directory tree using <see cref="DirectoryInfo"/>.
+    /// This is a self-contained implementation for the trash module which operates outside the
+    /// Jellyfin <c>IFileSystem</c> abstraction. For library paths, prefer
+    /// <see cref="FileSystemHelper.CalculateDirectorySize"/> instead.
+    /// </summary>
     private static long CalculateDirectorySize(string path)
     {
         long size = 0;
@@ -236,8 +241,7 @@ public static class TrashService
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Ignore access errors during size calculation
-            _ = ex;
+            // Access errors are expected for inaccessible directories during size calculation
         }
 
         return size;
