@@ -1,10 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Library;
@@ -18,11 +22,12 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.Api;
 
 /// <summary>
-/// API controller for media statistics with caching, rate limiting, export, and history.
+/// API controller for media statistics with caching, rate limiting, export, history,
+/// cleanup tracking, configuration, trash management, and Arr integration.
 /// </summary>
 [ApiController]
 [Authorize(Policy = "RequiresElevation")]
-[Route("JellyfinCleaner")]
+[Route("JellyfinHelper")]
 [Produces(MediaTypeNames.Application.Json)]
 public class MediaStatisticsController : ControllerBase
 {
@@ -40,6 +45,8 @@ public class MediaStatisticsController : ControllerBase
     // Simple in-memory rate limiting
     private static DateTime _lastScanTime = DateTime.MinValue;
 
+    private readonly ILibraryManager _libraryManager;
+    private readonly IFileSystem _fileSystem;
     private readonly MediaStatisticsService _statisticsService;
     private readonly StatisticsHistoryService _historyService;
     private readonly IMemoryCache _cache;
@@ -64,6 +71,8 @@ public class MediaStatisticsController : ControllerBase
         ILogger<MediaStatisticsService> serviceLogger,
         ILogger<StatisticsHistoryService> historyLogger)
     {
+        _libraryManager = libraryManager;
+        _fileSystem = fileSystem;
         _statisticsService = new MediaStatisticsService(libraryManager, fileSystem, serviceLogger);
         _historyService = new StatisticsHistoryService(applicationPaths, historyLogger);
         _cache = cache;
@@ -194,6 +203,197 @@ public class MediaStatisticsController : ControllerBase
         return Ok(history);
     }
 
+    // === Cleanup Statistics ===
+
+    /// <summary>
+    /// Gets the accumulated cleanup statistics (total bytes freed, items deleted, last cleanup time).
+    /// </summary>
+    /// <returns>The cleanup statistics.</returns>
+    [HttpGet("Cleanup/Statistics")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult GetCleanupStatistics()
+    {
+        var (totalBytesFreed, totalItemsDeleted, lastCleanupTimestamp) = CleanupTrackingService.GetStatistics();
+        return Ok(new
+        {
+            TotalBytesFreed = totalBytesFreed,
+            TotalItemsDeleted = totalItemsDeleted,
+            LastCleanupTimestamp = lastCleanupTimestamp,
+        });
+    }
+
+    // === Configuration ===
+
+    /// <summary>
+    /// Gets the current plugin configuration.
+    /// </summary>
+    /// <returns>The plugin configuration.</returns>
+    [HttpGet("Configuration")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<PluginConfiguration> GetConfiguration()
+    {
+        var config = CleanupConfigHelper.GetConfig();
+        return Ok(config);
+    }
+
+    /// <summary>
+    /// Updates the plugin configuration.
+    /// </summary>
+    /// <param name="updatedConfig">The updated configuration.</param>
+    /// <returns>A status result.</returns>
+    [HttpPost("Configuration")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult UpdateConfiguration([FromBody] PluginConfiguration updatedConfig)
+    {
+        var plugin = Plugin.Instance;
+        if (plugin == null)
+        {
+            return BadRequest(new { message = "Plugin not initialized." });
+        }
+
+        // Validate
+        if (updatedConfig.OrphanMinAgeDays < 0)
+        {
+            return BadRequest(new { message = "OrphanMinAgeDays must be >= 0." });
+        }
+
+        if (updatedConfig.TrashRetentionDays < 0)
+        {
+            return BadRequest(new { message = "TrashRetentionDays must be >= 0." });
+        }
+
+        // Preserve accumulated statistics (don't let the UI overwrite them)
+        var currentConfig = plugin.Configuration;
+        updatedConfig.TotalBytesFreed = currentConfig.TotalBytesFreed;
+        updatedConfig.TotalItemsDeleted = currentConfig.TotalItemsDeleted;
+        updatedConfig.LastCleanupTimestamp = currentConfig.LastCleanupTimestamp;
+
+        plugin.UpdateConfiguration(updatedConfig);
+
+        _logger.LogInformation("Plugin configuration updated.");
+        return Ok(new { message = "Configuration saved." });
+    }
+
+    // === Trash Management ===
+
+    /// <summary>
+    /// Gets a summary of all trash folders across libraries.
+    /// </summary>
+    /// <returns>The trash summary.</returns>
+    [HttpGet("Trash/Summary")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult GetTrashSummary()
+    {
+        var libraryFolders = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
+        long totalSize = 0;
+        int totalItems = 0;
+
+        foreach (var folder in libraryFolders)
+        {
+            var trashPath = CleanupConfigHelper.GetTrashPath(folder);
+            var (size, count) = TrashService.GetTrashSummary(trashPath);
+            totalSize += size;
+            totalItems += count;
+        }
+
+        return Ok(new
+        {
+            TotalSize = totalSize,
+            TotalItems = totalItems,
+        });
+    }
+
+    // === Arr Integration ===
+
+    /// <summary>
+    /// Compares Radarr movies with Jellyfin movie libraries.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The comparison result.</returns>
+    [HttpGet("Arr/Radarr/Compare")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ArrComparisonResult>> CompareRadarrAsync(CancellationToken cancellationToken)
+    {
+        var config = CleanupConfigHelper.GetConfig();
+        if (string.IsNullOrWhiteSpace(config.RadarrUrl) || string.IsNullOrWhiteSpace(config.RadarrApiKey))
+        {
+            return BadRequest(new { message = "Radarr URL and API key must be configured." });
+        }
+
+        var arrService = new ArrIntegrationService(_logger);
+        var radarrMovies = await arrService.GetRadarrMoviesAsync(config.RadarrUrl, config.RadarrApiKey, cancellationToken).ConfigureAwait(false);
+
+        // Get Jellyfin movie folder names
+        var movieFolders = GetJellyfinFolderNames("movies");
+        var result = ArrIntegrationService.CompareRadarrWithJellyfin(radarrMovies, movieFolders);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Compares Sonarr series with Jellyfin TV libraries.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The comparison result.</returns>
+    [HttpGet("Arr/Sonarr/Compare")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ArrComparisonResult>> CompareSonarrAsync(CancellationToken cancellationToken)
+    {
+        var config = CleanupConfigHelper.GetConfig();
+        if (string.IsNullOrWhiteSpace(config.SonarrUrl) || string.IsNullOrWhiteSpace(config.SonarrApiKey))
+        {
+            return BadRequest(new { message = "Sonarr URL and API key must be configured." });
+        }
+
+        var arrService = new ArrIntegrationService(_logger);
+        var sonarrSeries = await arrService.GetSonarrSeriesAsync(config.SonarrUrl, config.SonarrApiKey, cancellationToken).ConfigureAwait(false);
+
+        // Get Jellyfin TV show folder names
+        var tvFolders = GetJellyfinFolderNames("tvshows");
+        var result = ArrIntegrationService.CompareSonarrWithJellyfin(sonarrSeries, tvFolders);
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Gets the translation strings for the specified language (or the configured language).
+    /// </summary>
+    /// <param name="lang">Optional language code override. If not provided, uses the configured language.</param>
+    /// <returns>A dictionary of translation keys to strings.</returns>
+    [HttpGet("Translations")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [AllowAnonymous]
+    public ActionResult<Dictionary<string, string>> GetTranslations([FromQuery] string? lang = null)
+    {
+        var languageCode = lang ?? CleanupConfigHelper.GetConfig().Language;
+        var translations = I18nService.GetTranslations(languageCode);
+        return Ok(translations);
+    }
+
+    /// <summary>
+    /// Gets the list of available library names for the configuration UI.
+    /// </summary>
+    /// <returns>A list of library names with their collection types.</returns>
+    [HttpGet("Libraries")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult GetLibraryNames()
+    {
+        var folders = _libraryManager.GetVirtualFolders();
+        var result = folders.Select(f => new
+        {
+            f.Name,
+            CollectionType = f.CollectionType?.ToString() ?? "Unknown",
+            LocationCount = f.Locations.Length,
+        }).ToList();
+
+        return Ok(result);
+    }
+
+    // === Private helpers ===
+
     /// <summary>
     /// Returns cached statistics or calculates fresh ones.
     /// </summary>
@@ -206,6 +406,38 @@ public class MediaStatisticsController : ControllerBase
 
         var result = _statisticsService.CalculateStatistics();
         _cache.Set(StatsCacheKey, result, CacheDuration);
+        return result;
+    }
+
+    /// <summary>
+    /// Gets the set of top-level folder names for a given collection type from Jellyfin libraries.
+    /// </summary>
+    private HashSet<string> GetJellyfinFolderNames(string collectionType)
+    {
+        var folders = _libraryManager.GetVirtualFolders()
+            .Where(f => string.Equals(f.CollectionType?.ToString(), collectionType, StringComparison.OrdinalIgnoreCase));
+
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var folder in folders)
+        {
+            foreach (var location in folder.Locations)
+            {
+                try
+                {
+                    var dirs = _fileSystem.GetDirectories(location, false);
+                    foreach (var dir in dirs)
+                    {
+                        result.Add(dir.Name);
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _logger.LogWarning(ex, "Could not list directories in {Path}", location);
+                }
+            }
+        }
+
         return result;
     }
 

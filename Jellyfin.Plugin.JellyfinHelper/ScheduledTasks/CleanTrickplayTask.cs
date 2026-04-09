@@ -14,6 +14,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 
 /// <summary>
 /// A scheduled task to clean up orphaned trickplay folders.
+/// Supports configuration-driven library filtering, orphan age, trash/delete mode, and storage tracking.
 /// </summary>
 public class CleanTrickplayTask : IScheduledTask
 {
@@ -44,7 +45,7 @@ public class CleanTrickplayTask : IScheduledTask
     public virtual string Description => "Deletes .trickplay folders that no longer have a corresponding media file.";
 
     /// <inheritdoc />
-    public string Category => "Jellyfin Cleaner";
+    public string Category => "Jellyfin Helper";
 
     /// <inheritdoc />
     public virtual Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
@@ -61,7 +62,10 @@ public class CleanTrickplayTask : IScheduledTask
     /// <returns>A task representing the operation.</returns>
     internal Task ExecuteInternalAsync(bool dryRun, IProgress<double> progress, CancellationToken cancellationToken)
     {
-        if (dryRun)
+        var effectiveDryRun = CleanupConfigHelper.IsEffectiveDryRun(dryRun);
+        var config = CleanupConfigHelper.GetConfig();
+
+        if (effectiveDryRun)
         {
             _logger.LogInformation("Starting trickplay folder cleanup (Dry Run). No folders will be deleted.");
         }
@@ -70,9 +74,20 @@ public class CleanTrickplayTask : IScheduledTask
             _logger.LogInformation("Starting trickplay folder cleanup.");
         }
 
-        var libraryFolders = LibraryPathResolver.GetDistinctLibraryLocations(_libraryManager);
+        if (config.OrphanMinAgeDays > 0)
+        {
+            _logger.LogInformation("Orphan minimum age: {Days} days", config.OrphanMinAgeDays);
+        }
+
+        if (config.UseTrash && !effectiveDryRun)
+        {
+            _logger.LogInformation("Trash mode enabled. Items will be moved to trash instead of permanent deletion.");
+        }
+
+        var libraryFolders = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
 
         int totalDeleted = 0;
+        long totalBytesFreed = 0;
 
         for (int i = 0; i < libraryFolders.Count; i++)
         {
@@ -83,25 +98,41 @@ public class CleanTrickplayTask : IScheduledTask
 
             var folder = libraryFolders[i];
             _logger.LogDebug("Scanning library folder: {Folder}", folder);
-            totalDeleted += CleanDirectory(folder, dryRun, cancellationToken);
+            var (deleted, bytesFreed) = CleanDirectory(folder, effectiveDryRun, cancellationToken);
+            totalDeleted += deleted;
+            totalBytesFreed += bytesFreed;
             progress.Report((double)(i + 1) / libraryFolders.Count * 100);
         }
 
-        if (dryRun)
+        if (effectiveDryRun)
         {
             _logger.LogInformation("Trickplay folder cleanup (Dry Run) finished. Would have deleted {Count} folders.", totalDeleted);
         }
         else
         {
-            _logger.LogInformation("Trickplay folder cleanup finished. Deleted {Count} folders.", totalDeleted);
+            _logger.LogInformation("Trickplay folder cleanup finished. Deleted {Count} folders, freed {Bytes} bytes.", totalDeleted, totalBytesFreed);
+
+            if (totalDeleted > 0)
+            {
+                CleanupTrackingService.RecordCleanup(totalBytesFreed, totalDeleted, _logger);
+            }
+        }
+
+        // Purge expired trash items if trash is enabled
+        if (config.UseTrash && !effectiveDryRun)
+        {
+            PurgeExpiredTrashForAllLibraries(libraryFolders, config.TrashRetentionDays);
         }
 
         return Task.CompletedTask;
     }
 
-    private int CleanDirectory(string path, bool dryRun, CancellationToken cancellationToken)
+    private (int Deleted, long BytesFreed) CleanDirectory(string path, bool dryRun, CancellationToken cancellationToken)
     {
         int deletedCount = 0;
+        long bytesFreed = 0;
+        var config = CleanupConfigHelper.GetConfig();
+
         try
         {
             // Get all directories recursively
@@ -148,17 +179,36 @@ public class CleanTrickplayTask : IScheduledTask
                     continue;
                 }
 
+                // Check orphan age
+                if (!CleanupConfigHelper.IsOldEnoughForDeletion(dir.FullName))
+                {
+                    _logger.LogDebug("Skipping too-new orphan (min age {Days}d): {Path}", config.OrphanMinAgeDays, dir.FullName);
+                    continue;
+                }
+
                 if (dryRun)
                 {
                     _logger.LogInformation("[Dry Run] Would delete orphaned trickplay folder: {Path}", dir.FullName);
                     deletedCount++;
+                }
+                else if (config.UseTrash)
+                {
+                    var trashPath = CleanupConfigHelper.GetTrashPath(path);
+                    long size = TrashService.MoveToTrash(dir.FullName, trashPath, _logger);
+                    if (size > 0)
+                    {
+                        bytesFreed += size;
+                        deletedCount++;
+                    }
                 }
                 else
                 {
                     _logger.LogInformation("Deleting orphaned trickplay folder: {Path}", dir.FullName);
                     try
                     {
+                        long size = FileSystemHelper.CalculateDirectorySize(_fileSystem, dir.FullName, _logger);
                         Directory.Delete(dir.FullName, true);
+                        bytesFreed += size;
                         deletedCount++;
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -173,7 +223,23 @@ public class CleanTrickplayTask : IScheduledTask
             _logger.LogError(ex, "Error scanning directory {Path}", path);
         }
 
-        return deletedCount;
+        return (deletedCount, bytesFreed);
+    }
+
+    private void PurgeExpiredTrashForAllLibraries(IReadOnlyList<string> libraryFolders, int retentionDays)
+    {
+        foreach (var folder in libraryFolders)
+        {
+            var trashPath = CleanupConfigHelper.GetTrashPath(folder);
+            if (Directory.Exists(trashPath))
+            {
+                var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, retentionDays, _logger);
+                if (itemsPurged > 0)
+                {
+                    _logger.LogInformation("Purged {Count} expired items from trash ({Bytes} bytes): {Path}", itemsPurged, bytesFreed, trashPath);
+                }
+            }
+        }
     }
 
     /// <inheritdoc />

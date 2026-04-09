@@ -26,6 +26,9 @@ Automatically deletes top-level media folders whose entire directory tree contai
 - **TV show folders are checked as a whole** — if at least one video exists anywhere in the tree (even in a deeply nested subdirectory), the entire show folder is kept untouched
 - **`.trickplay` folders are skipped** — they are handled by the Trickplay Folder Cleaner task
 
+### 🧹 Orphaned Subtitle Cleaner
+Automatically detects and removes orphaned subtitle files (`.srt`, `.sub`, `.ssa`, `.ass`, `.vtt`, etc.) that no longer have a corresponding video file in the same directory. This commonly occurs when media files are replaced, moved, or deleted while leftover subtitles remain behind.
+
 ### 📊 Media Library Statistics
 A settings page that provides a comprehensive overview of your media library disk usage:
 - **Video Data in Movies** / **Video Data in Series** / **Audio Data in Music**
@@ -36,11 +39,29 @@ A settings page that provides a comprehensive overview of your media library dis
 - **Container Formats** — MKV, MP4, AVI, WebM etc. with file count and size
 - **Resolution Distribution** — 4K, 1080p, 720p, 480p, 576p
 - **Health Check** — Detection of videos without subtitles, without artwork, without NFO, and orphaned metadata directories
+- **Cleanup Statistics** — Track lifetime bytes freed, items deleted, and last cleanup timestamp
 
 ### 📈 Export & History
 - **Export as JSON** — Download complete statistics as a JSON file
 - **Export as CSV** — Download per-library breakdown as a CSV file
 - **Historical Trend** — Statistics are saved as a snapshot on every scan (max. 365 entries) and displayed as a trend graph
+
+### 🗑️ Trash / Recycle Bin
+Instead of permanently deleting files, the plugin can move them to a configurable trash folder with timestamped names. Items in the trash are automatically purged after a configurable retention period (default: 30 days). This provides a safety net before permanent deletion.
+
+### 🔗 Arr Stack Integration
+Compare your Jellyfin library with Radarr and Sonarr to identify:
+- Items present in both systems
+- Items in the Arr app but not in Jellyfin (with or without files)
+- Items in Jellyfin but missing from the Arr app
+
+### 🌐 Internationalization (i18n)
+The dashboard UI supports **7 languages**: English, German, French, Spanish, Portuguese, Chinese, and Turkish. The language can be configured in the plugin settings.
+
+### ⚙️ Configurable Library Filtering
+- **Whitelist / Blacklist** — Include or exclude specific libraries from cleanup tasks
+- **Orphan Minimum Age** — Protect recently created items from premature deletion (race condition protection for active downloads)
+- **Dry-Run by Default** — Configure cleanup tasks to log-only mode by default
 
 ### 🔐 Security & Performance
 - **5-Minute Cache** — Statistics are cached with `IMemoryCache`; repeated clicks do not trigger a new scan
@@ -49,7 +70,7 @@ A settings page that provides a comprehensive overview of your media library dis
 - **Graceful Handling** — `IOException` and `UnauthorizedAccessException` are logged and skipped per directory
 
 ### 🔍 Dry Run Mode
-Both cleanup tasks have a corresponding **Dry Run** variant that logs what *would* be deleted without actually deleting anything. Use these to verify the cleanup behavior before enabling the actual cleanup tasks.
+All cleanup tasks have a corresponding **Dry Run** variant that logs what *would* be deleted without actually deleting anything. Use these to verify the cleanup behavior before enabling the actual cleanup tasks.
 
 ## Scheduled Tasks
 
@@ -59,6 +80,8 @@ Both cleanup tasks have a corresponding **Dry Run** variant that logs what *woul
 | **Trickplay Folder Cleaner (Dry Run)** | Logs orphaned `.trickplay` folders without deleting | No default trigger |
 | **Empty Media Folder Cleaner** | Deletes media folders with no video files | Weekly, Sunday 3:00 AM |
 | **Empty Media Folder Cleaner (Dry Run)** | Logs empty media folders without deleting | No default trigger |
+| **Orphaned Subtitle Cleaner** | Deletes orphaned subtitle files | Weekly, Sunday 4:00 AM |
+| **Orphaned Subtitle Cleaner (Dry Run)** | Logs orphaned subtitles without deleting | No default trigger |
 
 All tasks appear under the **Jellyfin Helper** category in the Jellyfin scheduled tasks dashboard.
 
@@ -66,12 +89,32 @@ All tasks appear under the **Jellyfin Helper** category in the Jellyfin schedule
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/JellyfinCleaner/Statistics` | GET | Retrieve statistics (cached for 5 min; use `?forceRefresh=true` to bypass cache) |
-| `/JellyfinCleaner/Statistics/Export/Json` | GET | Download statistics as a JSON file |
-| `/JellyfinCleaner/Statistics/Export/Csv` | GET | Download statistics as a CSV file |
-| `/JellyfinCleaner/Statistics/History` | GET | Retrieve historical snapshots for trend graph |
+| `/JellyfinHelper/Statistics` | GET | Retrieve statistics (cached for 5 min; use `?forceRefresh=true` to bypass cache) |
+| `/JellyfinHelper/Statistics/Export/Json` | GET | Download statistics as a JSON file |
+| `/JellyfinHelper/Statistics/Export/Csv` | GET | Download statistics as a CSV file |
+| `/JellyfinHelper/Statistics/History` | GET | Retrieve historical snapshots for trend graph |
+| `/JellyfinHelper/Translations` | GET | Get UI translations for specified language |
+| `/JellyfinHelper/Configuration` | GET/POST | Get or update plugin settings |
+| `/JellyfinHelper/Arr/Radarr/Compare` | GET | Compare Jellyfin movies with Radarr |
+| `/JellyfinHelper/Arr/Sonarr/Compare` | GET | Compare Jellyfin TV shows with Sonarr |
 
 All endpoints require admin authorization (`RequiresElevation`).
+
+## Configuration Options
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| **Included Libraries** | Whitelist of library names (comma-separated) | Empty (all) |
+| **Excluded Libraries** | Blacklist of library names (comma-separated) | Empty (none) |
+| **Orphan Minimum Age** | Minimum age (days) before an item is considered orphaned | 0 |
+| **Dry-Run by Default** | Cleanup tasks log-only without deleting | Off |
+| **Enable Subtitle Cleaner** | Enable the orphaned subtitle cleanup task | On |
+| **Use Trash** | Move to trash instead of permanent delete | Off |
+| **Trash Folder Path** | Relative or absolute path to the trash folder | `.jellyfin-trash` |
+| **Trash Retention** | Days to keep items in trash before purging | 30 |
+| **Dashboard Language** | UI language (en, de, fr, es, pt, zh, tr) | en |
+| **Radarr URL / API Key** | Radarr connection for library comparison | Empty |
+| **Sonarr URL / API Key** | Sonarr connection for library comparison | Empty |
 
 ## Supported File Extensions
 
@@ -113,6 +156,7 @@ All endpoints require admin authorization (`RequiresElevation`).
 4. Check the Jellyfin logs to see the results
 5. Once satisfied, enable the actual cleanup tasks or run them manually
 6. Visit the plugin's **Settings** page to view media library statistics, export data, and review trends
+7. Optionally configure **Arr Integration** to compare your library with Radarr/Sonarr
 
 ## Building from Source
 
@@ -129,7 +173,7 @@ See [CHANGELOG.md](CHANGELOG.md) for a detailed version history.
 
 This project is based on the original [jellyfin-trickplay-folder-cleaner](https://github.com/Noir1992/jellyfin-trickplay-folder-cleaner) by [@Noir1992](https://github.com/Noir1992), which was inspired by [this community script](https://github.com/jellyfin/jellyfin/issues/12818#issuecomment-2712783498).
 
-This fork evolved into an independent project with significant additions including empty media folder cleanup, media library statistics, audio codec analysis, export/history features, caching, rate limiting, comprehensive test coverage, CI/CD pipeline with integration tests, and Dependabot/CodeRabbit integration.
+This fork evolved into an independent project with significant additions including empty media folder cleanup, orphaned subtitle cleanup, media library statistics, audio codec analysis, export/history features, trash/recycle bin, Arr stack integration, multi-language dashboard, caching, rate limiting, comprehensive test coverage, CI/CD pipeline with integration tests, and Dependabot/CodeRabbit integration.
 
 ## License
 

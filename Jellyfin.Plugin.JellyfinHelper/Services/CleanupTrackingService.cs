@@ -1,0 +1,56 @@
+using System;
+using Microsoft.Extensions.Logging;
+
+namespace Jellyfin.Plugin.JellyfinHelper.Services;
+
+/// <summary>
+/// Tracks cleanup statistics (bytes freed, items deleted) and persists them in the plugin configuration.
+/// </summary>
+public static class CleanupTrackingService
+{
+    /// <summary>
+    /// Records bytes freed and items deleted from a cleanup run into the plugin configuration.
+    /// </summary>
+    /// <param name="bytesFreed">The number of bytes freed.</param>
+    /// <param name="itemsDeleted">The number of items deleted.</param>
+    /// <param name="logger">The logger.</param>
+    public static void RecordCleanup(long bytesFreed, int itemsDeleted, ILogger logger)
+    {
+        var plugin = Plugin.Instance;
+        if (plugin == null)
+        {
+            logger.LogWarning("Plugin instance is null, cannot record cleanup statistics.");
+            return;
+        }
+
+        var config = plugin.Configuration;
+        config.TotalBytesFreed += bytesFreed;
+        config.TotalItemsDeleted += itemsDeleted;
+        config.LastCleanupTimestamp = DateTime.UtcNow;
+
+        plugin.SaveConfiguration();
+
+        logger.LogInformation(
+            "Cleanup recorded: {BytesFreed} bytes freed, {ItemsDeleted} items deleted. Lifetime total: {TotalBytes} bytes, {TotalItems} items.",
+            bytesFreed,
+            itemsDeleted,
+            config.TotalBytesFreed,
+            config.TotalItemsDeleted);
+    }
+
+    /// <summary>
+    /// Gets the current cleanup statistics from the plugin configuration.
+    /// </summary>
+    /// <returns>The cleanup statistics, or default values if the plugin is not available.</returns>
+    public static (long TotalBytesFreed, int TotalItemsDeleted, DateTime LastCleanupTimestamp) GetStatistics()
+    {
+        var plugin = Plugin.Instance;
+        if (plugin == null)
+        {
+            return (0, 0, DateTime.MinValue);
+        }
+
+        var config = plugin.Configuration;
+        return (config.TotalBytesFreed, config.TotalItemsDeleted, config.LastCleanupTimestamp);
+    }
+}
