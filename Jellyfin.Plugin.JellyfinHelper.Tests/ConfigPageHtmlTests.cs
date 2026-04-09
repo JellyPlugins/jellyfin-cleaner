@@ -13,6 +13,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests;
 public class ConfigPageHtmlTests
 {
     private static readonly string HtmlContent = LoadConfigPageHtml();
+    private static readonly string ReadmeContent = LoadReadme();
 
     private static string LoadConfigPageHtml()
     {
@@ -25,6 +26,24 @@ public class ConfigPageHtmlTests
         using var stream = assembly.GetManifestResourceStream(resourceName)!;
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
+    }
+
+    private static string LoadReadme()
+    {
+        // Walk up from bin/Debug/net9.0 to the repository root
+        var dir = AppContext.BaseDirectory;
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir, "README.md");
+            if (File.Exists(candidate))
+            {
+                return File.ReadAllText(candidate);
+            }
+
+            dir = Path.GetDirectoryName(dir);
+        }
+
+        return string.Empty;
     }
 
     // ── renderTaskModeSelect function ──────────────────────────────────
@@ -159,5 +178,41 @@ public class ConfigPageHtmlTests
             // Each TaskMode property should appear in the save logic (PropertyName:)
             Assert.Contains($"{prop}:", HtmlContent);
         }
+    }
+
+    // ── README.md quality checks ─────────────────────────────────────────
+
+    [Fact]
+    public void Readme_IsNotEmpty()
+    {
+        Assert.False(string.IsNullOrWhiteSpace(ReadmeContent), "README.md could not be loaded or is empty.");
+    }
+
+    [Fact]
+    public void Readme_DoesNotContainObsoleteAlignAttribute()
+    {
+        // The HTML align= attribute is obsolete; use CSS or Markdown syntax instead
+        var pattern = new Regex(@"<\w+[^>]*\balign\s*=", RegexOptions.IgnoreCase);
+        Assert.DoesNotMatch(pattern, ReadmeContent);
+    }
+
+    [Theory]
+    [InlineData("bgcolor")]
+    [InlineData("valign")]
+    [InlineData("cellpadding")]
+    [InlineData("cellspacing")]
+    [InlineData("border")]
+    public void Readme_DoesNotContainObsoleteHtmlAttribute(string attribute)
+    {
+        var pattern = new Regex($@"<\w+[^>]*\b{attribute}\s*=", RegexOptions.IgnoreCase);
+        Assert.DoesNotMatch(pattern, ReadmeContent);
+    }
+
+    [Fact]
+    public void Readme_DoesNotContainDeprecatedHtmlTags()
+    {
+        // Deprecated tags: <center>, <font>, <marquee>, <blink>
+        var pattern = new Regex(@"<\s*/?\s*(center|font|marquee|blink)\b", RegexOptions.IgnoreCase);
+        Assert.DoesNotMatch(pattern, ReadmeContent);
     }
 }

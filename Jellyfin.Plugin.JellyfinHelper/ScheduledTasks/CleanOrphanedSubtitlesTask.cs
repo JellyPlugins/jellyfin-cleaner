@@ -96,11 +96,11 @@ public class CleanOrphanedSubtitlesTask
         else
         {
             _logger.LogInformation("Orphaned subtitle cleanup finished. Deleted {Count} files, freed {Bytes} bytes.", totalDeleted, totalBytesFreed);
+        }
 
-            if (totalDeleted > 0)
-            {
-                CleanupTrackingService.RecordCleanup(totalBytesFreed, totalDeleted, _logger);
-            }
+        if (totalDeleted > 0)
+        {
+            CleanupTrackingService.RecordCleanup(totalBytesFreed, totalDeleted, _logger);
         }
 
         return Task.CompletedTask;
