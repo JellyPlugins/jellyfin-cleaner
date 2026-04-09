@@ -343,6 +343,77 @@ public class CleanEmptyMediaFoldersTaskTests
     }
 
     [Fact]
+    public async Task ExecuteInternalAsync_MusicLibrary_IsCompletelySkipped()
+    {
+        const string musicPath = "/media/music";
+
+        var musicFolder = new VirtualFolderInfo
+        {
+            Name = "Music",
+            Locations = [musicPath],
+            CollectionType = CollectionTypeOptions.music
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([musicFolder]);
+
+        await _task.ExecuteInternalAsync(true, new Progress<double>(), CancellationToken.None);
+
+        // Music library should never be scanned at all
+        _fileSystemMock.Verify(f => f.GetDirectories(musicPath, false), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteInternalAsync_BoxsetLibrary_IsCompletelySkipped()
+    {
+        const string collectionsPath = "/config/data/collections";
+
+        var boxsetFolder = new VirtualFolderInfo
+        {
+            Name = "Collections",
+            Locations = [collectionsPath],
+            CollectionType = CollectionTypeOptions.boxsets
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([boxsetFolder]);
+
+        await _task.ExecuteInternalAsync(true, new Progress<double>(), CancellationToken.None);
+
+        // Boxset/Collections library should never be scanned at all
+        _fileSystemMock.Verify(f => f.GetDirectories(collectionsPath, false), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteInternalAsync_MusicAndMoviesLibrary_OnlyMoviesAreScanned()
+    {
+        const string musicPath = "/media/music";
+        const string moviesPath = "/media/movies";
+
+        var musicFolder = new VirtualFolderInfo
+        {
+            Name = "Music",
+            Locations = [musicPath],
+            CollectionType = CollectionTypeOptions.music
+        };
+        var moviesFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            Locations = [moviesPath],
+            CollectionType = CollectionTypeOptions.movies
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([musicFolder, moviesFolder]);
+
+        SetupTopLevelDirs(moviesPath, ("Old Movie (2020)", "/media/movies/Old Movie (2020)"));
+        SetupFiles("/media/movies/Old Movie (2020)", "movie.nfo");
+        SetupSubDirs("/media/movies/Old Movie (2020)");
+
+        await _task.ExecuteInternalAsync(true, new Progress<double>(), CancellationToken.None);
+
+        // Music should not be scanned
+        _fileSystemMock.Verify(f => f.GetDirectories(musicPath, false), Times.Never);
+        // Movies should be scanned and orphan detected
+        _fileSystemMock.Verify(f => f.GetDirectories(moviesPath, false), Times.Once);
+        VerifyLogContains("[Dry Run] Would delete empty media folder", LogLevel.Information);
+    }
+
+    [Fact]
     public async Task ExecuteInternalAsync_MixedFolders_OnlyOrphanedOnesAreDeleted()
     {
         const string libraryPath = "/media/movies";
