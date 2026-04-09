@@ -183,9 +183,8 @@ public class HelperCleanupTaskTests : IDisposable
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        await _task.ExecuteAsync(new Progress<double>(), cts.Token);
-
-        VerifyLogContains("Helper Cleanup was cancelled", LogLevel.Information);
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => _task.ExecuteAsync(new Progress<double>(), cts.Token));
     }
 
     [Fact]

@@ -186,6 +186,25 @@ public class PluginConfiguration : BasePluginConfiguration
             return;
         }
 
+        // Detect whether this is a genuine legacy config or a fresh install.
+        // Fresh installs have all legacy booleans at their defaults:
+        //   DryRunTrickplay=true, DryRunEmptyMediaFolders=true, DryRunOrphanedSubtitles=true,
+        //   EnableSubtitleCleaner=true, EnableStrmRepair=false, StrmRepairDryRun=true
+        // In that case, the TaskMode defaults (all DryRun) are already correct — just bump the version.
+        bool isFreshConfig = DryRunTrickplay
+                             && DryRunEmptyMediaFolders
+                             && DryRunOrphanedSubtitles
+                             && EnableSubtitleCleaner
+                             && !EnableStrmRepair
+                             && StrmRepairDryRun;
+
+        if (isFreshConfig)
+        {
+            // All TaskMode defaults are already DryRun — nothing to migrate.
+            ConfigVersion = 1;
+            return;
+        }
+
         // Trickplay: no enable toggle existed, only dry-run
         TrickplayTaskMode = DryRunTrickplay ? TaskMode.DryRun : TaskMode.Activate;
 

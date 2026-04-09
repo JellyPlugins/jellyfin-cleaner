@@ -70,11 +70,7 @@ public class HelperCleanupTask : IScheduledTask
 
         for (int i = 0; i < totalTasks; i++)
         {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                _logger.LogInformation("Helper Cleanup was cancelled.");
-                break;
-            }
+            cancellationToken.ThrowIfCancellationRequested();
 
             var (name, mode, execute) = subTasks[i];
 
@@ -94,7 +90,12 @@ public class HelperCleanupTask : IScheduledTask
                 var subProgress = new SubProgress(progress, (double)i / totalTasks * 100, (double)(i + 1) / totalTasks * 100);
                 await execute(subProgress, cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("Helper Cleanup was cancelled during {TaskName}.", name);
+                throw;
+            }
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Error executing {TaskName}. Continuing with next task.", name);
             }

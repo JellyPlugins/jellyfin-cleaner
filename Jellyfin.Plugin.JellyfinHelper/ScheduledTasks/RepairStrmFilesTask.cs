@@ -85,7 +85,9 @@ public class RepairStrmFilesTask
 
         progress.Report(10);
 
-        var result = _strmRepairService.RepairStrmFiles(libraryPaths, dryRun);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var result = _strmRepairService.RepairStrmFiles(libraryPaths, dryRun, cancellationToken);
 
         progress.Report(90);
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services;
@@ -32,8 +33,9 @@ public class StrmRepairService
     /// </summary>
     /// <param name="libraryPaths">The library paths to scan for .strm files.</param>
     /// <param name="dryRun">If true, no files will be modified.</param>
+    /// <param name="cancellationToken">Cancellation token to stop the operation.</param>
     /// <returns>The result of the repair operation.</returns>
-    public StrmRepairResult RepairStrmFiles(IEnumerable<string> libraryPaths, bool dryRun)
+    public StrmRepairResult RepairStrmFiles(IEnumerable<string> libraryPaths, bool dryRun, CancellationToken cancellationToken = default)
     {
         var result = new StrmRepairResult();
         var strmFiles = FindStrmFiles(libraryPaths);
@@ -42,6 +44,7 @@ public class StrmRepairService
 
         foreach (var strmFile in strmFiles)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var fileResult = ProcessStrmFile(strmFile, dryRun);
             result.FileResults.Add(fileResult);
         }
@@ -106,9 +109,9 @@ public class StrmRepairService
                 result.AddRange(FindFilesRecursive(subDir, extension));
             }
         }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or DirectoryNotFoundException)
         {
-            _logger.LogWarning("Access denied to directory: {Directory} - {Message}", directory, ex.Message);
+            _logger.LogWarning("Cannot access directory: {Directory} - {Message}", directory, ex.Message);
         }
 
         return result;
@@ -226,7 +229,17 @@ public class StrmRepairService
                     fileResult.OriginalTargetPath,
                     newTargetPath);
 
-                _fileSystem.File.WriteAllText(fileResult.StrmFilePath, newTargetPath);
+                try
+                {
+                    _fileSystem.File.WriteAllText(fileResult.StrmFilePath, newTargetPath);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _logger.LogError("Failed to write repaired .strm file {Path}: {Message}", fileResult.StrmFilePath, ex.Message);
+                    fileResult.Status = StrmFileStatus.Broken;
+                    fileResult.NewTargetPath = null;
+                    return fileResult;
+                }
             }
 
             return fileResult;
@@ -257,15 +270,15 @@ public class StrmRepairService
             foreach (var file in _fileSystem.Directory.GetFiles(directory))
             {
                 var extension = _fileSystem.Path.GetExtension(file);
-                if (MediaExtensions.AllMediaExtensions.Contains(extension))
+                if (MediaExtensions.VideoExtensions.Contains(extension))
                 {
                     mediaFiles.Add(file);
                 }
             }
         }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or DirectoryNotFoundException)
         {
-            _logger.LogWarning("Access denied to directory: {Directory} - {Message}", directory, ex.Message);
+            _logger.LogWarning("Cannot access directory: {Directory} - {Message}", directory, ex.Message);
         }
 
         return mediaFiles;
