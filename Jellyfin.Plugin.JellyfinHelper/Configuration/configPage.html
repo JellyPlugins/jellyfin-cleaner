@@ -988,8 +988,10 @@
                     h += '<div class="checkbox-row"><input type="checkbox" id="cfgDryRunTrickplay"' + (cfg.DryRunTrickplay ? ' checked' : '') + '><label>Trickplay Folder Cleaner</label></div>';
                     h += '<div class="checkbox-row"><input type="checkbox" id="cfgDryRunEmptyMedia"' + (cfg.DryRunEmptyMediaFolders ? ' checked' : '') + '><label>Empty Media Folder Cleaner</label></div>';
                     h += '<div class="checkbox-row"><input type="checkbox" id="cfgDryRunSubtitles"' + (cfg.DryRunOrphanedSubtitles ? ' checked' : '') + '><label>Orphaned Subtitle Cleaner</label></div>';
+                    h += '<div class="checkbox-row"><input type="checkbox" id="cfgDryRunStrm"' + (cfg.StrmRepairDryRun ? ' checked' : '') + '><label>.strm File Repair</label></div>';
                     h += '<div class="section-divider"></div>';
                     h += '<div class="checkbox-row"><input type="checkbox" id="cfgSubCleaner"' + (cfg.EnableSubtitleCleaner ? ' checked' : '') + '><label>Enable Orphaned Subtitle Cleaner</label></div>';
+                    h += '<div class="checkbox-row"><input type="checkbox" id="cfgStrmRepair"' + (cfg.EnableStrmRepair ? ' checked' : '') + '><label>Enable .strm File Repair</label></div>';
                     h += '<div class="section-divider"></div>';
                     h += '<div class="checkbox-row"><input type="checkbox" id="cfgTrash"' + (cfg.UseTrash ? ' checked' : '') + '><label>Use Trash (Recycle Bin)</label></div>';
                     h += '<label>Trash Folder Path</label>';
@@ -1048,7 +1050,9 @@
                     DryRunTrickplay: document.getElementById('cfgDryRunTrickplay').checked,
                     DryRunEmptyMediaFolders: document.getElementById('cfgDryRunEmptyMedia').checked,
                     DryRunOrphanedSubtitles: document.getElementById('cfgDryRunSubtitles').checked,
+                    StrmRepairDryRun: document.getElementById('cfgDryRunStrm').checked,
                     EnableSubtitleCleaner: document.getElementById('cfgSubCleaner').checked,
+                    EnableStrmRepair: document.getElementById('cfgStrmRepair').checked,
                     UseTrash: document.getElementById('cfgTrash').checked,
                     TrashFolderPath: document.getElementById('cfgTrashPath').value,
                     TrashRetentionDays: parseInt(document.getElementById('cfgTrashDays').value, 10) || 30,

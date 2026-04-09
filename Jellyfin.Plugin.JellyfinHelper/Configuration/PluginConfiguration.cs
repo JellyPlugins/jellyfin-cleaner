@@ -69,6 +69,17 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool EnableSubtitleCleaner { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets a value indicating whether the .strm file repair task is enabled.
+    /// </summary>
+    public bool EnableStrmRepair { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the .strm repair task runs in dry-run mode.
+    /// Default is true (safe mode).
+    /// </summary>
+    public bool StrmRepairDryRun { get; set; } = true;
+
+    /// <summary>
     /// Gets or sets the Radarr API URL (e.g., http://localhost:7878).
     /// Kept for backwards compatibility — migrated to <see cref="RadarrInstances"/> on first load.
     /// </summary>
