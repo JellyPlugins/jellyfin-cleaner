@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.JellyfinHelper.Services;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Tasks;
@@ -14,6 +15,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 /// <summary>
 /// A scheduled task to clean up media folders that contain files but absolutely no video files
 /// anywhere in their entire directory tree.
+/// Supports configuration-driven library filtering, orphan age, trash/delete mode, and storage tracking.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -63,7 +65,7 @@ public class CleanEmptyMediaFoldersTask : IScheduledTask
     public virtual string Description => "Deletes top-level media folders whose entire directory tree contains files but absolutely no video files.";
 
     /// <inheritdoc />
-    public string Category => "Jellyfin Cleaner";
+    public string Category => "Jellyfin Helper";
 
     /// <inheritdoc />
     public virtual Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
@@ -80,7 +82,10 @@ public class CleanEmptyMediaFoldersTask : IScheduledTask
     /// <returns>A task representing the operation.</returns>
     internal Task ExecuteInternalAsync(bool dryRun, IProgress<double> progress, CancellationToken cancellationToken)
     {
-        if (dryRun)
+        var effectiveDryRun = CleanupConfigHelper.IsEffectiveDryRun(dryRun);
+        var config = CleanupConfigHelper.GetConfig();
+
+        if (effectiveDryRun)
         {
             _logger.LogInformation("Starting empty media folder cleanup (Dry Run). No folders will be deleted.");
         }
@@ -89,12 +94,20 @@ public class CleanEmptyMediaFoldersTask : IScheduledTask
             _logger.LogInformation("Starting empty media folder cleanup.");
         }
 
-        var libraryFolders = _libraryManager.GetVirtualFolders()
-            .SelectMany(f => f.Locations)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        if (config.OrphanMinAgeDays > 0)
+        {
+            _logger.LogInformation("Orphan minimum age: {Days} days", config.OrphanMinAgeDays);
+        }
+
+        if (config.UseTrash && !effectiveDryRun)
+        {
+            _logger.LogInformation("Trash mode enabled. Items will be moved to trash instead of permanent deletion.");
+        }
+
+        var libraryFolders = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
 
         int totalDeleted = 0;
+        long totalBytesFreed = 0;
 
         for (int i = 0; i < libraryFolders.Count; i++)
         {
@@ -105,25 +118,41 @@ public class CleanEmptyMediaFoldersTask : IScheduledTask
 
             var folder = libraryFolders[i];
             _logger.LogDebug("Scanning library folder: {Folder}", folder);
-            totalDeleted += CleanLibraryRoot(folder, dryRun, cancellationToken);
+            var (deleted, bytesFreed) = CleanLibraryRoot(folder, effectiveDryRun, cancellationToken);
+            totalDeleted += deleted;
+            totalBytesFreed += bytesFreed;
             progress.Report((double)(i + 1) / libraryFolders.Count * 100);
         }
 
-        if (dryRun)
+        if (effectiveDryRun)
         {
             _logger.LogInformation("Empty media folder cleanup (Dry Run) finished. Would have deleted {Count} folders.", totalDeleted);
         }
         else
         {
-            _logger.LogInformation("Empty media folder cleanup finished. Deleted {Count} folders.", totalDeleted);
+            _logger.LogInformation("Empty media folder cleanup finished. Deleted {Count} folders, freed {Bytes} bytes.", totalDeleted, totalBytesFreed);
+
+            if (totalDeleted > 0)
+            {
+                CleanupTrackingService.RecordCleanup(totalBytesFreed, totalDeleted, _logger);
+            }
+        }
+
+        // Purge expired trash items if trash is enabled
+        if (config.UseTrash && !effectiveDryRun)
+        {
+            PurgeExpiredTrashForAllLibraries(libraryFolders, config.TrashRetentionDays);
         }
 
         return Task.CompletedTask;
     }
 
-    private int CleanLibraryRoot(string libraryRootPath, bool dryRun, CancellationToken cancellationToken)
+    private (int Deleted, long BytesFreed) CleanLibraryRoot(string libraryRootPath, bool dryRun, CancellationToken cancellationToken)
     {
         int deletedCount = 0;
+        long bytesFreed = 0;
+        var config = CleanupConfigHelper.GetConfig();
+
         try
         {
             // Get only the direct child directories of the library root (top-level media folders).
@@ -134,6 +163,13 @@ public class CleanEmptyMediaFoldersTask : IScheduledTask
             {
                 // Skip .trickplay folders – they are handled by CleanTrickplayTask
                 if (topDir.Name.EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                // Skip trash folder
+                var trashFolderName = Path.GetFileName(CleanupConfigHelper.GetTrashPath(libraryRootPath));
+                if (topDir.Name.Equals(trashFolderName, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -152,17 +188,36 @@ public class CleanEmptyMediaFoldersTask : IScheduledTask
                 // If the folder contains files but zero video files → it's an orphaned media folder
                 if (!hasVideoFiles)
                 {
+                    // Check orphan age
+                    if (!CleanupConfigHelper.IsOldEnoughForDeletion(topDir.FullName))
+                    {
+                        _logger.LogDebug("Skipping too-new orphan (min age {Days}d): {Path}", config.OrphanMinAgeDays, topDir.FullName);
+                        continue;
+                    }
+
                     if (dryRun)
                     {
                         _logger.LogInformation("[Dry Run] Would delete empty media folder: {Path}", topDir.FullName);
                         deletedCount++;
+                    }
+                    else if (config.UseTrash)
+                    {
+                        var trashPath = CleanupConfigHelper.GetTrashPath(libraryRootPath);
+                        long size = TrashService.MoveToTrash(topDir.FullName, trashPath, _logger);
+                        if (size > 0)
+                        {
+                            bytesFreed += size;
+                            deletedCount++;
+                        }
                     }
                     else
                     {
                         _logger.LogInformation("Deleting empty media folder: {Path}", topDir.FullName);
                         try
                         {
+                            long size = FileSystemHelper.CalculateDirectorySize(_fileSystem, topDir.FullName, _logger);
                             Directory.Delete(topDir.FullName, true);
+                            bytesFreed += size;
                             deletedCount++;
                         }
                         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -178,7 +233,7 @@ public class CleanEmptyMediaFoldersTask : IScheduledTask
             _logger.LogError(ex, "Error scanning directory {Path}", libraryRootPath);
         }
 
-        return deletedCount;
+        return (deletedCount, bytesFreed);
     }
 
     /// <summary>
@@ -217,6 +272,22 @@ public class CleanEmptyMediaFoldersTask : IScheduledTask
         }
 
         return (hasAnyFiles, false);
+    }
+
+    private void PurgeExpiredTrashForAllLibraries(IReadOnlyList<string> libraryFolders, int retentionDays)
+    {
+        foreach (var folder in libraryFolders)
+        {
+            var trashPath = CleanupConfigHelper.GetTrashPath(folder);
+            if (Directory.Exists(trashPath))
+            {
+                var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, retentionDays, _logger);
+                if (itemsPurged > 0)
+                {
+                    _logger.LogInformation("Purged {Count} expired items from trash ({Bytes} bytes): {Path}", itemsPurged, bytesFreed, trashPath);
+                }
+            }
+        }
     }
 
     /// <inheritdoc />

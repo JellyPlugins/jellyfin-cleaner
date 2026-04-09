@@ -99,10 +99,12 @@ jobs:
       with:
         name: ${{ env.PLUGIN_NAME }}_${{ env.VERSION }}
 
-    - name: Generate checksum
+    - name: Generate checksums
       run: |
-        md5sum ${PLUGIN_NAME}_${VERSION}.zip | cut -d ' ' -f1 > checksum.txt
-        echo "CHECKSUM=$(cat checksum.txt)" >> $GITHUB_ENV
+        md5sum ${PLUGIN_NAME}_${VERSION}.zip | cut -d ' ' -f1 > checksum_md5.txt
+        sha256sum ${PLUGIN_NAME}_${VERSION}.zip | cut -d ' ' -f1 > checksum_sha256.txt
+        echo "CHECKSUM=$(cat checksum_md5.txt)" >> $GITHUB_ENV
+        echo "CHECKSUM_SHA256=$(cat checksum_sha256.txt)" >> $GITHUB_ENV
 
     - name: Create tag
       run: |
@@ -118,18 +120,22 @@ jobs:
           ## Changelog
           ${{ env.CHANGELOG }}
 
-          ## Checksum (MD5)
-          `${{ env.CHECKSUM }}`
+          ## Checksums
+          - **MD5:** `${{ env.CHECKSUM }}`
+          - **SHA256:** `${{ env.CHECKSUM_SHA256 }}`
 
           ## Installation
           Download `${{ env.PLUGIN_NAME }}_${{ env.VERSION }}.zip` and extract it into your Jellyfin plugins directory.
-        files: ${{ env.PLUGIN_NAME }}_${{ env.VERSION }}.zip
+        files: |
+          ${{ env.PLUGIN_NAME }}_${{ env.VERSION }}.zip
+          checksum_sha256.txt
 
     - name: Update manifest and build.yaml metadata
       run: |
         DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${VERSION}/${PLUGIN_NAME}_${VERSION}.zip"
 
         jq --arg checksum "$CHECKSUM" \
+           --arg sha256 "$CHECKSUM_SHA256" \
            --arg url "$DOWNLOAD_URL" \
            '
            .[0].versions[0].checksum = $checksum |

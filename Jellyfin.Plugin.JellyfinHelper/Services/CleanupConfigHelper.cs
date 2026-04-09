@@ -1,0 +1,182 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Jellyfin.Plugin.JellyfinHelper.Configuration;
+using MediaBrowser.Controller.Library;
+
+namespace Jellyfin.Plugin.JellyfinHelper.Services;
+
+/// <summary>
+/// Helper methods that apply plugin configuration rules to cleanup operations.
+/// Provides library filtering, orphan age checking, and trash/delete resolution.
+/// </summary>
+public static class CleanupConfigHelper
+{
+    /// <summary>
+    /// Gets the current plugin configuration, or a default configuration if the plugin is not available.
+    /// </summary>
+    /// <returns>The plugin configuration.</returns>
+    public static PluginConfiguration GetConfig()
+    {
+        return Plugin.Instance?.Configuration ?? new PluginConfiguration();
+    }
+
+    /// <summary>
+    /// Determines whether the effective mode is dry-run, considering both the explicit parameter and config.
+    /// </summary>
+    /// <param name="explicitDryRun">True if explicitly requested as dry run (e.g., from the DryRun task variant).</param>
+    /// <returns>True if the operation should be a dry run.</returns>
+    public static bool IsEffectiveDryRun(bool explicitDryRun)
+    {
+        if (explicitDryRun)
+        {
+            return true;
+        }
+
+        return GetConfig().DryRunByDefault;
+    }
+
+    /// <summary>
+    /// Gets the filtered library locations based on the whitelist/blacklist configuration.
+    /// </summary>
+    /// <param name="libraryManager">The library manager.</param>
+    /// <returns>A filtered, deduplicated list of library root paths.</returns>
+    public static IReadOnlyList<string> GetFilteredLibraryLocations(ILibraryManager libraryManager)
+    {
+        ArgumentNullException.ThrowIfNull(libraryManager);
+
+        var config = GetConfig();
+        var virtualFolders = libraryManager.GetVirtualFolders();
+
+        var includedSet = ParseCommaSeparated(config.IncludedLibraries);
+        var excludedSet = ParseCommaSeparated(config.ExcludedLibraries);
+
+        var filteredFolders = virtualFolders.Where(f =>
+        {
+            var name = f.Name ?? string.Empty;
+
+            // If whitelist is set, only include listed libraries
+            if (includedSet.Count > 0 && !includedSet.Contains(name))
+            {
+                return false;
+            }
+
+            // If blacklist is set, exclude listed libraries
+            if (excludedSet.Count > 0 && excludedSet.Contains(name))
+            {
+                return false;
+            }
+
+            return true;
+        });
+
+        return filteredFolders
+            .SelectMany(f => f.Locations)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Checks whether a directory is old enough to be considered an orphan based on the configured minimum age.
+    /// </summary>
+    /// <param name="directoryPath">The path to the directory.</param>
+    /// <returns>True if the directory is old enough (or age check is disabled), false if it's too new.</returns>
+    public static bool IsOldEnoughForDeletion(string directoryPath)
+    {
+        var config = GetConfig();
+        if (config.OrphanMinAgeDays <= 0)
+        {
+            return true;
+        }
+
+        try
+        {
+            var dirInfo = new DirectoryInfo(directoryPath);
+            if (!dirInfo.Exists)
+            {
+                return false;
+            }
+
+            var age = DateTime.UtcNow - dirInfo.CreationTimeUtc;
+            return age.TotalDays >= config.OrphanMinAgeDays;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // If we can't check, assume it's old enough
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Checks whether a file is old enough to be considered an orphan based on the configured minimum age.
+    /// </summary>
+    /// <param name="filePath">The path to the file.</param>
+    /// <returns>True if the file is old enough (or age check is disabled), false if it's too new.</returns>
+    public static bool IsFileOldEnoughForDeletion(string filePath)
+    {
+        var config = GetConfig();
+        if (config.OrphanMinAgeDays <= 0)
+        {
+            return true;
+        }
+
+        try
+        {
+            var fileInfo = new FileInfo(filePath);
+            if (!fileInfo.Exists)
+            {
+                return false;
+            }
+
+            var age = DateTime.UtcNow - fileInfo.CreationTimeUtc;
+            return age.TotalDays >= config.OrphanMinAgeDays;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Gets the resolved trash folder path for a given library root.
+    /// If the configured path is relative, it is resolved relative to the library root.
+    /// </summary>
+    /// <param name="libraryRootPath">The library root path.</param>
+    /// <returns>The full trash folder path.</returns>
+    public static string GetTrashPath(string libraryRootPath)
+    {
+        var config = GetConfig();
+        var trashPath = config.TrashFolderPath;
+
+        if (string.IsNullOrWhiteSpace(trashPath))
+        {
+            trashPath = ".jellyfin-trash";
+        }
+
+        if (Path.IsPathRooted(trashPath))
+        {
+            return trashPath;
+        }
+
+        return Path.Combine(libraryRootPath, trashPath);
+    }
+
+    /// <summary>
+    /// Parses a comma-separated string into a case-insensitive hash set of trimmed, non-empty values.
+    /// </summary>
+    /// <param name="value">The comma-separated input string.</param>
+    /// <returns>A hash set of parsed values.</returns>
+    internal static HashSet<string> ParseCommaSeparated(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return value
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+}
