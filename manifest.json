@@ -12,8 +12,8 @@
         "changelog": "Added orphaned subtitle cleaner, trash/recycle bin, Arr stack integration (Radarr/Sonarr comparison), multi-language dashboard (en/de/fr/es/pt/zh/tr), library whitelist/blacklist, orphan minimum age, cleanup tracking, audio codec analysis, JSON/CSV export, historical trend graph, caching, rate limiting, input validation, and comprehensive test coverage (178 tests).",
         "targetAbi": "10.11.0.0",
         "sourceUrl": "https://github.com/JellyPlugins/jellyfin-helper/releases/download/2.0.1/JellyfinHelper_2.0.1.zip",
-        "checksum": "placeholder",
-        "timestamp": "2026-04-09T00:00:00Z"
+        "checksum": "330751134b452c754983fab3d40831f4",
+        "timestamp": "2026-04-09T00:29:52Z"
       },
       {
         "version": "2.0.0",
