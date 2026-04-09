@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] — 2026-04-09
+
+### Fixed
+- **Critical: Music and Boxset libraries no longer processed by cleanup tasks** — Music libraries and Boxset/Collection libraries are now automatically excluded from all cleanup tasks (Empty Media Folder Cleaner, Trickplay Cleaner, Orphaned Subtitle Cleaner). Previously, music folders were incorrectly flagged as "empty" (since they contain audio, not video files), and Jellyfin's internal collection/boxset folders were at risk of deletion.
+
+### Changed
+- **CleanupConfigHelper** — `GetFilteredLibraryLocations()` now filters out `music` and `boxsets` collection types before applying whitelist/blacklist rules.
+- **Test coverage** increased to 181 tests (3 new tests for library type filtering).
+
 ## [2.0.1] — 2026-04-09
 
 ### Added

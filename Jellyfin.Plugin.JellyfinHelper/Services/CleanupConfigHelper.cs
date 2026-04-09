@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Entities;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services;
 
@@ -55,6 +56,14 @@ public static class CleanupConfigHelper
         var filteredFolders = virtualFolders.Where(f =>
         {
             var name = f.Name ?? string.Empty;
+
+            // Always exclude non-video library types:
+            // - Music libraries contain no video files, so every folder would be flagged as orphaned
+            // - Boxsets (Collections) are Jellyfin-internal and must never be touched
+            if (f.CollectionType is CollectionTypeOptions.music or CollectionTypeOptions.boxsets)
+            {
+                return false;
+            }
 
             // If whitelist is set, only include listed libraries
             if (includedSet.Count > 0 && !includedSet.Contains(name))
