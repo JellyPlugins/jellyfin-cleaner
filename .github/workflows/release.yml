@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
     - "manifest.json"
+    - "Jellyfin.Plugin.JellyfinHelper/**"
+    - "build.yaml"
+    - "Directory.Build.props"
 
 permissions:
   contents: write
