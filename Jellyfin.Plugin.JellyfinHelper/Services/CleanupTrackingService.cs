@@ -5,11 +5,15 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services;
 
 /// <summary>
 /// Tracks cleanup statistics (bytes freed, items deleted) and persists them in the plugin configuration.
+/// Thread-safe: multiple cleanup tasks may call <see cref="RecordCleanup"/> concurrently.
 /// </summary>
 public static class CleanupTrackingService
 {
+    private static readonly object SyncLock = new();
+
     /// <summary>
     /// Records bytes freed and items deleted from a cleanup run into the plugin configuration.
+    /// This method is thread-safe and can be called from multiple cleanup tasks concurrently.
     /// </summary>
     /// <param name="bytesFreed">The number of bytes freed.</param>
     /// <param name="itemsDeleted">The number of items deleted.</param>
@@ -23,19 +27,22 @@ public static class CleanupTrackingService
             return;
         }
 
-        var config = plugin.Configuration;
-        config.TotalBytesFreed += bytesFreed;
-        config.TotalItemsDeleted += itemsDeleted;
-        config.LastCleanupTimestamp = DateTime.UtcNow;
+        lock (SyncLock)
+        {
+            var config = plugin.Configuration;
+            config.TotalBytesFreed += bytesFreed;
+            config.TotalItemsDeleted += itemsDeleted;
+            config.LastCleanupTimestamp = DateTime.UtcNow;
 
-        plugin.SaveConfiguration();
+            plugin.SaveConfiguration();
 
-        logger.LogInformation(
-            "Cleanup recorded: {BytesFreed} bytes freed, {ItemsDeleted} items deleted. Lifetime total: {TotalBytes} bytes, {TotalItems} items.",
-            bytesFreed,
-            itemsDeleted,
-            config.TotalBytesFreed,
-            config.TotalItemsDeleted);
+            logger.LogInformation(
+                "Cleanup recorded: {BytesFreed} bytes freed, {ItemsDeleted} items deleted. Lifetime total: {TotalBytes} bytes, {TotalItems} items.",
+                bytesFreed,
+                itemsDeleted,
+                config.TotalBytesFreed,
+                config.TotalItemsDeleted);
+        }
     }
 
     /// <summary>

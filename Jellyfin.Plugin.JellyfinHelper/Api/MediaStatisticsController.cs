@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Net.Mime;
 using System.Text;
 using System.Text.Json;
@@ -32,7 +33,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Api;
 public class MediaStatisticsController : ControllerBase
 {
     private const string StatsCacheKey = "JellyfinHelper_Statistics";
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromDays(7);
 
     private static readonly TimeSpan MinScanInterval = TimeSpan.FromSeconds(30);
     private static readonly object RateLimitLock = new();
@@ -49,6 +50,7 @@ public class MediaStatisticsController : ControllerBase
     private readonly IFileSystem _fileSystem;
     private readonly MediaStatisticsService _statisticsService;
     private readonly StatisticsHistoryService _historyService;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly IMemoryCache _cache;
     private readonly ILogger<MediaStatisticsController> _logger;
 
@@ -58,6 +60,7 @@ public class MediaStatisticsController : ControllerBase
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="fileSystem">The file system.</param>
     /// <param name="applicationPaths">The application paths.</param>
+    /// <param name="httpClientFactory">The HTTP client factory for Arr API requests.</param>
     /// <param name="cache">The memory cache.</param>
     /// <param name="logger">The controller logger.</param>
     /// <param name="serviceLogger">The statistics service logger.</param>
@@ -66,6 +69,7 @@ public class MediaStatisticsController : ControllerBase
         ILibraryManager libraryManager,
         IFileSystem fileSystem,
         IApplicationPaths applicationPaths,
+        IHttpClientFactory httpClientFactory,
         IMemoryCache cache,
         ILogger<MediaStatisticsController> logger,
         ILogger<MediaStatisticsService> serviceLogger,
@@ -75,12 +79,13 @@ public class MediaStatisticsController : ControllerBase
         _fileSystem = fileSystem;
         _statisticsService = new MediaStatisticsService(libraryManager, fileSystem, serviceLogger);
         _historyService = new StatisticsHistoryService(applicationPaths, historyLogger);
+        _httpClientFactory = httpClientFactory;
         _cache = cache;
         _logger = logger;
     }
 
     /// <summary>
-    /// Gets media statistics for all libraries. Results are cached for 5 minutes.
+    /// Gets media statistics for all libraries. Results are cached for 7 days.
     /// </summary>
     /// <param name="forceRefresh">Set to true to bypass the cache and force a fresh scan.</param>
     /// <returns>The media statistics.</returns>
@@ -307,7 +312,8 @@ public class MediaStatisticsController : ControllerBase
     // === Arr Integration ===
 
     /// <summary>
-    /// Compares Radarr movies with Jellyfin movie libraries.
+    /// Compares all configured Radarr instances with Jellyfin movie libraries.
+    /// Returns a merged result across all instances.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The comparison result.</returns>
@@ -317,23 +323,36 @@ public class MediaStatisticsController : ControllerBase
     public async Task<ActionResult<ArrComparisonResult>> CompareRadarrAsync(CancellationToken cancellationToken)
     {
         var config = CleanupConfigHelper.GetConfig();
-        if (string.IsNullOrWhiteSpace(config.RadarrUrl) || string.IsNullOrWhiteSpace(config.RadarrApiKey))
+        var instances = config.GetEffectiveRadarrInstances();
+
+        if (instances.Count == 0)
         {
-            return BadRequest(new { message = "Radarr URL and API key must be configured." });
+            return BadRequest(new { message = "At least one Radarr instance must be configured." });
         }
 
-        var arrService = new ArrIntegrationService(_logger);
-        var radarrMovies = await arrService.GetRadarrMoviesAsync(config.RadarrUrl, config.RadarrApiKey, cancellationToken).ConfigureAwait(false);
-
-        // Get Jellyfin movie folder names
+        var httpClient = _httpClientFactory.CreateClient("ArrIntegration");
+        var arrService = new ArrIntegrationService(httpClient, _logger);
         var movieFolders = GetJellyfinFolderNames("movies");
-        var result = ArrIntegrationService.CompareRadarrWithJellyfin(radarrMovies, movieFolders);
 
+        var allMovies = new List<ArrMovie>();
+        foreach (var instance in instances)
+        {
+            if (string.IsNullOrWhiteSpace(instance.Url) || string.IsNullOrWhiteSpace(instance.ApiKey))
+            {
+                continue;
+            }
+
+            var movies = await arrService.GetRadarrMoviesAsync(instance.Url, instance.ApiKey, cancellationToken).ConfigureAwait(false);
+            allMovies.AddRange(movies);
+        }
+
+        var result = ArrIntegrationService.CompareRadarrWithJellyfin(allMovies, movieFolders);
         return Ok(result);
     }
 
     /// <summary>
-    /// Compares Sonarr series with Jellyfin TV libraries.
+    /// Compares all configured Sonarr instances with Jellyfin TV libraries.
+    /// Returns a merged result across all instances.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The comparison result.</returns>
@@ -343,18 +362,30 @@ public class MediaStatisticsController : ControllerBase
     public async Task<ActionResult<ArrComparisonResult>> CompareSonarrAsync(CancellationToken cancellationToken)
     {
         var config = CleanupConfigHelper.GetConfig();
-        if (string.IsNullOrWhiteSpace(config.SonarrUrl) || string.IsNullOrWhiteSpace(config.SonarrApiKey))
+        var instances = config.GetEffectiveSonarrInstances();
+
+        if (instances.Count == 0)
         {
-            return BadRequest(new { message = "Sonarr URL and API key must be configured." });
+            return BadRequest(new { message = "At least one Sonarr instance must be configured." });
         }
 
-        var arrService = new ArrIntegrationService(_logger);
-        var sonarrSeries = await arrService.GetSonarrSeriesAsync(config.SonarrUrl, config.SonarrApiKey, cancellationToken).ConfigureAwait(false);
-
-        // Get Jellyfin TV show folder names
+        var httpClient = _httpClientFactory.CreateClient("ArrIntegration");
+        var arrService = new ArrIntegrationService(httpClient, _logger);
         var tvFolders = GetJellyfinFolderNames("tvshows");
-        var result = ArrIntegrationService.CompareSonarrWithJellyfin(sonarrSeries, tvFolders);
 
+        var allSeries = new List<ArrSeries>();
+        foreach (var instance in instances)
+        {
+            if (string.IsNullOrWhiteSpace(instance.Url) || string.IsNullOrWhiteSpace(instance.ApiKey))
+            {
+                continue;
+            }
+
+            var series = await arrService.GetSonarrSeriesAsync(instance.Url, instance.ApiKey, cancellationToken).ConfigureAwait(false);
+            allSeries.AddRange(series);
+        }
+
+        var result = ArrIntegrationService.CompareSonarrWithJellyfin(allSeries, tvFolders);
         return Ok(result);
     }
 

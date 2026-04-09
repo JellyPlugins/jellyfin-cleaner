@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] — 2026-04-09
+
+### Fixed
+- **Subtitle False Positives** — `IsSubtitleSuffix` used a naive "2-3 letter" heuristic that incorrectly matched non-language tokens like "DTS", "HDR", "S01", "720p". Replaced with explicit ISO 639-1/639-2 allowlists (`MediaExtensions.KnownLanguageCodes`, `MediaExtensions.SubtitleFlags`).
+- **Exception Handling** — Broadened `catch (Exception)` blocks in `ArrIntegrationService` narrowed to specific types (`HttpRequestException`, `JsonException`, `TaskCanceledException`).
+- **`_ = ex;` Anti-Pattern** — Removed meaningless `_ = ex;` assignments in `TrashService`, replaced with descriptive comments.
+- **Inconsistent StringComparison** — `CompareRadarrWithJellyfin` / `CompareSonarrWithJellyfin` now enforce `OrdinalIgnoreCase` regardless of caller-supplied `HashSet` comparer.
+
+### Changed
+- **Subtitle Allowlists → MediaExtensions** — `SubtitleFlags` and `KnownLanguageCodes` moved from `CleanOrphanedSubtitlesTask` to `MediaExtensions` for central, reusable access.
+- **ArrIntegrationService DI** — Now receives `HttpClient` via constructor (from `IHttpClientFactory`) instead of a static instance.
+- **CleanupTrackingService Thread-Safety** — `RecordCleanup` and `ResetStatistics` now use `lock` around config read/write/save to prevent race conditions.
+
+### Added
+- **New Tests** — `CleanOrphanedSubtitlesTaskTests` (subtitle base name parsing, false-positive regression), `PathValidatorTests` (IsSafePath, SanitizeFileName). Test count increased from 212 to **244**.
+
+---
+
 ## [1.0.1] — 2026-04-09
 
 ### Fixed
