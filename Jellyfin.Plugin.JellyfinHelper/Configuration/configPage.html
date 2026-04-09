@@ -421,8 +421,7 @@
     </style>
 </head>
 <body>
-    <div id="JellyfinHelperConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
-         data-require="emby-button">
+    <div id="JellyfinHelperConfigPage" data-role="page" class="page type-interior pluginConfigurationPage">
         <div data-role="content">
             <div class="content-primary">
                 <div class="stats-container">
@@ -431,7 +430,7 @@
                         <div class="header-actions">
                             <button id="btnExportJson" class="export-btn" disabled>📥 JSON</button>
                             <button id="btnExportCsv" class="export-btn" disabled>📥 CSV</button>
-                            <button id="btnRefresh" class="refresh-btn" is="emby-button">
+                            <button id="btnRefresh" class="refresh-btn">
                                 &#x21bb; Scan Libraries
                             </button>
                         </div>
@@ -1078,9 +1077,45 @@ apiClient.ajax({ type: 'GET', url: apiClient.getUrl('JellyfinHelper/Configuratio
                 });
             }
 
-            document.getElementById('btnRefresh').addEventListener('click', loadStatistics);
-            document.getElementById('btnExportJson').addEventListener('click', function () { triggerExport('Json'); });
-            document.getElementById('btnExportCsv').addEventListener('click', function () { triggerExport('Csv'); });
+            // --- Page initialization ---
+            var _pageInitialized = false;
+
+            function initPage() {
+                if (_pageInitialized) return;
+
+                var btnRefresh = document.getElementById('btnRefresh');
+                var btnExportJson = document.getElementById('btnExportJson');
+                var btnExportCsv = document.getElementById('btnExportCsv');
+
+                if (!btnRefresh) {
+                    console.warn('Jellyfin Helper: DOM not ready, will retry…');
+                    return;
+                }
+
+                _pageInitialized = true;
+
+                btnRefresh.addEventListener('click', loadStatistics);
+                btnExportJson.addEventListener('click', function () { triggerExport('Json'); });
+                btnExportCsv.addEventListener('click', function () { triggerExport('Csv'); });
+
+                console.log('Jellyfin Helper: Page initialized');
+            }
+
+            // Use Jellyfin's page lifecycle events
+            var pageEl = document.querySelector('#JellyfinHelperConfigPage');
+            if (pageEl) {
+                pageEl.addEventListener('pageshow', function () { setTimeout(initPage, 0); });
+                pageEl.addEventListener('viewshow', function () { setTimeout(initPage, 0); });
+            }
+
+            // Fallback: try immediately in case events already fired or won't fire
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                setTimeout(initPage, 150);
+            } else {
+                document.addEventListener('DOMContentLoaded', function () {
+                    setTimeout(initPage, 150);
+                });
+            }
         })();
     </script>
 </body>
