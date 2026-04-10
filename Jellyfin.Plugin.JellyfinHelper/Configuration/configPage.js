@@ -64,7 +64,7 @@
         if (t === 'tvshows') return '<span class="badge badge-tvshows">TV Shows</span>';
         if (t === 'movies' || t === '') return '<span class="badge badge-movies">Movies</span>';
         if (t === 'music') return '<span class="badge badge-music">Music</span>';
-        return '<span class="badge badge-other">' + (type || 'Mixed') + '</span>';
+        return '<span class="badge badge-other">' + escHtml(type || 'Mixed') + '</span>';
     }
 
     // SVG donut chart generator
