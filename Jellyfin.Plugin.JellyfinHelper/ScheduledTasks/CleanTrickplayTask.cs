@@ -91,11 +91,11 @@ public class CleanTrickplayTask
         else
         {
             _logger.LogInformation("Trickplay folder cleanup finished. Deleted {Count} folders, freed {Bytes} bytes.", totalDeleted, totalBytesFreed);
+        }
 
-            if (totalDeleted > 0)
-            {
-                CleanupTrackingService.RecordCleanup(totalBytesFreed, totalDeleted, _logger);
-            }
+        if (!effectiveDryRun && totalDeleted > 0)
+        {
+            CleanupTrackingService.RecordCleanup(totalBytesFreed, totalDeleted, _logger);
         }
 
         // Purge expired trash items if trash is enabled

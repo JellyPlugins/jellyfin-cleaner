@@ -1,17 +1,12 @@
 # Jellyfin Helper
 
+![Jellyfin Helper Logo](media/logo.png)
+
 A [Jellyfin](https://jellyfin.org/) plugin that provides automated cleanup tasks and media library statistics for your media library.
 
-## Screenshots
+## 📸 Screenshots
 
-> **📸 Placeholder** — Screenshots of the settings page will be added after the next release.
-
-<!-- TODO: Add screenshots or GIFs of the settings page here
-![Dashboard Overview](docs/screenshots/dashboard-overview.png)
-![Audio Codec Chart](docs/screenshots/audio-codec-chart.png)
-![Trend Graph](docs/screenshots/trend-graph.png)
-![Export Buttons](docs/screenshots/export-buttons.png)
--->
+![Dashboard Demo](media/Jellyfin-Helper-Media-Statistics.gif)
 
 ## Features
 

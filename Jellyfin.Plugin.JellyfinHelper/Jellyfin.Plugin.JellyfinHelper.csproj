@@ -35,7 +35,9 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Configuration\configPage.html" />
-    <EmbeddedResource Include="logo.png">
+    <EmbeddedResource Include="..\media\logo.png">
+      <LogicalName>Jellyfin.Plugin.JellyfinHelper.logo.png</LogicalName>
+      <Link>logo.png</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </EmbeddedResource>
