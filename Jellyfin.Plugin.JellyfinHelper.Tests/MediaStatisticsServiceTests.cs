@@ -1261,4 +1261,71 @@ public class MediaStatisticsServiceTests
         Assert.Equal("FLAC", MediaExtensions.AudioExtensionToCodec[".FLAC"]);
         Assert.Equal("MP3", MediaExtensions.AudioExtensionToCodec[".Mp3"]);
     }
+
+    [Fact]
+    public void CalculateStatistics_BoxsetLibrary_ScannedButHealthChecksSkipped()
+    {
+        var boxsetPath = TestPath("config", "data", "collections");
+
+        var boxsetFolder = new VirtualFolderInfo
+        {
+            Name = "Collections",
+            CollectionType = CollectionTypeOptions.boxsets,
+            Locations = [boxsetPath]
+        };
+
+        var moviePath = TestPath("media", "movies");
+        var movieFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [moviePath]
+        };
+
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([boxsetFolder, movieFolder]);
+
+        // Boxset folder contains a poster image but no video/subtitle — would normally trigger orphaned metadata
+        var posterFile = new FileSystemMetadata
+        {
+            FullName = TestPath("config", "data", "collections", "poster.jpg"),
+            Name = "poster.jpg",
+            Length = 200_000,
+            IsDirectory = false
+        };
+        _fileSystemMock.Setup(f => f.GetFiles(boxsetPath, false)).Returns([posterFile]);
+        _fileSystemMock.Setup(f => f.GetDirectories(boxsetPath, false)).Returns([]);
+
+        // Movie folder has a video without subtitles — should trigger health check warning
+        var mkvFile = new FileSystemMetadata
+        {
+            FullName = TestPath("media", "movies", "Film.mkv"),
+            Name = "Film.mkv",
+            Length = 1_000_000,
+            IsDirectory = false
+        };
+        _fileSystemMock.Setup(f => f.GetFiles(moviePath, false)).Returns([mkvFile]);
+        _fileSystemMock.Setup(f => f.GetDirectories(moviePath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+
+        // Both libraries should be present in statistics
+        Assert.Equal(2, result.Libraries.Count);
+        Assert.Single(result.Movies);
+        Assert.Single(result.Other); // boxsets land in Other
+
+        // Boxset library: files are scanned (poster counted) but no health check flags
+        var boxsetStats = result.Libraries.First(l => l.LibraryName == "Collections");
+        Assert.Equal(1, boxsetStats.ImageFileCount);
+        Assert.Equal(200_000, boxsetStats.ImageSize);
+        Assert.Equal(0, boxsetStats.VideosWithoutSubtitles);
+        Assert.Equal(0, boxsetStats.VideosWithoutImages);
+        Assert.Equal(0, boxsetStats.VideosWithoutNfo);
+        Assert.Equal(0, boxsetStats.OrphanedMetadataDirectories); // would be 1 without skipHealthChecks
+
+        // Movie library: health checks still work normally
+        var movieStats = result.Libraries.First(l => l.LibraryName == "Movies");
+        Assert.Equal(1, movieStats.VideosWithoutSubtitles);
+        Assert.Equal(1, movieStats.VideosWithoutImages);
+        Assert.Equal(1, movieStats.VideosWithoutNfo);
+    }
 }

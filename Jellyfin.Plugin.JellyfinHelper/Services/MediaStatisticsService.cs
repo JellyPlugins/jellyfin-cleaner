@@ -45,6 +45,8 @@ public partial class MediaStatisticsService
         foreach (var vf in virtualFolders)
         {
             var collectionType = vf.CollectionType;
+
+            var isBoxsets = collectionType is CollectionTypeOptions.boxsets;
             var isMovies = collectionType is CollectionTypeOptions.movies
                 or CollectionTypeOptions.homevideos
                 or CollectionTypeOptions.musicvideos;
@@ -60,7 +62,7 @@ public partial class MediaStatisticsService
             foreach (var location in vf.Locations)
             {
                 _logger.LogDebug("Scanning library location: {Location} (type: {Type})", location, collectionType);
-                AnalyzeDirectoryRecursive(location, libraryStats);
+                AnalyzeDirectoryRecursive(location, libraryStats, skipHealthChecks: isBoxsets);
             }
 
             result.Libraries.Add(libraryStats);
@@ -91,7 +93,8 @@ public partial class MediaStatisticsService
     /// </summary>
     /// <param name="directoryPath">The directory to analyze.</param>
     /// <param name="stats">The statistics accumulator.</param>
-    private void AnalyzeDirectoryRecursive(string directoryPath, LibraryStatistics stats)
+    /// <param name="skipHealthChecks">When true, skip health check counters (e.g. for boxset/collection libraries).</param>
+    private void AnalyzeDirectoryRecursive(string directoryPath, LibraryStatistics stats, bool skipHealthChecks = false)
     {
         try
         {
@@ -174,27 +177,32 @@ public partial class MediaStatisticsService
             }
 
             // Health checks — per-directory analysis
-            if (hasVideo)
+            // Boxset/collection libraries are excluded: they are Jellyfin-internal virtual folders
+            // that group related movies and typically only contain posters/images, not real media.
+            if (!skipHealthChecks)
             {
-                int videoCount = files.Count(f => MediaExtensions.VideoExtensions.Contains(Path.GetExtension(f.FullName)));
-                if (!hasSubs)
+                if (hasVideo)
                 {
-                    stats.VideosWithoutSubtitles += videoCount;
-                }
+                    int videoCount = files.Count(f => MediaExtensions.VideoExtensions.Contains(Path.GetExtension(f.FullName)));
+                    if (!hasSubs)
+                    {
+                        stats.VideosWithoutSubtitles += videoCount;
+                    }
 
-                if (!hasImage)
-                {
-                    stats.VideosWithoutImages += videoCount;
-                }
+                    if (!hasImage)
+                    {
+                        stats.VideosWithoutImages += videoCount;
+                    }
 
-                if (!hasNfo)
-                {
-                    stats.VideosWithoutNfo += videoCount;
+                    if (!hasNfo)
+                    {
+                        stats.VideosWithoutNfo += videoCount;
+                    }
                 }
-            }
-            else if (hasAnyNonTrickplayFile && (hasSubs || hasImage || hasNfo))
-            {
-                stats.OrphanedMetadataDirectories++;
+                else if (hasAnyNonTrickplayFile && (hasSubs || hasImage || hasNfo))
+                {
+                    stats.OrphanedMetadataDirectories++;
+                }
             }
 
             // Recurse into subdirectories
@@ -209,7 +217,7 @@ public partial class MediaStatisticsService
                 }
                 else
                 {
-                    AnalyzeDirectoryRecursive(subDir.FullName, stats);
+                    AnalyzeDirectoryRecursive(subDir.FullName, stats, skipHealthChecks);
                 }
             }
         }
