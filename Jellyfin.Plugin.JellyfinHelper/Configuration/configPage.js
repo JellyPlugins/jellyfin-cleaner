@@ -862,7 +862,8 @@
 
         // === CODECS ===
         var videoCodecs = aggregateDict(data.Libraries, 'VideoCodecs');
-        var audioCodecs = aggregateDict(data.Libraries, 'AudioCodecs');
+        var videoAudioCodecs = aggregateDict(data.Libraries, 'VideoAudioCodecs');
+        var musicAudioCodecs = aggregateDict(data.Libraries, 'MusicAudioCodecs');
         var containers = aggregateDict(data.Libraries, 'ContainerFormats');
         var resolutions = aggregateDict(data.Libraries, 'Resolutions');
 
@@ -870,9 +871,18 @@
         codecsHtml += '<div class="chart-box"><h4>' + T('videoCodecs', '🎬 Video Codecs') + '</h4>';
         codecsHtml += renderDonutChart(videoCodecs);
         codecsHtml += '</div>';
-        codecsHtml += '<div class="chart-box"><h4>' + T('audioCodecs', '🎵 Audio Codecs') + '</h4>';
-        codecsHtml += renderDonutChart(audioCodecs);
-        codecsHtml += '</div>';
+        var hasVideoAudio = Object.keys(videoAudioCodecs).length > 0;
+        var hasMusicAudio = Object.keys(musicAudioCodecs).length > 0;
+        if (hasVideoAudio) {
+            codecsHtml += '<div class="chart-box"><h4>' + T('videoAudioCodecs', '🔊 Video Audio Codecs') + '</h4>';
+            codecsHtml += renderDonutChart(videoAudioCodecs);
+            codecsHtml += '</div>';
+        }
+        if (hasMusicAudio) {
+            codecsHtml += '<div class="chart-box"><h4>' + T('musicAudioCodecs', '🎵 Music Audio Codecs') + '</h4>';
+            codecsHtml += renderDonutChart(musicAudioCodecs);
+            codecsHtml += '</div>';
+        }
         codecsHtml += '<div class="chart-box"><h4>' + T('containerFormats', '📦 Container Formats') + '</h4>';
         codecsHtml += renderDonutChart(containers);
         codecsHtml += '</div>';

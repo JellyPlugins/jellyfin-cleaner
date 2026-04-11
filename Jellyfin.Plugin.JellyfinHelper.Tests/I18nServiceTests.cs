@@ -84,7 +84,7 @@ public class I18nServiceTests
             "movieVideoData", "tvVideoData", "musicAudio", "trickplayData", "subtitles", "totalFiles",
             "storageDistribution", "perLibrary",
             "cleanupStatistics", "totalBytesFreed", "totalItemsDeleted", "lastCleanup", "never",
-            "videoCodecs", "audioCodecs", "containerFormats", "resolutions", "noData",
+            "videoCodecs", "videoAudioCodecs", "musicAudioCodecs", "containerFormats", "resolutions", "noData",
             "healthChecks", "noSubtitles", "noImages", "noNfo", "orphanedDirs",
             "growthTrend", "trendEmpty", "trendLoading", "trendError",
             "settingsTitle", "includedLibraries", "excludedLibraries",

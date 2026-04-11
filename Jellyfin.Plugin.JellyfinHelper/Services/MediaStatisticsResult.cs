@@ -105,9 +105,14 @@ public class MediaStatisticsResult
     public Dictionary<string, int> TotalVideoCodecs => AggregateDictionaries(Libraries.Select(l => l.VideoCodecs));
 
     /// <summary>
-    /// Gets the aggregated audio codec breakdown across all libraries.
+    /// Gets the aggregated video audio codec breakdown across all libraries.
     /// </summary>
-    public Dictionary<string, int> TotalAudioCodecs => AggregateDictionaries(Libraries.Select(l => l.AudioCodecs));
+    public Dictionary<string, int> TotalVideoAudioCodecs => AggregateDictionaries(Libraries.Select(l => l.VideoAudioCodecs));
+
+    /// <summary>
+    /// Gets the aggregated music audio codec breakdown across all libraries.
+    /// </summary>
+    public Dictionary<string, int> TotalMusicAudioCodecs => AggregateDictionaries(Libraries.Select(l => l.MusicAudioCodecs));
 
     /// <summary>
     /// Gets the aggregated container sizes across all libraries.
@@ -125,9 +130,14 @@ public class MediaStatisticsResult
     public Dictionary<string, long> TotalVideoCodecSizes => AggregateLongDictionaries(Libraries.Select(l => l.VideoCodecSizes));
 
     /// <summary>
-    /// Gets the aggregated audio codec sizes across all libraries.
+    /// Gets the aggregated video audio codec sizes across all libraries.
     /// </summary>
-    public Dictionary<string, long> TotalAudioCodecSizes => AggregateLongDictionaries(Libraries.Select(l => l.AudioCodecSizes));
+    public Dictionary<string, long> TotalVideoAudioCodecSizes => AggregateLongDictionaries(Libraries.Select(l => l.VideoAudioCodecSizes));
+
+    /// <summary>
+    /// Gets the aggregated music audio codec sizes across all libraries.
+    /// </summary>
+    public Dictionary<string, long> TotalMusicAudioCodecSizes => AggregateLongDictionaries(Libraries.Select(l => l.MusicAudioCodecSizes));
 
     // === Aggregated Health Checks ===
 

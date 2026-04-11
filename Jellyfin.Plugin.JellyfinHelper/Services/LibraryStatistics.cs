@@ -111,9 +111,16 @@ public class LibraryStatistics
     public Dictionary<string, int> VideoCodecs { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets the audio codec breakdown (codec → count), e.g. "AAC" → 40, "FLAC" → 30.
+    /// Gets the audio codec breakdown for video files (codec → count), e.g. "DTS" → 40, "AAC" → 30.
+    /// Parsed from video filenames.
     /// </summary>
-    public Dictionary<string, int> AudioCodecs { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, int> VideoAudioCodecs { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the audio codec breakdown for music files (codec → count), e.g. "FLAC" → 100, "MP3" → 50.
+    /// Derived from file extensions.
+    /// </summary>
+    public Dictionary<string, int> MusicAudioCodecs { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the container format size breakdown (extension → total bytes).
@@ -131,9 +138,14 @@ public class LibraryStatistics
     public Dictionary<string, long> VideoCodecSizes { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets the audio codec size breakdown (codec → total bytes).
+    /// Gets the audio codec size breakdown for video files (codec → total bytes).
     /// </summary>
-    public Dictionary<string, long> AudioCodecSizes { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, long> VideoAudioCodecSizes { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the audio codec size breakdown for music files (codec → total bytes).
+    /// </summary>
+    public Dictionary<string, long> MusicAudioCodecSizes { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     // === Health Check Counters ===
 

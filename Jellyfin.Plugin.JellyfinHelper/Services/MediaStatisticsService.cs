@@ -129,6 +129,14 @@ public partial class MediaStatisticsService
                     var codec = ParseVideoCodec(file.Name);
                     FileSystemHelper.IncrementCount(stats.VideoCodecs, codec);
                     FileSystemHelper.AccumulateValue(stats.VideoCodecSizes, codec, size);
+
+                    // Audio codec parsing from video filename (e.g. "Movie.DTS.mkv")
+                    var audioCodec = ParseAudioCodec(file.Name, ext);
+                    if (!string.Equals(audioCodec, "Unknown", StringComparison.Ordinal))
+                    {
+                        FileSystemHelper.IncrementCount(stats.VideoAudioCodecs, audioCodec);
+                        FileSystemHelper.AccumulateValue(stats.VideoAudioCodecSizes, audioCodec, size);
+                    }
                 }
                 else if (MediaExtensions.SubtitleExtensions.Contains(ext))
                 {
@@ -155,8 +163,8 @@ public partial class MediaStatisticsService
 
                     // Audio codec parsing from filename and extension
                     var audioCodec = ParseAudioCodec(file.Name, ext);
-                    FileSystemHelper.IncrementCount(stats.AudioCodecs, audioCodec);
-                    FileSystemHelper.AccumulateValue(stats.AudioCodecSizes, audioCodec, size);
+                    FileSystemHelper.IncrementCount(stats.MusicAudioCodecs, audioCodec);
+                    FileSystemHelper.AccumulateValue(stats.MusicAudioCodecSizes, audioCodec, size);
                 }
                 else
                 {
