@@ -116,7 +116,7 @@
         }
 
         if (!url || !apiKey) {
-            btn.innerHTML = '<div style="display: flex; align-items: center"><span class="btn-icon">X</span>' + T('testMissingFields', 'URL and API Key are required.') + '</div>';
+            btn.innerHTML = '<span class="btn-icon">X</span>' + T('testMissingFields', 'URL and API Key are required.');
             btn.classList.add('error');
             _testTimers[timerKey] = setTimeout(function() {
                 btn.innerHTML = originalHtml;

@@ -55,11 +55,13 @@
     cursor: not-allowed;
 }
 
-.refresh-btn.success {
+.refresh-btn.success,
+.refresh-btn.success:hover {
     background: #2ecc71;
 }
 
-.refresh-btn.error {
+.refresh-btn.error,
+.refresh-btn.error:hover {
     background: #e74c3c;
 }
 
@@ -189,11 +191,13 @@
 }
 
 .success-msg { color: #2ecc71; padding: 0.5em; text-align: center; font-weight: 600; }
-.action-btn { padding: 0.5em 1.2em; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 0.95em; transition: background 0.2s; background: #e67e22; }
+.action-btn { display: inline-flex; align-items: center; padding: 0.5em 1.2em; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 0.95em; transition: background 0.2s; background: #e67e22; }
 .action-btn:hover { background: #d35400; }
 .action-btn:disabled { background: #555; cursor: not-allowed; }
-.action-btn.success { background: #2ecc71; }
-.action-btn.error { background: #e74c3c; }
+.action-btn.success,
+.action-btn.success:hover { background: #2ecc71; }
+.action-btn.error,
+.action-btn.error:hover { background: #e74c3c; }
 
 /* === Shared File List Styles (used by Codecs + Health tabs) === */
 
