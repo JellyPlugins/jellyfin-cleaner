@@ -72,33 +72,33 @@ public class CodecsHtmlTests : ConfigPageTestBase
     public void Html_CodecCategoryMap_VideoCodecsExcludesMusic()
     {
         // videoCodecs should have music: false
-        Assert.Contains("'videoCodecs': { movies: true, tvShows: true, music: false }", HtmlContent);
+        Assert.Contains("'videoCodecs': { movies: true, tvShows: true, music: false, other: true }", HtmlContent);
     }
 
     [Fact]
     public void Html_CodecCategoryMap_VideoAudioCodecsExcludesMusic()
     {
-        Assert.Contains("'videoAudioCodecs': { movies: true, tvShows: true, music: false }", HtmlContent);
+        Assert.Contains("'videoAudioCodecs': { movies: true, tvShows: true, music: false, other: true }", HtmlContent);
     }
 
     [Fact]
     public void Html_CodecCategoryMap_MusicAudioCodecsExcludesVideo()
     {
         // musicAudioCodecs should only include music
-        Assert.Contains("'musicAudioCodecs': { movies: false, tvShows: false, music: true }", HtmlContent);
+        Assert.Contains("'musicAudioCodecs': { movies: false, tvShows: false, music: true, other: false }", HtmlContent);
     }
 
     [Fact]
     public void Html_CodecCategoryMap_ContainersIncludesAll()
     {
         // containers should include all library types
-        Assert.Contains("'containers': { movies: true, tvShows: true, music: true }", HtmlContent);
+        Assert.Contains("'containers': { movies: true, tvShows: true, music: true, other: true }", HtmlContent);
     }
 
     [Fact]
     public void Html_CodecCategoryMap_ResolutionsExcludesMusic()
     {
-        Assert.Contains("'resolutions': { movies: true, tvShows: true, music: false }", HtmlContent);
+        Assert.Contains("'resolutions': { movies: true, tvShows: true, music: false, other: true }", HtmlContent);
     }
 
     [Fact]

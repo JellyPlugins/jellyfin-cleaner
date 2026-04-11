@@ -96,10 +96,12 @@
         var moviePaths = [];
         var tvPaths = [];
         var musicPaths = [];
+        var otherPaths = [];
 
         var includeMovies = !categories || categories.movies;
         var includeTvShows = !categories || categories.tvShows;
         var includeMusic = !categories || categories.music;
+        var includeOther = !categories || categories.other;
 
         // Movies
         if (includeMovies && data.Movies) {
@@ -140,14 +142,29 @@
             }
         }
 
+        // Other Libraries
+        if (includeOther && data.Other) {
+            for (var o = 0; o < data.Other.length; o++) {
+                var oLib = data.Other[o];
+                var oDict = oLib[pathsProp];
+                if (oDict && oDict[codecName]) {
+                    for (var l = 0; l < oDict[codecName].length; l++) {
+                        otherPaths.push(oDict[codecName][l]);
+                    }
+                }
+            }
+        }
+
         return {
             movies: moviePaths,
             tvShows: tvPaths,
             music: musicPaths,
+            other: otherPaths,
             rootPaths: {
                 movies: data.MovieRootPaths || [],
                 tvShows: data.TvShowRootPaths || [],
-                music: data.MusicRootPaths || []
+                music: data.MusicRootPaths || [],
+                other: data.OtherRootPaths || []
             }
         };
     }
@@ -163,15 +180,15 @@
     };
 
     // Map chart IDs to which media categories should be included
-    // Video Codecs, Video Audio Codecs, Resolutions → only Movies + TV Shows
+    // Video Codecs, Video Audio Codecs, Resolutions → only Movies + TV Shows + Other
     // Music Audio Codecs → only Music
-    // Container Formats → all libraries (Movies + TV Shows + Music)
+    // Container Formats → all libraries (Movies + TV Shows + Music + Other)
     var CODEC_CATEGORY_MAP = {
-        'videoCodecs': { movies: true, tvShows: true, music: false },
-        'videoAudioCodecs': { movies: true, tvShows: true, music: false },
-        'musicAudioCodecs': { movies: false, tvShows: false, music: true },
-        'containers': { movies: true, tvShows: true, music: true },
-        'resolutions': { movies: true, tvShows: true, music: false }
+        'videoCodecs': { movies: true, tvShows: true, music: false, other: true },
+        'videoAudioCodecs': { movies: true, tvShows: true, music: false, other: true },
+        'musicAudioCodecs': { movies: false, tvShows: false, music: true, other: false },
+        'containers': { movies: true, tvShows: true, music: true, other: true },
+        'resolutions': { movies: true, tvShows: true, music: false, other: true }
     };
 
     // Attach click handlers to codec rows
@@ -231,8 +248,8 @@
     function fillCodecsData(data) {
         _lastCodecData = data;
 
-        // Video-only libraries (Movies + TV Shows) — used for video-specific charts
-        var videoLibraries = (data.Movies || []).concat(data.TvShows || []);
+        // Video-only libraries (Movies + TV Shows + Other) — used for video-specific charts
+        var videoLibraries = (data.Movies || []).concat(data.TvShows || []).concat(data.Other || []);
         // Music-only libraries — used for music-specific charts
         var musicLibraries = data.Music || [];
 
