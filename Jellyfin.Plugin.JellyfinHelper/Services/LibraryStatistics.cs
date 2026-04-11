@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services;
 
 /// <summary>
 /// Statistics for a single library.
 /// </summary>
+[JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
 public class LibraryStatistics
 {
     /// <summary>

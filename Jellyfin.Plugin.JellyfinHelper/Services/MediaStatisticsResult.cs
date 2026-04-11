@@ -2,12 +2,14 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services;
 
 /// <summary>
 /// The result of a media statistics scan.
 /// </summary>
+[JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
 public class MediaStatisticsResult
 {
     /// <summary>
