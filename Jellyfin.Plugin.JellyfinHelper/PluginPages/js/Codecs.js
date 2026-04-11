@@ -239,7 +239,7 @@
         var containerSizes = aggregateDict(data.Libraries, 'ContainerSizes');
         var resolutionSizes = aggregateDict(videoLibraries, 'ResolutionSizes');
 
-        var codecsHtml = '<div class="charts-row">';
+        var codecsHtml = '<div class="charts-row" style="margin-top: 3em">';
         codecsHtml += '<div class="chart-box"><h4>' + T('videoCodecs', '🎬 Video Codecs') + '</h4>';
         codecsHtml += renderDonutChart(videoCodecs, videoCodecSizes, 'videoCodecs');
         codecsHtml += '</div>';

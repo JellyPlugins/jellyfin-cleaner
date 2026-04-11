@@ -55,6 +55,14 @@
     cursor: not-allowed;
 }
 
+.refresh-btn.success {
+    background: #2ecc71 !important;
+}
+
+.refresh-btn.error {
+    background: #e74c3c !important;
+}
+
 .export-btn {
     background: #2ecc71;
 }
@@ -71,9 +79,20 @@
 .section-title {
     font-size: 1.1em;
     font-weight: 600;
-    margin: 1.5em 0 0.5em 0;
+    margin: 3em 0 0.5em 0;
     padding-bottom: 0.3em;
     border-bottom: 2px solid #00a4dc;
+}
+
+.section-sub-title {
+    font-size: 1em;
+    font-weight: 600;
+    margin-bottom: 0.3em;
+}
+
+.section-sub-title > .help-text {
+    font-size: 0.8em;
+    opacity: 0.5;
 }
 
 .loading-overlay {
@@ -146,7 +165,6 @@
     font-size: 0.95em;
     opacity: 0.6;
     border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
     transition: opacity 0.2s, border-color 0.2s;
     white-space: nowrap;
     flex-shrink: 0;
@@ -174,6 +192,8 @@
 .action-btn { padding: 0.5em 1.2em; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 0.95em; transition: background 0.2s; background: #e67e22; }
 .action-btn:hover { background: #d35400; }
 .action-btn:disabled { background: #555; cursor: not-allowed; }
+.action-btn.success { background: #2ecc71 !important; }
+.action-btn.error { background: #e74c3c !important; }
 
 /* === Shared File List Styles (used by Codecs + Health tabs) === */
 
@@ -303,4 +323,22 @@
     text-overflow: ellipsis;
     max-width: 120px;
     flex-shrink: 0;
+}
+
+.btn-icon {
+    margin-right: 0.5em;
+    vertical-align: middle;
+    display: inline-block;
+}
+
+.btn-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+    margin-right: 0.5em;
+    vertical-align: middle;
 }
