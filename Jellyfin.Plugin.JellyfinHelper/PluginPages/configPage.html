@@ -1732,7 +1732,7 @@
         var timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         var filename = 'jellyfin-statistics-' + timestamp + '.' + ext;
 
-        apiClient.ajax({ type: 'GET', url: url }).then(function (data) {
+        apiClient.ajax({ type: 'GET', url: url, dataType: 'text' }).then(function (data) {
             var content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
             var blob = new Blob([content], { type: mimeType });
             var blobUrl = URL.createObjectURL(blob);

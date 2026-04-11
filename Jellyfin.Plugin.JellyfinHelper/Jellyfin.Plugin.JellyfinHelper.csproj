@@ -51,10 +51,17 @@
         foreach (var cssFile in CssFiles.Split(new char[] { ';' }, System.StringSplitOptions.RemoveEmptyEntries))
         {
             var trimmed = cssFile.Trim();
-            if (!string.IsNullOrEmpty(trimmed) && System.IO.File.Exists(trimmed))
+            if (string.IsNullOrEmpty(trimmed))
             {
-                cssBuilder.AppendLine(System.IO.File.ReadAllText(trimmed));
+                continue;
             }
+
+            if (!System.IO.File.Exists(trimmed))
+            {
+                throw new System.IO.FileNotFoundException("Configured CSS module was not found.", trimmed);
+            }
+
+            cssBuilder.AppendLine(System.IO.File.ReadAllText(trimmed));
         }
 
         // Concatenate all JS files (semicolon-separated list)
@@ -62,10 +69,17 @@
         foreach (var jsFile in JsFiles.Split(new char[] { ';' }, System.StringSplitOptions.RemoveEmptyEntries))
         {
             var trimmed = jsFile.Trim();
-            if (!string.IsNullOrEmpty(trimmed) && System.IO.File.Exists(trimmed))
+            if (string.IsNullOrEmpty(trimmed))
             {
-                jsBuilder.AppendLine(System.IO.File.ReadAllText(trimmed));
+                continue;
             }
+
+            if (!System.IO.File.Exists(trimmed))
+            {
+                throw new System.IO.FileNotFoundException("Configured JS module was not found.", trimmed);
+            }
+
+            jsBuilder.AppendLine(System.IO.File.ReadAllText(trimmed));
         }
 
         var result = template.Replace("/* CSS_CONTENT */", cssBuilder.ToString()).Replace("/* JS_CONTENT */", jsBuilder.ToString());

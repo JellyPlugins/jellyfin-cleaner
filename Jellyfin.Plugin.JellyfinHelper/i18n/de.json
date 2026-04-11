@@ -172,5 +172,9 @@
   "more": "weitere",
   "entry": "Eintrag",
   "entries": "Einträge",
-  "noEntries": "Keine Einträge gefunden."
+  "noEntries": "Keine Einträge gefunden.",
+  "tvShows": "TV-Serien",
+  "movies": "Filme",
+  "music": "Musik",
+  "mixed": "Gemischt"
 }

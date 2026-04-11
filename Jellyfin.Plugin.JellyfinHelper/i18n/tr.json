@@ -172,5 +172,9 @@
   "more": "daha",
   "entry": "kayıt",
   "entries": "kayıt",
-  "noEntries": "Kayıt bulunamadı."
+  "noEntries": "Kayıt bulunamadı.",
+  "tvShows": "TV Dizileri",
+  "movies": "Filmler",
+  "music": "Müzik",
+  "mixed": "Karışık"
 }

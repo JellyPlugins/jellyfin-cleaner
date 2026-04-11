@@ -172,5 +172,9 @@
   "more": "更多",
   "entry": "条目",
   "entries": "条目",
-  "noEntries": "未找到条目。"
+  "noEntries": "未找到条目。",
+  "tvShows": "电视节目",
+  "movies": "电影",
+  "music": "音乐",
+  "mixed": "混合"
 }

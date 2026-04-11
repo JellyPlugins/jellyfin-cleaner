@@ -21,7 +21,7 @@ public class StatisticsSerializationRoundtripTests
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
-        PropertyNamingPolicy = null,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
     private static T Roundtrip<T>(T original)

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -7,6 +8,7 @@ using System.Net.Http;
 using System.Net.Mime;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
@@ -41,6 +43,7 @@ public class MediaStatisticsController : ControllerBase
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
     };
 
     // Simple in-memory rate limiting
@@ -204,6 +207,8 @@ public class MediaStatisticsController : ControllerBase
 
     /// <summary>
     /// Exports the current statistics as a CSV file download.
+    /// Includes all fields matching the JSON export: file counts, sizes, codec/resolution breakdowns,
+    /// health check counters, and detail paths.
     /// </summary>
     /// <returns>A CSV file containing the per-library statistics.</returns>
     [HttpGet("Statistics/Export/Csv")]
@@ -213,7 +218,43 @@ public class MediaStatisticsController : ControllerBase
         var result = GetCachedOrCalculate();
 
         var sb = new StringBuilder();
-        sb.AppendLine("Library,CollectionType,VideoFiles,VideoSizeBytes,AudioFiles,AudioSizeBytes,SubtitleFiles,SubtitleSizeBytes,ImageFiles,ImageSizeBytes,NfoFiles,NfoSizeBytes,TrickplayFolders,TrickplaySizeBytes,OtherFiles,OtherSizeBytes,TotalSizeBytes");
+        sb.AppendLine(string.Join(
+            ",",
+            "Library",
+            "CollectionType",
+            "VideoFiles",
+            "VideoSizeBytes",
+            "AudioFiles",
+            "AudioSizeBytes",
+            "SubtitleFiles",
+            "SubtitleSizeBytes",
+            "ImageFiles",
+            "ImageSizeBytes",
+            "NfoFiles",
+            "NfoSizeBytes",
+            "TrickplayFolders",
+            "TrickplaySizeBytes",
+            "OtherFiles",
+            "OtherSizeBytes",
+            "TotalSizeBytes",
+            "ContainerFormats",
+            "Resolutions",
+            "VideoCodecs",
+            "VideoAudioCodecs",
+            "MusicAudioCodecs",
+            "ContainerSizes",
+            "ResolutionSizes",
+            "VideoCodecSizes",
+            "VideoAudioCodecSizes",
+            "MusicAudioCodecSizes",
+            "VideosWithoutSubtitles",
+            "VideosWithoutImages",
+            "VideosWithoutNfo",
+            "OrphanedMetadataDirectories",
+            "VideosWithoutSubtitlesPaths",
+            "VideosWithoutImagesPaths",
+            "VideosWithoutNfoPaths",
+            "OrphanedMetadataDirectoriesPaths"));
 
         foreach (var lib in result.Libraries)
         {
@@ -235,7 +276,25 @@ public class MediaStatisticsController : ControllerBase
                 lib.TrickplaySize,
                 lib.OtherFileCount,
                 lib.OtherSize,
-                lib.TotalSize));
+                lib.TotalSize,
+                EscapeCsv(SerializeDictionary(lib.ContainerFormats)),
+                EscapeCsv(SerializeDictionary(lib.Resolutions)),
+                EscapeCsv(SerializeDictionary(lib.VideoCodecs)),
+                EscapeCsv(SerializeDictionary(lib.VideoAudioCodecs)),
+                EscapeCsv(SerializeDictionary(lib.MusicAudioCodecs)),
+                EscapeCsv(SerializeDictionary(lib.ContainerSizes)),
+                EscapeCsv(SerializeDictionary(lib.ResolutionSizes)),
+                EscapeCsv(SerializeDictionary(lib.VideoCodecSizes)),
+                EscapeCsv(SerializeDictionary(lib.VideoAudioCodecSizes)),
+                EscapeCsv(SerializeDictionary(lib.MusicAudioCodecSizes)),
+                lib.VideosWithoutSubtitles,
+                lib.VideosWithoutImages,
+                lib.VideosWithoutNfo,
+                lib.OrphanedMetadataDirectories,
+                EscapeCsv(SerializeCollection(lib.VideosWithoutSubtitlesPaths)),
+                EscapeCsv(SerializeCollection(lib.VideosWithoutImagesPaths)),
+                EscapeCsv(SerializeCollection(lib.VideosWithoutNfoPaths)),
+                EscapeCsv(SerializeCollection(lib.OrphanedMetadataDirectoriesPaths))));
         }
 
         var bytes = Encoding.UTF8.GetBytes(sb.ToString());
@@ -697,6 +756,32 @@ public class MediaStatisticsController : ControllerBase
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Serializes a dictionary to a compact JSON string for CSV embedding.
+    /// </summary>
+    private static string SerializeDictionary<TValue>(Dictionary<string, TValue>? dict)
+    {
+        if (dict == null || dict.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return JsonSerializer.Serialize(dict);
+    }
+
+    /// <summary>
+    /// Serializes a collection (list) to a compact JSON array string for CSV embedding.
+    /// </summary>
+    private static string SerializeCollection(Collection<string>? list)
+    {
+        if (list == null || list.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return JsonSerializer.Serialize(list);
     }
 
     /// <summary>

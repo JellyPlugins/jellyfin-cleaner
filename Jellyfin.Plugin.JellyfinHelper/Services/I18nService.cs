@@ -36,7 +36,11 @@ public static class I18nService
     /// <returns>A dictionary of translation keys to translated strings.</returns>
     public static Dictionary<string, string> GetTranslations(string? languageCode)
     {
-        var lang = (languageCode ?? "en").ToLowerInvariant();
+        var lang = string.IsNullOrWhiteSpace(languageCode)
+            ? "en"
+            : languageCode
+                .Split(['-', '_'], StringSplitOptions.RemoveEmptyEntries)[0]
+                .ToLowerInvariant();
 
         if (!SupportedLanguages.Contains(lang))
         {
