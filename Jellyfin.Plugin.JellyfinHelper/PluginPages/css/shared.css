@@ -365,3 +365,10 @@
     margin-right: 0.5em;
     vertical-align: middle;
 }
+
+@media (prefers-reduced-motion: reduce) {
+    .btn-spinner,
+    .loading-overlay .spinner {
+        animation: none;
+    }
+}

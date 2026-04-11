@@ -72,6 +72,21 @@
     }
 
     function removeArrInstance(type, index) {
+        // Clear all pending test timers for this type to prevent stale callbacks after reindexing
+        for (var key in _testTimers) {
+            if (key.indexOf(type + '_') === 0 && _testTimers[key]) {
+                clearTimeout(_testTimers[key]);
+                delete _testTimers[key];
+            }
+        }
+        // Reset any test buttons that are in success/error state
+        var testBtns = document.querySelectorAll('.btnTestArr[data-type="' + type + '"]');
+        for (var b = 0; b < testBtns.length; b++) {
+            testBtns[b].classList.remove('success', 'error');
+            testBtns[b].disabled = false;
+            testBtns[b].innerHTML = '🔌 ' + T('testConnection', 'Test Connection');
+        }
+
         var row = document.querySelector('.arr-instance-row[data-type="' + type + '"][data-index="' + index + '"]');
         if (row) row.remove();
         var remaining = document.querySelectorAll('.arr-instance-row[data-type="' + type + '"]');
