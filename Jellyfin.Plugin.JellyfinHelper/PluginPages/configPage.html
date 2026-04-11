@@ -177,6 +177,137 @@
 .action-btn { padding: 0.5em 1.2em; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 0.95em; transition: background 0.2s; background: #e67e22; }
 .action-btn:hover { background: #d35400; }
 .action-btn:disabled { background: #555; cursor: not-allowed; }
+
+/* === Shared File List Styles (used by Codecs + Health tabs) === */
+
+/* File List Header */
+.codec-files-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.7em;
+    padding-bottom: 0.5em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.codec-files-title {
+    font-weight: 700;
+    font-size: 0.95em;
+    color: #00a4dc;
+}
+
+.codec-files-count {
+    font-size: 0.8em;
+    opacity: 0.5;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0.15em 0.5em;
+    border-radius: 10px;
+}
+
+/* noinspection CssUnusedSymbol */
+.codec-files-empty {
+    text-align: center;
+    padding: 1em;
+    opacity: 0.4;
+    font-size: 0.85em;
+}
+
+/* File List Columns (Movies / TV Shows / Music split) */
+.codec-files-columns {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8em;
+}
+
+/* noinspection CssUnusedSymbol */
+.codec-files-columns.codec-files-multi {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 0.8em;
+}
+
+@media (max-width: 600px) {
+    /* noinspection CssUnusedSymbol */
+    .codec-files-columns.codec-files-multi {
+        grid-template-columns: 1fr;
+    }
+}
+
+.codec-files-section {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    padding: 0.6em;
+}
+
+.codec-files-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    margin-bottom: 0.5em;
+    font-size: 0.85em;
+}
+
+.codec-files-section-count {
+    opacity: 0.45;
+    font-size: 0.85em;
+}
+
+.codec-files-list {
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.codec-files-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.codec-files-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}
+
+/* Individual File Item */
+.codec-file-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.3em 0.4em;
+    border-radius: 4px;
+    transition: background 0.15s;
+    cursor: default;
+}
+
+.codec-file-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.codec-file-icon {
+    flex-shrink: 0;
+    font-size: 0.75em;
+    width: 1.2em;
+    text-align: center;
+}
+
+.codec-file-name {
+    font-size: 0.78em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+}
+
+.codec-file-folder {
+    font-size: 0.68em;
+    opacity: 0.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+    flex-shrink: 0;
+}
+
 .stats-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -350,27 +481,152 @@
     display: inline-block;
 }
 
-.donut-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5em;
-    justify-content: center;
-    margin-top: 0.8em;
-    font-size: 0.8em;
+/* === Codec Breakdown (clickable legend/table below donut) === */
+
+.codec-breakdown {
+    margin-top: 1em;
+    text-align: left;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 0.6em;
 }
 
-.donut-legend-item {
+.codec-row {
     display: flex;
     align-items: center;
-    gap: 0.3em;
+    gap: 0.5em;
+    padding: 0.45em 0.6em;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, transform 0.1s;
+    border: 1px solid transparent;
+    margin-bottom: 2px;
+    position: relative;
 }
 
-.donut-legend-dot {
-    width: 8px;
-    height: 8px;
+.codec-row:hover {
+    background: rgba(0, 164, 220, 0.08);
+    border-color: rgba(0, 164, 220, 0.25);
+}
+
+.codec-row:active {
+    transform: scale(0.98);
+}
+
+/* noinspection CssUnusedSymbol */
+.codec-row.codec-row-active {
+    background: rgba(0, 164, 220, 0.12);
+    border-color: #00a4dc;
+    box-shadow: 0 0 0 2px rgba(0, 164, 220, 0.2);
+}
+
+.codec-row-color {
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     flex-shrink: 0;
 }
+
+.codec-row-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1em;
+}
+
+.codec-row-name {
+    font-size: 0.85em;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.codec-row-stats {
+    font-size: 0.72em;
+    opacity: 0.55;
+    white-space: nowrap;
+}
+
+.codec-row-bar {
+    width: 60px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.codec-row-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease;
+}
+
+.codec-row-arrow {
+    font-size: 1.1em;
+    opacity: 0.3;
+    transition: opacity 0.2s, transform 0.2s;
+    flex-shrink: 0;
+    width: 12px;
+    text-align: center;
+}
+
+.codec-row:hover .codec-row-arrow {
+    opacity: 0.7;
+}
+
+/* noinspection CssUnusedSymbol */
+.codec-row.codec-row-active .codec-row-arrow {
+    opacity: 1;
+    transform: rotate(90deg);
+    color: #00a4dc;
+}
+
+/* === Codec Detail Panel (file list) === */
+
+.codec-detail-panel {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                opacity 0.3s ease,
+                margin 0.3s ease;
+    margin: 0;
+}
+
+/* noinspection CssUnusedSymbol */
+.codec-detail-panel.codec-detail-visible {
+    max-height: 500px;
+    opacity: 1;
+    margin-top: 0.8em;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(0, 164, 220, 0.2);
+    border-radius: 8px;
+    padding: 0.8em;
+}
+
+/* Scrollbar styling for the detail panel */
+.codec-detail-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.codec-detail-panel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.codec-detail-panel::-webkit-scrollbar-thumb {
+    background: rgba(0, 164, 220, 0.3);
+    border-radius: 3px;
+}
+
+.codec-detail-panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 164, 220, 0.5);
+}
+
+/* File list styles (header, columns, items) are now in shared.css */
+
 /* Health check styles */
 .health-grid {
     display: grid;
@@ -410,13 +666,14 @@
 .health-clickable { cursor: pointer; transition: border-color 0.2s, background 0.2s, transform 0.1s; }
 .health-clickable:hover { border-color: #00a4dc; background: rgba(0,164,220,0.08); }
 .health-clickable:active { transform: scale(0.97); }
+/* noinspection CssUnusedSymbol */
 .health-clickable.health-active { border-color: #00a4dc; background: rgba(0,164,220,0.12); box-shadow: 0 0 0 2px rgba(0,164,220,0.3); }
 
 /* Health detail list */
 .health-detail-list { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 0.8em 1em; margin-top: 0.5em; max-height: 400px; overflow-y: auto; font-size: 0.85em; }
 .health-detail-list ul { margin: 0; padding-left: 1.5em; }
 .health-detail-list li { padding: 0.15em 0; word-break: break-all; }
-.health-detail-header { font-weight: 600; margin-bottom: 0.5em; color: #00a4dc; }
+
 /* Trend graph */
 .trend-container {
     margin: 1em 0 2em 0;
@@ -467,10 +724,15 @@
 .arr-count { font-weight: 700; color: #00a4dc; }
 
 /* Arr connection test result indicators */
+/* noinspection CssUnusedSymbol */
 .arr-test-result { font-size: 0.85em; font-weight: 600; transition: color 0.3s; }
+/* noinspection CssUnusedSymbol */
 .arr-test-ok { color: #2ecc71; }
+/* noinspection CssUnusedSymbol */
 .arr-test-fail { color: #e74c3c; }
+/* noinspection CssUnusedSymbol */
 .arr-test-pending { color: #f1c40f; }
+
 
     </style>
         <div data-role="content">
@@ -572,6 +834,89 @@
     function escAttr(s) { return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
     function escHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
+    // Get the file name from a full path
+    function getFileName(fullPath) {
+        if (!fullPath) return '';
+        var parts = fullPath.replace(/\\/g, '/').split('/');
+        return parts[parts.length - 1] || fullPath;
+    }
+
+    // Get a display-friendly directory (parent folder)
+    function getParentFolder(fullPath) {
+        if (!fullPath) return '';
+        var normalized = fullPath.replace(/\\/g, '/');
+        var parts = normalized.split('/');
+        if (parts.length >= 2) return parts[parts.length - 2];
+        return '';
+    }
+
+    // Render a file list panel grouped by media type (movies, tvShows, music)
+    // result: { movies: string[], tvShows: string[], music: string[] }
+    // title: string displayed in the header
+    function renderFileList(result, title) {
+        var hasMovies = result.movies && result.movies.length > 0;
+        var hasTvShows = result.tvShows && result.tvShows.length > 0;
+        var hasMusic = result.music && result.music.length > 0;
+        var totalFiles = (result.movies ? result.movies.length : 0) + (result.tvShows ? result.tvShows.length : 0) + (result.music ? result.music.length : 0);
+
+        if (totalFiles === 0) {
+            return '<div class="codec-files-empty">' + T('noFilesFound', 'No files found.') + '</div>';
+        }
+
+        var sectionCount = (hasMovies ? 1 : 0) + (hasTvShows ? 1 : 0) + (hasMusic ? 1 : 0);
+        var html = '<div class="codec-files-header">';
+        html += '<span class="codec-files-title">' + escHtml(title) + '</span>';
+        html += '<span class="codec-files-count">' + totalFiles + ' ' + (totalFiles === 1 ? T('file', 'file') : T('files', 'files')) + '</span>';
+        html += '</div>';
+
+        html += '<div class="codec-files-columns' + (sectionCount > 1 ? ' codec-files-multi' : '') + '">';
+
+        if (hasMovies) {
+            html += '<div class="codec-files-section">';
+            html += '<div class="codec-files-section-header"><span class="badge badge-movies">' + T('movies', 'Movies') + '</span> <span class="codec-files-section-count">(' + result.movies.length + ')</span></div>';
+            html += '<div class="codec-files-list">';
+            for (var i = 0; i < result.movies.length; i++) {
+                html += '<div class="codec-file-item" title="' + escAttr(result.movies[i]) + '">';
+                html += '<span class="codec-file-icon">🎬</span>';
+                html += '<span class="codec-file-name">' + escHtml(getFileName(result.movies[i])) + '</span>';
+                html += '<span class="codec-file-folder">' + escHtml(getParentFolder(result.movies[i])) + '</span>';
+                html += '</div>';
+            }
+            html += '</div></div>';
+        }
+
+        if (hasTvShows) {
+            html += '<div class="codec-files-section">';
+            html += '<div class="codec-files-section-header"><span class="badge badge-tvshows">' + T('tvShows', 'TV Shows') + '</span> <span class="codec-files-section-count">(' + result.tvShows.length + ')</span></div>';
+            html += '<div class="codec-files-list">';
+            for (var j = 0; j < result.tvShows.length; j++) {
+                html += '<div class="codec-file-item" title="' + escAttr(result.tvShows[j]) + '">';
+                html += '<span class="codec-file-icon">📺</span>';
+                html += '<span class="codec-file-name">' + escHtml(getFileName(result.tvShows[j])) + '</span>';
+                html += '<span class="codec-file-folder">' + escHtml(getParentFolder(result.tvShows[j])) + '</span>';
+                html += '</div>';
+            }
+            html += '</div></div>';
+        }
+
+        if (hasMusic) {
+            html += '<div class="codec-files-section">';
+            html += '<div class="codec-files-section-header"><span class="badge badge-music">' + T('music', 'Music') + '</span> <span class="codec-files-section-count">(' + result.music.length + ')</span></div>';
+            html += '<div class="codec-files-list">';
+            for (var k = 0; k < result.music.length; k++) {
+                html += '<div class="codec-file-item" title="' + escAttr(result.music[k]) + '">';
+                html += '<span class="codec-file-icon">🎵</span>';
+                html += '<span class="codec-file-name">' + escHtml(getFileName(result.music[k])) + '</span>';
+                html += '<span class="codec-file-folder">' + escHtml(getParentFolder(result.music[k])) + '</span>';
+                html += '</div>';
+            }
+            html += '</div></div>';
+        }
+
+        html += '</div>';
+        return html;
+    }
+
     // Aggregate dictionaries across libraries
     function aggregateDict(libraries, prop) {
         var result = {};
@@ -587,6 +932,7 @@
         }
         return result;
     }
+
 // --- Overview Tab ---
 
     function getCollectionBadge(type) {
@@ -747,8 +1093,11 @@
     }
 // --- Codecs Tab ---
 
-    // SVG donut chart generator
-    function renderDonutChart(data, size) {
+    // Store last scan data for codec detail clicks
+    var _lastCodecData = null;
+
+    // SVG donut chart generator (returns only the SVG + container, no legend)
+    function renderDonutSvg(data, size) {
         size = size || 160;
         var entries = [];
         var total = 0;
@@ -760,7 +1109,6 @@
         }
         if (total === 0) return '<p style="opacity:0.5;">' + T('noData', 'No data') + '</p>';
 
-        // Sort by value descending
         entries.sort(function (a, b) { return b.value - a.value; });
 
         var cx = size / 2, cy = size / 2, r = size * 0.38, strokeWidth = size * 0.18;
@@ -768,8 +1116,6 @@
         var offset = 0;
 
         var svg = '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '">';
-
-        // Background circle
         svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="' + strokeWidth + '"/>';
 
         for (var i = 0; i < entries.length; i++) {
@@ -789,83 +1135,269 @@
         }
 
         svg += '</svg>';
+        return '<div class="donut-container">' + svg + '</div>';
+    }
 
-        // Legend
-        var legend = '<div class="donut-legend">';
-        for (var j = 0; j < entries.length; j++) {
-            var c = DONUT_COLORS[j % DONUT_COLORS.length];
-            var p = (entries[j].value / total * 100).toFixed(1);
-            legend += '<div class="donut-legend-item">' +
-                '<div class="donut-legend-dot" style="background:' + c + '"></div>' +
-                escHtml(entries[j].label) + ' (' + p + '%)</div>';
+    // Build the clickable codec breakdown table below the donut
+    function renderCodecBreakdown(countDict, sizeDict, chartId) {
+        var entries = [];
+        var total = 0;
+        for (var key in countDict) {
+            if (Object.prototype.hasOwnProperty.call(countDict, key) && countDict[key] > 0) {
+                var size = (sizeDict && sizeDict[key]) ? sizeDict[key] : 0;
+                entries.push({ label: key, count: countDict[key], size: size });
+                total += countDict[key];
+            }
         }
-        legend += '</div>';
+        if (entries.length === 0) return '';
 
-        return '<div class="donut-container">' + svg + '</div>' + legend;
+        entries.sort(function (a, b) { return b.count - a.count; });
+
+        var html = '<div class="codec-breakdown">';
+        for (var i = 0; i < entries.length; i++) {
+            var color = DONUT_COLORS[i % DONUT_COLORS.length];
+            var pct = (entries[i].count / total * 100).toFixed(1);
+            var isActive = '';
+
+            html += '<div class="codec-row codec-clickable' + isActive + '" data-chart="' + escAttr(chartId) + '" data-codec="' + escAttr(entries[i].label) + '">';
+            html += '<div class="codec-row-color" style="background:' + color + '"></div>';
+            html += '<div class="codec-row-info">';
+            html += '<span class="codec-row-name">' + escHtml(entries[i].label) + '</span>';
+            html += '<span class="codec-row-stats">' + entries[i].count + ' ' + T('files', 'files') + ' · ' + pct + '% · ' + formatBytes(entries[i].size) + '</span>';
+            html += '</div>';
+            html += '<div class="codec-row-bar"><div class="codec-row-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>';
+            html += '<div class="codec-row-arrow">›</div>';
+            html += '</div>';
+        }
+        html += '</div>';
+
+        // Detail panel placeholder
+        html += '<div class="codec-detail-panel" id="codecDetail_' + chartId + '"></div>';
+
+        return html;
+    }
+
+    // Render a full chart box with donut + breakdown
+    function renderDonutChart(countDict, sizeDict, chartId) {
+        var svgHtml = renderDonutSvg(countDict);
+        var breakdownHtml = renderCodecBreakdown(countDict, sizeDict, chartId);
+        return svgHtml + breakdownHtml;
+    }
+
+    // Collect paths for a specific codec from libraries, filtered by categories
+    function collectCodecPaths(data, pathsProp, codecName, categories) {
+        var moviePaths = [];
+        var tvPaths = [];
+        var musicPaths = [];
+
+        var includeMovies = !categories || categories.movies;
+        var includeTvShows = !categories || categories.tvShows;
+        var includeMusic = !categories || categories.music;
+
+        // Movies
+        if (includeMovies && data.Movies) {
+            for (var m = 0; m < data.Movies.length; m++) {
+                var lib = data.Movies[m];
+                var dict = lib[pathsProp];
+                if (dict && dict[codecName]) {
+                    for (var i = 0; i < dict[codecName].length; i++) {
+                        moviePaths.push(dict[codecName][i]);
+                    }
+                }
+            }
+        }
+
+        // TV Shows
+        if (includeTvShows && data.TvShows) {
+            for (var t = 0; t < data.TvShows.length; t++) {
+                var tvLib = data.TvShows[t];
+                var tvDict = tvLib[pathsProp];
+                if (tvDict && tvDict[codecName]) {
+                    for (var j = 0; j < tvDict[codecName].length; j++) {
+                        tvPaths.push(tvDict[codecName][j]);
+                    }
+                }
+            }
+        }
+
+        // Music
+        if (includeMusic && data.Music) {
+            for (var mu = 0; mu < data.Music.length; mu++) {
+                var muLib = data.Music[mu];
+                var muDict = muLib[pathsProp];
+                if (muDict && muDict[codecName]) {
+                    for (var k = 0; k < muDict[codecName].length; k++) {
+                        musicPaths.push(muDict[codecName][k]);
+                    }
+                }
+            }
+        }
+
+        return { movies: moviePaths, tvShows: tvPaths, music: musicPaths };
+    }
+
+
+    // Map chart IDs to their corresponding path property names
+    var CODEC_PATH_MAP = {
+        'videoCodecs': 'VideoCodecPaths',
+        'videoAudioCodecs': 'VideoAudioCodecPaths',
+        'musicAudioCodecs': 'MusicAudioCodecPaths',
+        'containers': 'ContainerFormatPaths',
+        'resolutions': 'ResolutionPaths'
+    };
+
+    // Map chart IDs to which media categories should be included
+    // Video Codecs, Video Audio Codecs, Resolutions → only Movies + TV Shows
+    // Music Audio Codecs → only Music
+    // Container Formats → all libraries (Movies + TV Shows + Music)
+    var CODEC_CATEGORY_MAP = {
+        'videoCodecs': { movies: true, tvShows: true, music: false },
+        'videoAudioCodecs': { movies: true, tvShows: true, music: false },
+        'musicAudioCodecs': { movies: false, tvShows: false, music: true },
+        'containers': { movies: true, tvShows: true, music: true },
+        'resolutions': { movies: true, tvShows: true, music: false }
+    };
+
+    // Attach click handlers to codec rows
+    function attachCodecClickHandlers() {
+        var rows = document.querySelectorAll('.codec-clickable');
+        for (var i = 0; i < rows.length; i++) {
+            rows[i].addEventListener('click', function () {
+                var chartId = this.getAttribute('data-chart');
+                var codecName = this.getAttribute('data-codec');
+                var panel = document.getElementById('codecDetail_' + chartId);
+                if (!panel || !_lastCodecData) return;
+
+                // Toggle: if same codec is already shown, close it
+                if (this.classList.contains('codec-row-active')) {
+                    panel.innerHTML = '';
+                    panel.classList.remove('codec-detail-visible');
+                    this.classList.remove('codec-row-active');
+                    return;
+                }
+
+                // Remove active state from all rows in this chart
+                var chartRows = document.querySelectorAll('.codec-clickable[data-chart="' + chartId + '"]');
+                for (var j = 0; j < chartRows.length; j++) {
+                    chartRows[j].classList.remove('codec-row-active');
+                }
+
+                // Close all other detail panels
+                var allPanels = document.querySelectorAll('.codec-detail-panel');
+                for (var p = 0; p < allPanels.length; p++) {
+                    if (allPanels[p].id !== 'codecDetail_' + chartId) {
+                        allPanels[p].innerHTML = '';
+                        allPanels[p].classList.remove('codec-detail-visible');
+                    }
+                }
+                // Also deactivate rows in other charts
+                var allRows = document.querySelectorAll('.codec-clickable');
+                for (var r = 0; r < allRows.length; r++) {
+                    if (allRows[r].getAttribute('data-chart') !== chartId) {
+                        allRows[r].classList.remove('codec-row-active');
+                    }
+                }
+
+                this.classList.add('codec-row-active');
+
+                var pathsProp = CODEC_PATH_MAP[chartId];
+                var categories = CODEC_CATEGORY_MAP[chartId];
+                var result = collectCodecPaths(_lastCodecData, pathsProp, codecName, categories);
+                panel.innerHTML = renderFileList(result, codecName);
+                panel.classList.add('codec-detail-visible');
+
+                // Smooth scroll the panel into view
+                setTimeout(function () { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 50);
+            });
+        }
     }
 
     function fillCodecsData(data) {
-        var videoCodecs = aggregateDict(data.Libraries, 'VideoCodecs');
-        var videoAudioCodecs = aggregateDict(data.Libraries, 'VideoAudioCodecs');
-        var musicAudioCodecs = aggregateDict(data.Libraries, 'MusicAudioCodecs');
+        _lastCodecData = data;
+
+        // Video-only libraries (Movies + TV Shows) — used for video-specific charts
+        var videoLibraries = (data.Movies || []).concat(data.TvShows || []);
+        // Music-only libraries — used for music-specific charts
+        var musicLibraries = data.Music || [];
+
+        var videoCodecs = aggregateDict(videoLibraries, 'VideoCodecs');
+        var videoAudioCodecs = aggregateDict(videoLibraries, 'VideoAudioCodecs');
+        var musicAudioCodecs = aggregateDict(musicLibraries, 'MusicAudioCodecs');
         var containers = aggregateDict(data.Libraries, 'ContainerFormats');
-        var resolutions = aggregateDict(data.Libraries, 'Resolutions');
+        var resolutions = aggregateDict(videoLibraries, 'Resolutions');
+
+        var videoCodecSizes = aggregateDict(videoLibraries, 'VideoCodecSizes');
+        var videoAudioCodecSizes = aggregateDict(videoLibraries, 'VideoAudioCodecSizes');
+        var musicAudioCodecSizes = aggregateDict(musicLibraries, 'MusicAudioCodecSizes');
+        var containerSizes = aggregateDict(data.Libraries, 'ContainerSizes');
+        var resolutionSizes = aggregateDict(videoLibraries, 'ResolutionSizes');
 
         var codecsHtml = '<div class="charts-row">';
         codecsHtml += '<div class="chart-box"><h4>' + T('videoCodecs', '🎬 Video Codecs') + '</h4>';
-        codecsHtml += renderDonutChart(videoCodecs);
+        codecsHtml += renderDonutChart(videoCodecs, videoCodecSizes, 'videoCodecs');
         codecsHtml += '</div>';
+
         var hasVideoAudio = Object.keys(videoAudioCodecs).length > 0;
         var hasMusicAudio = Object.keys(musicAudioCodecs).length > 0;
+
         if (hasVideoAudio) {
             codecsHtml += '<div class="chart-box"><h4>' + T('videoAudioCodecs', '🔊 Video Audio Codecs') + '</h4>';
-            codecsHtml += renderDonutChart(videoAudioCodecs);
+            codecsHtml += renderDonutChart(videoAudioCodecs, videoAudioCodecSizes, 'videoAudioCodecs');
             codecsHtml += '</div>';
         }
         if (hasMusicAudio) {
             codecsHtml += '<div class="chart-box"><h4>' + T('musicAudioCodecs', '🎵 Music Audio Codecs') + '</h4>';
-            codecsHtml += renderDonutChart(musicAudioCodecs);
+            codecsHtml += renderDonutChart(musicAudioCodecs, musicAudioCodecSizes, 'musicAudioCodecs');
             codecsHtml += '</div>';
         }
         codecsHtml += '<div class="chart-box"><h4>' + T('containerFormats', '📦 Container Formats') + '</h4>';
-        codecsHtml += renderDonutChart(containers);
+        codecsHtml += renderDonutChart(containers, containerSizes, 'containers');
         codecsHtml += '</div>';
         codecsHtml += '<div class="chart-box"><h4>' + T('resolutions', '📐 Resolutions') + '</h4>';
-        codecsHtml += renderDonutChart(resolutions);
+        codecsHtml += renderDonutChart(resolutions, resolutionSizes, 'resolutions');
         codecsHtml += '</div>';
         codecsHtml += '</div>';
 
         var codecsContainer = document.getElementById('codecsContent');
-        if (codecsContainer) codecsContainer.innerHTML = codecsHtml;
+        if (codecsContainer) {
+            codecsContainer.innerHTML = codecsHtml;
+            attachCodecClickHandlers();
+        }
     }
 // --- Health Tab ---
 
     // Store last scan data for health detail clicks
     var _lastScanData = null;
 
+    // Collect health paths split by media type (movies vs tvShows)
+    // Health checks only apply to video libraries, so music is always empty.
     function collectHealthPaths(data, prop) {
-        var paths = [];
-        for (var i = 0; i < data.Libraries.length; i++) {
-            var libPaths = data.Libraries[i][prop];
-            if (libPaths) {
-                for (var j = 0; j < libPaths.length; j++) {
-                    paths.push(libPaths[j]);
+        var moviePaths = [];
+        var tvPaths = [];
+
+        if (data.Movies) {
+            for (var m = 0; m < data.Movies.length; m++) {
+                var libPaths = data.Movies[m][prop];
+                if (libPaths) {
+                    for (var i = 0; i < libPaths.length; i++) {
+                        moviePaths.push(libPaths[i]);
+                    }
                 }
             }
         }
-        return paths;
-    }
 
-    function renderHealthDetailList(paths) {
-        if (!paths || paths.length === 0) {
-            return '<div class="health-detail-list"><p style="opacity:0.5;padding:0.5em;">' + T('noEntries', 'No entries found.') + '</p></div>';
+        if (data.TvShows) {
+            for (var t = 0; t < data.TvShows.length; t++) {
+                var tvLibPaths = data.TvShows[t][prop];
+                if (tvLibPaths) {
+                    for (var j = 0; j < tvLibPaths.length; j++) {
+                        tvPaths.push(tvLibPaths[j]);
+                    }
+                }
+            }
         }
-        var html = '<div class="health-detail-list"><div class="health-detail-header">' + paths.length + ' ' + (paths.length === 1 ? T('entry', 'entry') : T('entries', 'entries')) + '</div><ul>';
-        for (var i = 0; i < paths.length; i++) {
-            html += '<li>' + escHtml(paths[i]) + '</li>';
-        }
-        html += '</ul></div>';
-        return html;
+
+        return { movies: moviePaths, tvShows: tvPaths, music: [] };
     }
 
     function renderHealthChecks(data) {
@@ -893,56 +1425,54 @@
         html += '<div class="health-label">' + T('orphanedDirs', 'Orphaned metadata dirs') + '</div></div>';
 
         html += '</div>';
-        html += '<div id="healthDetailContainer"></div>';
+        html += '<div class="health-detail-panel" id="healthDetailPanel"></div>';
         return html;
     }
+
+    // Map health types to their path property names and titles
+    var HEALTH_PATH_MAP = {
+        'noSubs': { prop: 'VideosWithoutSubtitlesPaths', titleKey: 'noSubtitles', titleFallback: 'Videos without subtitles' },
+        'noImages': { prop: 'VideosWithoutImagesPaths', titleKey: 'noImages', titleFallback: 'Videos without images' },
+        'noNfo': { prop: 'VideosWithoutNfoPaths', titleKey: 'noNfo', titleFallback: 'Videos without NFO' },
+        'orphaned': { prop: 'OrphanedMetadataDirectoriesPaths', titleKey: 'orphanedDirs', titleFallback: 'Orphaned metadata dirs' }
+    };
 
     function attachHealthClickHandlers() {
         var items = document.querySelectorAll('.health-clickable');
         for (var i = 0; i < items.length; i++) {
             items[i].addEventListener('click', function () {
                 var type = this.getAttribute('data-health-type');
-                var container = document.getElementById('healthDetailContainer');
-                if (!container || !_lastScanData) return;
+                var panel = document.getElementById('healthDetailPanel');
+                if (!panel || !_lastScanData) return;
 
                 // Toggle: if same type is already shown, hide it
-                if (container.getAttribute('data-active-type') === type) {
-                    container.innerHTML = '';
-                    container.removeAttribute('data-active-type');
+                if (this.classList.contains('health-active')) {
+                    panel.innerHTML = '';
+                    panel.classList.remove('codec-detail-visible');
                     // Remove active state from all items
                     var toggleItems = document.querySelectorAll('.health-clickable');
                     for (var j = 0; j < toggleItems.length; j++) toggleItems[j].classList.remove('health-active');
                     return;
                 }
 
-                var pathProp;
-                var title;
-                if (type === 'noSubs') {
-                    pathProp = 'VideosWithoutSubtitlesPaths';
-                    title = T('noSubtitles', 'Videos without subtitles');
-                } else if (type === 'noImages') {
-                    pathProp = 'VideosWithoutImagesPaths';
-                    title = T('noImages', 'Videos without images');
-                } else if (type === 'noNfo') {
-                    pathProp = 'VideosWithoutNfoPaths';
-                    title = T('noNfo', 'Videos without NFO');
-                } else if (type === 'orphaned') {
-                    pathProp = 'OrphanedMetadataDirectoriesPaths';
-                    title = T('orphanedDirs', 'Orphaned metadata dirs');
-                }
-
-                var paths = collectHealthPaths(_lastScanData, pathProp);
-
-                var html = '<div class="section-title" style="margin-top:1.5em;">' + escHtml(title) + '</div>';
-                html += renderHealthDetailList(paths);
-                container.innerHTML = html;
-                container.setAttribute('data-active-type', type);
-
-                // Update active state styling
+                // Remove active state from all items
                 var allItems = document.querySelectorAll('.health-clickable');
                 for (var k = 0; k < allItems.length; k++) {
-                    allItems[k].classList.toggle('health-active', allItems[k].getAttribute('data-health-type') === type);
+                    allItems[k].classList.remove('health-active');
                 }
+
+                this.classList.add('health-active');
+
+                var mapping = HEALTH_PATH_MAP[type];
+                if (!mapping) return;
+
+                var result = collectHealthPaths(_lastScanData, mapping.prop);
+                var title = T(mapping.titleKey, mapping.titleFallback);
+                panel.innerHTML = renderFileList(result, title);
+                panel.classList.add('codec-detail-visible');
+
+                // Smooth scroll the panel into view
+                setTimeout(function () { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 50);
             });
         }
     }

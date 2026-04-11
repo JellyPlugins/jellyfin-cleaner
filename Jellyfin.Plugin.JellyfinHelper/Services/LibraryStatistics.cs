@@ -150,6 +150,33 @@ public class LibraryStatistics
     /// </summary>
     public Dictionary<string, long> MusicAudioCodecSizes { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    // === Codec File Path Tracking ===
+
+    /// <summary>
+    /// Gets the video codec file paths (codec → list of file paths).
+    /// </summary>
+    public Dictionary<string, Collection<string>> VideoCodecPaths { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the video audio codec file paths (codec → list of file paths).
+    /// </summary>
+    public Dictionary<string, Collection<string>> VideoAudioCodecPaths { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the music audio codec file paths (codec → list of file paths).
+    /// </summary>
+    public Dictionary<string, Collection<string>> MusicAudioCodecPaths { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the container format file paths (format → list of file paths).
+    /// </summary>
+    public Dictionary<string, Collection<string>> ContainerFormatPaths { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the resolution file paths (resolution → list of file paths).
+    /// </summary>
+    public Dictionary<string, Collection<string>> ResolutionPaths { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     // === Health Check Counters ===
 
     /// <summary>

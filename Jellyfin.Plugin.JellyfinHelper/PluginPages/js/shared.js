@@ -67,6 +67,89 @@
     function escAttr(s) { return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
     function escHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
+    // Get the file name from a full path
+    function getFileName(fullPath) {
+        if (!fullPath) return '';
+        var parts = fullPath.replace(/\\/g, '/').split('/');
+        return parts[parts.length - 1] || fullPath;
+    }
+
+    // Get a display-friendly directory (parent folder)
+    function getParentFolder(fullPath) {
+        if (!fullPath) return '';
+        var normalized = fullPath.replace(/\\/g, '/');
+        var parts = normalized.split('/');
+        if (parts.length >= 2) return parts[parts.length - 2];
+        return '';
+    }
+
+    // Render a file list panel grouped by media type (movies, tvShows, music)
+    // result: { movies: string[], tvShows: string[], music: string[] }
+    // title: string displayed in the header
+    function renderFileList(result, title) {
+        var hasMovies = result.movies && result.movies.length > 0;
+        var hasTvShows = result.tvShows && result.tvShows.length > 0;
+        var hasMusic = result.music && result.music.length > 0;
+        var totalFiles = (result.movies ? result.movies.length : 0) + (result.tvShows ? result.tvShows.length : 0) + (result.music ? result.music.length : 0);
+
+        if (totalFiles === 0) {
+            return '<div class="codec-files-empty">' + T('noFilesFound', 'No files found.') + '</div>';
+        }
+
+        var sectionCount = (hasMovies ? 1 : 0) + (hasTvShows ? 1 : 0) + (hasMusic ? 1 : 0);
+        var html = '<div class="codec-files-header">';
+        html += '<span class="codec-files-title">' + escHtml(title) + '</span>';
+        html += '<span class="codec-files-count">' + totalFiles + ' ' + (totalFiles === 1 ? T('file', 'file') : T('files', 'files')) + '</span>';
+        html += '</div>';
+
+        html += '<div class="codec-files-columns' + (sectionCount > 1 ? ' codec-files-multi' : '') + '">';
+
+        if (hasMovies) {
+            html += '<div class="codec-files-section">';
+            html += '<div class="codec-files-section-header"><span class="badge badge-movies">' + T('movies', 'Movies') + '</span> <span class="codec-files-section-count">(' + result.movies.length + ')</span></div>';
+            html += '<div class="codec-files-list">';
+            for (var i = 0; i < result.movies.length; i++) {
+                html += '<div class="codec-file-item" title="' + escAttr(result.movies[i]) + '">';
+                html += '<span class="codec-file-icon">🎬</span>';
+                html += '<span class="codec-file-name">' + escHtml(getFileName(result.movies[i])) + '</span>';
+                html += '<span class="codec-file-folder">' + escHtml(getParentFolder(result.movies[i])) + '</span>';
+                html += '</div>';
+            }
+            html += '</div></div>';
+        }
+
+        if (hasTvShows) {
+            html += '<div class="codec-files-section">';
+            html += '<div class="codec-files-section-header"><span class="badge badge-tvshows">' + T('tvShows', 'TV Shows') + '</span> <span class="codec-files-section-count">(' + result.tvShows.length + ')</span></div>';
+            html += '<div class="codec-files-list">';
+            for (var j = 0; j < result.tvShows.length; j++) {
+                html += '<div class="codec-file-item" title="' + escAttr(result.tvShows[j]) + '">';
+                html += '<span class="codec-file-icon">📺</span>';
+                html += '<span class="codec-file-name">' + escHtml(getFileName(result.tvShows[j])) + '</span>';
+                html += '<span class="codec-file-folder">' + escHtml(getParentFolder(result.tvShows[j])) + '</span>';
+                html += '</div>';
+            }
+            html += '</div></div>';
+        }
+
+        if (hasMusic) {
+            html += '<div class="codec-files-section">';
+            html += '<div class="codec-files-section-header"><span class="badge badge-music">' + T('music', 'Music') + '</span> <span class="codec-files-section-count">(' + result.music.length + ')</span></div>';
+            html += '<div class="codec-files-list">';
+            for (var k = 0; k < result.music.length; k++) {
+                html += '<div class="codec-file-item" title="' + escAttr(result.music[k]) + '">';
+                html += '<span class="codec-file-icon">🎵</span>';
+                html += '<span class="codec-file-name">' + escHtml(getFileName(result.music[k])) + '</span>';
+                html += '<span class="codec-file-folder">' + escHtml(getParentFolder(result.music[k])) + '</span>';
+                html += '</div>';
+            }
+            html += '</div></div>';
+        }
+
+        html += '</div>';
+        return html;
+    }
+
     // Aggregate dictionaries across libraries
     function aggregateDict(libraries, prop) {
         var result = {};

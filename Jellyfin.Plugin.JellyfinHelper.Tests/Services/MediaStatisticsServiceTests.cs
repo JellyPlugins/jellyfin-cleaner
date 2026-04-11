@@ -826,6 +826,13 @@ public class MediaStatisticsServiceTests
         Assert.Equal(1, stats.ContainerFormats["MP4"]);
         Assert.Equal(3000, stats.ContainerSizes["MKV"]);
         Assert.Equal(3000, stats.ContainerSizes["MP4"]);
+
+        // Verify container format paths are tracked
+        Assert.Equal(2, stats.ContainerFormatPaths["MKV"].Count);
+        Assert.Single(stats.ContainerFormatPaths["MP4"]);
+        Assert.Contains(TestPath("media", "movies", "Film1.mkv"), stats.ContainerFormatPaths["MKV"]);
+        Assert.Contains(TestPath("media", "movies", "Film2.mkv"), stats.ContainerFormatPaths["MKV"]);
+        Assert.Contains(TestPath("media", "movies", "Film3.mp4"), stats.ContainerFormatPaths["MP4"]);
     }
 
     // ===== Audio Codec Tracking in Statistics =====
@@ -860,6 +867,13 @@ public class MediaStatisticsServiceTests
         Assert.Equal(1, stats.MusicAudioCodecs["MP3"]);
         Assert.Equal(55_000_000, stats.MusicAudioCodecSizes["FLAC"]);
         Assert.Equal(5_000_000, stats.MusicAudioCodecSizes["MP3"]);
+
+        // Verify music audio codec paths are tracked
+        Assert.Equal(2, stats.MusicAudioCodecPaths["FLAC"].Count);
+        Assert.Single(stats.MusicAudioCodecPaths["MP3"]);
+        Assert.Contains(TestPath("media", "music", "Song1.flac"), stats.MusicAudioCodecPaths["FLAC"]);
+        Assert.Contains(TestPath("media", "music", "Song2.flac"), stats.MusicAudioCodecPaths["FLAC"]);
+        Assert.Contains(TestPath("media", "music", "Song3.mp3"), stats.MusicAudioCodecPaths["MP3"]);
     }
 
     // ===== Health Check Tests =====
@@ -1634,5 +1648,268 @@ public class MediaStatisticsServiceTests
         Assert.Equal(1, movieStats.VideosWithoutSubtitles);
         Assert.Equal(1, movieStats.VideosWithoutImages);
         Assert.Equal(1, movieStats.VideosWithoutNfo);
+    }
+
+    // ===== Codec Library Separation Tests =====
+
+    [Fact]
+    public void CalculateStatistics_MusicLibrary_DoesNotPopulateVideoCodecs()
+    {
+        var musicPath = TestPath("media", "music");
+
+        var musicFolder = new VirtualFolderInfo
+        {
+            Name = "Music",
+            CollectionType = CollectionTypeOptions.music,
+            Locations = [musicPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([musicFolder]);
+
+        var flacFile = new FileSystemMetadata
+        {
+            FullName = TestPath("media", "music", "Song.flac"),
+            Name = "Song.flac",
+            Length = 30_000_000,
+            IsDirectory = false
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(musicPath, false)).Returns([flacFile]);
+        _fileSystemMock.Setup(f => f.GetDirectories(musicPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+        var musicStats = result.Music[0];
+
+        // Music library should have MusicAudioCodecs but no VideoCodecs
+        Assert.NotEmpty(musicStats.MusicAudioCodecs);
+        Assert.Empty(musicStats.VideoCodecs);
+        Assert.Empty(musicStats.VideoAudioCodecs);
+        Assert.Empty(musicStats.Resolutions);
+        Assert.Empty(musicStats.ContainerFormats);
+    }
+
+    [Fact]
+    public void CalculateStatistics_MovieLibrary_DoesNotPopulateMusicAudioCodecsFromVideoFiles()
+    {
+        var moviePath = TestPath("media", "movies");
+
+        var movieFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [moviePath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([movieFolder]);
+
+        var mkvFile = new FileSystemMetadata
+        {
+            FullName = TestPath("media", "movies", "Film.1080p.x265.DTS.mkv"),
+            Name = "Film.1080p.x265.DTS.mkv",
+            Length = 2_000_000_000,
+            IsDirectory = false
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(moviePath, false)).Returns([mkvFile]);
+        _fileSystemMock.Setup(f => f.GetDirectories(moviePath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+        var movieStats = result.Movies[0];
+
+        // Video files should populate VideoCodecs and VideoAudioCodecs, not MusicAudioCodecs
+        Assert.NotEmpty(movieStats.VideoCodecs);
+        Assert.Contains("HEVC", movieStats.VideoCodecs.Keys);
+        Assert.NotEmpty(movieStats.VideoAudioCodecs);
+        Assert.Contains("DTS", movieStats.VideoAudioCodecs.Keys);
+        Assert.Empty(movieStats.MusicAudioCodecs);
+    }
+
+    [Fact]
+    public void CalculateStatistics_MixedLibraries_CodecsSeparatedByType()
+    {
+        var moviePath = TestPath("media", "movies");
+        var musicPath = TestPath("media", "music");
+
+        var movieFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [moviePath]
+        };
+        var musicFolder = new VirtualFolderInfo
+        {
+            Name = "Music",
+            CollectionType = CollectionTypeOptions.music,
+            Locations = [musicPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([movieFolder, musicFolder]);
+
+        var videoFile = new FileSystemMetadata
+        {
+            FullName = TestPath("media", "movies", "Film.1080p.x264.mkv"),
+            Name = "Film.1080p.x264.mkv",
+            Length = 2_000_000_000,
+            IsDirectory = false
+        };
+        var musicFile = new FileSystemMetadata
+        {
+            FullName = TestPath("media", "music", "Song.flac"),
+            Name = "Song.flac",
+            Length = 30_000_000,
+            IsDirectory = false
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(moviePath, false)).Returns([videoFile]);
+        _fileSystemMock.Setup(f => f.GetDirectories(moviePath, false)).Returns([]);
+        _fileSystemMock.Setup(f => f.GetFiles(musicPath, false)).Returns([musicFile]);
+        _fileSystemMock.Setup(f => f.GetDirectories(musicPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+
+        // Movie library should have video-related codecs only
+        var movieStats = result.Movies[0];
+        Assert.Contains("H.264", movieStats.VideoCodecs.Keys);
+        Assert.Contains("1080p", movieStats.Resolutions.Keys);
+        Assert.Contains("MKV", movieStats.ContainerFormats.Keys);
+        Assert.Empty(movieStats.MusicAudioCodecs);
+
+        // Music library should have music audio codecs only
+        var musicStats = result.Music[0];
+        Assert.Contains("FLAC", musicStats.MusicAudioCodecs.Keys);
+        Assert.Empty(musicStats.VideoCodecs);
+        Assert.Empty(musicStats.Resolutions);
+        Assert.Empty(musicStats.ContainerFormats);
+    }
+
+    [Fact]
+    public void CalculateStatistics_AudioFileInMovieLibrary_GoesToMusicAudioCodecs()
+    {
+        // A soundtrack .mp3 in a movie library should be counted as MusicAudioCodecs
+        // This verifies that audio files are always tracked in MusicAudioCodecs regardless of library type
+        var moviePath = TestPath("media", "movies");
+
+        var movieFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [moviePath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([movieFolder]);
+
+        var videoFile = new FileSystemMetadata
+        {
+            FullName = TestPath("media", "movies", "Film.mkv"),
+            Name = "Film.mkv",
+            Length = 2_000_000_000,
+            IsDirectory = false
+        };
+        var soundtrackFile = new FileSystemMetadata
+        {
+            FullName = TestPath("media", "movies", "theme.mp3"),
+            Name = "theme.mp3",
+            Length = 5_000_000,
+            IsDirectory = false
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(moviePath, false)).Returns([videoFile, soundtrackFile]);
+        _fileSystemMock.Setup(f => f.GetDirectories(moviePath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+        var movieStats = result.Movies[0];
+
+        // Audio file in movie library goes to MusicAudioCodecs (not VideoAudioCodecs)
+        Assert.Contains("MP3", movieStats.MusicAudioCodecs.Keys);
+        // But this library is classified as Movies, so the frontend should NOT
+        // include it when aggregating MusicAudioCodecs (only Music libraries)
+        Assert.Single(result.Movies);
+        Assert.Empty(result.Music);
+    }
+
+    [Fact]
+    public void CalculateStatistics_MusicVideoLibrary_ClassifiedAsMovies()
+    {
+        // musicvideos collection type is classified as Movies (isMovies)
+        var mvPath = TestPath("media", "musicvideos");
+
+        var mvFolder = new VirtualFolderInfo
+        {
+            Name = "Music Videos",
+            CollectionType = CollectionTypeOptions.musicvideos,
+            Locations = [mvPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([mvFolder]);
+
+        var m4vFile = new FileSystemMetadata
+        {
+            FullName = TestPath("media", "musicvideos", "Artist - Song.m4v"),
+            Name = "Artist - Song.m4v",
+            Length = 100_000_000,
+            IsDirectory = false
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(mvPath, false)).Returns([m4vFile]);
+        _fileSystemMock.Setup(f => f.GetDirectories(mvPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+
+        // musicvideos library should be in Movies, not Music
+        Assert.Single(result.Movies);
+        Assert.Empty(result.Music);
+
+        var stats = result.Movies[0];
+        Assert.Contains("M4V", stats.ContainerFormats.Keys);
+    }
+
+    [Fact]
+    public void CalculateStatistics_MixedLibraries_AggregatedTotalsReflectAllLibraries()
+    {
+        // Verify that TotalContainerFormats aggregates from ALL libraries (including music if it has containers)
+        // but TotalVideoCodecs only comes from libraries that have video files
+        var moviePath = TestPath("media", "movies");
+        var musicPath = TestPath("media", "music");
+
+        var movieFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [moviePath]
+        };
+        var musicFolder = new VirtualFolderInfo
+        {
+            Name = "Music",
+            CollectionType = CollectionTypeOptions.music,
+            Locations = [musicPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([movieFolder, musicFolder]);
+
+        var videoFile = new FileSystemMetadata
+        {
+            FullName = TestPath("media", "movies", "Film.mkv"),
+            Name = "Film.mkv",
+            Length = 2_000_000_000,
+            IsDirectory = false
+        };
+        var musicFile = new FileSystemMetadata
+        {
+            FullName = TestPath("media", "music", "Song.flac"),
+            Name = "Song.flac",
+            Length = 30_000_000,
+            IsDirectory = false
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(moviePath, false)).Returns([videoFile]);
+        _fileSystemMock.Setup(f => f.GetDirectories(moviePath, false)).Returns([]);
+        _fileSystemMock.Setup(f => f.GetFiles(musicPath, false)).Returns([musicFile]);
+        _fileSystemMock.Setup(f => f.GetDirectories(musicPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+
+        // TotalVideoCodecs should only reflect movie libraries (music has no video codecs)
+        Assert.Single(result.TotalVideoCodecs); // "Unknown" from Film.mkv
+        // TotalMusicAudioCodecs should only reflect music libraries
+        Assert.Single(result.TotalMusicAudioCodecs); // "FLAC" from Song.flac
+        Assert.Contains("FLAC", result.TotalMusicAudioCodecs.Keys);
+
+        // TotalContainerFormats aggregates from ALL libraries
+        // Movie library has MKV, music library has no container formats (only video files tracked)
+        Assert.Contains("MKV", result.TotalContainerFormats.Keys);
     }
 }

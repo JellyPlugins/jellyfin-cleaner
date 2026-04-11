@@ -174,3 +174,133 @@
 .action-btn { padding: 0.5em 1.2em; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 0.95em; transition: background 0.2s; background: #e67e22; }
 .action-btn:hover { background: #d35400; }
 .action-btn:disabled { background: #555; cursor: not-allowed; }
+
+/* === Shared File List Styles (used by Codecs + Health tabs) === */
+
+/* File List Header */
+.codec-files-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.7em;
+    padding-bottom: 0.5em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.codec-files-title {
+    font-weight: 700;
+    font-size: 0.95em;
+    color: #00a4dc;
+}
+
+.codec-files-count {
+    font-size: 0.8em;
+    opacity: 0.5;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0.15em 0.5em;
+    border-radius: 10px;
+}
+
+/* noinspection CssUnusedSymbol */
+.codec-files-empty {
+    text-align: center;
+    padding: 1em;
+    opacity: 0.4;
+    font-size: 0.85em;
+}
+
+/* File List Columns (Movies / TV Shows / Music split) */
+.codec-files-columns {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8em;
+}
+
+/* noinspection CssUnusedSymbol */
+.codec-files-columns.codec-files-multi {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 0.8em;
+}
+
+@media (max-width: 600px) {
+    /* noinspection CssUnusedSymbol */
+    .codec-files-columns.codec-files-multi {
+        grid-template-columns: 1fr;
+    }
+}
+
+.codec-files-section {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    padding: 0.6em;
+}
+
+.codec-files-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    margin-bottom: 0.5em;
+    font-size: 0.85em;
+}
+
+.codec-files-section-count {
+    opacity: 0.45;
+    font-size: 0.85em;
+}
+
+.codec-files-list {
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.codec-files-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.codec-files-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}
+
+/* Individual File Item */
+.codec-file-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.3em 0.4em;
+    border-radius: 4px;
+    transition: background 0.15s;
+    cursor: default;
+}
+
+.codec-file-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.codec-file-icon {
+    flex-shrink: 0;
+    font-size: 0.75em;
+    width: 1.2em;
+    text-align: center;
+}
+
+.codec-file-name {
+    font-size: 0.78em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+}
+
+.codec-file-folder {
+    font-size: 0.68em;
+    opacity: 0.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+    flex-shrink: 0;
+}

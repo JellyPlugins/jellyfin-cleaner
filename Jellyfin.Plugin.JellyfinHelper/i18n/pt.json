@@ -176,5 +176,6 @@
   "tvShows": "Séries de TV",
   "movies": "Filmes",
   "music": "Música",
-  "mixed": "Misto"
+  "mixed": "Misto",
+  "noFilesFound": "Nenhum arquivo encontrado para este codec."
 }

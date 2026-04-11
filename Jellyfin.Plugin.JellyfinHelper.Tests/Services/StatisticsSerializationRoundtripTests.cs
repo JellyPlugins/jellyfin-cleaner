@@ -178,6 +178,49 @@ public class StatisticsSerializationRoundtripTests
     }
 
     [Fact]
+    public void LibraryStatistics_Roundtrip_PreservesCodecPaths()
+    {
+        var original = CreateSampleLibrary("Movies", "movies");
+
+        // Add sample codec paths
+        FileSystemHelper.AddPath(original.VideoCodecPaths, "HEVC", "/media/movies/Film1.mkv");
+        FileSystemHelper.AddPath(original.VideoCodecPaths, "HEVC", "/media/movies/Film2.mkv");
+        FileSystemHelper.AddPath(original.VideoCodecPaths, "H.264", "/media/movies/Film3.mp4");
+        FileSystemHelper.AddPath(original.VideoAudioCodecPaths, "DTS", "/media/movies/Film1.mkv");
+        FileSystemHelper.AddPath(original.ContainerFormatPaths, "MKV", "/media/movies/Film1.mkv");
+        FileSystemHelper.AddPath(original.ResolutionPaths, "1080p", "/media/movies/Film1.mkv");
+        FileSystemHelper.AddPath(original.MusicAudioCodecPaths, "FLAC", "/media/music/Song1.flac");
+
+        var json = JsonSerializer.Serialize(original, JsonOptions);
+        var deserialized = JsonSerializer.Deserialize<LibraryStatistics>(json, JsonOptions);
+
+        Assert.NotNull(deserialized);
+
+        // VideoCodecPaths
+        Assert.Equal(2, deserialized!.VideoCodecPaths.Count);
+        Assert.Equal(2, deserialized.VideoCodecPaths["HEVC"].Count);
+        Assert.Single(deserialized.VideoCodecPaths["H.264"]);
+        Assert.Contains("/media/movies/Film1.mkv", deserialized.VideoCodecPaths["HEVC"]);
+        Assert.Contains("/media/movies/Film2.mkv", deserialized.VideoCodecPaths["HEVC"]);
+
+        // VideoAudioCodecPaths
+        Assert.Single(deserialized.VideoAudioCodecPaths);
+        Assert.Single(deserialized.VideoAudioCodecPaths["DTS"]);
+
+        // ContainerFormatPaths
+        Assert.Single(deserialized.ContainerFormatPaths);
+        Assert.Single(deserialized.ContainerFormatPaths["MKV"]);
+
+        // ResolutionPaths
+        Assert.Single(deserialized.ResolutionPaths);
+        Assert.Single(deserialized.ResolutionPaths["1080p"]);
+
+        // MusicAudioCodecPaths
+        Assert.Single(deserialized.MusicAudioCodecPaths);
+        Assert.Single(deserialized.MusicAudioCodecPaths["FLAC"]);
+    }
+
+    [Fact]
     public void LibraryStatistics_Roundtrip_PreservesHealthChecks()
     {
         var original = CreateSampleLibrary("Movies", "movies");

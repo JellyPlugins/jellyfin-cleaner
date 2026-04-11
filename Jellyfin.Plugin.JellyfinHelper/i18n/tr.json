@@ -176,5 +176,6 @@
   "tvShows": "TV Dizileri",
   "movies": "Filmler",
   "music": "Müzik",
-  "mixed": "Karışık"
+  "mixed": "Karışık",
+  "noFilesFound": "Bu kodek için dosya bulunamadı."
 }

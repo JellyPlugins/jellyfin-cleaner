@@ -126,16 +126,19 @@ public partial class MediaStatisticsService
                     var container = ext.TrimStart('.').ToUpperInvariant();
                     FileSystemHelper.IncrementCount(stats.ContainerFormats, container);
                     FileSystemHelper.AccumulateValue(stats.ContainerSizes, container, size);
+                    FileSystemHelper.AddPath(stats.ContainerFormatPaths, container, file.FullName);
 
                     // Resolution parsing from filename
                     var resolution = ParseResolution(file.Name);
                     FileSystemHelper.IncrementCount(stats.Resolutions, resolution);
                     FileSystemHelper.AccumulateValue(stats.ResolutionSizes, resolution, size);
+                    FileSystemHelper.AddPath(stats.ResolutionPaths, resolution, file.FullName);
 
                     // Video codec parsing from filename
                     var codec = ParseVideoCodec(file.Name);
                     FileSystemHelper.IncrementCount(stats.VideoCodecs, codec);
                     FileSystemHelper.AccumulateValue(stats.VideoCodecSizes, codec, size);
+                    FileSystemHelper.AddPath(stats.VideoCodecPaths, codec, file.FullName);
 
                     // Audio codec parsing from video filename (e.g. "Movie.DTS.mkv")
                     var audioCodec = ParseAudioCodec(file.Name, ext);
@@ -143,6 +146,7 @@ public partial class MediaStatisticsService
                     {
                         FileSystemHelper.IncrementCount(stats.VideoAudioCodecs, audioCodec);
                         FileSystemHelper.AccumulateValue(stats.VideoAudioCodecSizes, audioCodec, size);
+                        FileSystemHelper.AddPath(stats.VideoAudioCodecPaths, audioCodec, file.FullName);
                     }
                 }
                 else if (MediaExtensions.SubtitleExtensions.Contains(ext))
@@ -172,6 +176,7 @@ public partial class MediaStatisticsService
                     var audioCodec = ParseAudioCodec(file.Name, ext);
                     FileSystemHelper.IncrementCount(stats.MusicAudioCodecs, audioCodec);
                     FileSystemHelper.AccumulateValue(stats.MusicAudioCodecSizes, audioCodec, size);
+                    FileSystemHelper.AddPath(stats.MusicAudioCodecPaths, audioCodec, file.FullName);
                 }
                 else
                 {

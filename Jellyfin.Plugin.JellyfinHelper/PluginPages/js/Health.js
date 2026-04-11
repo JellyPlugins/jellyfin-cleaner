@@ -3,29 +3,35 @@
     // Store last scan data for health detail clicks
     var _lastScanData = null;
 
+    // Collect health paths split by media type (movies vs tvShows)
+    // Health checks only apply to video libraries, so music is always empty.
     function collectHealthPaths(data, prop) {
-        var paths = [];
-        for (var i = 0; i < data.Libraries.length; i++) {
-            var libPaths = data.Libraries[i][prop];
-            if (libPaths) {
-                for (var j = 0; j < libPaths.length; j++) {
-                    paths.push(libPaths[j]);
+        var moviePaths = [];
+        var tvPaths = [];
+
+        if (data.Movies) {
+            for (var m = 0; m < data.Movies.length; m++) {
+                var libPaths = data.Movies[m][prop];
+                if (libPaths) {
+                    for (var i = 0; i < libPaths.length; i++) {
+                        moviePaths.push(libPaths[i]);
+                    }
                 }
             }
         }
-        return paths;
-    }
 
-    function renderHealthDetailList(paths) {
-        if (!paths || paths.length === 0) {
-            return '<div class="health-detail-list"><p style="opacity:0.5;padding:0.5em;">' + T('noEntries', 'No entries found.') + '</p></div>';
+        if (data.TvShows) {
+            for (var t = 0; t < data.TvShows.length; t++) {
+                var tvLibPaths = data.TvShows[t][prop];
+                if (tvLibPaths) {
+                    for (var j = 0; j < tvLibPaths.length; j++) {
+                        tvPaths.push(tvLibPaths[j]);
+                    }
+                }
+            }
         }
-        var html = '<div class="health-detail-list"><div class="health-detail-header">' + paths.length + ' ' + (paths.length === 1 ? T('entry', 'entry') : T('entries', 'entries')) + '</div><ul>';
-        for (var i = 0; i < paths.length; i++) {
-            html += '<li>' + escHtml(paths[i]) + '</li>';
-        }
-        html += '</ul></div>';
-        return html;
+
+        return { movies: moviePaths, tvShows: tvPaths, music: [] };
     }
 
     function renderHealthChecks(data) {
@@ -53,56 +59,54 @@
         html += '<div class="health-label">' + T('orphanedDirs', 'Orphaned metadata dirs') + '</div></div>';
 
         html += '</div>';
-        html += '<div id="healthDetailContainer"></div>';
+        html += '<div class="health-detail-panel" id="healthDetailPanel"></div>';
         return html;
     }
+
+    // Map health types to their path property names and titles
+    var HEALTH_PATH_MAP = {
+        'noSubs': { prop: 'VideosWithoutSubtitlesPaths', titleKey: 'noSubtitles', titleFallback: 'Videos without subtitles' },
+        'noImages': { prop: 'VideosWithoutImagesPaths', titleKey: 'noImages', titleFallback: 'Videos without images' },
+        'noNfo': { prop: 'VideosWithoutNfoPaths', titleKey: 'noNfo', titleFallback: 'Videos without NFO' },
+        'orphaned': { prop: 'OrphanedMetadataDirectoriesPaths', titleKey: 'orphanedDirs', titleFallback: 'Orphaned metadata dirs' }
+    };
 
     function attachHealthClickHandlers() {
         var items = document.querySelectorAll('.health-clickable');
         for (var i = 0; i < items.length; i++) {
             items[i].addEventListener('click', function () {
                 var type = this.getAttribute('data-health-type');
-                var container = document.getElementById('healthDetailContainer');
-                if (!container || !_lastScanData) return;
+                var panel = document.getElementById('healthDetailPanel');
+                if (!panel || !_lastScanData) return;
 
                 // Toggle: if same type is already shown, hide it
-                if (container.getAttribute('data-active-type') === type) {
-                    container.innerHTML = '';
-                    container.removeAttribute('data-active-type');
+                if (this.classList.contains('health-active')) {
+                    panel.innerHTML = '';
+                    panel.classList.remove('codec-detail-visible');
                     // Remove active state from all items
                     var toggleItems = document.querySelectorAll('.health-clickable');
                     for (var j = 0; j < toggleItems.length; j++) toggleItems[j].classList.remove('health-active');
                     return;
                 }
 
-                var pathProp;
-                var title;
-                if (type === 'noSubs') {
-                    pathProp = 'VideosWithoutSubtitlesPaths';
-                    title = T('noSubtitles', 'Videos without subtitles');
-                } else if (type === 'noImages') {
-                    pathProp = 'VideosWithoutImagesPaths';
-                    title = T('noImages', 'Videos without images');
-                } else if (type === 'noNfo') {
-                    pathProp = 'VideosWithoutNfoPaths';
-                    title = T('noNfo', 'Videos without NFO');
-                } else if (type === 'orphaned') {
-                    pathProp = 'OrphanedMetadataDirectoriesPaths';
-                    title = T('orphanedDirs', 'Orphaned metadata dirs');
-                }
-
-                var paths = collectHealthPaths(_lastScanData, pathProp);
-
-                var html = '<div class="section-title" style="margin-top:1.5em;">' + escHtml(title) + '</div>';
-                html += renderHealthDetailList(paths);
-                container.innerHTML = html;
-                container.setAttribute('data-active-type', type);
-
-                // Update active state styling
+                // Remove active state from all items
                 var allItems = document.querySelectorAll('.health-clickable');
                 for (var k = 0; k < allItems.length; k++) {
-                    allItems[k].classList.toggle('health-active', allItems[k].getAttribute('data-health-type') === type);
+                    allItems[k].classList.remove('health-active');
                 }
+
+                this.classList.add('health-active');
+
+                var mapping = HEALTH_PATH_MAP[type];
+                if (!mapping) return;
+
+                var result = collectHealthPaths(_lastScanData, mapping.prop);
+                var title = T(mapping.titleKey, mapping.titleFallback);
+                panel.innerHTML = renderFileList(result, title);
+                panel.classList.add('codec-detail-visible');
+
+                // Smooth scroll the panel into view
+                setTimeout(function () { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 50);
             });
         }
     }
