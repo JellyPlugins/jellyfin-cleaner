@@ -424,7 +424,12 @@
 .settings-form input[type="text"],
 .settings-form input[type="number"],
 .settings-form input[type="password"],
-.settings-form select { width: 100%; padding: 0.5em; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; background: rgba(255,255,255,0.05); color: inherit; font-size: 0.95em; margin-top: 0.3em; box-sizing: border-box; }
+.settings-form select { width: 100%; padding: 0.5em; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; background: rgba(255,255,255,0.05); color: inherit; font-size: 0.95em; margin-top: 0.3em; box-sizing: border-box; color-scheme: light dark; }
+.settings-form select option { background: #2b2b2b; color: #e0e0e0; }
+@media (prefers-color-scheme: light) {
+    .settings-form select { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.15); }
+    .settings-form select option { background: #ffffff; color: #111111; }
+}
 /* noinspection CssUnusedSymbol */
 .settings-form .help-text { font-size: 0.8em; opacity: 0.5; margin-top: 0.2em; }
 /* noinspection CssUnusedSymbol */
