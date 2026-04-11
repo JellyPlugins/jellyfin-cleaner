@@ -268,7 +268,7 @@
     function compareArr(type, index, label) {
         var resultDiv = document.getElementById('arrResult');
         if (!resultDiv) return;
-        resultDiv.innerHTML = '<div class="loading-overlay" style="padding:1em;"><div class="spinner"></div><p>' + T('comparing', 'Comparing') + ' ' + (label || type) + '…</p></div>';
+        resultDiv.innerHTML = '<div class="loading-overlay" style="padding:1em;"><div class="spinner"></div><p>' + T('comparing', 'Comparing') + ' ' + escHtml(label || type) + '…</p></div>';
         var apiClient = ApiClient;
         var url = apiClient.getUrl('JellyfinHelper/Arr/' + type + '/Compare') + '?index=' + index;
         apiClient.ajax({ type: 'GET', url: url, dataType: 'json' }).then(function (data) {
