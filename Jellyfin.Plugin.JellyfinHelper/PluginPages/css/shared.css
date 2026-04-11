@@ -86,6 +86,11 @@
     border-bottom: 2px solid #00a4dc;
 }
 
+.tab-content > .section-title:first-child,
+.tab-content > :first-child > .section-title:first-child {
+    margin-top: 0;
+}
+
 .section-sub-title {
     font-size: 1em;
     font-weight: 600;
