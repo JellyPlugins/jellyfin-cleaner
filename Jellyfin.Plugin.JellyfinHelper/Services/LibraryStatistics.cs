@@ -120,7 +120,7 @@ public class LibraryStatistics
 
     /// <summary>
     /// Gets the audio codec breakdown for music files (codec → count), e.g. "FLAC" → 100, "MP3" → 50.
-    /// Derived from file extensions.
+    /// Parsed from filename tags with extension-based fallback.
     /// </summary>
     public Dictionary<string, int> MusicAudioCodecs { get; } = new(StringComparer.OrdinalIgnoreCase);
 

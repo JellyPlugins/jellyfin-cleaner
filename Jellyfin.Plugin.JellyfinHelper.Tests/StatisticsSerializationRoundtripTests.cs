@@ -243,7 +243,7 @@ public class StatisticsSerializationRoundtripTests
     {
         var original = new StatisticsSnapshot
         {
-            Timestamp = DateTime.UtcNow,
+            Timestamp = new DateTime(2025, 7, 1, 12, 0, 0, DateTimeKind.Utc),
         };
         original.LibrarySizes["Movies"] = 500_000_000_000L;
         original.LibrarySizes["TV Shows"] = 300_000_000_000L;

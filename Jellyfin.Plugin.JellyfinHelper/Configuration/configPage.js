@@ -533,7 +533,7 @@
                 h += '<div class="header-actions" style="flex-wrap:wrap;">';
                 for (var r = 0; r < radarrInstances.length; r++) {
                     var rName = radarrInstances[r].Name || ('Radarr #' + (r + 1));
-                    h += '<button class="action-btn arr-compare-btn" data-type="Radarr" data-index="' + r + '">' + T('compareWith', 'Compare with') + ' ' + escAttr(rName) + '</button>';
+                    h += '<button class="action-btn arr-compare-btn" data-type="Radarr" data-index="' + r + '">' + T('compareWith', 'Compare with') + ' ' + escHtml(rName) + '</button>';
                 }
                 h += '</div></div>';
             }
@@ -544,7 +544,7 @@
                 h += '<div class="header-actions" style="flex-wrap:wrap;">';
                 for (var s = 0; s < sonarrInstances.length; s++) {
                     var sName = sonarrInstances[s].Name || ('Sonarr #' + (s + 1));
-                    h += '<button class="action-btn arr-compare-btn" data-type="Sonarr" data-index="' + s + '">' + T('compareWith', 'Compare with') + ' ' + escAttr(sName) + '</button>';
+                    h += '<button class="action-btn arr-compare-btn" data-type="Sonarr" data-index="' + s + '">' + T('compareWith', 'Compare with') + ' ' + escHtml(sName) + '</button>';
                 }
                 h += '</div></div>';
             }
@@ -609,6 +609,12 @@
             h += '<p class="stat-detail">' + T('lastCleanup', 'Last cleanup') + ': ' + lastTs + '</p></div>';
             h += '</div>';
             cleanupContainer.innerHTML = h;
+        }, function () {
+            var cleanupContainer = document.getElementById('cleanup-stats-container');
+            if (cleanupContainer) {
+                cleanupContainer.innerHTML = '<div class="section-title">🧹 ' + T('cleanupStatistics', 'Cleanup Statistics') + '</div>' +
+                    '<p style="opacity:0.5;">' + T('cleanupStatsError', 'Could not load cleanup statistics.') + '</p>';
+            }
         });
     }
 
