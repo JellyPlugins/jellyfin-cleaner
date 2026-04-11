@@ -74,10 +74,6 @@ public class ArrIntegrationService
             _logger.LogWarning(ex, "Arr connection test failed for {Url}", baseUrl);
             return (false, $"Connection failed: {ex.Message}");
         }
-        catch (TaskCanceledException)
-        {
-            return (false, "Connection timed out.");
-        }
         catch (Exception ex) when (ex is JsonException or UriFormatException)
         {
             _logger.LogWarning(ex, "Arr connection test failed for {Url}", baseUrl);

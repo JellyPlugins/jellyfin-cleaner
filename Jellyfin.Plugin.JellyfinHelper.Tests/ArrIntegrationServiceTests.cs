@@ -255,10 +255,8 @@ public class ArrIntegrationServiceTests
 
         var service = CreateService(mockHandler.Object);
 
-        var (success, message) = await service.TestConnectionAsync("http://localhost:7878", "testapikey");
-
-        Assert.False(success);
-        Assert.Contains("timed out", message, StringComparison.OrdinalIgnoreCase);
+        await Assert.ThrowsAsync<TaskCanceledException>(
+            () => service.TestConnectionAsync("http://localhost:7878", "testapikey"));
     }
 
     // === GetRadarrMoviesAsync ===

@@ -281,6 +281,9 @@
         return '<div class="trend-chart">' + svg + '</div>';
     }
 
+    // Track current language for detecting changes on save
+    var _currentLang = '';
+
     var MAX_ARR_INSTANCES = 3;
 
     function renderArrInstances(type, instances) {
@@ -377,6 +380,11 @@
             // Update remove button data-index
             var removeBtn = remaining[i].querySelector('.btnRemoveArr');
             if (removeBtn) removeBtn.setAttribute('data-index', i);
+            // Update test button data-index and test result ID
+            var testBtn = remaining[i].querySelector('.btnTestArr');
+            if (testBtn) testBtn.setAttribute('data-index', i);
+            var resultSpan = remaining[i].querySelector('.arr-test-result');
+            if (resultSpan) resultSpan.id = prefix + '_testResult';
         }
         // Show add button again if below max
         var btn = document.getElementById('btnAdd' + type);
@@ -448,12 +456,37 @@
         if (btnSonarr) btnSonarr.onclick = function () { addArrInstance('Sonarr'); };
     }
 
+    // Rebuild the entire UI after a language change
+    function rebuildUI() {
+        applyStaticTranslations();
+
+        var placeholder = document.getElementById('statsPlaceholder');
+        var result = document.getElementById('statsResult');
+        if (placeholder) placeholder.style.display = 'none';
+        if (result) {
+            result.innerHTML = renderShell();
+            result.style.display = 'block';
+        }
+
+        initTabs();
+        loadSettings();
+        initArrButtons();
+        loadLatestStatistics();
+        loadTrendData();
+
+        // Switch back to the Settings tab after rebuild
+        var settingsBtn = document.querySelector('.tab-btn[data-tab="settings"]');
+        if (settingsBtn) settingsBtn.click();
+    }
+
     // --- Settings Tab Logic ---
     function loadSettings() {
         var form = document.getElementById('settingsForm');
         if (!form) return;
         var apiClient = ApiClient;
         apiClient.ajax({ type: 'GET', url: apiClient.getUrl('JellyfinHelper/Configuration'), dataType: 'json' }).then(function (cfg) {
+            // Remember the current language for change detection
+            _currentLang = cfg.Language || 'en';
             var h = '';
             h += '<label>' + T('includedLibraries', 'Included Libraries (whitelist, comma-separated)') + '</label>';
             h += '<input type="text" id="cfgIncluded" value="' + escAttr(cfg.IncludedLibraries || '') + '">';
@@ -555,8 +588,24 @@
             type: 'POST', url: apiClient.getUrl('JellyfinHelper/Configuration'),
             data: JSON.stringify(payload), contentType: 'application/json'
         }).then(function () {
-            msg.innerHTML = '<div class="success-msg">✅ ' + T('settingsSaved', 'Settings saved!') + '</div>';
-            btn.disabled = false;
+            var newLang = payload.Language;
+            if (newLang !== _currentLang) {
+                _currentLang = newLang;
+                btn.disabled = false;
+                loadTranslations(function () {
+                    rebuildUI();
+                    // Re-find the settings message after rebuild and show success
+                    var newMsg = document.getElementById('settingsMsg');
+                    if (newMsg) newMsg.innerHTML = '<div class="success-msg">✅ ' + T('settingsSaved', 'Settings saved!') + '</div>';
+                });
+            } else {
+                msg.innerHTML = '<div class="success-msg">✅ ' + T('settingsSaved', 'Settings saved!') + '</div>';
+                btn.disabled = false;
+                // Refresh Arr tab buttons in case instances changed
+                initArrButtons();
+                var arrResult = document.getElementById('arrResult');
+                if (arrResult) arrResult.innerHTML = '';
+            }
         }, function () {
             msg.innerHTML = '<div class="error-msg">❌ ' + T('settingsError', 'Failed to save settings.') + '</div>';
             btn.disabled = false;

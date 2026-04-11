@@ -125,15 +125,24 @@ public class MediaStatisticsController : ControllerBase
         // Cache the result
         _cache.Set(StatsCacheKey, result, CacheDuration);
 
-        // Save snapshot for historical tracking + persist latest result to disk
+        // Save snapshot for historical tracking
         try
         {
             _historyService.SaveSnapshot(result);
-            _historyService.SaveLatestResult(result);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to save statistics snapshot");
+        }
+
+        // Persist latest result to disk
+        try
+        {
+            _historyService.SaveLatestResult(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to persist latest statistics result");
         }
 
         return Ok(result);
