@@ -88,7 +88,6 @@
   "trendEmpty": "Not enough historical data yet. Trend data is collected with each scan.",
   "trendLoading": "Loading trend data…",
   "trendError": "Could not load trend data.",
-  "settingsTitle": "Plugin Settings",
   "settingsGeneralTitle": "General settings",
   "settingsTaskTitle": "Task settings",
   "settingsTrashTitle": "Trash settings",

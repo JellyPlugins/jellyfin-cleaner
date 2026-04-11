@@ -88,7 +88,6 @@
   "trendEmpty": "Aún no hay suficientes datos históricos. Los datos de tendencia se recopilan con cada escaneo.",
   "trendLoading": "Cargando tendencias…",
   "trendError": "No se pudieron cargar las tendencias.",
-  "settingsTitle": "Configuración del plugin",
   "settingsGeneralTitle": "Configuración general",
   "settingsTaskTitle": "Configuración de tareas",
   "settingsTrashTitle": "Configuración de papelera",

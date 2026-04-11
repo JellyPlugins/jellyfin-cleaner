@@ -84,7 +84,7 @@
 
     function fillOverviewData(data) {
         var overviewHtml = '';
-        overviewHtml += '<div class="stats-grid" style="margin-top: 3em">';
+        overviewHtml += '<div class="stats-grid">';
         overviewHtml += '<div class="stat-card"><h3>🎬 ' + T('movieVideoData', 'Video Data — Movies') + '</h3>';
         overviewHtml += '<p class="stat-value">' + formatBytes(data.TotalMovieVideoSize) + '</p>';
         var movieFiles = 0;

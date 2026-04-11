@@ -84,7 +84,7 @@
             url: url,
             dataType: 'json'
         }).then(function (data) {
-            if (data) {
+            if (data && data.Libraries) {
                 fillScanData(data);
                 updateLastScanBadge(data.ScanTimestamp);
 

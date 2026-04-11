@@ -1,6 +1,7 @@
 // --- Arr Integration Tab ---
 
     var MAX_ARR_INSTANCES = 3;
+    var _testTimers = {};
 
     function renderArrInstances(type, instances) {
         var h = '';
@@ -25,13 +26,13 @@
         var h = '<div class="arr-instance-row" data-type="' + type + '" data-index="' + index + '" style="border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:0.8em;margin-top:0.8em;position:relative;">';
         h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3em;">';
         h += '<strong>' + type + ' #' + (index + 1) + '</strong>';
-        h += '<button type="button" class="action-btn btnRemoveArr" data-type="' + type + '" data-index="' + index + '" style="padding:0.2em 0.6em;font-size:0.8em;background:#e74c3c;">✕ ' + T('remove', 'Remove') + '</button>';
+        h += '<button type="button" class="action-btn btn-arr-remove btnRemoveArr" data-type="' + type + '" data-index="' + index + '" style="padding:0.2em 0.6em;font-size:0.8em;">✕ ' + T('remove', 'Remove') + '</button>';
         h += '</div>';
         h += '<label>' + T('instanceName', 'Instance Name') + '</label><input type="text" id="' + prefix + '_name" value="' + escAttr(name) + '" placeholder="e.g. ' + type + ' 4K">';
         h += '<label>' + T('url', 'URL') + '</label><input type="text" id="' + prefix + '_url" value="' + escAttr(url) + '" placeholder="' + placeholderUrl + '">';
         h += '<label>' + T('apiKey', 'API Key') + '</label><input type="password" id="' + prefix + '_key" value="' + escAttr(apiKey) + '">';
         h += '<div style="margin-top:0.5em;display:flex;align-items:center;gap:0.5em;">';
-        h += '<button type="button" class="action-btn btnTestArr" id="' + prefix + '_btnTest" data-type="' + type + '" data-index="' + index + '" style="padding:0.3em 0.8em;font-size:0.85em;background:#3498db;">🔌 ' + T('testConnection', 'Test Connection') + '</button>';
+        h += '<button type="button" class="action-btn btn-arr-test btnTestArr" id="' + prefix + '_btnTest" data-type="' + type + '" data-index="' + index + '" style="padding:0.3em 0.8em;font-size:0.85em;">🔌 ' + T('testConnection', 'Test Connection') + '</button>';
         h += '</div>';
         h += '</div>';
         return h;
@@ -108,12 +109,19 @@
 
         var originalHtml = '🔌 ' + T('testConnection', 'Test Connection');
 
+        var timerKey = type + '_' + index;
+        if (_testTimers[timerKey]) {
+            clearTimeout(_testTimers[timerKey]);
+            _testTimers[timerKey] = null;
+        }
+
         if (!url || !apiKey) {
             btn.innerHTML = '<div style="display: flex; align-items: center"><span class="btn-icon">X</span>' + T('testMissingFields', 'URL and API Key are required.') + '</div>';
             btn.classList.add('error');
-            setTimeout(function() {
+            _testTimers[timerKey] = setTimeout(function() {
                 btn.innerHTML = originalHtml;
                 btn.classList.remove('error');
+                _testTimers[timerKey] = null;
             }, 3000);
             return;
         }
@@ -131,27 +139,30 @@
         }).then(function (data) {
             btn.disabled = false;
             if (data.success) {
-                btn.innerHTML = '<div style="display: flex; align-items: center"><span class="btn-icon">✔</span>' + data.message + '</div>';
+                btn.innerHTML = '<span class="btn-icon">✔</span>' + escHtml(data.message);
                 btn.classList.add('success');
-                setTimeout(function() {
+                _testTimers[timerKey] = setTimeout(function() {
                     btn.innerHTML = originalHtml;
                     btn.classList.remove('success');
+                    _testTimers[timerKey] = null;
                 }, 3000);
             } else {
-                btn.innerHTML = '<div style="display: flex; align-items: center"><span class="btn-icon">X</span>' + data.message + '</div>';
+                btn.innerHTML = '<span class="btn-icon">X</span>' + escHtml(data.message);
                 btn.classList.add('error');
-                setTimeout(function() {
+                _testTimers[timerKey] = setTimeout(function() {
                     btn.innerHTML = originalHtml;
                     btn.classList.remove('error');
+                    _testTimers[timerKey] = null;
                 }, 5000);
             }
         }, function () {
             btn.disabled = false;
-            btn.innerHTML = '<div style="display: flex; align-items: center"><span class="btn-icon">X</span>' + T('testConnectionFailed', 'Connection test failed.') + '</div>';
+            btn.innerHTML = '<span class="btn-icon">X</span>' + T('testConnectionFailed', 'Connection test failed.');
             btn.classList.add('error');
-            setTimeout(function() {
+            _testTimers[timerKey] = setTimeout(function() {
                 btn.innerHTML = originalHtml;
                 btn.classList.remove('error');
+                _testTimers[timerKey] = null;
             }, 5000);
         });
     }
@@ -185,12 +196,19 @@
         var btnContainer = document.getElementById('arrButtons');
         if (!btnContainer) return;
         var h = '';
-        var radarrInstances = cfg.RadarrInstances && cfg.RadarrInstances.length > 0
-            ? cfg.RadarrInstances
-            : (cfg.RadarrUrl ? [{ Name: 'Radarr', Url: cfg.RadarrUrl }] : []);
-        var sonarrInstances = cfg.SonarrInstances && cfg.SonarrInstances.length > 0
-            ? cfg.SonarrInstances
-            : (cfg.SonarrUrl ? [{ Name: 'Sonarr', Url: cfg.SonarrUrl }] : []);
+        var radarrInstances = (cfg.RadarrInstances || []).filter(function (inst) {
+            return inst && inst.Url && inst.ApiKey;
+        });
+        if (radarrInstances.length === 0 && cfg.RadarrUrl && cfg.RadarrApiKey) {
+            radarrInstances = [{ Name: 'Radarr', Url: cfg.RadarrUrl, ApiKey: cfg.RadarrApiKey }];
+        }
+
+        var sonarrInstances = (cfg.SonarrInstances || []).filter(function (inst) {
+            return inst && inst.Url && inst.ApiKey;
+        });
+        if (sonarrInstances.length === 0 && cfg.SonarrUrl && cfg.SonarrApiKey) {
+            sonarrInstances = [{ Name: 'Sonarr', Url: cfg.SonarrUrl, ApiKey: cfg.SonarrApiKey }];
+        }
 
         if (radarrInstances.length === 0 && sonarrInstances.length === 0) {
             btnContainer.innerHTML = '<div class="no-data-container"><p>' + T('arrNotConfigured', 'Not configured. Please set URL and API key in Settings.') + '</p></div>';

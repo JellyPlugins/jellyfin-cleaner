@@ -56,11 +56,11 @@
 }
 
 .refresh-btn.success {
-    background: #2ecc71 !important;
+    background: #2ecc71;
 }
 
 .refresh-btn.error {
-    background: #e74c3c !important;
+    background: #e74c3c;
 }
 
 .export-btn {
@@ -192,8 +192,8 @@
 .action-btn { padding: 0.5em 1.2em; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 0.95em; transition: background 0.2s; background: #e67e22; }
 .action-btn:hover { background: #d35400; }
 .action-btn:disabled { background: #555; cursor: not-allowed; }
-.action-btn.success { background: #2ecc71 !important; }
-.action-btn.error { background: #e74c3c !important; }
+.action-btn.success { background: #2ecc71; }
+.action-btn.error { background: #e74c3c; }
 
 /* === Shared File List Styles (used by Codecs + Health tabs) === */
 
@@ -323,6 +323,20 @@
     text-overflow: ellipsis;
     max-width: 120px;
     flex-shrink: 0;
+}
+
+/* Arr button variants */
+.btn-arr-test { background: #3498db; }
+.btn-arr-test:hover { background: #2980b9; }
+.btn-arr-remove { background: #e74c3c; }
+.btn-arr-remove:hover { background: #c0392b; }
+
+/* No data placeholder */
+.no-data-container {
+    text-align: center;
+    padding: 2em 1em;
+    opacity: 0.5;
+    font-size: 0.9em;
 }
 
 .btn-icon {

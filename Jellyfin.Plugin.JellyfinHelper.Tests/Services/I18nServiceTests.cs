@@ -87,7 +87,7 @@ public class I18nServiceTests
             "videoCodecs", "videoAudioCodecs", "musicAudioCodecs", "containerFormats", "resolutions", "noData",
             "healthChecks", "noSubtitles", "noImages", "noNfo", "orphanedDirs",
             "growthTrend", "trendEmpty", "trendLoading", "trendError",
-            "settingsTitle", "includedLibraries", "excludedLibraries",
+            "includedLibraries", "excludedLibraries",
             "orphanMinAge", "dryRunDefault", "enableSubtitleCleaner",
             "useTrash", "trashFolder", "trashRetention", "language",
             "radarrUrl", "radarrApiKey", "sonarrUrl", "sonarrApiKey",
