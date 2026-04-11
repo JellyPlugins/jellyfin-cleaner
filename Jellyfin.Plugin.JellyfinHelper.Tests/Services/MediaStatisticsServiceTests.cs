@@ -1914,3 +1914,333 @@ public class MediaStatisticsServiceTests
         Assert.Contains("MKV", result.TotalContainerFormats.Keys);
     }
 }
+
+// ===== Embedded Subtitle Detection Tests =====
+
+/// <summary>
+/// Tests for embedded subtitle detection in video files (e.g. MKV with built-in subtitle streams).
+/// Uses a testable subclass that overrides <see cref="MediaStatisticsService.HasEmbeddedSubtitles"/>
+/// to avoid relying on Jellyfin's internal media source infrastructure.
+/// </summary>
+public class EmbeddedSubtitleDetectionTests
+{
+    private readonly Mock<ILibraryManager> _libraryManagerMock;
+    private readonly Mock<IFileSystem> _fileSystemMock;
+    private readonly Mock<ILogger<MediaStatisticsService>> _loggerMock;
+    private readonly TestableMediaStatisticsService _service;
+
+    public EmbeddedSubtitleDetectionTests()
+    {
+        _libraryManagerMock = new Mock<ILibraryManager>();
+        _fileSystemMock = new Mock<IFileSystem>();
+        _loggerMock = new Mock<ILogger<MediaStatisticsService>>();
+        _service = new TestableMediaStatisticsService(
+            _libraryManagerMock.Object, _fileSystemMock.Object, _loggerMock.Object);
+    }
+
+    private static string TestPath(params string[] segments)
+        => Path.DirectorySeparatorChar + string.Join(Path.DirectorySeparatorChar, segments);
+
+    [Fact]
+    public void VideoWithEmbeddedSubtitles_NotCountedAsWithoutSubtitles()
+    {
+        var libraryPath = TestPath("media", "movies");
+        var videoPath = TestPath("media", "movies", "Film.mkv");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = videoPath, Name = "Film.mkv", Length = 1_000_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "poster.jpg"), Name = "poster.jpg", Length = 100_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.nfo"), Name = "Film.nfo", Length = 5_000, IsDirectory = false },
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        // Mark this video as having embedded subtitles
+        _service.SetHasEmbeddedSubtitles(videoPath, true);
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(0, stats.VideosWithoutSubtitles);
+        Assert.Empty(stats.VideosWithoutSubtitlesPaths);
+    }
+
+    [Fact]
+    public void VideoWithoutAnySubtitles_StillCountedAsWithoutSubtitles()
+    {
+        var libraryPath = TestPath("media", "movies");
+        var videoPath = TestPath("media", "movies", "Film.mkv");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = videoPath, Name = "Film.mkv", Length = 1_000_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "poster.jpg"), Name = "poster.jpg", Length = 100_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.nfo"), Name = "Film.nfo", Length = 5_000, IsDirectory = false },
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        // No embedded subtitles (default)
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(1, stats.VideosWithoutSubtitles);
+        Assert.Single(stats.VideosWithoutSubtitlesPaths);
+        Assert.Contains(videoPath, stats.VideosWithoutSubtitlesPaths);
+    }
+
+    [Fact]
+    public void VideoWithExternalSubtitles_NotCountedRegardlessOfEmbedded()
+    {
+        var libraryPath = TestPath("media", "movies");
+        var videoPath = TestPath("media", "movies", "Film.mkv");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = videoPath, Name = "Film.mkv", Length = 1_000_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.srt"), Name = "Film.srt", Length = 50_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "poster.jpg"), Name = "poster.jpg", Length = 100_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = TestPath("media", "movies", "Film.nfo"), Name = "Film.nfo", Length = 5_000, IsDirectory = false },
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        // Not setting embedded subtitles — external .srt is enough
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(0, stats.VideosWithoutSubtitles);
+        Assert.Empty(stats.VideosWithoutSubtitlesPaths);
+    }
+
+    [Fact]
+    public void MixedVideos_SomeWithEmbeddedSubtitles_OnlyMissingOnesCounted()
+    {
+        var libraryPath = TestPath("media", "movies");
+        var video1Path = TestPath("media", "movies", "Film1.mkv");
+        var video2Path = TestPath("media", "movies", "Film2.mkv");
+        var video3Path = TestPath("media", "movies", "Film3.mp4");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = video1Path, Name = "Film1.mkv", Length = 1_000_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = video2Path, Name = "Film2.mkv", Length = 2_000_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = video3Path, Name = "Film3.mp4", Length = 3_000_000, IsDirectory = false },
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        // Film1 has embedded subtitles, Film2 and Film3 do not
+        _service.SetHasEmbeddedSubtitles(video1Path, true);
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(2, stats.VideosWithoutSubtitles);
+        Assert.Equal(2, stats.VideosWithoutSubtitlesPaths.Count);
+        Assert.DoesNotContain(video1Path, stats.VideosWithoutSubtitlesPaths);
+        Assert.Contains(video2Path, stats.VideosWithoutSubtitlesPaths);
+        Assert.Contains(video3Path, stats.VideosWithoutSubtitlesPaths);
+    }
+
+    [Fact]
+    public void AllVideosWithEmbeddedSubtitles_NoneCountedAsWithout()
+    {
+        var libraryPath = TestPath("media", "movies");
+        var video1Path = TestPath("media", "movies", "Film1.mkv");
+        var video2Path = TestPath("media", "movies", "Film2.mkv");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = video1Path, Name = "Film1.mkv", Length = 1_000_000, IsDirectory = false },
+            new FileSystemMetadata { FullName = video2Path, Name = "Film2.mkv", Length = 2_000_000, IsDirectory = false },
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        _service.SetHasEmbeddedSubtitles(video1Path, true);
+        _service.SetHasEmbeddedSubtitles(video2Path, true);
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(0, stats.VideosWithoutSubtitles);
+        Assert.Empty(stats.VideosWithoutSubtitlesPaths);
+    }
+
+    [Fact]
+    public void EmbeddedSubtitleCheck_AcrossSubdirectories_WorksCorrectly()
+    {
+        var libraryPath = TestPath("media", "movies");
+        var subDirPath = TestPath("media", "movies", "SubFolder");
+        var video1Path = TestPath("media", "movies", "Film1.mkv");
+        var video2Path = TestPath("media", "movies", "SubFolder", "Film2.mkv");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Movies",
+            CollectionType = CollectionTypeOptions.movies,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        // Root: video without external subs
+        var rootFiles = new[]
+        {
+            new FileSystemMetadata { FullName = video1Path, Name = "Film1.mkv", Length = 1_000_000, IsDirectory = false },
+        };
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(rootFiles);
+
+        var subDir = new FileSystemMetadata { FullName = subDirPath, Name = "SubFolder", IsDirectory = true };
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([subDir]);
+
+        // Subdirectory: video without external subs
+        var subFiles = new[]
+        {
+            new FileSystemMetadata { FullName = video2Path, Name = "Film2.mkv", Length = 2_000_000, IsDirectory = false },
+        };
+        _fileSystemMock.Setup(f => f.GetFiles(subDirPath, false)).Returns(subFiles);
+        _fileSystemMock.Setup(f => f.GetDirectories(subDirPath, false)).Returns([]);
+
+        // Film1 has embedded subtitles, Film2 does not
+        _service.SetHasEmbeddedSubtitles(video1Path, true);
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(1, stats.VideosWithoutSubtitles);
+        Assert.Single(stats.VideosWithoutSubtitlesPaths);
+        Assert.DoesNotContain(video1Path, stats.VideosWithoutSubtitlesPaths);
+        Assert.Contains(video2Path, stats.VideosWithoutSubtitlesPaths);
+    }
+
+    [Fact]
+    public void EmbeddedSubtitleCheck_SkippedForBoxsetLibraries()
+    {
+        var libraryPath = TestPath("media", "boxsets");
+        var videoPath = TestPath("media", "boxsets", "Film.mkv");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Boxsets",
+            CollectionType = CollectionTypeOptions.boxsets,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = videoPath, Name = "Film.mkv", Length = 1_000_000, IsDirectory = false },
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        // No embedded subtitles set — but health checks are skipped for boxsets
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(0, stats.VideosWithoutSubtitles);
+        Assert.Empty(stats.VideosWithoutSubtitlesPaths);
+    }
+
+    [Fact]
+    public void EmbeddedSubtitleCheck_SkippedForMusicLibraries()
+    {
+        var libraryPath = TestPath("media", "music");
+        var videoPath = TestPath("media", "music", "MusicVideo.mkv");
+
+        var virtualFolder = new VirtualFolderInfo
+        {
+            Name = "Music",
+            CollectionType = CollectionTypeOptions.music,
+            Locations = [libraryPath]
+        };
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
+
+        var files = new[]
+        {
+            new FileSystemMetadata { FullName = videoPath, Name = "MusicVideo.mkv", Length = 500_000, IsDirectory = false },
+        };
+
+        _fileSystemMock.Setup(f => f.GetFiles(libraryPath, false)).Returns(files);
+        _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, false)).Returns([]);
+
+        var result = _service.CalculateStatistics();
+        var stats = result.Libraries[0];
+
+        Assert.Equal(0, stats.VideosWithoutSubtitles);
+        Assert.Empty(stats.VideosWithoutSubtitlesPaths);
+    }
+
+    /// <summary>
+    /// Testable subclass that overrides <see cref="MediaStatisticsService.HasEmbeddedSubtitles"/>
+    /// to allow controlling embedded subtitle detection without Jellyfin's runtime infrastructure.
+    /// </summary>
+    private sealed class TestableMediaStatisticsService : MediaStatisticsService
+    {
+        private readonly Dictionary<string, bool> _embeddedSubtitles = new(StringComparer.OrdinalIgnoreCase);
+
+        public TestableMediaStatisticsService(
+            ILibraryManager libraryManager,
+            IFileSystem fileSystem,
+            ILogger<MediaStatisticsService> logger)
+            : base(libraryManager, fileSystem, logger)
+        {
+        }
+
+        public void SetHasEmbeddedSubtitles(string filePath, bool value)
+            => _embeddedSubtitles[filePath] = value;
+
+        internal override bool HasEmbeddedSubtitles(string filePath)
+            => _embeddedSubtitles.TryGetValue(filePath, out var result) && result;
+    }
+}

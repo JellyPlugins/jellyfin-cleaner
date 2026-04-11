@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
@@ -199,10 +200,13 @@ public partial class MediaStatisticsService
 
                     if (!hasSubs)
                     {
-                        stats.VideosWithoutSubtitles += videoCount;
                         foreach (var vf2 in videoFiles)
                         {
-                            stats.VideosWithoutSubtitlesPaths.Add(vf2.FullName);
+                            if (!HasEmbeddedSubtitles(vf2.FullName))
+                            {
+                                stats.VideosWithoutSubtitles++;
+                                stats.VideosWithoutSubtitlesPaths.Add(vf2.FullName);
+                            }
                         }
                     }
 
@@ -396,6 +400,32 @@ public partial class MediaStatisticsService
         return MediaExtensions.AudioExtensionToCodec.TryGetValue(extension, out var codecFromExt)
             ? codecFromExt
             : "Unknown";
+    }
+
+    /// <summary>
+    /// Checks whether the given video file has embedded (non-external) subtitle streams
+    /// according to Jellyfin's library metadata.
+    /// </summary>
+    /// <param name="filePath">Full path to the video file.</param>
+    /// <returns><c>true</c> when at least one embedded subtitle stream exists.</returns>
+    internal virtual bool HasEmbeddedSubtitles(string filePath)
+    {
+        try
+        {
+            var item = _libraryManager.FindByPath(filePath, false);
+            if (item is null)
+            {
+                return false;
+            }
+
+            var streams = item.GetMediaStreams();
+            return streams is not null && streams.Any(s => s.Type == MediaStreamType.Subtitle && !s.IsExternal);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not check embedded subtitles for {Path}", filePath);
+            return false;
+        }
     }
 
     // Source-generated regex patterns for resolution detection
