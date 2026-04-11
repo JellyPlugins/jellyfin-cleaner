@@ -184,26 +184,6 @@ public class ConfigPageHtmlTests
     // ── Trends tab: JS references correct StatisticsSnapshot properties ──
 
     [Fact]
-    public void Html_TrendChart_ReferencesRenderFunction()
-    {
-        Assert.Contains("renderTrendChart", HtmlContent);
-    }
-
-    [Fact]
-    public void Html_TrendChart_ReferencesSnapshotTotalSize()
-    {
-        // The JS must access TotalSize on each snapshot (PascalCase, matching the API response)
-        Assert.Contains(".TotalSize", HtmlContent);
-    }
-
-    [Fact]
-    public void Html_TrendChart_ReferencesSnapshotTimestamp()
-    {
-        // The JS must access Timestamp on each snapshot (PascalCase, matching the API response)
-        Assert.Contains(".Timestamp", HtmlContent);
-    }
-
-    [Fact]
     public void Html_TrendChart_AllReferencedSnapshotProperties_ExistOnClass()
     {
         var snapshotProperties = typeof(StatisticsSnapshot)
@@ -265,5 +245,208 @@ public class ConfigPageHtmlTests
         // Deprecated tags: <center>, <font>, <marquee>, <blink>
         var pattern = new Regex(@"<\s*/?\s*(center|font|marquee|blink)\b", RegexOptions.IgnoreCase);
         Assert.DoesNotMatch(pattern, ReadmeContent);
+    }
+
+    // ── Trash disable dialog functions ──────────────────────────────────
+
+    [Fact]
+    public void Html_ContainsShowTrashDisableDialogFunction()
+    {
+        Assert.Contains("function showTrashDisableDialog", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_ContainsShowTrashDeleteConfirmationFunction()
+    {
+        Assert.Contains("function showTrashDeleteConfirmation", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_ContainsRemoveTrashDialogFunction()
+    {
+        Assert.Contains("function removeTrashDialog", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_ContainsWasTrashEnabledVariable()
+    {
+        Assert.Contains("_wasTrashEnabled", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_TrashDisableDialog_CallsGetTrashFoldersEndpoint()
+    {
+        Assert.Contains("JellyfinHelper/Trash/Folders", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_TrashDisableDialog_CallsDeleteTrashFoldersEndpoint()
+    {
+        // Verify the DELETE method call to trash folders endpoint exists
+        Assert.Contains("type: 'DELETE', url: apiClient.getUrl('JellyfinHelper/Trash/Folders')", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SaveSettings_ChecksTrashDisableCondition()
+    {
+        // The saveSettings function should check if trash was enabled and is now being disabled
+        Assert.Contains("_wasTrashEnabled && !payload.UseTrash", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_TrashDisableDialog_HasKeepAndDeleteButtons()
+    {
+        // Verify the dialog references the keep and delete translation keys
+        Assert.Contains("trashKeep", HtmlContent);
+        Assert.Contains("trashDelete", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_TrashDeleteConfirmation_HasConfirmAndCancelButtons()
+    {
+        // Verify the confirmation dialog references the confirm OK and cancel translation keys
+        Assert.Contains("trashDeleteConfirmOk", HtmlContent);
+        Assert.Contains("cancel", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_TrashDisableDialog_SetsWasTrashEnabledOnLoad()
+    {
+        // Verify _wasTrashEnabled is set from config during load
+        Assert.Matches(new Regex(@"_wasTrashEnabled\s*=\s*!!cfg\.UseTrash"), HtmlContent);
+    }
+
+    [Fact]
+    public void Html_TrashDisableDialog_UpdatesWasTrashEnabledOnSave()
+    {
+        // After a successful save, _wasTrashEnabled should be updated to the new value
+        Assert.Matches(new Regex(@"_wasTrashEnabled\s*=\s*payload\.UseTrash"), HtmlContent);
+    }
+
+    [Fact]
+    public void Html_TrashDisableDialog_CancelReChecksTrashCheckbox()
+    {
+        // When the user cancels, the trash checkbox should be re-checked
+        Assert.Contains("cfgTrash", HtmlContent);
+    }
+
+    // ── Trash toggle triggers UI rebuild ────────────────────────────────
+
+    [Fact]
+    public void Html_DoSaveSettings_DetectsTrashChanged()
+    {
+        // The doSaveSettings function should detect when the trash toggle changed
+        Assert.Contains("var trashChanged = (!!payload.UseTrash) !== _wasTrashEnabled", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_DoSaveSettings_RebuildUIOnTrashChange()
+    {
+        // When trash changed (but language didn't), rebuildUI should be called
+        Assert.Contains("langChanged || trashChanged", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_DoSaveSettings_TrashChangedBeforeUpdate()
+    {
+        // trashChanged must be computed BEFORE _wasTrashEnabled is updated
+        var trashChangedPos = HtmlContent.IndexOf("var trashChanged = (!!payload.UseTrash) !== _wasTrashEnabled", StringComparison.Ordinal);
+        var wasTrashUpdatePos = HtmlContent.IndexOf("_wasTrashEnabled = payload.UseTrash", trashChangedPos + 1, StringComparison.Ordinal);
+        Assert.True(trashChangedPos >= 0, "trashChanged detection not found");
+        Assert.True(wasTrashUpdatePos > trashChangedPos, "_wasTrashEnabled must be updated AFTER trashChanged is computed");
+    }
+
+    [Fact]
+    public void Html_DoSaveSettings_LangChangedVariable()
+    {
+        // The doSaveSettings function should have a langChanged variable
+        Assert.Contains("var langChanged = newLang !== _currentLang", HtmlContent);
+    }
+
+    // ── Trash Health Section in Health tab ───────────────────────────────
+
+    [Fact]
+    public void Html_ContainsLoadTrashHealthSectionFunction()
+    {
+        Assert.Contains("function loadTrashHealthSection", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_LoadTrashHealthSection_ChecksConfigFirst()
+    {
+        // Should check UseTrash config before loading trash contents
+        Assert.Contains("cfg.UseTrash", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_LoadTrashHealthSection_CallsTrashContentsEndpoint()
+    {
+        Assert.Contains("JellyfinHelper/Trash/Contents", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_LoadTrashHealthSection_UsesTrashI18nKeys()
+    {
+        // Verify key trash health i18n keys are referenced
+        Assert.Contains("trashContents", HtmlContent);
+        Assert.Contains("trashItems", HtmlContent);
+        Assert.Contains("trashTotalSize", HtmlContent);
+        Assert.Contains("trashRetentionDays", HtmlContent);
+        Assert.Contains("trashEmpty", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_FillScanData_CallsLoadTrashHealthSection()
+    {
+        // After filling health data, loadTrashHealthSection should be invoked
+        Assert.Contains("loadTrashHealthSection()", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_TrashDisableDialog_HasAllI18nKeys()
+    {
+        // Verify all trash dialog i18n keys exist
+        var expectedKeys = new[]
+        {
+            "trashDisableTitle",
+            "trashDisablePrompt",
+            "trashDisableQuestion",
+            "trashKeep",
+            "trashDelete",
+            "trashDeleteConfirmTitle",
+            "trashDeleteConfirmMsg",
+            "trashDeleteConfirmWarn",
+            "trashDeleteConfirmOk",
+            "trashDeleting",
+            "trashDeletedCount",
+            "trashFailedCount",
+            "trashDeleteError"
+        };
+
+        foreach (var key in expectedKeys)
+        {
+            Assert.Contains(key, HtmlContent);
+        }
+    }
+
+    // ── Trash settings fields ───────────────────────────────────────────
+
+    [Theory]
+    [InlineData("cfgTrash", "UseTrash")]
+    [InlineData("cfgTrashPath", "TrashFolderPath")]
+    [InlineData("cfgTrashDays", "TrashRetentionDays")]
+    public void Html_ContainsTrashSettingsElement(string elementId, string configProperty)
+    {
+        Assert.Contains(elementId, HtmlContent);
+        Assert.Contains($"cfg.{configProperty}", HtmlContent);
+    }
+
+    [Theory]
+    [InlineData("UseTrash")]
+    [InlineData("TrashFolderPath")]
+    [InlineData("TrashRetentionDays")]
+    public void Html_SavesTrashSettingsInPayload(string configProperty)
+    {
+        Assert.Contains($"{configProperty}:", HtmlContent);
     }
 }

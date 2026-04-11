@@ -96,6 +96,12 @@ public class I18nServiceTests
             "inBoth", "inArrOnly", "inArrOnlyMissing", "inJellyfinOnly",
             "arrNotConfigured", "comparing",
             "exportJson", "exportCsv",
+            // Trash disable dialog keys
+            "trashDisablePrompt", "trashDisableQuestion", "trashDisableTitle",
+            "trashKeep", "trashDelete",
+            "trashDeleteConfirmTitle", "trashDeleteConfirmMsg", "trashDeleteConfirmWarn", "trashDeleteConfirmOk",
+            "trashDeleting", "trashDeletedCount", "trashFailedCount", "trashDeleteError",
+            "folders", "cancel",
         };
 
         foreach (var key in expectedKeys)

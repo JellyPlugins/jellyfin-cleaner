@@ -357,6 +357,142 @@ public class MediaStatisticsController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Gets the list of existing trash folder paths on disk.
+    /// Used by the UI to show which folders would be affected when disabling trash.
+    /// For a relative trash path (default), returns one folder per library.
+    /// For an absolute trash path, returns at most one folder.
+    /// </summary>
+    /// <returns>An object containing the list of existing trash folder paths.</returns>
+    [HttpGet("Trash/Folders")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult GetTrashFolders()
+    {
+        var config = CleanupConfigHelper.GetConfig();
+        var libraryFolders = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
+        var existingPaths = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(config.TrashFolderPath) && Path.IsPathRooted(config.TrashFolderPath))
+        {
+            // Absolute path: only one trash folder
+            if (Directory.Exists(config.TrashFolderPath))
+            {
+                existingPaths.Add(config.TrashFolderPath);
+            }
+        }
+        else
+        {
+            // Relative path: one trash folder per library
+            foreach (var folder in libraryFolders)
+            {
+                var trashPath = CleanupConfigHelper.GetTrashPath(folder);
+                if (Directory.Exists(trashPath))
+                {
+                    existingPaths.Add(trashPath);
+                }
+            }
+        }
+
+        return Ok(new
+        {
+            Paths = existingPaths,
+            IsAbsolute = !string.IsNullOrWhiteSpace(config.TrashFolderPath) && Path.IsPathRooted(config.TrashFolderPath),
+        });
+    }
+
+    /// <summary>
+    /// Deletes all existing trash folders from disk.
+    /// Called when the user disables trash and chooses to delete the folders.
+    /// </summary>
+    /// <returns>A result indicating how many folders were deleted.</returns>
+    [HttpDelete("Trash/Folders")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult DeleteTrashFolders()
+    {
+        var config = CleanupConfigHelper.GetConfig();
+        var libraryFolders = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
+        var deleted = new List<string>();
+        var failed = new List<string>();
+
+        var pathsToDelete = new List<string>();
+        if (!string.IsNullOrWhiteSpace(config.TrashFolderPath) && Path.IsPathRooted(config.TrashFolderPath))
+        {
+            if (Directory.Exists(config.TrashFolderPath))
+            {
+                pathsToDelete.Add(config.TrashFolderPath);
+            }
+        }
+        else
+        {
+            foreach (var folder in libraryFolders)
+            {
+                var trashPath = CleanupConfigHelper.GetTrashPath(folder);
+                if (Directory.Exists(trashPath))
+                {
+                    pathsToDelete.Add(trashPath);
+                }
+            }
+        }
+
+        foreach (var path in pathsToDelete)
+        {
+            try
+            {
+                Directory.Delete(path, true);
+                deleted.Add(path);
+                _logger.LogInformation("Deleted trash folder: {Path}", path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                failed.Add(path);
+                _logger.LogError(ex, "Failed to delete trash folder: {Path}", path);
+            }
+        }
+
+        return Ok(new
+        {
+            Deleted = deleted,
+            Failed = failed,
+        });
+    }
+
+    /// <summary>
+    /// Gets the detailed contents of all trash folders across libraries.
+    /// Each item includes its original name, size, trashed date, and expected purge date.
+    /// </summary>
+    /// <returns>The trash contents grouped by library.</returns>
+    [HttpGet("Trash/Contents")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult GetTrashContents()
+    {
+        var config = CleanupConfigHelper.GetConfig();
+        var libraryFolders = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
+        var libraries = new List<object>();
+
+        foreach (var folder in libraryFolders)
+        {
+            var trashPath = CleanupConfigHelper.GetTrashPath(folder);
+            var items = TrashService.GetTrashContents(trashPath, config.TrashRetentionDays);
+
+            if (items.Count > 0)
+            {
+                libraries.Add(new
+                {
+                    LibraryPath = folder,
+                    LibraryName = Path.GetFileName(folder),
+                    Items = items,
+                });
+            }
+        }
+
+        return Ok(new
+        {
+            UseTrash = config.UseTrash,
+            RetentionDays = config.TrashRetentionDays,
+            Libraries = libraries,
+        });
+    }
+
     // === Arr Integration ===
 
     /// <summary>

@@ -21,8 +21,15 @@ public class StatisticsSerializationRoundtripTests
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNamingPolicy = null,
     };
+
+    private static T Roundtrip<T>(T original)
+    {
+        var json = JsonSerializer.Serialize(original, JsonOptions);
+        var deserialized = JsonSerializer.Deserialize<T>(json, JsonOptions);
+        return Assert.IsType<T>(deserialized);
+    }
 
     // ======================== MediaStatisticsResult ========================
 

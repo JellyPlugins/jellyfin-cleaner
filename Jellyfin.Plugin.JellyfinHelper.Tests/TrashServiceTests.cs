@@ -430,6 +430,159 @@ public class TrashServiceTests : IDisposable
         Assert.Equal(0, itemCount);
     }
 
+    // ===== GetTrashContents Tests =====
+
+    [Fact]
+    public void GetTrashContents_NonExistentFolder_ReturnsEmptyList()
+    {
+        var result = TrashService.GetTrashContents(Path.Combine(_testRoot, "nonexistent"), 30);
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void GetTrashContents_EmptyFolder_ReturnsEmptyList()
+    {
+        var trashPath = Path.Combine(_testRoot, "trash");
+        Directory.CreateDirectory(trashPath);
+
+        var result = TrashService.GetTrashContents(trashPath, 30);
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void GetTrashContents_WithDirectoryItems_ReturnsCorrectInfo()
+    {
+        var trashPath = Path.Combine(_testRoot, "trash");
+        var timestamp = "20260315-140000";
+        var dirName = $"{timestamp}_MyMovie";
+        var dir = Path.Combine(trashPath, dirName);
+        Directory.CreateDirectory(dir);
+        File.WriteAllBytes(Path.Combine(dir, "movie.mkv"), new byte[2048]);
+
+        var result = TrashService.GetTrashContents(trashPath, 30);
+
+        Assert.Single(result);
+        var item = result[0];
+        Assert.Equal("MyMovie", item.Name);
+        Assert.Equal(dirName, item.FullName);
+        Assert.Equal(2048, item.Size);
+        Assert.True(item.IsDirectory);
+        Assert.NotNull(item.TrashedAt);
+        Assert.Equal(new DateTime(2026, 3, 15, 14, 0, 0, DateTimeKind.Utc), item.TrashedAt.Value);
+        Assert.NotNull(item.PurgesAt);
+        Assert.Equal(new DateTime(2026, 4, 14, 14, 0, 0, DateTimeKind.Utc), item.PurgesAt.Value);
+    }
+
+    [Fact]
+    public void GetTrashContents_WithFileItems_ReturnsCorrectInfo()
+    {
+        var trashPath = Path.Combine(_testRoot, "trash");
+        Directory.CreateDirectory(trashPath);
+        var timestamp = "20260601-100000";
+        var fileName = $"{timestamp}_subtitle.srt";
+        File.WriteAllBytes(Path.Combine(trashPath, fileName), new byte[512]);
+
+        var result = TrashService.GetTrashContents(trashPath, 7);
+
+        Assert.Single(result);
+        var item = result[0];
+        Assert.Equal("subtitle.srt", item.Name);
+        Assert.Equal(fileName, item.FullName);
+        Assert.Equal(512, item.Size);
+        Assert.False(item.IsDirectory);
+        Assert.NotNull(item.TrashedAt);
+        Assert.Equal(new DateTime(2026, 6, 1, 10, 0, 0, DateTimeKind.Utc), item.TrashedAt.Value);
+        Assert.NotNull(item.PurgesAt);
+        Assert.Equal(new DateTime(2026, 6, 8, 10, 0, 0, DateTimeKind.Utc), item.PurgesAt.Value);
+    }
+
+    [Fact]
+    public void GetTrashContents_MixedItems_SortedByDateDescending()
+    {
+        var trashPath = Path.Combine(_testRoot, "trash");
+
+        // Older item
+        var olderDir = Path.Combine(trashPath, "20260101-100000_OldMovie");
+        Directory.CreateDirectory(olderDir);
+        File.WriteAllBytes(Path.Combine(olderDir, "m.mkv"), new byte[100]);
+
+        // Newer item
+        var newerDir = Path.Combine(trashPath, "20260601-100000_NewMovie");
+        Directory.CreateDirectory(newerDir);
+        File.WriteAllBytes(Path.Combine(newerDir, "m.mkv"), new byte[200]);
+
+        // File item in between
+        Directory.CreateDirectory(trashPath); // ensure exists
+        File.WriteAllBytes(Path.Combine(trashPath, "20260301-100000_mid.srt"), new byte[50]);
+
+        var result = TrashService.GetTrashContents(trashPath, 30);
+
+        Assert.Equal(3, result.Count);
+        Assert.Equal("NewMovie", result[0].Name);
+        Assert.Equal("mid.srt", result[1].Name);
+        Assert.Equal("OldMovie", result[2].Name);
+    }
+
+    [Fact]
+    public void GetTrashContents_ItemWithoutTimestamp_HasNullDates()
+    {
+        var trashPath = Path.Combine(_testRoot, "trash");
+        var invalidDir = Path.Combine(trashPath, "no-timestamp-folder");
+        Directory.CreateDirectory(invalidDir);
+        File.WriteAllBytes(Path.Combine(invalidDir, "data.bin"), new byte[100]);
+
+        var result = TrashService.GetTrashContents(trashPath, 30);
+
+        Assert.Single(result);
+        var item = result[0];
+        Assert.Equal("no-timestamp-folder", item.Name);
+        Assert.True(item.IsDirectory);
+        Assert.Null(item.TrashedAt);
+        Assert.Null(item.PurgesAt);
+    }
+
+    [Fact]
+    public void GetTrashContents_RetentionDaysZero_PurgeDateEqualsTrashDate()
+    {
+        var trashPath = Path.Combine(_testRoot, "trash");
+        Directory.CreateDirectory(trashPath);
+        File.WriteAllBytes(Path.Combine(trashPath, "20260101-120000_test.txt"), new byte[10]);
+
+        var result = TrashService.GetTrashContents(trashPath, 0);
+
+        Assert.Single(result);
+        Assert.Equal(result[0].TrashedAt, result[0].PurgesAt);
+    }
+
+    // ===== ExtractOriginalName Tests =====
+
+    [Theory]
+    [InlineData("20260101-120000_MyMovie", "MyMovie")]
+    [InlineData("20260315-140000_subtitle.srt", "subtitle.srt")]
+    [InlineData("20260601-100000_Movie With Spaces", "Movie With Spaces")]
+    public void ExtractOriginalName_ValidTimestamp_ReturnsOriginalName(string input, string expected)
+    {
+        var result = TrashService.ExtractOriginalName(input);
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData("no-timestamp-here")]
+    [InlineData("short")]
+    [InlineData("")]
+    public void ExtractOriginalName_InvalidTimestamp_ReturnsFullName(string input)
+    {
+        var result = TrashService.ExtractOriginalName(input);
+        Assert.Equal(input, result);
+    }
+
+    [Fact]
+    public void ExtractOriginalName_NullInput_ReturnsNull()
+    {
+        var result = TrashService.ExtractOriginalName(null!);
+        Assert.Null(result);
+    }
+
     [Fact]
     public void GetTrashSummary_WithItems_ReturnsSizeAndCount()
     {

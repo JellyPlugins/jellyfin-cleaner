@@ -299,6 +299,71 @@
         }
     }
 
+    function loadTrashHealthSection() {
+        var apiClient = ApiClient;
+        // First check if trash is enabled
+        apiClient.ajax({ type: 'GET', url: apiClient.getUrl('JellyfinHelper/Configuration'), dataType: 'json' }).then(function (cfg) {
+            if (!cfg.UseTrash) {
+                // Trash not enabled — don't show section
+                return;
+            }
+            // Load trash contents
+            apiClient.ajax({ type: 'GET', url: apiClient.getUrl('JellyfinHelper/Trash/Contents'), dataType: 'json' }).then(function (data) {
+                var container = document.getElementById('healthContent');
+                if (!container) return;
+
+                var totalItems = 0;
+                var totalSize = 0;
+                for (var i = 0; i < data.Libraries.length; i++) {
+                    var lib = data.Libraries[i];
+                    totalItems += lib.Items.length;
+                    for (var j = 0; j < lib.Items.length; j++) {
+                        totalSize += lib.Items[j].Size || 0;
+                    }
+                }
+
+                var html = '<div class="section-divider" style="margin:1.5em 0;"></div>';
+                html += '<div class="section-title">🗑️ ' + T('trashContents', 'Trash Contents') + '</div>';
+
+                // Summary card
+                html += '<div class="health-grid">';
+                html += '<div class="health-item"><div class="health-value ' + (totalItems > 0 ? 'health-warn' : 'health-ok') + '">' + totalItems + '</div>';
+                html += '<div class="health-label">' + T('trashItems', 'Items in Trash') + '</div></div>';
+                html += '<div class="health-item"><div class="health-value" style="font-size:1.2em;">' + formatBytes(totalSize) + '</div>';
+                html += '<div class="health-label">' + T('trashTotalSize', 'Trash Size') + '</div></div>';
+                html += '<div class="health-item"><div class="health-value" style="font-size:1.2em;">' + data.RetentionDays + 'd</div>';
+                html += '<div class="health-label">' + T('trashRetentionDays', 'Retention') + '</div></div>';
+                html += '</div>';
+
+                if (data.Libraries.length > 0) {
+                    html += '<div id="trashDetailContainer">';
+                    for (var li = 0; li < data.Libraries.length; li++) {
+                        var trashLib = data.Libraries[li];
+                        html += '<div style="margin-top:1em;">';
+                        html += '<h4 style="margin:0 0 0.3em 0;opacity:0.8;">📁 ' + escHtml(trashLib.LibraryName) + ' <span style="opacity:0.5;font-weight:400;">(' + trashLib.Items.length + ' ' + T('items', 'items') + ')</span></h4>';
+                        html += '<div class="health-detail-list"><ul>';
+                        for (var ti = 0; ti < trashLib.Items.length; ti++) {
+                            var item = trashLib.Items[ti];
+                            var purgeInfo = item.PurgeDate ? ' — ' + T('purgesOn', 'purges') + ' ' + new Date(item.PurgeDate).toLocaleDateString() : '';
+                            html += '<li>' + escHtml(item.OriginalName || item.Name) + ' <span style="opacity:0.5;">(' + formatBytes(item.Size) + purgeInfo + ')</span></li>';
+                        }
+                        html += '</ul></div></div>';
+                    }
+                    html += '</div>';
+                } else {
+                    html += '<p style="opacity:0.5;padding:0.5em;">' + T('trashEmpty', 'Trash is empty.') + '</p>';
+                }
+
+                container.insertAdjacentHTML('beforeend', html);
+            }, function () {
+                // Silently ignore errors loading trash contents
+                console.log('Jellyfin Helper: Could not load trash contents for health tab');
+            });
+        }, function () {
+            // Config load failed — silently skip
+        });
+    }
+
     function renderTrendChart(snapshots) {
         if (!snapshots || snapshots.length < 2) {
             return '<div class="trend-empty">' + T('trendEmpty', 'Not enough historical data yet. Trend data is collected with each scan.') + '</div>';
@@ -363,6 +428,9 @@
 
     // Track current language for detecting changes on save
     var _currentLang = '';
+
+    // Track whether trash was enabled when settings were loaded (for deactivation dialog)
+    var _wasTrashEnabled = false;
 
     var MAX_ARR_INSTANCES = 3;
 
@@ -567,6 +635,8 @@
         apiClient.ajax({ type: 'GET', url: apiClient.getUrl('JellyfinHelper/Configuration'), dataType: 'json' }).then(function (cfg) {
             // Remember the current language for change detection
             _currentLang = cfg.Language || 'en';
+            // Remember trash state for deactivation dialog
+            _wasTrashEnabled = !!cfg.UseTrash;
             var h = '';
             h += '<label>' + T('includedLibraries', 'Included Libraries (whitelist, comma-separated)') + '</label>';
             h += '<input type="text" id="cfgIncluded" value="' + escAttr(cfg.IncludedLibraries || '') + '">';
@@ -635,16 +705,10 @@
         });
     }
 
-    function saveSettings() {
-        var btn = document.getElementById('btnSaveSettings');
-        var msg = document.getElementById('settingsMsg');
-        btn.disabled = true;
-        msg.innerHTML = '';
-
+    function buildSettingsPayload() {
         var radarrInstances = collectArrInstances('Radarr');
         var sonarrInstances = collectArrInstances('Sonarr');
-
-        var payload = {
+        return {
             IncludedLibraries: document.getElementById('cfgIncluded').value,
             ExcludedLibraries: document.getElementById('cfgExcluded').value,
             OrphanMinAgeDays: parseInt(document.getElementById('cfgOrphanAge').value, 10) || 0,
@@ -663,25 +727,37 @@
             RadarrInstances: radarrInstances,
             SonarrInstances: sonarrInstances
         };
+    }
+
+    function doSaveSettings(payload) {
+        var btn = document.getElementById('btnSaveSettings');
+        var msg = document.getElementById('settingsMsg');
         var apiClient = ApiClient;
         apiClient.ajax({
             type: 'POST', url: apiClient.getUrl('JellyfinHelper/Configuration'),
             data: JSON.stringify(payload), contentType: 'application/json'
         }).then(function () {
+            var trashChanged = (!!payload.UseTrash) !== _wasTrashEnabled;
+            _wasTrashEnabled = payload.UseTrash;
             var newLang = payload.Language;
-            if (newLang !== _currentLang) {
+            var langChanged = newLang !== _currentLang;
+            if (langChanged || trashChanged) {
                 _currentLang = newLang;
                 btn.disabled = false;
-                loadTranslations(function () {
+                if (langChanged) {
+                    loadTranslations(function () {
+                        rebuildUI();
+                        var newMsg = document.getElementById('settingsMsg');
+                        if (newMsg) newMsg.innerHTML = '<div class="success-msg">✅ ' + T('settingsSaved', 'Settings saved!') + '</div>';
+                    });
+                } else {
                     rebuildUI();
-                    // Re-find the settings message after rebuild and show success
                     var newMsg = document.getElementById('settingsMsg');
                     if (newMsg) newMsg.innerHTML = '<div class="success-msg">✅ ' + T('settingsSaved', 'Settings saved!') + '</div>';
-                });
+                }
             } else {
                 msg.innerHTML = '<div class="success-msg">✅ ' + T('settingsSaved', 'Settings saved!') + '</div>';
                 btn.disabled = false;
-                // Refresh Arr tab buttons in case instances changed
                 initArrButtons();
                 var arrResult = document.getElementById('arrResult');
                 if (arrResult) arrResult.innerHTML = '';
@@ -690,6 +766,194 @@
             msg.innerHTML = '<div class="error-msg">❌ ' + T('settingsError', 'Failed to save settings.') + '</div>';
             btn.disabled = false;
         });
+    }
+
+    function showTrashDisableDialog(payload) {
+        var btn = document.getElementById('btnSaveSettings');
+        var apiClient = ApiClient;
+
+        // Check if trash folders actually exist on disk
+        apiClient.ajax({
+            type: 'GET', url: apiClient.getUrl('JellyfinHelper/Trash/Folders'), dataType: 'json'
+        }).then(function (data) {
+            if (!data.Paths || data.Paths.length === 0) {
+                // No trash folders exist, just save
+                doSaveSettings(payload);
+                return;
+            }
+
+            // Build first dialog: "What should happen with the trash folders?"
+            var pathList = '';
+            for (var i = 0; i < data.Paths.length; i++) {
+                pathList += '\n  • ' + data.Paths[i];
+            }
+
+            var firstMsg = T('trashDisablePrompt', 'Trash is being disabled. The following trash folder(s) exist on disk:')
+                + pathList
+                + '\n\n' + T('trashDisableQuestion', 'What should happen with these folders?');
+
+            // Remove any existing dialog
+            removeTrashDialog();
+
+            // Create modal overlay
+            var overlay = document.createElement('div');
+            overlay.id = 'trashDialogOverlay';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;';
+
+            var dialog = document.createElement('div');
+            dialog.style.cssText = 'background:#1c1c1e;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:1.5em 2em;max-width:550px;width:90%;color:#fff;font-size:0.95em;';
+
+            var title = document.createElement('h3');
+            title.style.cssText = 'margin:0 0 0.8em 0;color:#e74c3c;';
+            title.textContent = '🗑️ ' + T('trashDisableTitle', 'Trash Folders Detected');
+            dialog.appendChild(title);
+
+            var body = document.createElement('div');
+            body.style.cssText = 'white-space:pre-wrap;margin-bottom:1.2em;line-height:1.5;opacity:0.9;';
+            body.textContent = firstMsg;
+            dialog.appendChild(body);
+
+            var btnRow = document.createElement('div');
+            btnRow.style.cssText = 'display:flex;gap:0.8em;justify-content:flex-end;flex-wrap:wrap;';
+
+            var btnKeep = document.createElement('button');
+            btnKeep.textContent = '📁 ' + T('trashKeep', 'Keep Folders');
+            btnKeep.style.cssText = 'padding:0.5em 1.2em;border:none;border-radius:4px;background:#2ecc71;color:#fff;cursor:pointer;font-size:0.9em;';
+            btnKeep.onclick = function () {
+                removeTrashDialog();
+                doSaveSettings(payload);
+            };
+
+            var btnDelete = document.createElement('button');
+            btnDelete.textContent = '🗑️ ' + T('trashDelete', 'Delete Folders');
+            btnDelete.style.cssText = 'padding:0.5em 1.2em;border:none;border-radius:4px;background:#e74c3c;color:#fff;cursor:pointer;font-size:0.9em;';
+            btnDelete.onclick = function () {
+                // Show confirmation dialog
+                removeTrashDialog();
+                showTrashDeleteConfirmation(payload, data.Paths);
+            };
+
+            var btnCancel = document.createElement('button');
+            btnCancel.textContent = T('cancel', 'Cancel');
+            btnCancel.style.cssText = 'padding:0.5em 1.2em;border:1px solid rgba(255,255,255,0.2);border-radius:4px;background:transparent;color:#fff;cursor:pointer;font-size:0.9em;';
+            btnCancel.onclick = function () {
+                removeTrashDialog();
+                // Re-check the trash checkbox since user canceled
+                var chk = document.getElementById('cfgTrash');
+                if (chk) chk.checked = true;
+                btn.disabled = false;
+            };
+
+            btnRow.appendChild(btnCancel);
+            btnRow.appendChild(btnKeep);
+            btnRow.appendChild(btnDelete);
+            dialog.appendChild(btnRow);
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+        }, function () {
+            // If we can't check trash folders, just save normally
+            doSaveSettings(payload);
+        });
+    }
+
+    function showTrashDeleteConfirmation(payload, paths) {
+        var btn = document.getElementById('btnSaveSettings');
+        var msg = document.getElementById('settingsMsg');
+
+        var pathList = '';
+        for (var i = 0; i < paths.length; i++) {
+            pathList += '\n  • ' + paths[i];
+        }
+
+        var overlay = document.createElement('div');
+        overlay.id = 'trashDialogOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;';
+
+        var dialog = document.createElement('div');
+        dialog.style.cssText = 'background:#1c1c1e;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:1.5em 2em;max-width:550px;width:90%;color:#fff;font-size:0.95em;';
+
+        var title = document.createElement('h3');
+        title.style.cssText = 'margin:0 0 0.8em 0;color:#e74c3c;';
+        title.textContent = '⚠️ ' + T('trashDeleteConfirmTitle', 'Are you sure?');
+        dialog.appendChild(title);
+
+        var body = document.createElement('div');
+        body.style.cssText = 'white-space:pre-wrap;margin-bottom:1.2em;line-height:1.5;opacity:0.9;';
+        body.textContent = T('trashDeleteConfirmMsg', 'This will permanently delete the following folder(s) and all their contents:')
+            + pathList
+            + '\n\n' + T('trashDeleteConfirmWarn', 'This action cannot be undone!');
+        dialog.appendChild(body);
+
+        var btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:0.8em;justify-content:flex-end;flex-wrap:wrap;';
+
+        var btnCancel = document.createElement('button');
+        btnCancel.textContent = T('cancel', 'Cancel');
+        btnCancel.style.cssText = 'padding:0.5em 1.2em;border:1px solid rgba(255,255,255,0.2);border-radius:4px;background:transparent;color:#fff;cursor:pointer;font-size:0.9em;';
+        btnCancel.onclick = function () {
+            removeTrashDialog();
+            // Re-check the trash checkbox since user canceled
+            var chk = document.getElementById('cfgTrash');
+            if (chk) chk.checked = true;
+            btn.disabled = false;
+        };
+
+        var btnOk = document.createElement('button');
+        btnOk.textContent = '🗑️ ' + T('trashDeleteConfirmOk', 'Yes, Delete All');
+        btnOk.style.cssText = 'padding:0.5em 1.2em;border:none;border-radius:4px;background:#e74c3c;color:#fff;cursor:pointer;font-size:0.9em;';
+        btnOk.onclick = function () {
+            removeTrashDialog();
+            msg.innerHTML = '<div style="opacity:0.6;">🗑️ ' + T('trashDeleting', 'Deleting trash folders…') + '</div>';
+
+            var apiClient = ApiClient;
+            apiClient.ajax({
+                type: 'DELETE', url: apiClient.getUrl('JellyfinHelper/Trash/Folders'), dataType: 'json'
+            }).then(function (result) {
+                var summary = '';
+                if (result.Deleted && result.Deleted.length > 0) {
+                    summary += '✅ ' + T('trashDeletedCount', 'Deleted') + ': ' + result.Deleted.length + ' ' + T('folders', 'folders');
+                }
+                if (result.Failed && result.Failed.length > 0) {
+                    summary += (summary ? ' | ' : '') + '❌ ' + T('trashFailedCount', 'Failed') + ': ' + result.Failed.length;
+                }
+                if (summary) {
+                    msg.innerHTML = '<div class="success-msg">' + summary + '</div>';
+                }
+                // Now save the configuration
+                doSaveSettings(payload);
+            }, function () {
+                msg.innerHTML = '<div class="error-msg">❌ ' + T('trashDeleteError', 'Failed to delete trash folders.') + '</div>';
+                btn.disabled = false;
+            });
+        };
+
+        btnRow.appendChild(btnCancel);
+        btnRow.appendChild(btnOk);
+        dialog.appendChild(btnRow);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+    }
+
+    function removeTrashDialog() {
+        var existing = document.getElementById('trashDialogOverlay');
+        if (existing) existing.remove();
+    }
+
+    function saveSettings() {
+        var btn = document.getElementById('btnSaveSettings');
+        var msg = document.getElementById('settingsMsg');
+        btn.disabled = true;
+        msg.innerHTML = '';
+
+        var payload = buildSettingsPayload();
+
+        // Check if trash is being disabled (was enabled, now unchecked)
+        if (_wasTrashEnabled && !payload.UseTrash) {
+            showTrashDisableDialog(payload);
+            return;
+        }
+
+        doSaveSettings(payload);
     }
 
     // --- Arr Tab Logic ---
@@ -1093,6 +1357,7 @@
         if (healthContainer) {
             healthContainer.innerHTML = healthHtml;
             attachHealthClickHandlers();
+            loadTrashHealthSection();
         }
 
         // Load cleanup stats into overview

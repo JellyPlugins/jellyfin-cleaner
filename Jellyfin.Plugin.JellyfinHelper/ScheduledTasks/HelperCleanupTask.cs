@@ -123,7 +123,28 @@ public class HelperCleanupTask : IScheduledTask
 
                 foreach (var location in libraryLocations)
                 {
-                    var trashPath = System.IO.Path.Combine(location, config.TrashFolderPath);
+                    if (string.IsNullOrWhiteSpace(config.TrashFolderPath))
+                    {
+                        _logger.LogWarning("Trash purge skipped for {LibraryPath}: trash folder path is empty.", location);
+                        continue;
+                    }
+
+                    var candidatePath = System.IO.Path.Combine(location, config.TrashFolderPath);
+                    var libraryRoot = System.IO.Path.GetFullPath(location)
+                        .TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+                    var trashPath = System.IO.Path.GetFullPath(candidatePath);
+
+                    var isUnderLibrary =
+                        trashPath.StartsWith(libraryRoot + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+                    if (!isUnderLibrary)
+                    {
+                        _logger.LogWarning(
+                            "Trash purge skipped for {LibraryPath}: resolved trash path {TrashPath} is outside library root.",
+                            location,
+                            trashPath);
+                        continue;
+                    }
+
                     var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, config.TrashRetentionDays, _logger);
                     totalBytesFreed += bytesFreed;
                     totalItemsPurged += itemsPurged;
@@ -153,6 +174,7 @@ public class HelperCleanupTask : IScheduledTask
         }
 
         // Run a statistics scan at the end to refresh persisted data
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
             _logger.LogInformation("Running post-cleanup statistics scan...");
@@ -162,6 +184,11 @@ public class HelperCleanupTask : IScheduledTask
             historyService.SaveSnapshot(result);
             historyService.SaveLatestResult(result);
             _logger.LogInformation("Post-cleanup statistics scan completed and persisted.");
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Helper Cleanup was cancelled during post-cleanup statistics scan.");
+            throw;
         }
         catch (Exception ex)
         {

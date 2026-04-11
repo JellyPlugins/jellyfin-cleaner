@@ -22,6 +22,7 @@ public class HelperCleanupTaskTests : IDisposable
     private readonly Mock<IFileSystem> _fileSystemMock;
     private readonly Mock<IApplicationPaths> _applicationPathsMock;
     private readonly Mock<ILoggerFactory> _loggerFactoryMock;
+    private readonly string _testDataPath;
     private readonly HelperCleanupTask _task;
     private readonly Mock<ILogger<HelperCleanupTask>> _loggerMock;
 
@@ -30,7 +31,9 @@ public class HelperCleanupTaskTests : IDisposable
         _libraryManagerMock = new Mock<ILibraryManager>();
         _fileSystemMock = new Mock<IFileSystem>();
         _applicationPathsMock = new Mock<IApplicationPaths>();
-        _applicationPathsMock.Setup(p => p.DataPath).Returns(Path.GetTempPath());
+        _testDataPath = Path.Combine(Path.GetTempPath(), "JellyfinHelperTests_Data_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_testDataPath);
+        _applicationPathsMock.Setup(p => p.DataPath).Returns(_testDataPath);
         _loggerFactoryMock = new Mock<ILoggerFactory>();
         _loggerMock = new Mock<ILogger<HelperCleanupTask>>();
 
@@ -69,6 +72,11 @@ public class HelperCleanupTaskTests : IDisposable
     public void Dispose()
     {
         CleanupConfigHelper.ConfigOverride = null;
+        if (Directory.Exists(_testDataPath))
+        {
+            try { Directory.Delete(_testDataPath, true); }
+            catch { /* best effort cleanup */ }
+        }
     }
 
     [Fact]
