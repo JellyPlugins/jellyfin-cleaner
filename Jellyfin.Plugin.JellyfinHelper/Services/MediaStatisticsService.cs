@@ -194,16 +194,17 @@ public partial class MediaStatisticsService
             bool subDirHasVideo = false;
 
             var config = CleanupConfigHelper.GetConfig();
-            var trashFolderName = config.TrashFolderPath;
-            bool isTrashRelative = !Path.IsPathRooted(trashFolderName);
+            var trashFolderName = config.TrashFolderPath.Trim().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var fullTrashPath = libraryRoot != null
-                ? Path.GetFullPath(isTrashRelative ? Path.Combine(libraryRoot, trashFolderName) : trashFolderName)
+                ? Path.GetFullPath(CleanupConfigHelper.GetTrashPath(libraryRoot)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
                 : null;
 
             foreach (var subDir in subDirs)
             {
-                if (string.Equals(subDir.Name, trashFolderName, StringComparison.OrdinalIgnoreCase)
-                    || (fullTrashPath != null && string.Equals(Path.GetFullPath(subDir.FullName), fullTrashPath, StringComparison.OrdinalIgnoreCase)))
+                var normalizedSubDirFullName = Path.GetFullPath(subDir.FullName).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                if (string.Equals(subDir.Name.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), trashFolderName, StringComparison.OrdinalIgnoreCase)
+                    || (fullTrashPath != null && string.Equals(normalizedSubDirFullName, fullTrashPath, StringComparison.OrdinalIgnoreCase)))
                 {
                     continue;
                 }
@@ -437,9 +438,7 @@ public partial class MediaStatisticsService
         }
 
         // Fall back to extension-based detection via MediaExtensions mapping
-        return MediaExtensions.AudioExtensionToCodec.TryGetValue(extension, out var codecFromExt)
-            ? codecFromExt
-            : "Unknown";
+        return MediaExtensions.AudioExtensionToCodec.GetValueOrDefault(extension, "Unknown");
     }
 
     /// <summary>
