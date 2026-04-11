@@ -351,6 +351,27 @@ public class MediaStatisticsController : ControllerBase
     // === Arr Integration ===
 
     /// <summary>
+    /// Tests the connection to an Arr instance (Radarr or Sonarr) using the provided URL and API key.
+    /// </summary>
+    /// <param name="request">The connection test request containing URL and API key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result indicating success or failure with a message.</returns>
+    [HttpPost("Arr/TestConnection")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult> TestArrConnectionAsync([FromBody] ArrTestConnectionRequest request, CancellationToken cancellationToken)
+    {
+        var httpClient = _httpClientFactory.CreateClient("ArrIntegration");
+        var arrService = new ArrIntegrationService(httpClient, _logger);
+
+        var (success, message) = await arrService.TestConnectionAsync(
+            request.Url ?? string.Empty,
+            request.ApiKey ?? string.Empty,
+            cancellationToken).ConfigureAwait(false);
+
+        return Ok(new { success, message });
+    }
+
+    /// <summary>
     /// Compares a single configured Radarr instance (by index) with Jellyfin movie libraries.
     /// If no index is provided, merges all instances.
     /// </summary>

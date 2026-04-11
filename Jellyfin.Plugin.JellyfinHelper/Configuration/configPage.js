@@ -311,6 +311,10 @@
         h += '<label>' + T('instanceName', 'Instance Name') + '</label><input type="text" id="' + prefix + '_name" value="' + escAttr(name) + '" placeholder="e.g. ' + type + ' 4K">';
         h += '<label>' + T('url', 'URL') + '</label><input type="text" id="' + prefix + '_url" value="' + escAttr(url) + '" placeholder="' + placeholderUrl + '">';
         h += '<label>' + T('apiKey', 'API Key') + '</label><input type="password" id="' + prefix + '_key" value="' + escAttr(apiKey) + '">';
+        h += '<div style="margin-top:0.5em;display:flex;align-items:center;gap:0.5em;">';
+        h += '<button type="button" class="action-btn btnTestArr" data-type="' + type + '" data-index="' + index + '" style="padding:0.3em 0.8em;font-size:0.85em;background:#3498db;">🔌 ' + T('testConnection', 'Test Connection') + '</button>';
+        h += '<span class="arr-test-result" id="' + prefix + '_testResult"></span>';
+        h += '</div>';
         h += '</div>';
         return h;
     }
@@ -343,8 +347,9 @@
         var tmp = document.createElement('div');
         tmp.innerHTML = renderArrInstanceRow(type, newIndex, null);
         wrap.parentNode.insertBefore(tmp.firstChild, wrap);
-        // Attach remove handler
+        // Attach remove and test handlers
         attachRemoveHandlers();
+        attachTestHandlers();
         // Hide add button if at max
         if (newIndex + 1 >= MAX_ARR_INSTANCES) {
             var btn = document.getElementById('btnAdd' + type);
@@ -376,6 +381,55 @@
         // Show add button again if below max
         var btn = document.getElementById('btnAdd' + type);
         if (btn && remaining.length < MAX_ARR_INSTANCES) btn.style.display = '';
+    }
+
+    function testArrConnection(type, index) {
+        var prefix = type + '_' + index;
+        var urlEl = document.getElementById(prefix + '_url');
+        var keyEl = document.getElementById(prefix + '_key');
+        var resultEl = document.getElementById(prefix + '_testResult');
+        if (!urlEl || !keyEl || !resultEl) return;
+
+        var url = urlEl.value.trim();
+        var apiKey = keyEl.value.trim();
+
+        if (!url || !apiKey) {
+            resultEl.className = 'arr-test-result arr-test-fail';
+            resultEl.textContent = '❌ ' + T('testMissingFields', 'URL and API Key are required.');
+            return;
+        }
+
+        resultEl.className = 'arr-test-result arr-test-pending';
+        resultEl.textContent = '⏳ ' + T('testing', 'Testing…');
+
+        var apiClient = ApiClient;
+        apiClient.ajax({
+            type: 'POST',
+            url: apiClient.getUrl('JellyfinHelper/Arr/TestConnection'),
+            data: JSON.stringify({ Url: url, ApiKey: apiKey }),
+            contentType: 'application/json',
+            dataType: 'json'
+        }).then(function (data) {
+            if (data.success) {
+                resultEl.className = 'arr-test-result arr-test-ok';
+                resultEl.textContent = '✅ ' + data.message;
+            } else {
+                resultEl.className = 'arr-test-result arr-test-fail';
+                resultEl.textContent = '❌ ' + data.message;
+            }
+        }, function () {
+            resultEl.className = 'arr-test-result arr-test-fail';
+            resultEl.textContent = '❌ ' + T('testConnectionFailed', 'Connection test failed.');
+        });
+    }
+
+    function attachTestHandlers() {
+        var btns = document.querySelectorAll('.btnTestArr');
+        for (var i = 0; i < btns.length; i++) {
+            btns[i].onclick = function () {
+                testArrConnection(this.getAttribute('data-type'), parseInt(this.getAttribute('data-index'), 10));
+            };
+        }
     }
 
     function attachRemoveHandlers() {
@@ -461,9 +515,10 @@
             form.innerHTML = h;
             document.getElementById('btnSaveSettings').addEventListener('click', saveSettings);
             attachRemoveHandlers();
+            attachTestHandlers();
             attachAddHandlers();
         }, function () {
-            form.innerHTML = '<div class="error-msg">' + T('settingsError', 'Failed to load settings.') + '</div>';
+            form.innerHTML = '<div class="error-msg">' + T('settingsLoadError', 'Failed to load settings.') + '</div>';
         });
     }
 
@@ -486,7 +541,7 @@
             StrmRepairTaskMode: document.getElementById('cfgStrmMode').value,
             UseTrash: document.getElementById('cfgTrash').checked,
             TrashFolderPath: document.getElementById('cfgTrashPath').value,
-            TrashRetentionDays: (function() { var v = parseInt(document.getElementById('cfgTrashDays').value, 10); return isNaN(v) ? 30 : v; })(),
+            TrashRetentionDays: (function () { var v = parseInt(document.getElementById('cfgTrashDays').value, 10); return isNaN(v) || v < 0 ? 30 : v; })(),
             Language: document.getElementById('cfgLang').value,
             RadarrUrl: radarrInstances.length > 0 ? radarrInstances[0].Url : '',
             RadarrApiKey: radarrInstances.length > 0 ? radarrInstances[0].ApiKey : '',
@@ -692,11 +747,11 @@
         if (diffMs < 0) return '';
         var diffMin = Math.floor(diffMs / 60000);
         if (diffMin < 1) return T('justNow', 'just now');
-        if (diffMin < 60) return diffMin + ' ' + T('minutesAgo', 'min ago');
+        if (diffMin < 60) return diffMin + ' ' + (diffMin === 1 ? T('minuteAgo', 'min ago') : T('minutesAgo', 'min ago'));
         var diffH = Math.floor(diffMin / 60);
-        if (diffH < 24) return diffH + ' ' + T('hoursAgo', 'hours ago');
+        if (diffH < 24) return diffH + ' ' + (diffH === 1 ? T('hourAgo', 'hour ago') : T('hoursAgo', 'hours ago'));
         var diffD = Math.floor(diffH / 24);
-        return diffD + ' ' + T('daysAgo', 'days ago');
+        return diffD + ' ' + (diffD === 1 ? T('dayAgo', 'day ago') : T('daysAgo', 'days ago'));
     }
 
     // Update the "Last Scan" badge in the header
