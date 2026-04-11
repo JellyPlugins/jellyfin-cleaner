@@ -56,6 +56,7 @@
         if (bytes < 0) return '-' + formatBytes(-bytes);
         var units = ['B', 'KB', 'MB', 'GB', 'TB'];
         var i = Math.floor(Math.log(bytes) / Math.log(1024));
+        if (i < 0) i = 0;
         if (i >= units.length) i = units.length - 1;
         return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + units[i];
     }
@@ -230,7 +231,7 @@
         // Find min/max
         var maxSize = 0;
         for (var i = 0; i < snapshots.length; i++) {
-            if (snapshots[i].totalSize > maxSize) maxSize = snapshots[i].totalSize;
+            if (snapshots[i].TotalSize > maxSize) maxSize = snapshots[i].TotalSize;
         }
         if (maxSize === 0) maxSize = 1;
 
@@ -239,7 +240,7 @@
         var step = snapshots.length > 1 ? chartW / (snapshots.length - 1) : 0;
         for (var j = 0; j < snapshots.length; j++) {
             var x = padL + j * step;
-            var y = padT + chartH - (snapshots[j].totalSize / maxSize * chartH);
+            var y = padT + chartH - (snapshots[j].TotalSize / maxSize * chartH);
             points.push(x.toFixed(1) + ',' + y.toFixed(1));
         }
 
@@ -263,15 +264,15 @@
         // Data points
         for (var k = 0; k < points.length; k++) {
             var coords = points[k].split(',');
-            var ts = snapshots[k].timestamp ? new Date(snapshots[k].timestamp).toLocaleDateString() : '';
+            var ts = snapshots[k].Timestamp ? new Date(snapshots[k].Timestamp).toLocaleDateString() : '';
             svg += '<circle cx="' + coords[0] + '" cy="' + coords[1] + '" r="3" fill="#00a4dc">' +
-                '<title>' + ts + ': ' + formatBytes(snapshots[k].totalSize) + '</title></circle>';
+                '<title>' + ts + ': ' + formatBytes(snapshots[k].TotalSize) + '</title></circle>';
         }
 
         // X-axis labels (first and last)
         if (snapshots.length > 0) {
-            var firstDate = snapshots[0].timestamp ? new Date(snapshots[0].timestamp).toLocaleDateString() : '';
-            var lastDate = snapshots[snapshots.length - 1].timestamp ? new Date(snapshots[snapshots.length - 1].timestamp).toLocaleDateString() : '';
+            var firstDate = snapshots[0].Timestamp ? new Date(snapshots[0].Timestamp).toLocaleDateString() : '';
+            var lastDate = snapshots[snapshots.length - 1].Timestamp ? new Date(snapshots[snapshots.length - 1].Timestamp).toLocaleDateString() : '';
             svg += '<text x="' + padL + '" y="' + (height - 5) + '" text-anchor="start" fill="rgba(255,255,255,0.4)" font-size="10">' + firstDate + '</text>';
             svg += '<text x="' + (width - padR) + '" y="' + (height - 5) + '" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="10">' + lastDate + '</text>';
         }

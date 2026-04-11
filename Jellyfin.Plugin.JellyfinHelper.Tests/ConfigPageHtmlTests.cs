@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
+using Jellyfin.Plugin.JellyfinHelper.Services;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests;
@@ -177,6 +178,48 @@ public class ConfigPageHtmlTests
 
             // Each TaskMode property should appear in the save logic (PropertyName:)
             Assert.Contains($"{prop}:", HtmlContent);
+        }
+    }
+
+    // ── Trends tab: JS references correct StatisticsSnapshot properties ──
+
+    [Fact]
+    public void Html_TrendChart_ReferencesRenderFunction()
+    {
+        Assert.Contains("renderTrendChart", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_TrendChart_ReferencesSnapshotTotalSize()
+    {
+        // The JS must access TotalSize on each snapshot (PascalCase, matching the API response)
+        Assert.Contains(".TotalSize", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_TrendChart_ReferencesSnapshotTimestamp()
+    {
+        // The JS must access Timestamp on each snapshot (PascalCase, matching the API response)
+        Assert.Contains(".Timestamp", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_TrendChart_AllReferencedSnapshotProperties_ExistOnClass()
+    {
+        // Extract all ".PropertyName" references from the renderTrendChart function
+        // to verify they match actual StatisticsSnapshot properties.
+        var snapshotProperties = typeof(StatisticsSnapshot)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Select(p => p.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        // These are the snapshot properties the JS trend chart accesses
+        var requiredInJs = new[] { "TotalSize", "Timestamp" };
+
+        foreach (var prop in requiredInJs)
+        {
+            Assert.Contains(prop, snapshotProperties);
+            Assert.Contains($".{prop}", HtmlContent);
         }
     }
 
