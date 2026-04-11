@@ -917,7 +917,7 @@
         if (placeholder) placeholder.style.display = 'none';
 
         var apiClient = ApiClient;
-        var url = apiClient.getUrl('JellyfinHelper/Statistics');
+        var url = apiClient.getUrl('JellyfinHelper/Statistics') + '?forceRefresh=true';
 
         apiClient.ajax({
             type: 'GET',
