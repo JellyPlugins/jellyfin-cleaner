@@ -531,13 +531,26 @@
 
                 msg.innerHTML = '<div class="success-msg">' + successMsg + '</div>';
 
-                // Reload settings to reflect restored configuration
+                // Reload settings to reflect restored configuration (including possibly changed language)
                 setTimeout(function () {
-                    loadTranslations(function () {
-                        rebuildUI();
-                        // Switch back to settings tab
-                        var settingsBtn = document.querySelector('.tab-btn[data-tab="settings"]');
-                        if (settingsBtn) settingsBtn.click();
+                    ApiClient.ajax({
+                        type: 'GET',
+                        url: ApiClient.getUrl('JellyfinHelper/Configuration'),
+                        dataType: 'json'
+                    }).then(function (cfg) {
+                        _currentLang = (cfg && cfg.Language) || _currentLang;
+                        loadTranslations(function () {
+                            rebuildUI();
+                            var settingsBtn = document.querySelector('.tab-btn[data-tab="settings"]');
+                            if (settingsBtn) settingsBtn.click();
+                        });
+                    }, function () {
+                        // Config load failed — reload with current language
+                        loadTranslations(function () {
+                            rebuildUI();
+                            var settingsBtn = document.querySelector('.tab-btn[data-tab="settings"]');
+                            if (settingsBtn) settingsBtn.click();
+                        });
                     });
                 }, 1500);
             }, function (err) {

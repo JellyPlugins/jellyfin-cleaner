@@ -66,7 +66,7 @@
             var pct = (entries[i].count / total * 100).toFixed(1);
             var isActive = '';
 
-            html += '<div class="codec-row codec-clickable' + isActive + '" data-chart="' + escAttr(chartId) + '" data-codec="' + escAttr(entries[i].label) + '">';
+            html += '<div class="codec-row codec-clickable' + isActive + '" data-chart="' + escAttr(chartId) + '" data-codec="' + escAttr(entries[i].label) + '" role="button" tabindex="0">';
             html += '<div class="codec-row-color" style="background:' + color + '"></div>';
             html += '<div class="codec-row-info">';
             html += '<span class="codec-row-name">' + escHtml(entries[i].label) + '</span>';
@@ -195,6 +195,9 @@
     function attachCodecClickHandlers() {
         var rows = document.querySelectorAll('.codec-clickable');
         for (var i = 0; i < rows.length; i++) {
+            rows[i].addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.click(); }
+            });
             rows[i].addEventListener('click', function () {
                 var chartId = this.getAttribute('data-chart');
                 var codecName = this.getAttribute('data-codec');

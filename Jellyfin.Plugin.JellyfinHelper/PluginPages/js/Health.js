@@ -69,16 +69,16 @@
 
         var html = '<div class="health-grid">';
 
-        html += '<div class="health-item health-clickable" data-health-type="noSubs"><div class="health-value ' + (totalNoSubs > 0 ? 'health-warn' : 'health-ok') + '">' + totalNoSubs + '</div>';
+        html += '<div class="health-item health-clickable" data-health-type="noSubs" role="button" tabindex="0"><div class="health-value ' + (totalNoSubs > 0 ? 'health-warn' : 'health-ok') + '">' + totalNoSubs + '</div>';
         html += '<div class="health-label">' + T('noSubtitles', 'Videos without subtitles') + '</div></div>';
 
-        html += '<div class="health-item health-clickable" data-health-type="noImages"><div class="health-value ' + (totalNoImages > 0 ? 'health-warn' : 'health-ok') + '">' + totalNoImages + '</div>';
+        html += '<div class="health-item health-clickable" data-health-type="noImages" role="button" tabindex="0"><div class="health-value ' + (totalNoImages > 0 ? 'health-warn' : 'health-ok') + '">' + totalNoImages + '</div>';
         html += '<div class="health-label">' + T('noImages', 'Videos without images') + '</div></div>';
 
-        html += '<div class="health-item health-clickable" data-health-type="noNfo"><div class="health-value ' + (totalNoNfo > 0 ? 'health-warn' : 'health-ok') + '">' + totalNoNfo + '</div>';
+        html += '<div class="health-item health-clickable" data-health-type="noNfo" role="button" tabindex="0"><div class="health-value ' + (totalNoNfo > 0 ? 'health-warn' : 'health-ok') + '">' + totalNoNfo + '</div>';
         html += '<div class="health-label">' + T('noNfo', 'Videos without NFO') + '</div></div>';
 
-        html += '<div class="health-item health-clickable" data-health-type="orphaned"><div class="health-value ' + (totalOrphaned > 0 ? 'health-bad' : 'health-ok') + '">' + totalOrphaned + '</div>';
+        html += '<div class="health-item health-clickable" data-health-type="orphaned" role="button" tabindex="0"><div class="health-value ' + (totalOrphaned > 0 ? 'health-bad' : 'health-ok') + '">' + totalOrphaned + '</div>';
         html += '<div class="health-label">' + T('orphanedDirs', 'Orphaned metadata dirs') + '</div></div>';
 
         html += '</div>';
@@ -97,6 +97,9 @@
     function attachHealthClickHandlers() {
         var items = document.querySelectorAll('.health-clickable');
         for (var i = 0; i < items.length; i++) {
+            items[i].addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.click(); }
+            });
             items[i].addEventListener('click', function () {
                 var type = this.getAttribute('data-health-type');
                 var panel = document.getElementById('healthDetailPanel');
