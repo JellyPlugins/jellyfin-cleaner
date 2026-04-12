@@ -756,7 +756,7 @@ public class MediaStatisticsController : ControllerBase
         var text = PluginLogService.ExportAsText(minLevel, source);
         var bytes = System.Text.Encoding.UTF8.GetBytes(text);
         var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        return File(bytes, "text/plain", $"jellyfin-helper-logs-{timestamp}.log");
+        return File(bytes, "text/plain", $"jellyfin-helper-logs-{timestamp}.txt");
     }
 
     /// <summary>

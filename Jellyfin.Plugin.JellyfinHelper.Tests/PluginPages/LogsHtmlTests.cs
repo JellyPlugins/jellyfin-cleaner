@@ -242,7 +242,7 @@ public class LogsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_DownloadFilename()
     {
-        Assert.Contains("jellyfin-helper-logs.log", HtmlContent);
+        Assert.Contains("jellyfin-helper-logs.txt", HtmlContent);
     }
 
     // === Clear confirmation ===
