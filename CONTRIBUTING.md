@@ -70,14 +70,26 @@ Jellyfin.Plugin.JellyfinHelper/
 │   ├── PluginConfiguration.cs   # Settings model with migration logic
 │   └── ArrInstanceConfig.cs     # Radarr/Sonarr instance model
 ├── Services/
-│   ├── MediaStatisticsService.cs     # Library scanning & statistics
-│   ├── CleanupConfigHelper.cs        # Library whitelist/blacklist resolution
 │   ├── LibraryPathResolver.cs        # Jellyfin library path resolution
 │   ├── PathValidator.cs              # Path traversal & safety checks
-│   ├── StatisticsHistoryService.cs   # Trend snapshots (365 days)
-│   ├── ArrIntegrationService.cs      # Radarr/Sonarr comparison
 │   ├── PluginLogService.cs           # In-memory plugin log ring buffer
-│   └── ...
+│   ├── Arr/                          # Radarr/Sonarr integration
+│   │   ├── ArrIntegrationService.cs
+│   │   └── ...
+│   ├── Cleanup/                      # Cleanup config & trash logic
+│   │   ├── CleanupConfigHelper.cs
+│   │   ├── TrashService.cs
+│   │   └── ...
+│   ├── Statistics/                   # Library scanning & statistics
+│   │   ├── MediaStatisticsService.cs
+│   │   ├── StatisticsHistoryService.cs
+│   │   └── ...
+│   ├── Strm/                         # STRM file repair
+│   │   ├── StrmRepairService.cs
+│   │   └── ...
+│   └── Timeline/                     # Growth timeline computation
+│       ├── GrowthTimelineService.cs
+│       └── ...
 ├── ScheduledTasks/
 │   └── HelperCleanupTask.cs     # Master scheduled task
 └── PluginPages/
@@ -308,6 +320,11 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
 ├── PluginPages/            # HTML structure tests
 ├── ScheduledTasks/         # Task orchestration tests
 └── Services/               # Service logic tests
+    ├── Arr/                # Arr integration tests
+    ├── Cleanup/            # Cleanup & trash tests
+    ├── Statistics/         # Statistics service tests
+    ├── Strm/               # STRM repair tests
+    └── Timeline/           # Growth timeline tests
 ```
 
 ---
