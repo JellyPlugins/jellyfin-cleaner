@@ -196,8 +196,8 @@
             fillScanData(data);
             updateLastScanBadge(data.ScanTimestamp);
 
-            // Load/refresh trend data
-            loadTrendData();
+            // Load/refresh trend data (force recompute after a fresh scan)
+            loadTrendData(true);
         }, function (err) {
             loading.style.display = 'none';
             var overviewContainer = document.getElementById('overviewContent');
