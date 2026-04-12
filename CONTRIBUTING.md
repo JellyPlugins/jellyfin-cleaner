@@ -7,10 +7,10 @@ Thank you for your interest in contributing! This document covers the project ar
 ## 📋 Table of Contents
 
 - [Getting Started](#-getting-started)
-- [Architecture Overview](#-architecture-overview)
+- [Architecture Overview](#️-architecture-overview)
 - [Build System](#-build-system)
 - [API Reference](#-api-reference)
-- [Configuration Options](#-configuration-options)
+- [Configuration Options](#️-configuration-options)
 - [Scheduled Tasks](#-scheduled-tasks)
 - [Feature Details](#-feature-details)
 - [Supported File Extensions](#-supported-file-extensions)
@@ -60,7 +60,7 @@ Then restart Jellyfin to load the plugin.
 
 ## 🏗️ Architecture Overview
 
-```
+```text
 Jellyfin.Plugin.JellyfinHelper/
 ├── Plugin.cs                    # Plugin entry point, GUID, configuration
 ├── MediaExtensions.cs           # Centralized file extension lists

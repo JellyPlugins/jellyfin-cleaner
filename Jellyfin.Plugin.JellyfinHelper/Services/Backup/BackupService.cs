@@ -26,7 +26,7 @@ public class BackupService
     internal const int MaxBackupVersion = 1;
 
     /// <summary>
-    /// Maximum allowed size of a backup JSON payload in bytes (10 MB).
+    /// Maximum allowed size of a backup JSON payload in bytes (50 MB).
     /// </summary>
     internal const long MaxBackupSizeBytes = 50 * 1024 * 1024;
 
@@ -365,31 +365,31 @@ public class BackupService
         RestoreConfiguration(backup, summary);
 
         // Restore growth timeline
-        if (backup.GrowthTimeline != null)
-        {
+        if (backup.GrowthTimeline != null &&
             SaveJsonFile(
                 Path.Combine(_dataPath, "jellyfin-helper-growth-timeline.json"),
-                backup.GrowthTimeline);
+                backup.GrowthTimeline))
+        {
             summary.TimelineRestored = true;
             PluginLogService.LogInfo("Backup", $"Restored growth timeline ({backup.GrowthTimeline.DataPoints.Count} data points)", _logger);
         }
 
         // Restore growth baseline
-        if (backup.GrowthBaseline != null)
-        {
+        if (backup.GrowthBaseline != null &&
             SaveJsonFile(
                 Path.Combine(_dataPath, "jellyfin-helper-growth-baseline.json"),
-                backup.GrowthBaseline);
+                backup.GrowthBaseline))
+        {
             summary.BaselineRestored = true;
             PluginLogService.LogInfo("Backup", $"Restored growth baseline ({backup.GrowthBaseline.Directories.Count} directories)", _logger);
         }
 
         // Restore statistics history
-        if (backup.StatisticsHistory.Count > 0)
-        {
+        if (backup.StatisticsHistory.Count > 0 &&
             SaveJsonFile(
                 Path.Combine(_dataPath, "jellyfin-helper-statistics-history.json"),
-                backup.StatisticsHistory);
+                backup.StatisticsHistory))
+        {
             summary.HistorySnapshotsRestored = backup.StatisticsHistory.Count;
             PluginLogService.LogInfo("Backup", $"Restored {backup.StatisticsHistory.Count} statistics history snapshots", _logger);
         }
@@ -759,11 +759,21 @@ public class BackupService
             config.RadarrUrl = config.RadarrInstances[0].Url;
             config.RadarrApiKey = config.RadarrInstances[0].ApiKey;
         }
+        else
+        {
+            config.RadarrUrl = string.Empty;
+            config.RadarrApiKey = string.Empty;
+        }
 
         if (config.SonarrInstances.Count > 0)
         {
             config.SonarrUrl = config.SonarrInstances[0].Url;
             config.SonarrApiKey = config.SonarrInstances[0].ApiKey;
+        }
+        else
+        {
+            config.SonarrUrl = string.Empty;
+            config.SonarrApiKey = string.Empty;
         }
 
         plugin.SaveConfiguration();
@@ -865,7 +875,7 @@ public class BackupService
         }
     }
 
-    private void SaveJsonFile<T>(string filePath, T data)
+    private bool SaveJsonFile<T>(string filePath, T data)
     {
         try
         {
@@ -877,10 +887,12 @@ public class BackupService
 
             var json = JsonSerializer.Serialize(data, JsonOptions);
             File.WriteAllText(filePath, json);
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             PluginLogService.LogError("Backup", $"Could not save {filePath} during restore", ex, _logger);
+            return false;
         }
     }
 }
