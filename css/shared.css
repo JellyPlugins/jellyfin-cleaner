@@ -253,7 +253,8 @@
     max-height: 500px;
     opacity: 1;
     margin-top: 0.8em;
-    overflow-y: auto;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
     background: rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(0, 164, 220, 0.2);
     border-radius: 8px;
@@ -263,6 +264,7 @@
 /* Scrollbar styling for the detail panel */
 .file-tree-panel::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
 }
 
 .file-tree-panel::-webkit-scrollbar-track {
@@ -358,6 +360,7 @@
 .tree-node {
     margin-left: 1em;
     border-left: 1px solid rgba(255, 255, 255, 0.05);
+    min-width: 0;
 }
 
 .tree-folder {
@@ -369,6 +372,7 @@
     border-radius: 4px;
     transition: background 0.15s;
     user-select: none;
+    min-width: 0;
 }
 
 .tree-toggle {
@@ -410,6 +414,7 @@
     padding: 0.1em 0.4em 0.1em 0.8em;
     border-left: 1px solid rgba(255, 255, 255, 0.05);
     font-size: 0.9em;
+    min-width: 0;
 }
 
 .tree-leaf:hover {
@@ -445,6 +450,15 @@
 .tree-action-btn:hover {
     opacity: 1;
     background: rgba(255, 255, 255, 0.2);
+}
+
+.export-section {
+    display: flex;
+    gap: 0.5em;
+    justify-content: center;
+    margin: 1.5em 0;
+    padding: 1em 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 @media (prefers-reduced-motion: reduce) {
