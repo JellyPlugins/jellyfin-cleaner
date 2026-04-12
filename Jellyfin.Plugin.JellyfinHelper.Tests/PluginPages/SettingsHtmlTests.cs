@@ -206,6 +206,31 @@ public class SettingsHtmlTests : ConfigPageTestBase
     }
 
     [Fact]
+    public void Html_BackupImportClientLimit_IsTenMegabytes()
+    {
+        Assert.Contains("50 * 1024 * 1024", HtmlContent);
+        Assert.Contains("Maximum size is 50 MB", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_ContainsBackupSection()
+    {
+        Assert.Contains("settingsBackupTitle", HtmlContent);
+        Assert.Contains("btnBackupExport", HtmlContent);
+        Assert.Contains("btnBackupImportFile", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_BackupImportFailure_DoesNotExposeRawErrorsInUi()
+    {
+        Assert.DoesNotContain("Failed to execute 'json' on 'Response'", HtmlContent);
+        Assert.DoesNotContain("err.message", HtmlContent);
+        // Uses FileReader + apiClient.ajax instead of fetch; errors go through the ajax error handler
+        Assert.Contains("reader.readAsText(file)", HtmlContent);
+        Assert.Contains("backupImportError", HtmlContent);
+    }
+
+    [Fact]
     public void Html_TrashDisableDialog_HasAllI18nKeys()
     {
         var expectedKeys = new[]

@@ -6,6 +6,11 @@ using System.Text;
 using System.Text.Json;
 using Jellyfin.Plugin.JellyfinHelper.Api;
 using Jellyfin.Plugin.JellyfinHelper.Services;
+using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
+using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
+using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
+using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
+using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
@@ -48,6 +53,7 @@ public class MediaStatisticsControllerExportTests
         var loggerMock = new Mock<ILogger<MediaStatisticsController>>();
         var serviceLoggerMock = new Mock<ILogger<MediaStatisticsService>>();
         var historyLoggerMock = new Mock<ILogger<StatisticsHistoryService>>();
+        var growthTimelineLoggerMock = new Mock<ILogger<GrowthTimelineService>>();
 
         _controller = new MediaStatisticsController(
             libraryManagerMock.Object,
@@ -57,7 +63,8 @@ public class MediaStatisticsControllerExportTests
             _cache,
             loggerMock.Object,
             serviceLoggerMock.Object,
-            historyLoggerMock.Object);
+            historyLoggerMock.Object,
+            growthTimelineLoggerMock.Object);
     }
 
     // ======================== Helpers ========================

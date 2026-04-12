@@ -92,13 +92,9 @@
             url: url,
             dataType: 'json'
         }).then(function (data) {
-            if (data && data.Libraries) {
+        if (data && data.Libraries) {
                 fillScanData(data);
                 updateLastScanBadge(data.ScanTimestamp);
-
-                // Enable export buttons
-                document.getElementById('btnExportJson').disabled = false;
-                document.getElementById('btnExportCsv').disabled = false;
             }
         }, function () {
             // 204 or error — no persisted data, that's fine
@@ -196,16 +192,12 @@
             btn.disabled = false;
             btn.innerHTML = '&#x21bb; ' + T('scanLibraries', 'Scan Libraries');
 
-            // Enable export buttons
-            document.getElementById('btnExportJson').disabled = false;
-            document.getElementById('btnExportCsv').disabled = false;
-
             // Fill scan-dependent tab contents
             fillScanData(data);
             updateLastScanBadge(data.ScanTimestamp);
 
-            // Load/refresh trend data
-            loadTrendData();
+            // Load/refresh trend data (force recompute after a fresh scan)
+            loadTrendData(true);
         }, function (err) {
             loading.style.display = 'none';
             var overviewContainer = document.getElementById('overviewContent');
@@ -228,8 +220,6 @@
         if (_pageInitialized) return;
 
         var btnRefresh = document.getElementById('btnRefresh');
-        var btnExportJson = document.getElementById('btnExportJson');
-        var btnExportCsv = document.getElementById('btnExportCsv');
 
         if (!btnRefresh) {
             _initRetries++;
@@ -275,12 +265,6 @@
                 e.preventDefault();
                 loadStatistics();
             });
-            if (btnExportJson) {
-                btnExportJson.addEventListener('click', function () { triggerExport('Json'); });
-            }
-            if (btnExportCsv) {
-                btnExportCsv.addEventListener('click', function () { triggerExport('Csv'); });
-            }
             _handlersBound = true;
         }
     }

@@ -1,6 +1,11 @@
-﻿using Jellyfin.Plugin.JellyfinHelper.Api;
+using Jellyfin.Plugin.JellyfinHelper.Api;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services;
+using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
+using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
+using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
+using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
+using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
@@ -36,6 +41,7 @@ public class MediaStatisticsControllerTrashTests : IDisposable
         var loggerMock = new Mock<ILogger<MediaStatisticsController>>();
         var serviceLoggerMock = new Mock<ILogger<MediaStatisticsService>>();
         var historyLoggerMock = new Mock<ILogger<StatisticsHistoryService>>();
+        var growthTimelineLoggerMock = new Mock<ILogger<GrowthTimelineService>>();
 
         _controller = new MediaStatisticsController(
             _libraryManagerMock.Object,
@@ -45,7 +51,8 @@ public class MediaStatisticsControllerTrashTests : IDisposable
             cache,
             loggerMock.Object,
             serviceLoggerMock.Object,
-            historyLoggerMock.Object);
+            historyLoggerMock.Object,
+            growthTimelineLoggerMock.Object);
             
         CleanupConfigHelper.ConfigOverride = new PluginConfiguration();
     }

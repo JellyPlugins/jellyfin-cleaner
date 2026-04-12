@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -13,6 +13,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services;
+using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
+using Jellyfin.Plugin.JellyfinHelper.Services.Backup;
+using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
+using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
+using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
+using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
+using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
@@ -53,8 +60,10 @@ public class MediaStatisticsController : ControllerBase
     private readonly IFileSystem _fileSystem;
     private readonly MediaStatisticsService _statisticsService;
     private readonly StatisticsHistoryService _historyService;
+    private readonly GrowthTimelineService _growthTimelineService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IMemoryCache _cache;
+    private readonly IApplicationPaths _applicationPaths;
     private readonly ILogger<MediaStatisticsController> _logger;
 
     /// <summary>
@@ -68,6 +77,7 @@ public class MediaStatisticsController : ControllerBase
     /// <param name="logger">The controller logger.</param>
     /// <param name="serviceLogger">The statistics service logger.</param>
     /// <param name="historyLogger">The history service logger.</param>
+    /// <param name="growthTimelineLogger">The growth timeline service logger.</param>
     public MediaStatisticsController(
         ILibraryManager libraryManager,
         IFileSystem fileSystem,
@@ -76,14 +86,17 @@ public class MediaStatisticsController : ControllerBase
         IMemoryCache cache,
         ILogger<MediaStatisticsController> logger,
         ILogger<MediaStatisticsService> serviceLogger,
-        ILogger<StatisticsHistoryService> historyLogger)
+        ILogger<StatisticsHistoryService> historyLogger,
+        ILogger<GrowthTimelineService> growthTimelineLogger)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
         _statisticsService = new MediaStatisticsService(libraryManager, fileSystem, serviceLogger);
         _historyService = new StatisticsHistoryService(applicationPaths, historyLogger);
+        _growthTimelineService = new GrowthTimelineService(libraryManager, fileSystem, applicationPaths, growthTimelineLogger);
         _httpClientFactory = httpClientFactory;
         _cache = cache;
+        _applicationPaths = applicationPaths;
         _logger = logger;
     }
 
@@ -303,7 +316,7 @@ public class MediaStatisticsController : ControllerBase
     }
 
     /// <summary>
-    /// Gets the historical statistics trend data.
+    /// Gets the historical statistics trend data (legacy scan-based snapshots).
     /// </summary>
     /// <returns>A list of historical snapshots.</returns>
     [HttpGet("Statistics/History")]
@@ -312,6 +325,32 @@ public class MediaStatisticsController : ControllerBase
     {
         var history = _historyService.LoadHistory();
         return Ok(history);
+    }
+
+    /// <summary>
+    /// Gets the library growth timeline based on media file creation dates.
+    /// Returns the cached timeline if available, otherwise computes it.
+    /// The timeline uses automatic granularity (daily/weekly/monthly/quarterly/yearly)
+    /// based on the age of the oldest media file.
+    /// </summary>
+    /// <param name="forceRefresh">Set to true to force recomputation instead of using cached data.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The growth timeline with cumulative data points.</returns>
+    [HttpGet("Statistics/GrowthTimeline")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<GrowthTimelineResult>> GetGrowthTimelineAsync([FromQuery] bool forceRefresh = false, CancellationToken cancellationToken = default)
+    {
+        if (!forceRefresh)
+        {
+            var cached = await _growthTimelineService.LoadTimelineAsync(cancellationToken).ConfigureAwait(false);
+            if (cached != null)
+            {
+                return Ok(cached);
+            }
+        }
+
+        var result = await _growthTimelineService.ComputeTimelineAsync(cancellationToken).ConfigureAwait(false);
+        return Ok(result);
     }
 
     // === Cleanup Statistics ===
@@ -619,7 +658,7 @@ public class MediaStatisticsController : ControllerBase
         {
             if (index.Value < 0 || index.Value >= instances.Count)
             {
-                return BadRequest(new { message = $"Invalid instance index {index.Value}. Valid range: 0–{instances.Count - 1}." });
+                return BadRequest(new { message = $"Invalid instance index {index.Value}. Valid range: 0-{instances.Count - 1}." });
             }
 
             instances = new[] { instances[index.Value] }.ToList().AsReadOnly();
@@ -669,7 +708,7 @@ public class MediaStatisticsController : ControllerBase
         {
             if (index.Value < 0 || index.Value >= instances.Count)
             {
-                return BadRequest(new { message = $"Invalid instance index {index.Value}. Valid range: 0–{instances.Count - 1}." });
+                return BadRequest(new { message = $"Invalid instance index {index.Value}. Valid range: 0-{instances.Count - 1}." });
             }
 
             instances = new[] { instances[index.Value] }.ToList().AsReadOnly();
@@ -754,7 +793,7 @@ public class MediaStatisticsController : ControllerBase
     public ActionResult DownloadLogs([FromQuery] string? minLevel = null, [FromQuery] string? source = null)
     {
         var text = PluginLogService.ExportAsText(minLevel, source);
-        var bytes = System.Text.Encoding.UTF8.GetBytes(text);
+        var bytes = Encoding.UTF8.GetBytes(text);
         var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
         return File(bytes, "text/plain", $"jellyfin-helper-logs-{timestamp}.txt");
     }
@@ -768,7 +807,7 @@ public class MediaStatisticsController : ControllerBase
     public ActionResult ClearLogs()
     {
         PluginLogService.Clear();
-        _logger.LogInformation("Plugin log buffer cleared by admin");
+        PluginLogService.LogInfo("API", "Plugin log buffer cleared by admin", _logger);
         return Ok(new { message = "Logs cleared." });
     }
 
@@ -789,6 +828,180 @@ public class MediaStatisticsController : ControllerBase
         }).ToList();
 
         return Ok(result);
+    }
+
+    // === Backup / Restore ===
+
+    /// <summary>
+    /// Exports the plugin configuration and historical data as a backup JSON file.
+    /// Includes configuration preferences, Arr integration settings, growth timeline,
+    /// and statistics history. Cleanup statistics are excluded (they reset on fresh installs).
+    /// </summary>
+    /// <returns>A JSON file download containing the backup data.</returns>
+    [HttpGet("Backup/Export")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult ExportBackup()
+    {
+        var backupService = new BackupService(_applicationPaths, _logger);
+        var backup = backupService.CreateBackup();
+        var json = BackupService.SerializeBackup(backup);
+
+        var bytes = Encoding.UTF8.GetBytes(json);
+        if (bytes.LongLength > BackupService.MaxBackupSizeBytes)
+        {
+            PluginLogService.LogWarning(
+                "API",
+                $"Backup export rejected: payload size {FormatBackupSize(bytes.LongLength)} exceeds limit {FormatBackupSize(BackupService.MaxBackupSizeBytes)} (timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0}, historySnapshots={backup.StatisticsHistory.Count}).",
+                logger: _logger);
+
+            return BadRequest(new
+            {
+                message = $"Backup is too large to export ({FormatBackupSize(bytes.LongLength)}). Maximum size is {BackupService.MaxBackupSizeBytes / (1024 * 1024)} MB. Check the plugin logs for details.",
+            });
+        }
+
+        if (bytes.LongLength >= BackupService.LargeBackupWarningThresholdBytes)
+        {
+            PluginLogService.LogWarning(
+                "API",
+                $"Large backup export created: {FormatBackupSize(bytes.LongLength)} of {FormatBackupSize(BackupService.MaxBackupSizeBytes)} limit (timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0}, historySnapshots={backup.StatisticsHistory.Count}).",
+                logger: _logger);
+        }
+
+        var timestamp = backup.CreatedAt.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        PluginLogService.LogInfo("API", $"Backup exported ({FormatBackupSize(bytes.LongLength)}, timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0}, historySnapshots={backup.StatisticsHistory.Count})", _logger);
+        return File(bytes, "application/json", $"jellyfin-helper-backup-{timestamp}.json");
+    }
+
+    /// <summary>
+    /// Imports a backup JSON payload to restore plugin configuration and historical data.
+    /// Performs comprehensive validation to prevent malicious or corrupt data from being imported.
+    /// Accepts the backup JSON directly in the request body (Content-Type: application/json).
+    /// </summary>
+    /// <returns>A result indicating success with validation details and restore summary.</returns>
+    [HttpPost("Backup/Import")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    [Consumes("application/json")]
+    public async Task<ActionResult> ImportBackupAsync()
+    {
+        try
+        {
+            // Early rejection based on Content-Length header (before reading entire body)
+            var contentLength = Request.ContentLength ?? 0;
+            if (contentLength > BackupService.MaxBackupSizeBytes)
+            {
+                PluginLogService.LogWarning("API", $"Backup import rejected: Content-Length too large ({FormatBackupSize(contentLength)}, max {FormatBackupSize(BackupService.MaxBackupSizeBytes)}).", logger: _logger);
+                return BadRequest(new { message = $"Backup too large ({FormatBackupSize(contentLength)}). Maximum size is {BackupService.MaxBackupSizeBytes / (1024 * 1024)} MB." });
+            }
+
+            if (contentLength >= BackupService.LargeBackupWarningThresholdBytes)
+            {
+                PluginLogService.LogWarning("API", $"Large backup import detected: {FormatBackupSize(contentLength)} of {FormatBackupSize(BackupService.MaxBackupSizeBytes)} limit.", logger: _logger);
+            }
+
+            string json;
+            try
+            {
+                using var reader = new StreamReader(
+                    Request.Body,
+                    Encoding.UTF8,
+                    detectEncodingFromByteOrderMarks: true,
+                    leaveOpen: false);
+                json = await reader.ReadToEndAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                PluginLogService.LogError("API", "Failed to read backup request body", ex, _logger);
+                return BadRequest(new { message = "Failed to read the request body." });
+            }
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                PluginLogService.LogWarning("API", "Backup import attempted with empty body.", logger: _logger);
+                return BadRequest(new { message = "No backup data provided." });
+            }
+
+            var jsonLength = Encoding.UTF8.GetByteCount(json);
+
+            // Enforce size limit on actual body (Content-Length may be absent for chunked transfers)
+            if (jsonLength > BackupService.MaxBackupSizeBytes)
+            {
+                PluginLogService.LogWarning("API", $"Backup import rejected: actual body too large ({FormatBackupSize(jsonLength)}, max {FormatBackupSize(BackupService.MaxBackupSizeBytes)}).", logger: _logger);
+                return BadRequest(new { message = $"Backup too large ({FormatBackupSize(jsonLength)}). Maximum size is {BackupService.MaxBackupSizeBytes / (1024 * 1024)} MB." });
+            }
+
+            PluginLogService.LogInfo("API", $"Backup import started: size={jsonLength} bytes", _logger);
+
+            if (jsonLength >= BackupService.LargeBackupWarningThresholdBytes)
+            {
+                PluginLogService.LogWarning("API", $"Large backup body detected: {FormatBackupSize(jsonLength)} of {FormatBackupSize(BackupService.MaxBackupSizeBytes)} limit.", logger: _logger);
+            }
+
+            // Deserialize
+            var backup = BackupService.DeserializeBackup(json);
+            if (backup == null)
+            {
+                PluginLogService.LogWarning("API", $"Backup import rejected: invalid JSON structure (length={json.Length}).", logger: _logger);
+                return BadRequest(new { message = "Invalid backup file. Could not parse JSON structure." });
+            }
+
+            PluginLogService.LogInfo("API", $"Backup deserialized: version={backup.BackupVersion}, pluginVersion={backup.PluginVersion}, created={backup.CreatedAt:O}", _logger);
+
+            // Validate
+            var validation = BackupService.Validate(backup);
+
+            // Log all validation issues
+            foreach (var error in validation.Errors)
+            {
+                PluginLogService.LogError("Backup", $"Validation error: {error}", logger: _logger);
+            }
+
+            foreach (var warning in validation.Warnings)
+            {
+                PluginLogService.LogWarning("Backup", $"Validation warning: {warning}", logger: _logger);
+            }
+
+            if (!validation.IsValid)
+            {
+                PluginLogService.LogWarning("API", $"Backup import rejected: {validation.Errors.Count} validation error(s).", logger: _logger);
+                return BadRequest(new
+                {
+                    message = $"Backup validation failed with {validation.Errors.Count} error(s). Check the plugin logs for details.",
+                    errors = validation.Errors,
+                    warnings = validation.Warnings,
+                });
+            }
+
+            // Sanitize (handle warnings by clamping/defaulting)
+            BackupService.Sanitize(backup);
+
+            // Restore
+            var backupService = new BackupService(_applicationPaths, _logger);
+            var summary = backupService.RestoreBackup(backup);
+
+            PluginLogService.LogInfo("API", $"Backup imported successfully. Config={summary.ConfigurationRestored}, Timeline={summary.TimelineRestored}, Baseline={summary.BaselineRestored}, History={summary.HistorySnapshotsRestored} snapshots", _logger);
+
+            return Ok(new
+            {
+                message = "Backup imported successfully.",
+                warnings = validation.Warnings,
+                summary = new
+                {
+                    summary.ConfigurationRestored,
+                    summary.TimelineRestored,
+                    summary.BaselineRestored,
+                    summary.HistorySnapshotsRestored,
+                },
+            });
+        }
+        catch (Exception ex)
+        {
+            PluginLogService.LogError("API", "Unexpected backup import failure", ex, _logger);
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to import backup." });
+        }
     }
 
     // === Private helpers ===
@@ -940,5 +1153,10 @@ public class MediaStatisticsController : ControllerBase
         }
 
         return value;
+    }
+
+    private static string FormatBackupSize(long bytes)
+    {
+        return string.Create(CultureInfo.InvariantCulture, $"{bytes / (1024d * 1024d):0.00} MB");
     }
 }

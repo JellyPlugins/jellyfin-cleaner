@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services;
 
