@@ -193,8 +193,9 @@ public static class CleanupConfigHelper
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            // If we can't check, err on the safe side and skip cleanup
             PluginLogService.LogWarning("Config", $"Could not check directory age for: {directoryPath}", ex);
-            return true;
+            return false;
         }
     }
 
@@ -224,8 +225,9 @@ public static class CleanupConfigHelper
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            // If we can't check, err on the safe side and skip cleanup
             PluginLogService.LogWarning("Config", $"Could not check file age for: {filePath}", ex);
-            return true;
+            return false;
         }
     }
 

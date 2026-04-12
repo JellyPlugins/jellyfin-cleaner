@@ -116,7 +116,7 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 0.82em;
-    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
 }
 
 .logs-table th {
@@ -161,7 +161,7 @@
 }
 
 .logs-table .col-message {
-    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 /* Level colors */

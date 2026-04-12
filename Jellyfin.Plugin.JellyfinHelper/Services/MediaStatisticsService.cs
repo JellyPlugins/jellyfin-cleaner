@@ -478,9 +478,9 @@ public partial class MediaStatisticsService
             var streams = item.GetMediaStreams();
             return streams is not null && streams.Any(s => s.Type == MediaStreamType.Subtitle && !s.IsExternal);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            PluginLogService.LogDebug("MediaStatistics", $"Could not check embedded subtitles for: {filePath}", _logger);
+            PluginLogService.LogDebug("MediaStatistics", $"Could not check embedded subtitles for: {filePath}. {ex.GetType().Name}: {ex.Message}", _logger);
             return false;
         }
     }

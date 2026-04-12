@@ -124,7 +124,7 @@ public static class PluginLogService
 
             if (!string.IsNullOrEmpty(source))
             {
-                query = query.Where(e => e.Source.Contains(source, StringComparison.OrdinalIgnoreCase));
+                query = query.Where(e => e.Source?.Contains(source, StringComparison.OrdinalIgnoreCase) == true);
             }
 
             return query.Take(limit).ToList().AsReadOnly();
