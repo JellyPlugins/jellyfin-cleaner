@@ -658,7 +658,7 @@ public class MediaStatisticsController : ControllerBase
         {
             if (index.Value < 0 || index.Value >= instances.Count)
             {
-                return BadRequest(new { message = $"Invalid instance index {index.Value}. Valid range: 0�{instances.Count - 1}." });
+                return BadRequest(new { message = $"Invalid instance index {index.Value}. Valid range: 0-{instances.Count - 1}." });
             }
 
             instances = new[] { instances[index.Value] }.ToList().AsReadOnly();
@@ -708,7 +708,7 @@ public class MediaStatisticsController : ControllerBase
         {
             if (index.Value < 0 || index.Value >= instances.Count)
             {
-                return BadRequest(new { message = $"Invalid instance index {index.Value}. Valid range: 0�{instances.Count - 1}." });
+                return BadRequest(new { message = $"Invalid instance index {index.Value}. Valid range: 0-{instances.Count - 1}." });
             }
 
             instances = new[] { instances[index.Value] }.ToList().AsReadOnly();
