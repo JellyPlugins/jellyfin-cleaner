@@ -107,7 +107,7 @@
         var root = { name: 'root', children: {}, items: [] };
         for (var i = 0; i < paths.length; i++) {
             var path = paths[i];
-            var segments = getPathSegments(path, rootPaths ?? []);
+            var segments = getPathSegments(path, rootPaths || []);
             var currentNode = root;
 
             for (var j = 0; j < segments.length - 1; j++) {
@@ -144,7 +144,7 @@
             var hasContent = Object.keys(childNode.children).length > 0 || childNode.items.length > 0;
             
             html += '<div class="tree-node">';
-            html += '<div class="tree-folder' + (hasContent ? ' tree-toggle' : '') + '" onclick="this.parentElement.classList.toggle(\'tree-expanded\')">';
+            html += '<div class="tree-folder' + (hasContent ? ' tree-toggle' : '') + '" tabindex="0" role="button" aria-expanded="false" onclick="this.parentElement.classList.toggle(\'tree-expanded\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.parentElement.classList.toggle(\'tree-expanded\')}">';
             html += '<span class="tree-icon">' + (hasContent ? '📁' : '📂') + '</span>';
             html += '<span class="tree-name">' + escHtml(childName) + '</span> <span class="tree-name-count">(' + countTreeItems(childNode) + ')</span>';
             html += '</div>';

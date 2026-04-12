@@ -95,15 +95,17 @@
             var apiClient = ApiClient;
             apiClient.ajax({ type: 'GET', url: apiClient.getUrl('JellyfinHelper/Configuration'), dataType: 'json' }).then(function(cfg) {
                 cfg.PluginLogLevel = newLevel;
-                apiClient.ajax({
+                return apiClient.ajax({
                     type: 'POST',
                     url: apiClient.getUrl('JellyfinHelper/Configuration'),
                     data: JSON.stringify(cfg),
                     contentType: 'application/json'
                 });
+            }, function() {
+                console.warn('Failed to load configuration for log level update');
             });
         } catch (e) {
-            // silently fail
+            console.warn('Failed to save log level', e);
         }
     }
 
@@ -115,7 +117,7 @@
         stopLogsAutoRefresh();
         _logsAutoRefreshEnabled = true;
         _logsAutoRefreshTimer = setInterval(function() {
-            if (_logsAutoRefreshEnabled) {
+            if (_logsAutoRefreshEnabled && !document.hidden) {
                 loadLogs();
             }
         }, 10000); // 10 seconds

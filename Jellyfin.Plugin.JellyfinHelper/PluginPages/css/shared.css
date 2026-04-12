@@ -349,11 +349,11 @@
 }
 
 .file-tree-empty {
-     text-align: center;
-     padding: 1em;
-     opacity: 0.4;
-     font-size: 0.85em;
- }
+    text-align: center;
+    padding: 1em;
+    opacity: 0.4;
+    font-size: 0.85em;
+}
 
 .tree-node {
     margin-left: 1em;
