@@ -246,4 +246,4 @@
         }
         return result;
     }
-})();
+    // NOTE: Do NOT close the IIFE here — it is closed in main.js (the last concatenated module).
