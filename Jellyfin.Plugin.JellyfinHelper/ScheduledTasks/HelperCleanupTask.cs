@@ -1,18 +1,21 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Abstractions;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
+using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
 using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
 using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
+using IFileSystem = MediaBrowser.Model.IO.IFileSystem;
 
 namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 
@@ -133,13 +136,13 @@ public class HelperCleanupTask : IScheduledTask
                         continue;
                     }
 
-                    var candidatePath = System.IO.Path.Combine(location, config.TrashFolderPath);
-                    var libraryRoot = System.IO.Path.GetFullPath(location)
-                        .TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
-                    var trashPath = System.IO.Path.GetFullPath(candidatePath);
+                    var candidatePath = Path.Combine(location, config.TrashFolderPath);
+                    var libraryRoot = Path.GetFullPath(location)
+                        .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    var trashPath = Path.GetFullPath(candidatePath);
 
                     var isUnderLibrary =
-                        trashPath.StartsWith(libraryRoot + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+                        trashPath.StartsWith(libraryRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
                     if (!isUnderLibrary)
                     {
                         PluginLogService.LogWarning("HelperCleanup", $"Trash purge skipped for {location}: resolved trash path {trashPath} is outside library root.", logger: _logger);
@@ -253,7 +256,7 @@ public class HelperCleanupTask : IScheduledTask
         var task = new RepairStrmFilesTask(
             _loggerFactory.CreateLogger<RepairStrmFilesTask>(),
             _libraryManager,
-            new System.IO.Abstractions.FileSystem(),
+            new FileSystem(),
             _loggerFactory.CreateLogger<StrmRepairService>());
         return task.ExecuteAsync(progress, cancellationToken);
     }

@@ -1,6 +1,6 @@
 using System;
 
-namespace Jellyfin.Plugin.JellyfinHelper.Services;
+namespace Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 
 /// <summary>
 /// Represents a single plugin log entry.

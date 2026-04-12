@@ -1,16 +1,17 @@
-using System;
-using System.Linq;
-using Jellyfin.Plugin.JellyfinHelper.Services;
 using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
+using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
 using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
 using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
+using Jellyfin.Plugin.JellyfinHelper.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Linq;
+using System;
 using Xunit;
 
-namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services;
+namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.PluginLog;
 
 /// <summary>
 /// Unit tests for <see cref="PluginLogService"/>.

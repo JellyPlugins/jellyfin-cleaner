@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using MediaBrowser.Model.IO;
 using Microsoft.Extensions.Logging;
 

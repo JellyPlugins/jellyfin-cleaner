@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.Extensions.Logging;
 
-namespace Jellyfin.Plugin.JellyfinHelper.Services;
+namespace Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 
 /// <summary>
 /// In-memory ring buffer for plugin-specific log entries with dual-logging support.

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Services;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
+using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
 using Microsoft.Extensions.Logging;
@@ -29,7 +30,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 /// considered orphaned and eligible for deletion when it contains <strong>non-metadata files</strong>
 /// (e.g. subtitles, text files) but absolutely NO video file anywhere in the tree.
 /// If at least one video file exists anywhere (even in a deeply nested subdirectory), the entire
-/// folder is left untouched — including subfolders that may not contain videos themselves
+/// folder is left untouched � including subfolders that may not contain videos themselves
 /// (e.g. empty Season folders created by Sonarr as "wanted" placeholders).
 /// </para>
 /// <para>
@@ -148,7 +149,7 @@ public class CleanEmptyMediaFoldersTask
 
             foreach (var topDir in topLevelDirs.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
             {
-                // Skip .trickplay folders – they are handled by CleanTrickplayTask
+                // Skip .trickplay folders � they are handled by CleanTrickplayTask
                 if (topDir.Name.EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
@@ -161,7 +162,7 @@ public class CleanEmptyMediaFoldersTask
                     continue;
                 }
 
-                // Skip boxset/collection folders — these are Jellyfin-internal and must never be deleted.
+                // Skip boxset/collection folders � these are Jellyfin-internal and must never be deleted.
                 // They typically have "[boxset]" in the folder name or reside under a collections path.
                 if (topDir.Name.Contains("[boxset]", StringComparison.OrdinalIgnoreCase)
                     || topDir.Name.Contains("[collection]", StringComparison.OrdinalIgnoreCase))
@@ -181,13 +182,13 @@ public class CleanEmptyMediaFoldersTask
                     continue;
                 }
 
-                // If the folder contains video files anywhere in the tree → active media folder → skip.
+                // If the folder contains video files anywhere in the tree ? active media folder ? skip.
                 if (hasVideoFiles)
                 {
                     continue;
                 }
 
-                // If the folder contains audio files, it belongs to a music library → skip it.
+                // If the folder contains audio files, it belongs to a music library ? skip it.
                 // Music folders only have audio files (no video), so they must not be treated as orphaned.
                 if (hasAudioFiles)
                 {
@@ -196,7 +197,7 @@ public class CleanEmptyMediaFoldersTask
 
                 // If the folder contains ONLY metadata/artwork files (images + NFO) but no video,
                 // audio, or other files, it's likely a placeholder created by Sonarr/Radarr
-                // for upcoming media → skip it.
+                // for upcoming media ? skip it.
                 if (!hasNonMetadataFiles)
                 {
                     PluginLogService.LogDebug("EmptyFolderCleaner", $"Skipping metadata-only folder (likely a wanted-list placeholder): {topDir.FullName}", _logger);
@@ -204,7 +205,7 @@ public class CleanEmptyMediaFoldersTask
                 }
 
                 // The folder has non-metadata files (e.g. subtitles, text files) but no video files
-                // anywhere in the tree → it's an orphaned media folder whose video was deleted.
+                // anywhere in the tree ? it's an orphaned media folder whose video was deleted.
 
                 // Check orphan age
                 if (!CleanupConfigHelper.IsOldEnoughForDeletion(topDir.FullName))
@@ -275,7 +276,7 @@ public class CleanEmptyMediaFoldersTask
             var ext = Path.GetExtension(file.FullName);
             if (MediaExtensions.VideoExtensions.Contains(ext))
             {
-                // Video found – no need to scan further (video takes priority)
+                // Video found � no need to scan further (video takes priority)
                 return (true, true, hasAudioFiles, true);
             }
 
@@ -287,7 +288,7 @@ public class CleanEmptyMediaFoldersTask
             else if (!MediaExtensions.ImageExtensions.Contains(ext)
                      && !MediaExtensions.NfoExtensions.Contains(ext))
             {
-                // File is not a video, audio, image, or NFO → it's a "non-metadata" file
+                // File is not a video, audio, image, or NFO ? it's a "non-metadata" file
                 // (e.g. subtitles, text files, or other residual files from a deleted video)
                 hasNonMetadataFiles = true;
             }
@@ -303,7 +304,7 @@ public class CleanEmptyMediaFoldersTask
             hasNonMetadataFiles |= subHasNonMetadataFiles;
             if (subHasVideoFiles)
             {
-                // Video found deeper in the tree – no need to scan further
+                // Video found deeper in the tree � no need to scan further
                 return (true, true, hasAudioFiles, true);
             }
         }

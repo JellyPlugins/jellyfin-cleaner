@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Arr;
@@ -187,7 +189,7 @@ public class ArrIntegrationService
 
         foreach (var movie in radarrMovies)
         {
-            var folderName = System.IO.Path.GetFileName(movie.Path.TrimEnd('/').TrimEnd('\\'));
+            var folderName = Path.GetFileName(movie.Path.TrimEnd('/').TrimEnd('\\'));
             if (string.IsNullOrEmpty(folderName))
             {
                 continue;
@@ -210,7 +212,7 @@ public class ArrIntegrationService
         // Find Jellyfin-only items (not in Radarr)
         var radarrFolderNames = new HashSet<string>(
             radarrMovies
-                .Select(m => System.IO.Path.GetFileName(m.Path.TrimEnd('/').TrimEnd('\\')))
+                .Select(m => Path.GetFileName(m.Path.TrimEnd('/').TrimEnd('\\')))
                 .Where(n => !string.IsNullOrEmpty(n)),
             StringComparer.OrdinalIgnoreCase);
 
@@ -241,7 +243,7 @@ public class ArrIntegrationService
 
         foreach (var series in sonarrSeries)
         {
-            var folderName = System.IO.Path.GetFileName(series.Path.TrimEnd('/').TrimEnd('\\'));
+            var folderName = Path.GetFileName(series.Path.TrimEnd('/').TrimEnd('\\'));
             if (string.IsNullOrEmpty(folderName))
             {
                 continue;
@@ -263,7 +265,7 @@ public class ArrIntegrationService
 
         var sonarrFolderNames = new HashSet<string>(
             sonarrSeries
-                .Select(s => System.IO.Path.GetFileName(s.Path.TrimEnd('/').TrimEnd('\\')))
+                .Select(s => Path.GetFileName(s.Path.TrimEnd('/').TrimEnd('\\')))
                 .Where(n => !string.IsNullOrEmpty(n)),
             StringComparer.OrdinalIgnoreCase);
 
