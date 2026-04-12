@@ -223,7 +223,7 @@
             var a = document.createElement('a');
             var objUrl = URL.createObjectURL(blob);
             a.href = objUrl;
-            a.download = 'jellyfin-helper-logs.log';
+            a.download = 'jellyfin-helper-logs.txt';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
