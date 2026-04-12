@@ -1,4 +1,3 @@
-
 # Jellyfin Helper
 
 ![Jellyfin Helper Logo](media/logo.png)
@@ -10,10 +9,6 @@ A [Jellyfin](https://jellyfin.org/) plugin that provides automated cleanup tasks
 **[Try the interactive demo →](https://jellyplugins.github.io/jellyfin-helper/)**
 
 Explore the full 7-tab dashboard with realistic sample data — no Jellyfin server required.
-
-## 📸 Screenshots
-
-![Dashboard Demo](media/Jellyfin-Helper-Media-Statistics.gif)
 
 ## Features
 
@@ -102,16 +97,10 @@ A dedicated **Logs** tab provides real-time access to plugin-specific log entrie
 - **Exception Details** — Stack traces displayed inline when available
 
 ### 🔗 Arr Stack Integration
-Compare your Jellyfin library with Radarr and Sonarr to identify:
+Compare your Jellyfin library with up to 3 Radarr and 3 Sonarr instances to identify:
 - Items present in both systems
 - Items in the Arr app but not in Jellyfin (with or without files)
 - Items in Jellyfin but missing from the Arr app
-
-**Multi-Instance Support:**
-- Up to **3 Radarr** and **3 Sonarr** instances simultaneously (e.g. "Radarr 4K", "Radarr Anime")
-- Per-instance comparison or merged view across all instances
-- **Connection Test** — Test button validates URL + API key before saving
-- Automatic migration from legacy single-instance configuration
 
 ### 🌐 Internationalization (i18n)
 The entire dashboard UI — including the Settings page, all tabs, and all badges — supports **7 languages**: English, German, French, Spanish, Portuguese, Chinese, and Turkish. The language can be changed in the Settings tab and takes effect immediately (full UI rebuild).
@@ -135,8 +124,6 @@ Each cleanup/repair task can be individually configured with one of three modes:
 - **Deactivate** — Skips the task entirely during scheduled runs
 - **Dry Run** — Logs what *would* happen without making any changes (default for all tasks)
 
-A **unified `TaskMode` system** replaces the legacy per-task boolean flags. Existing configurations are automatically migrated on first load via `ConfigVersion`.
-
 ---
 
 ## Scheduled Tasks
@@ -157,55 +144,6 @@ All tasks appear under the **Jellyfin Helper** category in the Jellyfin schedule
 
 ---
 
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/JellyfinHelper/Statistics` | GET | Retrieve statistics (cached for 5 min; use `?forceRefresh=true` to bypass cache) |
-| `/JellyfinHelper/Statistics/Latest` | GET | Get latest persisted statistics without triggering a new scan (survives restarts) |
-| `/JellyfinHelper/Statistics/Export/Json` | GET | Download statistics as a JSON file |
-| `/JellyfinHelper/Statistics/Export/Csv` | GET | Download statistics as a CSV file |
-| `/JellyfinHelper/Statistics/History` | GET | Retrieve historical snapshots for trend graph |
-| `/JellyfinHelper/Translations` | GET | Get UI translations for specified language |
-| `/JellyfinHelper/Configuration` | GET/POST | Get or update plugin settings |
-| `/JellyfinHelper/Libraries` | GET | Get available library names for configuration |
-| `/JellyfinHelper/Cleanup/Statistics` | GET | Get accumulated cleanup statistics |
-| `/JellyfinHelper/Trash/Summary` | GET | Get trash folder summary across libraries |
-| `/JellyfinHelper/Trash/Contents` | GET | Get detailed trash contents per library (name, size, dates) |
-| `/JellyfinHelper/Trash/Folders` | GET | List existing trash folder paths on disk |
-| `/JellyfinHelper/Trash/Folders` | DELETE | Delete all existing trash folders from disk |
-| `/JellyfinHelper/Arr/TestConnection` | POST | Test connection to a Radarr/Sonarr instance |
-| `/JellyfinHelper/Arr/Radarr/Compare` | GET | Compare Jellyfin movies with Radarr (optional `?index=N` for specific instance) |
-| `/JellyfinHelper/Arr/Sonarr/Compare` | GET | Compare Jellyfin TV shows with Sonarr (optional `?index=N` for specific instance) |
-| `/JellyfinHelper/Logs` | GET | Retrieve plugin log entries (supports `?limit=N&minLevel=LEVEL&source=NAME`) |
-| `/JellyfinHelper/Logs/Download` | GET | Download plugin logs as a text file |
-| `/JellyfinHelper/Logs` | DELETE | Clear all buffered plugin log entries |
-
-All endpoints require admin authorization (`RequiresElevation`) except `/Translations` (anonymous).
-
----
-
-## Configuration Options
-
-| Setting | Description | Default |
-|---------|-------------|---------|
-| **Included Libraries** | Whitelist of library names (comma-separated) | Empty (all) |
-| **Excluded Libraries** | Blacklist of library names (comma-separated) | Empty (none) |
-| **Orphan Minimum Age** | Minimum age (days) before an item is considered orphaned | 0 |
-| **Trickplay Task Mode** | Mode for trickplay cleanup (Activate / DryRun / Deactivate) | DryRun |
-| **Empty Folder Task Mode** | Mode for empty media folder cleanup | DryRun |
-| **Subtitle Task Mode** | Mode for orphaned subtitle cleanup | DryRun |
-| **STRM Repair Task Mode** | Mode for STRM file repair | DryRun |
-| **Use Trash** | Move to trash instead of permanent delete | Off |
-| **Trash Folder Path** | Relative or absolute path to the trash folder | `.jellyfin-trash` |
-| **Trash Retention** | Days to keep items in trash before purging | 30 |
-| **Dashboard Language** | UI language (en, de, fr, es, pt, zh, tr) | en |
-| **Plugin Log Level** | Minimum log level for the plugin log viewer (DEBUG, INFO, WARN, ERROR) | INFO |
-| **Radarr Instances** | Up to 3 Radarr instances with name, URL, and API key | Empty |
-| **Sonarr Instances** | Up to 3 Sonarr instances with name, URL, and API key | Empty |
-
----
-
 ## Supported File Extensions
 
 ### Video
@@ -223,6 +161,9 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 ---
 
 ## Installation
+
+> [!important]
+> This plugin needs at least Jellyfin version 10.11.0.
 
 ### From Repository (Recommended)
 
@@ -256,45 +197,6 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 10. Use the **Arr** tab to compare your library with Radarr/Sonarr instances
 
 ---
-
-## Building from Source
-
-```bash
-dotnet build
-dotnet test
-```
-
-The project includes **737 automated tests** covering all services, API endpoints, configuration migration, UI structure, plugin logging, and serialization roundtrips.
-
-### Modular Build System
-
-The dashboard UI is assembled at build time via a custom `ComposeConfigPage` MSBuild target. Each tab has its own dedicated CSS and JS module:
-
-```text
-PluginPages/
-├── configPage.template.html  # HTML shell with placeholders for CSS/JS injection
-├── css/
-│   ├── shared.css            # Common styles (file lists, modals, layout)
-│   ├── Overview.css          # Overview tab disk usage bars
-│   ├── Codecs.css            # Codec tab charts & file explorer
-│   ├── Health.css            # Health check tiles & detail panel
-│   ├── Trends.css            # Trend graph styling
-│   ├── Settings.css          # Settings form layout
-│   ├── ArrIntegration.css    # Arr comparison tables
-│   └── Logs.css              # Log viewer table, toolbar & level colors
-└── js/
-    ├── shared.js             # Utilities (formatting, renderFileList, escHtml)
-    ├── main.js               # Tab routing, scan trigger, i18n loader
-    ├── Overview.js           # Overview tab (disk usage bars)
-    ├── Codecs.js             # Codec tab (donut charts, file drill-down)
-    ├── Health.js             # Health tab (tiles, clickable details, trash section)
-    ├── Trends.js             # Trends tab (history graph)
-    ├── Settings.js           # Settings tab (task modes, trash, language, Arr config)
-    ├── ArrIntegration.js     # Arr tab (instance comparison, connection testing)
-    └── Logs.js               # Logs tab (level/source filtering, download, auto-refresh)
-```
-
-These are concatenated into the final `configPage.html` during `dotnet build`, keeping the source modular while delivering a single file to Jellyfin.
 
 ## Changelog
 
