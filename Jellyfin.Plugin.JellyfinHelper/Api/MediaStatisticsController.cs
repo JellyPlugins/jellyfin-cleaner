@@ -334,21 +334,22 @@ public class MediaStatisticsController : ControllerBase
     /// based on the age of the oldest media file.
     /// </summary>
     /// <param name="forceRefresh">Set to true to force recomputation instead of using cached data.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The growth timeline with cumulative data points.</returns>
     [HttpGet("Statistics/GrowthTimeline")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public ActionResult<GrowthTimelineResult> GetGrowthTimeline([FromQuery] bool forceRefresh = false)
+    public async Task<ActionResult<GrowthTimelineResult>> GetGrowthTimelineAsync([FromQuery] bool forceRefresh = false, CancellationToken cancellationToken = default)
     {
         if (!forceRefresh)
         {
-            var cached = _growthTimelineService.LoadTimeline();
+            var cached = await _growthTimelineService.LoadTimelineAsync(cancellationToken).ConfigureAwait(false);
             if (cached != null)
             {
                 return Ok(cached);
             }
         }
 
-        var result = _growthTimelineService.ComputeTimeline();
+        var result = await _growthTimelineService.ComputeTimelineAsync(cancellationToken).ConfigureAwait(false);
         return Ok(result);
     }
 

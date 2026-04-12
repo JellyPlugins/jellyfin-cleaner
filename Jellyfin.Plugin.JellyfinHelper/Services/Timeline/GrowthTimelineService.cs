@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using MediaBrowser.Common.Configuration;
@@ -63,13 +65,16 @@ public class GrowthTimelineService
     /// contribute their full size at their creation date, while existing directories
     /// that changed size contribute only the diff at the current scan date.
     /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The growth timeline result.</returns>
-    public GrowthTimelineResult ComputeTimeline()
+    public async Task<GrowthTimelineResult> ComputeTimelineAsync(CancellationToken cancellationToken)
     {
         PluginLogService.LogInfo("GrowthTimeline", "Starting growth timeline computation...", _logger);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = DateTime.UtcNow;
-        var currentDirs = CollectDirectoryEntries();
+        var currentDirs = CollectDirectoryEntries(cancellationToken);
 
         if (currentDirs.Count == 0)
         {
@@ -81,7 +86,9 @@ public class GrowthTimelineService
             };
         }
 
-        var baseline = LoadBaseline();
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var baseline = await LoadBaselineAsync(cancellationToken).ConfigureAwait(false);
         List<FileEntry> timelineEntries;
 
         if (baseline == null)
@@ -99,7 +106,7 @@ public class GrowthTimelineService
                 };
             }
 
-            SaveBaseline(baseline);
+            await SaveBaselineAsync(baseline, cancellationToken).ConfigureAwait(false);
 
             // For the first scan, use creation dates with current sizes (historical reconstruction)
             timelineEntries = currentDirs.Select(d => new FileEntry
@@ -113,12 +120,16 @@ public class GrowthTimelineService
             // === SUBSEQUENT SCAN: Diff-based tracking ===
             PluginLogService.LogInfo("GrowthTimeline", $"Incremental scan: baseline from {baseline.FirstScanTimestamp:yyyy-MM-dd}, {currentDirs.Count} current dirs, {baseline.Directories.Count} baseline dirs.", _logger);
 
+            cancellationToken.ThrowIfCancellationRequested();
+
             timelineEntries = BuildIncrementalEntries(currentDirs, baseline, now);
 
             // Update baseline with current state for next scan
             UpdateBaseline(baseline, currentDirs);
-            SaveBaseline(baseline);
+            await SaveBaselineAsync(baseline, cancellationToken).ConfigureAwait(false);
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (timelineEntries.Count == 0)
         {
@@ -160,7 +171,8 @@ public class GrowthTimelineService
         }
 
         // Persist to disk
-        SaveTimeline(result);
+        cancellationToken.ThrowIfCancellationRequested();
+        await SaveTimelineAsync(result, cancellationToken).ConfigureAwait(false);
 
         PluginLogService.LogInfo("GrowthTimeline", $"Growth timeline computed: {dataPoints.Count} data points ({granularity})", _logger);
         return result;
@@ -169,8 +181,9 @@ public class GrowthTimelineService
     /// <summary>
     /// Loads the last computed timeline from disk.
     /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The cached timeline or null.</returns>
-    public GrowthTimelineResult? LoadTimeline()
+    public async Task<GrowthTimelineResult?> LoadTimelineAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -179,8 +192,12 @@ public class GrowthTimelineService
                 return null;
             }
 
-            var json = File.ReadAllText(_timelineFilePath);
+            var json = await File.ReadAllTextAsync(_timelineFilePath, cancellationToken).ConfigureAwait(false);
             return JsonSerializer.Deserialize<GrowthTimelineResult>(json, JsonOptions);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
@@ -391,7 +408,8 @@ public class GrowthTimelineService
     /// becomes one entry using its directory creation date and the total size of all files within.
     /// Files directly in a library root are also collected as individual entries.
     /// </summary>
-    private List<DirectoryEntry> CollectDirectoryEntries()
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    private List<DirectoryEntry> CollectDirectoryEntries(CancellationToken cancellationToken)
     {
         var entries = new List<DirectoryEntry>();
         var locations = LibraryPathResolver.GetDistinctLibraryLocations(_libraryManager);
@@ -400,11 +418,15 @@ public class GrowthTimelineService
 
         foreach (var location in locations)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             try
             {
                 // Collect top-level subdirectories as media items
                 foreach (var subDir in _fileSystem.GetDirectories(location))
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var dirName = Path.GetFileName(subDir.FullName);
 
                     // Skip trickplay and trash directories
@@ -438,6 +460,8 @@ public class GrowthTimelineService
                         });
                     }
                 }
+
+                cancellationToken.ThrowIfCancellationRequested();
 
                 // Also collect loose files directly in the library root
                 foreach (var file in _fileSystem.GetFiles(location))
@@ -612,8 +636,9 @@ public class GrowthTimelineService
     /// <summary>
     /// Loads the baseline from disk.
     /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The baseline or null if not found.</returns>
-    internal GrowthTimelineBaseline? LoadBaseline()
+    internal async Task<GrowthTimelineBaseline?> LoadBaselineAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -622,8 +647,12 @@ public class GrowthTimelineService
                 return null;
             }
 
-            var json = File.ReadAllText(_baselineFilePath);
+            var json = await File.ReadAllTextAsync(_baselineFilePath, cancellationToken).ConfigureAwait(false);
             return JsonSerializer.Deserialize<GrowthTimelineBaseline>(json, JsonOptions);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
@@ -635,7 +664,9 @@ public class GrowthTimelineService
     /// <summary>
     /// Persists the baseline to disk.
     /// </summary>
-    private void SaveBaseline(GrowthTimelineBaseline baseline)
+    /// <param name="baseline">The baseline to save.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    private async Task SaveBaselineAsync(GrowthTimelineBaseline baseline, CancellationToken cancellationToken)
     {
         try
         {
@@ -646,7 +677,11 @@ public class GrowthTimelineService
             }
 
             var json = JsonSerializer.Serialize(baseline, JsonOptions);
-            File.WriteAllText(_baselineFilePath, json);
+            await File.WriteAllTextAsync(_baselineFilePath, json, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -657,7 +692,9 @@ public class GrowthTimelineService
     /// <summary>
     /// Persists the timeline result to disk.
     /// </summary>
-    private void SaveTimeline(GrowthTimelineResult result)
+    /// <param name="result">The timeline result to save.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    private async Task SaveTimelineAsync(GrowthTimelineResult result, CancellationToken cancellationToken)
     {
         try
         {
@@ -668,7 +705,11 @@ public class GrowthTimelineService
             }
 
             var json = JsonSerializer.Serialize(result, JsonOptions);
-            File.WriteAllText(_timelineFilePath, json);
+            await File.WriteAllTextAsync(_timelineFilePath, json, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

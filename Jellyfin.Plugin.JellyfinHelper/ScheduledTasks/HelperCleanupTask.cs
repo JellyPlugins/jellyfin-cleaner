@@ -197,7 +197,7 @@ public class HelperCleanupTask : IScheduledTask
                 _fileSystem,
                 _applicationPaths,
                 _loggerFactory.CreateLogger<GrowthTimelineService>());
-            growthService.ComputeTimeline();
+            await growthService.ComputeTimelineAsync(cancellationToken).ConfigureAwait(false);
             PluginLogService.LogInfo("HelperCleanup", "Growth timeline recomputed and persisted.", _logger);
         }
         catch (OperationCanceledException)
