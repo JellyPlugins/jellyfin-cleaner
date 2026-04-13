@@ -1,4 +1,4 @@
-﻿name: Release Plugin
+name: Release Plugin
 
 on:
   workflow_dispatch:
@@ -209,7 +209,7 @@ jobs:
 
     - name: Create metadata update PR
       if: env.TAG_EXISTS == 'false'
-      uses: peter-evans/create-pull-request@v7
+      uses: peter-evans/create-pull-request@v8
       with:
         commit-message: "chore: update release metadata for ${{ env.VERSION }} [skip release]"
         title: "chore: update release metadata for ${{ env.VERSION }}"
