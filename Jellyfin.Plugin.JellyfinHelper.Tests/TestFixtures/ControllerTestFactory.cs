@@ -84,7 +84,9 @@ public static class ControllerTestFactory
 
         var httpContext = new DefaultHttpContext();
         var bodyBytes = Encoding.UTF8.GetBytes(jsonBody);
-        httpContext.Request.Body = new MemoryStream(bodyBytes);
+        var requestBodyStream = new MemoryStream(bodyBytes);
+        httpContext.Request.Body = requestBodyStream;
+        httpContext.Response.RegisterForDispose(requestBodyStream);
         httpContext.Request.ContentType = "application/json";
         httpContext.Request.ContentLength = contentLength ?? bodyBytes.Length;
 

@@ -64,25 +64,29 @@ public static class TestDataGenerator
             IsDirectory = true,
         };
 
+    /// <summary>Safely combines a directory with a file name, stripping any path from fileName.</summary>
+    private static string CombineWithFileName(string directory, string fileName)
+        => Path.Combine(directory, Path.GetFileName(fileName));
+
     /// <summary>Creates a video file metadata with common video extension (.mkv).</summary>
     public static FileSystemMetadata CreateVideoFile(string directory, string fileName = "movie.mkv", long length = 1_500_000_000)
-        => CreateFile(Path.Combine(directory, Path.GetFileName(fileName)), length);
+        => CreateFile(CombineWithFileName(directory, fileName), length);
 
     /// <summary>Creates a subtitle file metadata.</summary>
     public static FileSystemMetadata CreateSubtitleFile(string directory, string fileName = "movie.en.srt", long length = 50_000)
-        => CreateFile(Path.Combine(directory, Path.GetFileName(fileName)), length);
+        => CreateFile(CombineWithFileName(directory, fileName), length);
 
     /// <summary>Creates an image file metadata.</summary>
     public static FileSystemMetadata CreateImageFile(string directory, string fileName = "poster.jpg", long length = 200_000)
-        => CreateFile(Path.Combine(directory, Path.GetFileName(fileName)), length);
+        => CreateFile(CombineWithFileName(directory, fileName), length);
 
     /// <summary>Creates an NFO file metadata.</summary>
     public static FileSystemMetadata CreateNfoFile(string directory, string fileName = "movie.nfo", long length = 10_000)
-        => CreateFile(Path.Combine(directory, Path.GetFileName(fileName)), length);
+        => CreateFile(CombineWithFileName(directory, fileName), length);
 
     /// <summary>Creates an audio file metadata.</summary>
     public static FileSystemMetadata CreateAudioFile(string directory, string fileName = "track.flac", long length = 30_000_000)
-        => CreateFile(Path.Combine(directory, Path.GetFileName(fileName)), length);
+        => CreateFile(CombineWithFileName(directory, fileName), length);
 
     // ===== LibraryStatistics =====
 
@@ -230,7 +234,8 @@ public static class TestDataGenerator
             safePrefix = "jh-test";
         }
 
-        var tempDir = Path.Combine(Path.GetTempPath(), $"{safePrefix}-{Guid.NewGuid():N}");
+        var directoryName = $"{safePrefix}-{Guid.NewGuid():N}";
+        var tempDir = Path.Combine(Path.GetTempPath(), directoryName);
         Directory.CreateDirectory(tempDir);
         return tempDir;
     }
