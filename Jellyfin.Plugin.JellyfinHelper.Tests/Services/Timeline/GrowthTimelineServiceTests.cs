@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 using Xunit;
 

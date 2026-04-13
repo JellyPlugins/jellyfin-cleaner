@@ -1,24 +1,11 @@
+using System.Globalization;
+using System.Text;
+using System.Text.Json;
 using Jellyfin.Plugin.JellyfinHelper.Api;
 using Jellyfin.Plugin.JellyfinHelper.Services.Backup;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
-using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
-using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
-using Jellyfin.Plugin.JellyfinHelper.Services;
-using MediaBrowser.Common.Configuration;
-using MediaBrowser.Controller.Library;
-using MediaBrowser.Model.IO;
-using Microsoft.AspNetCore.Http;
+using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging;
-using Moq;
-using System.Globalization;
-using System.IO;
-using System.Net.Http;
-using System.Text.Json;
-using System.Text;
-using System.Threading.Tasks;
-using System;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
@@ -195,51 +182,10 @@ public class MediaStatisticsControllerBackupTests
     }
 
     private static MediaStatisticsController CreateController(string dataPath)
-    {
-        var libraryManagerMock = new Mock<ILibraryManager>();
-        libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([]);
-
-        var fileSystemMock = new Mock<IFileSystem>();
-        var appPathsMock = new Mock<IApplicationPaths>();
-        appPathsMock.Setup(p => p.DataPath).Returns(dataPath);
-
-        var httpClientFactoryMock = new Mock<IHttpClientFactory>();
-        var cache = new MemoryCache(new MemoryCacheOptions());
-
-        var loggerMock = new Mock<ILogger<MediaStatisticsController>>();
-        var serviceLoggerMock = new Mock<ILogger<MediaStatisticsService>>();
-        var historyLoggerMock = new Mock<ILogger<StatisticsHistoryService>>();
-        var growthTimelineLoggerMock = new Mock<ILogger<GrowthTimelineService>>();
-
-        return new MediaStatisticsController(
-            libraryManagerMock.Object,
-            fileSystemMock.Object,
-            appPathsMock.Object,
-            httpClientFactoryMock.Object,
-            cache,
-            loggerMock.Object,
-            serviceLoggerMock.Object,
-            historyLoggerMock.Object,
-            growthTimelineLoggerMock.Object);
-    }
+        => ControllerTestFactory.CreateController(dataPath: dataPath).Controller;
 
     private static MediaStatisticsController CreateControllerWithJsonBody(string dataPath, string jsonBody, long? contentLength = null)
-    {
-        var controller = CreateController(dataPath);
-
-        var httpContext = new DefaultHttpContext();
-        var bodyBytes = Encoding.UTF8.GetBytes(jsonBody);
-        httpContext.Request.Body = new MemoryStream(bodyBytes);
-        httpContext.Request.ContentType = "application/json";
-        httpContext.Request.ContentLength = contentLength ?? bodyBytes.Length;
-
-        controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = httpContext,
-        };
-
-        return controller;
-    }
+        => ControllerTestFactory.CreateControllerWithJsonBody(dataPath, jsonBody, contentLength);
 
     private static string CreateTempDir()
     {

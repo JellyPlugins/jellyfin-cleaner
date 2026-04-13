@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
@@ -183,7 +182,7 @@ public class ArrIntegrationService
         var result = new ArrComparisonResult();
 
         // Ensure case-insensitive comparison regardless of caller's HashSet comparer
-        var jellyfinNames = jellyfinFolderNames.Comparer == StringComparer.OrdinalIgnoreCase
+        var jellyfinNames = jellyfinFolderNames.Comparer.Equals(StringComparer.OrdinalIgnoreCase)
             ? jellyfinFolderNames
             : new HashSet<string>(jellyfinFolderNames, StringComparer.OrdinalIgnoreCase);
 
@@ -237,7 +236,7 @@ public class ArrIntegrationService
         var result = new ArrComparisonResult();
 
         // Ensure case-insensitive comparison regardless of caller's HashSet comparer
-        var jellyfinNames = jellyfinFolderNames.Comparer == StringComparer.OrdinalIgnoreCase
+        var jellyfinNames = jellyfinFolderNames.Comparer.Equals(StringComparer.OrdinalIgnoreCase)
             ? jellyfinFolderNames
             : new HashSet<string>(jellyfinFolderNames, StringComparer.OrdinalIgnoreCase);
 

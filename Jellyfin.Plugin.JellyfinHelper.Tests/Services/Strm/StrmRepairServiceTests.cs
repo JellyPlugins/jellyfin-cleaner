@@ -1,12 +1,6 @@
 using System.IO.Abstractions.TestingHelpers;
-using Jellyfin.Plugin.JellyfinHelper.Services;
-using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
-using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
-using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
 using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
-using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
-using Microsoft.Extensions.Logging;
-using Moq;
+using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Strm;
@@ -14,14 +8,12 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Strm;
 public class StrmRepairServiceTests
 {
     private readonly MockFileSystem _fileSystem;
-    private readonly Mock<ILogger<StrmRepairService>> _loggerMock;
     private readonly StrmRepairService _service;
 
     public StrmRepairServiceTests()
     {
         _fileSystem = new MockFileSystem();
-        _loggerMock = new Mock<ILogger<StrmRepairService>>();
-        _service = new StrmRepairService(_fileSystem, _loggerMock.Object);
+        _service = new StrmRepairService(_fileSystem, TestMockFactory.CreateLogger<StrmRepairService>().Object);
     }
 
     [Fact]

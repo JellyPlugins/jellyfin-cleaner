@@ -1,15 +1,6 @@
-using System;
 using System.Net;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
-using Jellyfin.Plugin.JellyfinHelper.Services;
 using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
-using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
-using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
-using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
-using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
-using Microsoft.Extensions.Logging;
+using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using Moq;
 using Moq.Protected;
 using Xunit;
@@ -21,26 +12,12 @@ public class ArrIntegrationServiceTests
     private static ArrIntegrationService CreateService(HttpMessageHandler handler)
     {
         var httpClient = new HttpClient(handler);
-        var logger = new Mock<ILogger<ArrIntegrationService>>();
+        var logger = TestMockFactory.CreateLogger<ArrIntegrationService>();
         return new ArrIntegrationService(httpClient, logger.Object);
     }
 
     private static Mock<HttpMessageHandler> CreateMockHandler(HttpStatusCode statusCode, string content)
-    {
-        var mock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
-        mock.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = statusCode,
-                Content = new StringContent(content),
-            })
-            .Verifiable();
-        return mock;
-    }
+        => TestMockFactory.CreateHttpMessageHandler(statusCode, content);
 
     // === TestConnectionAsync ===
 
