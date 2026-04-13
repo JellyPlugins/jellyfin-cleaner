@@ -344,7 +344,7 @@ Sub-tasks executed in order (each respecting its configured task mode):
 
 ## 🧪 Testing
 
-The project includes **950 automated tests** covering:
+The project includes **971 automated tests** covering:
 
 - All services (cleanup, statistics, path validation, Arr integration, backup/restore, growth timeline)
 - API endpoints (controller tests with mocked dependencies)
@@ -359,16 +359,63 @@ dotnet test --filter "FullyQualifiedName~Services"  # Run service tests only
 dotnet test --filter "FullyQualifiedName~Api"       # Run API tests only
 ```
 
+### Test Architecture — Fixtures & Factories
+
+Tests follow a **fixture-based architecture** to eliminate boilerplate and ensure consistency. Shared base classes and factory helpers live in `TestFixtures/` and domain-specific directories:
+
+| Fixture | Type | Purpose |
+|---------|------|---------|
+| `TestMockFactory` | Static factory | Central factory for commonly needed mocks (`ILibraryManager`, `IFileSystem`, `IApplicationPaths`, `ILogger<T>`, `HttpMessageHandler`, `IMemoryCache`). All tests reference this instead of creating mocks ad-hoc. |
+| `TestDataGenerator` | Static factory | Generates test entities: `VirtualFolderInfo`, `FileSystemMetadata`, `LibraryStatistics`, `MediaStatisticsResult`, temp directories. Provides OS-safe `TestPath()` helper. |
+| `ControllerTestFactory` | Static factory | Builds fully-wired `MediaStatisticsController` instances with all constructor dependencies mocked. Variants for JSON body injection and `ILibraryManager` access. |
+| `CleanupTaskTestBase` | Abstract base class | Inherited by all cleanup/scheduled-task tests. Manages `CleanupConfigHelper.ConfigOverride` lifecycle, provides `PluginConfiguration`, log-verification helpers (`VerifyLogContains`, `VerifyLogNeverContains`), `SynchronousProgress<T>`, and `TestPath()`. Uses `[Collection("ConfigOverride")]` for test isolation. |
+| `ConfigPageTestBase` | Abstract base class | Inherited by all `PluginPages/*HtmlTests.cs`. Loads the composed `configPage.html` embedded resource once (static), making `HtmlContent` available to all subclasses. Also provides `ReadmeContent` for cross-referencing. |
+
+**How tests inherit from fixtures:**
+
+```
+CleanupTaskTestBase (abstract, IDisposable)
+  ├── CleanTrickplayTaskTests
+  ├── CleanEmptyMediaFoldersTaskTests
+  ├── CleanOrphanedSubtitlesTaskTests
+  ├── RepairStrmFilesTaskTests
+  └── HelperCleanupTaskTests
+
+ConfigPageTestBase (abstract)
+  ├── ConfigPageHtmlTests
+  ├── OverviewHtmlTests
+  ├── CodecsHtmlTests
+  ├── HealthHtmlTests
+  ├── TrendsHtmlTests
+  ├── SettingsHtmlTests
+  ├── ArrIntegrationHtmlTests
+  └── LogsHtmlTests
+```
+
+**When adding new tests:**
+- Cleanup/scheduled task tests → extend `CleanupTaskTestBase`
+- HTML structure tests → extend `ConfigPageTestBase`
+- Controller tests → use `ControllerTestFactory.CreateController()` or variants
+- Any test needing mocks → use `TestMockFactory` methods
+- Any test needing sample data → use `TestDataGenerator` methods
+
 ### Test Structure
 
 ```text
 Jellyfin.Plugin.JellyfinHelper.Tests/
-├── Api/                    # Controller endpoint tests
+├── TestFixtures/           # Shared base classes & factories
+│   ├── TestMockFactory.cs          # Central mock factory (ILibraryManager, IFileSystem, etc.)
+│   ├── TestDataGenerator.cs        # Sample data factory (libraries, files, statistics)
+│   ├── ControllerTestFactory.cs    # Controller instantiation with mocked dependencies
+│   └── CleanupTaskTestBase.cs      # Base class for cleanup task tests (config lifecycle)
+├── Api/                    # Controller endpoint tests (use ControllerTestFactory)
 │   ├── MediaStatisticsControllerBackupTests.cs
 │   ├── MediaStatisticsControllerExportTests.cs
 │   └── MediaStatisticsControllerTrashTests.cs
 ├── Configuration/          # Config migration tests
-├── PluginPages/            # HTML structure tests
+│   └── TaskModeTests.cs
+├── PluginPages/            # HTML structure tests (inherit ConfigPageTestBase)
+│   ├── ConfigPageTestBase.cs       # Base class — loads embedded HTML resource
 │   ├── ConfigPageHtmlTests.cs
 │   ├── OverviewHtmlTests.cs
 │   ├── CodecsHtmlTests.cs
@@ -377,8 +424,16 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
 │   ├── SettingsHtmlTests.cs
 │   ├── ArrIntegrationHtmlTests.cs
 │   └── LogsHtmlTests.cs
-├── ScheduledTasks/         # Task orchestration tests
-└── Services/               # Service logic tests
+├── ScheduledTasks/         # Task tests (inherit CleanupTaskTestBase)
+│   ├── CleanTrickplayTaskTests.cs
+│   ├── CleanEmptyMediaFoldersTaskTests.cs
+│   ├── CleanOrphanedSubtitlesTaskTests.cs
+│   ├── HelperCleanupTaskTests.cs
+│   └── RepairStrmFilesTaskTests.cs
+└── Services/               # Service logic tests (use TestMockFactory & TestDataGenerator)
+    ├── FileSystemHelperTests.cs
+    ├── I18nServiceTests.cs
+    ├── PathValidatorTests.cs
     ├── Arr/                # Arr integration tests
     ├── Backup/             # Backup & restore tests
     ├── Cleanup/            # Cleanup & trash tests
@@ -412,7 +467,7 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
 
 - [ ] Code builds without warnings
 - [ ] All existing tests pass
-- [ ] New features include tests
+- [ ] New features include tests (using appropriate fixtures/factories from `TestFixtures/`)
 - [ ] User-facing strings use `T()` for i18n
 - [ ] No hardcoded English strings in JS/HTML output
 - [ ] Cleanup tasks default to DryRun mode
