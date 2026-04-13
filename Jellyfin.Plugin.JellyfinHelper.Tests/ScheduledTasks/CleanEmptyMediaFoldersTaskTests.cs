@@ -1,22 +1,17 @@
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
-using Jellyfin.Plugin.JellyfinHelper.Services;
-using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
-using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
-using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
-using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
+using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
-using MediaBrowser.Model.Entities;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.ScheduledTasks;
 
-[Collection("ConfigOverride")]
-public class CleanEmptyMediaFoldersTaskTests : IDisposable
+public class CleanEmptyMediaFoldersTaskTests : CleanupTaskTestBase
 {
     private readonly Mock<ILibraryManager> _libraryManagerMock;
     private readonly Mock<IFileSystem> _fileSystemMock;
@@ -25,24 +20,20 @@ public class CleanEmptyMediaFoldersTaskTests : IDisposable
 
     public CleanEmptyMediaFoldersTaskTests()
     {
-        _libraryManagerMock = new Mock<ILibraryManager>();
-        _fileSystemMock = new Mock<IFileSystem>();
-        _loggerMock = new Mock<ILogger<CleanEmptyMediaFoldersTask>>();
+        _libraryManagerMock = TestMockFactory.CreateLibraryManager();
+        _fileSystemMock = TestMockFactory.CreateFileSystem();
+        _loggerMock = TestMockFactory.CreateLogger<CleanEmptyMediaFoldersTask>();
         _task = new CleanEmptyMediaFoldersTask(_libraryManagerMock.Object, _fileSystemMock.Object, _loggerMock.Object);
 
         // Default: DryRun ON — most tests check dry-run log messages
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
-        {
-            TrickplayTaskMode = TaskMode.DryRun,
-            EmptyMediaFolderTaskMode = TaskMode.DryRun,
-            OrphanedSubtitleTaskMode = TaskMode.DryRun
-        };
+        // (Config from base class already has DryRun defaults)
     }
 
-    public void Dispose()
-    {
-        CleanupConfigHelper.ConfigOverride = null;
-    }
+    private void VerifyLogContains(string messagePart, LogLevel level)
+        => VerifyLogContains(_loggerMock, messagePart, level);
+
+    private void VerifyLogNeverContains(string messagePart, LogLevel level)
+        => VerifyLogNeverContains(_loggerMock, messagePart, level);
 
     [Fact]
     public async Task ExecuteInternalAsync_TopLevelFolderWithSubtitlesOnly_DeletesFolder()
@@ -873,43 +864,4 @@ public class CleanEmptyMediaFoldersTaskTests : IDisposable
         _fileSystemMock.Setup(f => f.GetFiles(dirPath, false)).Returns(files);
     }
 
-    /// <summary>
-    /// A synchronous implementation of IProgress that invokes the callback immediately.
-    /// Unlike Progress&lt;T&gt;, this does not post to a SynchronizationContext.
-    /// </summary>
-    private sealed class SynchronousProgress<T> : IProgress<T>
-    {
-        private readonly Action<T> _handler;
-
-        public SynchronousProgress(Action<T> handler)
-        {
-            _handler = handler;
-        }
-
-        public void Report(T value) => _handler(value);
-    }
-
-    private void VerifyLogContains(string messagePart, LogLevel level)
-    {
-        _loggerMock.Verify(
-            x => x.Log(
-                level,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains(messagePart)),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.AtLeastOnce);
-    }
-
-    private void VerifyLogNeverContains(string messagePart, LogLevel level)
-    {
-        _loggerMock.Verify(
-            x => x.Log(
-                level,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains(messagePart)),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Never);
-    }
 }

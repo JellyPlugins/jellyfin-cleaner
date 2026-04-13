@@ -1,18 +1,10 @@
 using Jellyfin.Plugin.JellyfinHelper.Api;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
-using Jellyfin.Plugin.JellyfinHelper.Services;
-using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
-using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
-using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
-using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
-using MediaBrowser.Common.Configuration;
+using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
-using MediaBrowser.Model.IO;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
@@ -30,30 +22,8 @@ public class MediaStatisticsControllerTrashTests : IDisposable
         _tempPath = Path.Combine(Path.GetTempPath(), "JellyfinHelperTests_" + Guid.NewGuid());
         Directory.CreateDirectory(_tempPath);
 
-        _libraryManagerMock = new Mock<ILibraryManager>();
-        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns(new List<VirtualFolderInfo>());
+        (_controller, _libraryManagerMock) = ControllerTestFactory.CreateControllerWithLibraryManager(dataPath: _tempPath);
 
-        var fileSystemMock = new Mock<IFileSystem>();
-        var appPathsMock = new Mock<IApplicationPaths>();
-        appPathsMock.Setup(p => p.DataPath).Returns(_tempPath);
-        var httpClientFactoryMock = new Mock<IHttpClientFactory>();
-        var cache = new MemoryCache(new MemoryCacheOptions());
-        var loggerMock = new Mock<ILogger<MediaStatisticsController>>();
-        var serviceLoggerMock = new Mock<ILogger<MediaStatisticsService>>();
-        var historyLoggerMock = new Mock<ILogger<StatisticsHistoryService>>();
-        var growthTimelineLoggerMock = new Mock<ILogger<GrowthTimelineService>>();
-
-        _controller = new MediaStatisticsController(
-            _libraryManagerMock.Object,
-            fileSystemMock.Object,
-            appPathsMock.Object,
-            httpClientFactoryMock.Object,
-            cache,
-            loggerMock.Object,
-            serviceLoggerMock.Object,
-            historyLoggerMock.Object,
-            growthTimelineLoggerMock.Object);
-            
         CleanupConfigHelper.ConfigOverride = new PluginConfiguration();
     }
 
@@ -74,7 +44,7 @@ public class MediaStatisticsControllerTrashTests : IDisposable
             var folder = new VirtualFolderInfo
             {
                 Name = Path.GetFileName(path),
-                Locations = new[] { path },
+                Locations = [path],
                 CollectionType = CollectionTypeOptions.movies
             };
             folders.Add(folder);

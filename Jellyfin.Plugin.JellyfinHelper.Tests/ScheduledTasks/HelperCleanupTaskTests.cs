@@ -1,12 +1,7 @@
-using System.IO.Abstractions.TestingHelpers;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
-using Jellyfin.Plugin.JellyfinHelper.Services;
-using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
-using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
-using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
-using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
+using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
@@ -33,9 +28,9 @@ public class HelperCleanupTaskTests : IDisposable
 
     public HelperCleanupTaskTests()
     {
-        _libraryManagerMock = new Mock<ILibraryManager>();
-        _fileSystemMock = new Mock<IFileSystem>();
-        _applicationPathsMock = new Mock<IApplicationPaths>();
+        _libraryManagerMock = TestMockFactory.CreateLibraryManager();
+        _fileSystemMock = TestMockFactory.CreateFileSystem();
+        _applicationPathsMock = TestMockFactory.CreateAppPaths();
         _testDataPath = Path.Combine(Path.GetTempPath(), "JellyfinHelperTests_Data_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_testDataPath);
         _applicationPathsMock.Setup(p => p.DataPath).Returns(_testDataPath);

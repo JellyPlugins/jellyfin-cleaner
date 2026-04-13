@@ -1,22 +1,16 @@
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
-using Jellyfin.Plugin.JellyfinHelper.Services;
-using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
-using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
-using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
-using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
+using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
-using MediaBrowser.Model.Entities;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.ScheduledTasks;
 
-[Collection("ConfigOverride")]
-public class CleanTrickplayTaskTests : IDisposable
+public class CleanTrickplayTaskTests : CleanupTaskTestBase
 {
     private readonly Mock<ILibraryManager> _libraryManagerMock;
     private readonly Mock<IFileSystem> _fileSystemMock;
@@ -25,32 +19,23 @@ public class CleanTrickplayTaskTests : IDisposable
 
     public CleanTrickplayTaskTests()
     {
-        _libraryManagerMock = new Mock<ILibraryManager>();
-        _fileSystemMock = new Mock<IFileSystem>();
-        _loggerMock = new Mock<ILogger<CleanTrickplayTask>>();
+        _libraryManagerMock = TestMockFactory.CreateLibraryManager();
+        _fileSystemMock = TestMockFactory.CreateFileSystem();
+        _loggerMock = TestMockFactory.CreateLogger<CleanTrickplayTask>();
         _task = new CleanTrickplayTask(_libraryManagerMock.Object, _fileSystemMock.Object, _loggerMock.Object);
 
         // Default: DryRun OFF for most existing tests (non-dry-run behavior)
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
-        {
-            TrickplayTaskMode = TaskMode.Activate,
-            EmptyMediaFolderTaskMode = TaskMode.Activate,
-            OrphanedSubtitleTaskMode = TaskMode.Activate
-        };
+        Config.TrickplayTaskMode = TaskMode.Activate;
+        Config.EmptyMediaFolderTaskMode = TaskMode.Activate;
+        Config.OrphanedSubtitleTaskMode = TaskMode.Activate;
+        CleanupConfigHelper.ConfigOverride = Config;
     }
 
-    public void Dispose()
-    {
-        CleanupConfigHelper.ConfigOverride = null;
-    }
+    private void VerifyLogContains(string messagePart, LogLevel level)
+        => VerifyLogContains(_loggerMock, messagePart, level);
 
-    /// <summary>
-    /// Builds a platform-native absolute test path from segments.
-    /// This ensures that <see cref="Path.GetDirectoryName"/> returns a value
-    /// consistent with the path used in mock setups, regardless of the OS.
-    /// </summary>
-    private static string TestPath(params string[] segments)
-        => Path.DirectorySeparatorChar + string.Join(Path.DirectorySeparatorChar, segments);
+    private void VerifyLogNeverContains(string messagePart, LogLevel level)
+        => VerifyLogNeverContains(_loggerMock, messagePart, level);
 
     [Fact]
     public async Task ExecuteInternalAsync_OrphanedFolder_DeletesFolder()
@@ -59,7 +44,7 @@ public class CleanTrickplayTaskTests : IDisposable
         var trickplayFullName = TestPath("media", "Movie.trickplay");
         var parentPath = Path.GetDirectoryName(trickplayFullName)!;
 
-        var virtualFolder = new VirtualFolderInfo
+        var virtualFolder = new MediaBrowser.Model.Entities.VirtualFolderInfo
         {
             Locations = [libraryPath]
         };
@@ -88,7 +73,7 @@ public class CleanTrickplayTaskTests : IDisposable
         var mediaFullName = TestPath("media", "Movie.mkv");
         var parentPath = Path.GetDirectoryName(trickplayFullName)!;
 
-        var virtualFolder = new VirtualFolderInfo
+        var virtualFolder = new MediaBrowser.Model.Entities.VirtualFolderInfo
         {
             Locations = [libraryPath]
         };
@@ -124,7 +109,7 @@ public class CleanTrickplayTaskTests : IDisposable
         var trickplayFullName = TestPath("media", "Movie.trickplay");
         var parentPath = Path.GetDirectoryName(trickplayFullName)!;
 
-        var virtualFolder = new VirtualFolderInfo
+        var virtualFolder = new MediaBrowser.Model.Entities.VirtualFolderInfo
         {
             Locations = [libraryPath]
         };
@@ -164,7 +149,7 @@ public class CleanTrickplayTaskTests : IDisposable
         CleanupConfigHelper.ConfigOverride = new PluginConfiguration { TrickplayTaskMode = TaskMode.DryRun };
 
         var libraryPath = TestPath("media");
-        var virtualFolder = new VirtualFolderInfo { Locations = [libraryPath] };
+        var virtualFolder = new MediaBrowser.Model.Entities.VirtualFolderInfo { Locations = [libraryPath] };
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder]);
 
         var regularDir = new FileSystemMetadata
@@ -191,8 +176,8 @@ public class CleanTrickplayTaskTests : IDisposable
         var trickplayFullName = TestPath("media2", "Movie.trickplay");
         var parentPath = Path.GetDirectoryName(trickplayFullName)!;
 
-        var virtualFolder1 = new VirtualFolderInfo { Locations = [libraryPath1] };
-        var virtualFolder2 = new VirtualFolderInfo { Locations = [libraryPath2] };
+        var virtualFolder1 = new MediaBrowser.Model.Entities.VirtualFolderInfo { Locations = [libraryPath1] };
+        var virtualFolder2 = new MediaBrowser.Model.Entities.VirtualFolderInfo { Locations = [libraryPath2] };
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder1, virtualFolder2]);
 
         _fileSystemMock.Setup(f => f.GetDirectories(libraryPath1, true)).Throws(new IOException("Access denied"));
@@ -217,7 +202,7 @@ public class CleanTrickplayTaskTests : IDisposable
     {
         var libraryPath = TestPath("media");
 
-        var virtualFolder = new VirtualFolderInfo
+        var virtualFolder = new MediaBrowser.Model.Entities.VirtualFolderInfo
         {
             Locations = [libraryPath]
         };
@@ -245,7 +230,7 @@ public class CleanTrickplayTaskTests : IDisposable
         var trickplayFullName = TestPath("media", "Movie.TRICKPLAY");
         var parentPath = Path.GetDirectoryName(trickplayFullName)!;
 
-        var virtualFolder = new VirtualFolderInfo
+        var virtualFolder = new MediaBrowser.Model.Entities.VirtualFolderInfo
         {
             Locations = [libraryPath]
         };
@@ -283,7 +268,7 @@ public class CleanTrickplayTaskTests : IDisposable
         var trickplayFullName = TestPath("media", "Movie.trickplay");
         var parentPath = Path.GetDirectoryName(trickplayFullName)!;
 
-        var virtualFolder = new VirtualFolderInfo
+        var virtualFolder = new MediaBrowser.Model.Entities.VirtualFolderInfo
         {
             Locations = [libraryPath]
         };
@@ -317,7 +302,7 @@ public class CleanTrickplayTaskTests : IDisposable
         var trickplayFullName = TestPath("media", "Movie.trickplay");
         var parentPath = Path.GetDirectoryName(trickplayFullName)!;
 
-        var virtualFolder = new VirtualFolderInfo
+        var virtualFolder = new MediaBrowser.Model.Entities.VirtualFolderInfo
         {
             Locations = [libraryPath]
         };
@@ -355,7 +340,7 @@ public class CleanTrickplayTaskTests : IDisposable
         var trickplayFullName2 = TestPath("media", "Movie2.trickplay");
         var parentPath = Path.GetDirectoryName(trickplayFullName1)!;
 
-        var virtualFolder = new VirtualFolderInfo
+        var virtualFolder = new MediaBrowser.Model.Entities.VirtualFolderInfo
         {
             Locations = [libraryPath]
         };
@@ -398,7 +383,7 @@ public class CleanTrickplayTaskTests : IDisposable
     {
         var libraryPath = TestPath("media");
 
-        var virtualFolder = new VirtualFolderInfo
+        var virtualFolder = new MediaBrowser.Model.Entities.VirtualFolderInfo
         {
             Locations = [libraryPath]
         };
@@ -427,8 +412,8 @@ public class CleanTrickplayTaskTests : IDisposable
         var trickplayFullName = TestPath("media1", "Movie.trickplay");
         var parentPath = Path.GetDirectoryName(trickplayFullName)!;
 
-        var virtualFolder1 = new VirtualFolderInfo { Locations = [libraryPath1] };
-        var virtualFolder2 = new VirtualFolderInfo { Locations = [libraryPath2] };
+        var virtualFolder1 = new MediaBrowser.Model.Entities.VirtualFolderInfo { Locations = [libraryPath1] };
+        var virtualFolder2 = new MediaBrowser.Model.Entities.VirtualFolderInfo { Locations = [libraryPath2] };
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder1, virtualFolder2]);
 
         var trickplayDir = new FileSystemMetadata
@@ -459,8 +444,8 @@ public class CleanTrickplayTaskTests : IDisposable
         var trickplayFullName = TestPath("media2", "Movie.trickplay");
         var parentPath = Path.GetDirectoryName(trickplayFullName)!;
 
-        var virtualFolder1 = new VirtualFolderInfo { Locations = [libraryPath1] };
-        var virtualFolder2 = new VirtualFolderInfo { Locations = [libraryPath2] };
+        var virtualFolder1 = new MediaBrowser.Model.Entities.VirtualFolderInfo { Locations = [libraryPath1] };
+        var virtualFolder2 = new MediaBrowser.Model.Entities.VirtualFolderInfo { Locations = [libraryPath2] };
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder1, virtualFolder2]);
 
         // First folder throws an exception
@@ -490,8 +475,8 @@ public class CleanTrickplayTaskTests : IDisposable
         var libraryPath1 = TestPath("media1");
         var libraryPath2 = TestPath("media2");
 
-        var virtualFolder1 = new VirtualFolderInfo { Locations = [libraryPath1] };
-        var virtualFolder2 = new VirtualFolderInfo { Locations = [libraryPath2] };
+        var virtualFolder1 = new MediaBrowser.Model.Entities.VirtualFolderInfo { Locations = [libraryPath1] };
+        var virtualFolder2 = new MediaBrowser.Model.Entities.VirtualFolderInfo { Locations = [libraryPath2] };
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder1, virtualFolder2]);
 
         _fileSystemMock.Setup(f => f.GetDirectories(libraryPath1, true)).Returns([]);
@@ -514,7 +499,7 @@ public class CleanTrickplayTaskTests : IDisposable
         var trickplayFullName = TestPath("media", "Movie1.trickplay");
         var parentPath = Path.GetDirectoryName(trickplayFullName)!;
 
-        var virtualFolder = new VirtualFolderInfo
+        var virtualFolder = new MediaBrowser.Model.Entities.VirtualFolderInfo
         {
             Locations = [libraryPath]
         };
@@ -548,8 +533,8 @@ public class CleanTrickplayTaskTests : IDisposable
         var libraryPath = TestPath("media");
 
         // Same path appears in two virtual folders
-        var virtualFolder1 = new VirtualFolderInfo { Locations = [libraryPath] };
-        var virtualFolder2 = new VirtualFolderInfo { Locations = [libraryPath] };
+        var virtualFolder1 = new MediaBrowser.Model.Entities.VirtualFolderInfo { Locations = [libraryPath] };
+        var virtualFolder2 = new MediaBrowser.Model.Entities.VirtualFolderInfo { Locations = [libraryPath] };
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([virtualFolder1, virtualFolder2]);
 
         _fileSystemMock.Setup(f => f.GetDirectories(libraryPath, true)).Returns([]);
@@ -567,7 +552,7 @@ public class CleanTrickplayTaskTests : IDisposable
         var trickplayFullName = TestPath("media", "Shows", "Season1", "Episode01.trickplay");
         var expectedParentPath = Path.GetDirectoryName(trickplayFullName)!;
 
-        var virtualFolder = new VirtualFolderInfo
+        var virtualFolder = new MediaBrowser.Model.Entities.VirtualFolderInfo
         {
             Locations = [libraryPath]
         };
@@ -594,45 +579,5 @@ public class CleanTrickplayTaskTests : IDisposable
         // Should check files in the subdirectory (parent of the .trickplay folder), not the library root
         _fileSystemMock.Verify(f => f.GetFiles(expectedParentPath, false), Times.Once);
         VerifyLogNeverContains("Deleting orphaned trickplay folder", LogLevel.Information);
-    }
-
-    /// <summary>
-    /// A synchronous implementation of IProgress that invokes the callback immediately.
-    /// Unlike Progress&lt;T&gt;, this does not post to a SynchronizationContext.
-    /// </summary>
-    private sealed class SynchronousProgress<T> : IProgress<T>
-    {
-        private readonly Action<T> _handler;
-
-        public SynchronousProgress(Action<T> handler)
-        {
-            _handler = handler;
-        }
-
-        public void Report(T value) => _handler(value);
-    }
-
-    private void VerifyLogContains(string messagePart, LogLevel level)
-    {
-        _loggerMock.Verify(
-            x => x.Log(
-                level,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains(messagePart)),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.AtLeastOnce);
-    }
-
-    private void VerifyLogNeverContains(string messagePart, LogLevel level)
-    {
-        _loggerMock.Verify(
-            x => x.Log(
-                level,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains(messagePart)),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Never);
     }
 }

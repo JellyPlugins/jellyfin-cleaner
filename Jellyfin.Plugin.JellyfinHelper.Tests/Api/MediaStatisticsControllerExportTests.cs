@@ -1,23 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using Jellyfin.Plugin.JellyfinHelper.Api;
-using Jellyfin.Plugin.JellyfinHelper.Services;
-using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
-using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
-using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
-using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
-using MediaBrowser.Common.Configuration;
-using MediaBrowser.Controller.Library;
-using MediaBrowser.Model.IO;
+using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging;
-using Moq;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
@@ -38,33 +25,7 @@ public class MediaStatisticsControllerExportTests
 
     public MediaStatisticsControllerExportTests()
     {
-        var libraryManagerMock = new Mock<ILibraryManager>();
-        libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([]);
-
-        var fileSystemMock = new Mock<IFileSystem>();
-
-        var appPathsMock = new Mock<IApplicationPaths>();
-        appPathsMock.Setup(p => p.DataPath).Returns(Path.GetTempPath());
-
-        var httpClientFactoryMock = new Mock<IHttpClientFactory>();
-
-        _cache = new MemoryCache(new MemoryCacheOptions());
-
-        var loggerMock = new Mock<ILogger<MediaStatisticsController>>();
-        var serviceLoggerMock = new Mock<ILogger<MediaStatisticsService>>();
-        var historyLoggerMock = new Mock<ILogger<StatisticsHistoryService>>();
-        var growthTimelineLoggerMock = new Mock<ILogger<GrowthTimelineService>>();
-
-        _controller = new MediaStatisticsController(
-            libraryManagerMock.Object,
-            fileSystemMock.Object,
-            appPathsMock.Object,
-            httpClientFactoryMock.Object,
-            _cache,
-            loggerMock.Object,
-            serviceLoggerMock.Object,
-            historyLoggerMock.Object,
-            growthTimelineLoggerMock.Object);
+        (_controller, _cache) = ControllerTestFactory.CreateController();
     }
 
     // ======================== Helpers ========================

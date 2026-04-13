@@ -1,4 +1,3 @@
-using System;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Xunit;
 

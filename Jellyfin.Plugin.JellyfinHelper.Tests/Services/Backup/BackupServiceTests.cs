@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Text.Json;
 using Jellyfin.Plugin.JellyfinHelper.Services.Backup;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
 using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
-using Microsoft.Extensions.Logging;
-using Moq;
+using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Backup;
@@ -793,7 +789,7 @@ public class BackupServiceTests
             File.WriteAllText(Path.Combine(tempDir, "jellyfin-helper-growth-baseline.json"), JsonSerializer.Serialize(baseline));
             File.WriteAllText(Path.Combine(tempDir, "jellyfin-helper-statistics-history.json"), JsonSerializer.Serialize(history));
 
-            var logger = new Mock<ILogger>();
+            var logger = TestMockFactory.CreateLogger();
             var service = new BackupService(tempDir, logger.Object);
 
             var backup = service.CreateBackup();
@@ -821,7 +817,7 @@ public class BackupServiceTests
         Directory.CreateDirectory(tempDir);
         try
         {
-            var logger = new Mock<ILogger>();
+            var logger = TestMockFactory.CreateLogger();
             var service = new BackupService(tempDir, logger.Object);
 
             var backup = CreateValidBackup();
@@ -862,7 +858,7 @@ public class BackupServiceTests
         Directory.CreateDirectory(tempDir);
         try
         {
-            var logger = new Mock<ILogger>();
+            var logger = TestMockFactory.CreateLogger();
             var service = new BackupService(tempDir, logger.Object);
 
             var backup = CreateValidBackup();

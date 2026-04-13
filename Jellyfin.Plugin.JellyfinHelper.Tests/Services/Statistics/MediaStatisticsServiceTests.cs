@@ -1,9 +1,6 @@
 using Jellyfin.Plugin.JellyfinHelper.Services;
-using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
-using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
-using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
-using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
+using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
@@ -17,15 +14,14 @@ public class MediaStatisticsServiceTests
 {
     private readonly Mock<ILibraryManager> _libraryManagerMock;
     private readonly Mock<IFileSystem> _fileSystemMock;
-    private readonly Mock<ILogger<MediaStatisticsService>> _loggerMock;
     private readonly MediaStatisticsService _service;
 
     public MediaStatisticsServiceTests()
     {
-        _libraryManagerMock = new Mock<ILibraryManager>();
-        _fileSystemMock = new Mock<IFileSystem>();
-        _loggerMock = new Mock<ILogger<MediaStatisticsService>>();
-        _service = new MediaStatisticsService(_libraryManagerMock.Object, _fileSystemMock.Object, _loggerMock.Object);
+        _libraryManagerMock = TestMockFactory.CreateLibraryManager();
+        _fileSystemMock = TestMockFactory.CreateFileSystem();
+        var loggerMock = TestMockFactory.CreateLogger<MediaStatisticsService>();
+        _service = new MediaStatisticsService(_libraryManagerMock.Object, _fileSystemMock.Object, loggerMock.Object);
     }
 
     private static string TestPath(params string[] segments)

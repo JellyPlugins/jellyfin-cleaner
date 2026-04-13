@@ -163,7 +163,7 @@ public class CleanEmptyMediaFoldersTask
                 }
 
                 // Skip boxset/collection folders � these are Jellyfin-internal and must never be deleted.
-                // They typically have "[boxset]" in the folder name or reside under a collections path.
+                // They typically have "[boxset]" in the folder name or reside under a collections' path.
                 if (topDir.Name.Contains("[boxset]", StringComparison.OrdinalIgnoreCase)
                     || topDir.Name.Contains("[collection]", StringComparison.OrdinalIgnoreCase))
                 {

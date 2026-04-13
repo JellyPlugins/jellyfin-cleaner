@@ -53,25 +53,25 @@ public static class CleanupConfigHelper
     /// Gets the <see cref="TaskMode"/> for the Trickplay Folder Cleaner.
     /// </summary>
     /// <returns>The configured task mode.</returns>
-    public static TaskMode GetTrickplayTaskMode() => GetConfig().TrickplayTaskMode;
+    internal static TaskMode GetTrickplayTaskMode() => GetConfig().TrickplayTaskMode;
 
     /// <summary>
     /// Gets the <see cref="TaskMode"/> for the Empty Media Folder Cleaner.
     /// </summary>
     /// <returns>The configured task mode.</returns>
-    public static TaskMode GetEmptyMediaFolderTaskMode() => GetConfig().EmptyMediaFolderTaskMode;
+    internal static TaskMode GetEmptyMediaFolderTaskMode() => GetConfig().EmptyMediaFolderTaskMode;
 
     /// <summary>
     /// Gets the <see cref="TaskMode"/> for the Orphaned Subtitle Cleaner.
     /// </summary>
     /// <returns>The configured task mode.</returns>
-    public static TaskMode GetOrphanedSubtitleTaskMode() => GetConfig().OrphanedSubtitleTaskMode;
+    internal static TaskMode GetOrphanedSubtitleTaskMode() => GetConfig().OrphanedSubtitleTaskMode;
 
     /// <summary>
     /// Gets the <see cref="TaskMode"/> for the .strm File Repair task.
     /// </summary>
     /// <returns>The configured task mode.</returns>
-    public static TaskMode GetStrmRepairTaskMode() => GetConfig().StrmRepairTaskMode;
+    internal static TaskMode GetStrmRepairTaskMode() => GetConfig().StrmRepairTaskMode;
 
     /// <summary>
     /// Determines whether a task should run in dry-run mode based on its <see cref="TaskMode"/>.
@@ -80,31 +80,31 @@ public static class CleanupConfigHelper
     /// </summary>
     /// <param name="mode">The task mode.</param>
     /// <returns>True if the task should run in dry-run mode.</returns>
-    public static bool IsDryRun(TaskMode mode) => mode != TaskMode.Activate;
+    internal static bool IsDryRun(TaskMode mode) => mode != TaskMode.Activate;
 
     /// <summary>
     /// Determines whether the Trickplay Folder Cleaner should run in dry-run mode.
     /// </summary>
     /// <returns>True if the operation should be a dry run.</returns>
-    public static bool IsDryRunTrickplay() => IsDryRun(GetConfig().TrickplayTaskMode);
+    internal static bool IsDryRunTrickplay() => IsDryRun(GetConfig().TrickplayTaskMode);
 
     /// <summary>
     /// Determines whether the Empty Media Folder Cleaner should run in dry-run mode.
     /// </summary>
     /// <returns>True if the operation should be a dry run.</returns>
-    public static bool IsDryRunEmptyMediaFolders() => IsDryRun(GetConfig().EmptyMediaFolderTaskMode);
+    internal static bool IsDryRunEmptyMediaFolders() => IsDryRun(GetConfig().EmptyMediaFolderTaskMode);
 
     /// <summary>
     /// Determines whether the Orphaned Subtitle Cleaner should run in dry-run mode.
     /// </summary>
     /// <returns>True if the operation should be a dry run.</returns>
-    public static bool IsDryRunOrphanedSubtitles() => IsDryRun(GetConfig().OrphanedSubtitleTaskMode);
+    internal static bool IsDryRunOrphanedSubtitles() => IsDryRun(GetConfig().OrphanedSubtitleTaskMode);
 
     /// <summary>
     /// Determines whether the .strm File Repair task should run in dry-run mode.
     /// </summary>
     /// <returns>True if the operation should be a dry run.</returns>
-    public static bool IsDryRunStrmRepair() => IsDryRun(GetConfig().StrmRepairTaskMode);
+    internal static bool IsDryRunStrmRepair() => IsDryRun(GetConfig().StrmRepairTaskMode);
 
     /// <summary>
     /// Gets the filtered library locations based on the whitelist/blacklist configuration.
@@ -173,7 +173,7 @@ public static class CleanupConfigHelper
     /// </summary>
     /// <param name="directoryPath">The path to the directory.</param>
     /// <returns>True if the directory is old enough (or age check is disabled), false if it's too new.</returns>
-    public static bool IsOldEnoughForDeletion(string directoryPath)
+    internal static bool IsOldEnoughForDeletion(string directoryPath)
     {
         var config = GetConfig();
         if (config.OrphanMinAgeDays <= 0)
@@ -205,7 +205,7 @@ public static class CleanupConfigHelper
     /// </summary>
     /// <param name="filePath">The path to the file.</param>
     /// <returns>True if the file is old enough (or age check is disabled), false if it's too new.</returns>
-    public static bool IsFileOldEnoughForDeletion(string filePath)
+    internal static bool IsFileOldEnoughForDeletion(string filePath)
     {
         var config = GetConfig();
         if (config.OrphanMinAgeDays <= 0)
@@ -238,7 +238,7 @@ public static class CleanupConfigHelper
     /// </summary>
     /// <param name="libraryRootPath">The library root path.</param>
     /// <returns>The full trash folder path.</returns>
-    public static string GetTrashPath(string libraryRootPath)
+    internal static string GetTrashPath(string libraryRootPath)
     {
         var config = GetConfig();
         var trashPath = config.TrashFolderPath;

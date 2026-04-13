@@ -1,29 +1,15 @@
-using System;
 using System.Globalization;
-using System.IO;
-using Jellyfin.Plugin.JellyfinHelper.Services;
-using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
-using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
-using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
-using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
+using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using Microsoft.Extensions.Logging;
-using Moq;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Cleanup;
 
 public class TrashServiceTests : IDisposable
 {
-    private readonly string _testRoot;
-    private readonly Mock<ILogger> _loggerMock;
-
-    public TrashServiceTests()
-    {
-        _testRoot = Path.Combine(Path.GetTempPath(), "JellyfinHelperTests_Trash_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_testRoot);
-        _loggerMock = new Mock<ILogger>();
-    }
+    private readonly string _testRoot = TestDataGenerator.CreateTempDirectory("Trash");
+    private readonly ILogger _loggerMock = TestMockFactory.CreateLogger().Object;
 
     public void Dispose()
     {
@@ -69,7 +55,7 @@ public class TrashServiceTests : IDisposable
         var result = TrashService.MoveToTrash(
             Path.Combine(_testRoot, "nonexistent"),
             trashPath,
-            _loggerMock.Object);
+            _loggerMock);
 
         Assert.Equal(0, result);
     }
@@ -83,7 +69,7 @@ public class TrashServiceTests : IDisposable
 
         var trashPath = Path.Combine(_testRoot, "trash");
 
-        var result = TrashService.MoveToTrash(sourceDir, trashPath, _loggerMock.Object);
+        var result = TrashService.MoveToTrash(sourceDir, trashPath, _loggerMock);
 
         Assert.Equal(1024, result);
         Assert.False(Directory.Exists(sourceDir));
@@ -104,7 +90,7 @@ public class TrashServiceTests : IDisposable
         var result = TrashService.MoveFileToTrash(
             Path.Combine(_testRoot, "nonexistent.srt"),
             trashPath,
-            _loggerMock.Object);
+            _loggerMock);
 
         Assert.Equal(0, result);
     }
@@ -117,7 +103,7 @@ public class TrashServiceTests : IDisposable
 
         var trashPath = Path.Combine(_testRoot, "trash");
 
-        var result = TrashService.MoveFileToTrash(sourceFile, trashPath, _loggerMock.Object);
+        var result = TrashService.MoveFileToTrash(sourceFile, trashPath, _loggerMock);
 
         Assert.Equal(512, result);
         Assert.False(File.Exists(sourceFile));
@@ -136,7 +122,7 @@ public class TrashServiceTests : IDisposable
         var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(
             Path.Combine(_testRoot, "nonexistent_trash"),
             7,
-            _loggerMock.Object);
+            _loggerMock);
 
         Assert.Equal(0, bytesFreed);
         Assert.Equal(0, itemsPurged);
@@ -153,7 +139,7 @@ public class TrashServiceTests : IDisposable
         Directory.CreateDirectory(freshDir);
         File.WriteAllBytes(Path.Combine(freshDir, "movie.mkv"), new byte[100]);
 
-        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock.Object);
+        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
 
         Assert.Equal(0, bytesFreed);
         Assert.Equal(0, itemsPurged);
@@ -170,7 +156,7 @@ public class TrashServiceTests : IDisposable
         Directory.CreateDirectory(oldDir);
         File.WriteAllBytes(Path.Combine(oldDir, "movie.mkv"), new byte[256]);
 
-        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock.Object);
+        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
 
         Assert.Equal(256, bytesFreed);
         Assert.Equal(1, itemsPurged);
@@ -187,7 +173,7 @@ public class TrashServiceTests : IDisposable
         var oldFile = Path.Combine(trashPath, $"{oldTimestamp}_old.srt");
         File.WriteAllBytes(oldFile, new byte[128]);
 
-        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock.Object);
+        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
 
         Assert.Equal(128, bytesFreed);
         Assert.Equal(1, itemsPurged);
@@ -215,7 +201,7 @@ public class TrashServiceTests : IDisposable
         Directory.CreateDirectory(oldDir);
         File.WriteAllBytes(Path.Combine(oldDir, "movie.mkv"), new byte[300]);
 
-        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 0, _loggerMock.Object);
+        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 0, _loggerMock);
 
         // At least the old item should be purged
         Assert.True(itemsPurged >= 1, $"Expected at least 1 purged item, got {itemsPurged}");
@@ -240,7 +226,7 @@ public class TrashServiceTests : IDisposable
         Directory.CreateDirectory(freshDir);
         File.WriteAllBytes(Path.Combine(freshDir, "movie.mkv"), new byte[400]);
 
-        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock.Object);
+        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
 
         Assert.Equal(500, bytesFreed);
         Assert.Equal(1, itemsPurged);
@@ -264,7 +250,7 @@ public class TrashServiceTests : IDisposable
         Directory.CreateDirectory(expiredDir);
         File.WriteAllBytes(Path.Combine(expiredDir, "movie.mkv"), new byte[200]);
 
-        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock.Object);
+        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
 
         Assert.Equal(200, bytesFreed);
         Assert.Equal(1, itemsPurged);
@@ -278,7 +264,7 @@ public class TrashServiceTests : IDisposable
         var trashPath = Path.Combine(_testRoot, "trash");
         Directory.CreateDirectory(trashPath);
 
-        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock.Object);
+        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
 
         Assert.Equal(0, bytesFreed);
         Assert.Equal(0, itemsPurged);
@@ -312,7 +298,7 @@ public class TrashServiceTests : IDisposable
         var freshFile = Path.Combine(trashPath, $"{freshFileTimestamp}_new.srt");
         File.WriteAllBytes(freshFile, new byte[200]);
 
-        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock.Object);
+        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
 
         Assert.Equal(1500, bytesFreed);
         Assert.Equal(2, itemsPurged);
@@ -333,7 +319,7 @@ public class TrashServiceTests : IDisposable
         Directory.CreateDirectory(borderDir);
         File.WriteAllBytes(Path.Combine(borderDir, "movie.mkv"), new byte[100]);
 
-        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock.Object);
+        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
 
         Assert.Equal(0, bytesFreed);
         Assert.Equal(0, itemsPurged);
@@ -351,7 +337,7 @@ public class TrashServiceTests : IDisposable
         Directory.CreateDirectory(pastDir);
         File.WriteAllBytes(Path.Combine(pastDir, "movie.mkv"), new byte[150]);
 
-        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock.Object);
+        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
 
         Assert.Equal(150, bytesFreed);
         Assert.Equal(1, itemsPurged);
@@ -381,7 +367,7 @@ public class TrashServiceTests : IDisposable
         Directory.CreateDirectory(freshDir);
         File.WriteAllBytes(Path.Combine(freshDir, "data.bin"), new byte[100]);
 
-        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, retentionDays, _loggerMock.Object);
+        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, retentionDays, _loggerMock);
 
         Assert.Equal(1, itemsPurged);
         Assert.Equal(100, bytesFreed);
@@ -399,7 +385,7 @@ public class TrashServiceTests : IDisposable
         var invalidFile = Path.Combine(trashPath, "random-file.txt");
         File.WriteAllBytes(invalidFile, new byte[50]);
 
-        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 0, _loggerMock.Object);
+        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 0, _loggerMock);
 
         Assert.Equal(0, bytesFreed);
         Assert.Equal(0, itemsPurged);
@@ -419,7 +405,7 @@ public class TrashServiceTests : IDisposable
             File.WriteAllBytes(Path.Combine(dir, "video.mkv"), new byte[100]);
         }
 
-        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock.Object);
+        var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
 
         Assert.Equal(5, itemsPurged);
         Assert.Equal(500, bytesFreed);

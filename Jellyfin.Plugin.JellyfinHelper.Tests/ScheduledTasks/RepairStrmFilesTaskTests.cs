@@ -1,13 +1,8 @@
 using System.IO.Abstractions.TestingHelpers;
 using Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
-using Jellyfin.Plugin.JellyfinHelper.Services;
-using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
-using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
-using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
 using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
-using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
+using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Controller.Library;
-using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.ScheduledTasks;
@@ -20,11 +15,11 @@ public class RepairStrmFilesTaskTests
 {
     private static RepairStrmFilesTask CreateTask()
     {
-        var loggerMock = new Mock<ILogger<RepairStrmFilesTask>>();
-        var libraryManagerMock = new Mock<ILibraryManager>();
         var fileSystem = new MockFileSystem();
-        var serviceLoggerMock = new Mock<ILogger<StrmRepairService>>();
-        var service = new StrmRepairService(fileSystem, serviceLoggerMock.Object);
-        return new RepairStrmFilesTask(loggerMock.Object, libraryManagerMock.Object, service);
+        var service = new StrmRepairService(fileSystem, TestMockFactory.CreateLogger<StrmRepairService>().Object);
+        return new RepairStrmFilesTask(
+            TestMockFactory.CreateLogger<RepairStrmFilesTask>().Object,
+            new Mock<ILibraryManager>().Object,
+            service);
     }
 }
