@@ -7,9 +7,9 @@ using Xunit;
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services;
 
 [Collection("PluginLogService")]
-public class I18nServiceTests : IDisposable
+public class I18NServiceTests : IDisposable
 {
-    public I18nServiceTests()
+    public I18NServiceTests()
     {
         PluginLogService.TestMinLevelOverride = "DEBUG";
         PluginLogService.Clear();
@@ -154,7 +154,7 @@ public class I18nServiceTests : IDisposable
 
     // ===== configPage.html ↔ I18nService sync tests =====
 
-    private static readonly Regex TCallRegex = new(@"T\(\s*'([^']+)'", RegexOptions.Compiled);
+    private static readonly Regex CallRegex = new(@"T\(\s*'([^']+)'", RegexOptions.Compiled);
 
     private static string LoadConfigPageHtml()
     {
@@ -171,7 +171,7 @@ public class I18nServiceTests : IDisposable
     private static HashSet<string> ExtractKeysFromHtml()
     {
         var html = LoadConfigPageHtml();
-        var matches = TCallRegex.Matches(html);
+        var matches = CallRegex.Matches(html);
         var keys = new HashSet<string>(StringComparer.Ordinal);
         foreach (Match match in matches)
         {
