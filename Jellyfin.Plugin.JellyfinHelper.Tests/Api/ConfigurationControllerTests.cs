@@ -40,13 +40,13 @@ public class ConfigurationControllerTests : IDisposable
     [Fact]
     public void UpdateConfiguration_ValidConfig_ReturnsOk()
     {
-        var newConfig = new PluginConfiguration
+        var request = new ConfigurationUpdateRequest
         {
             OrphanMinAgeDays = 5,
             TrashRetentionDays = 10
         };
 
-        var result = _controller.UpdateConfiguration(newConfig);
+        var result = _controller.UpdateConfiguration(request);
 
         Assert.IsType<OkObjectResult>(result);
         Assert.Equal(5, Plugin.Instance!.Configuration.OrphanMinAgeDays);
@@ -56,9 +56,9 @@ public class ConfigurationControllerTests : IDisposable
     [Fact]
     public void UpdateConfiguration_InvalidOrphanAge_ReturnsBadRequest()
     {
-        var newConfig = new PluginConfiguration { OrphanMinAgeDays = -1 };
+        var request = new ConfigurationUpdateRequest { OrphanMinAgeDays = -1 };
 
-        var result = _controller.UpdateConfiguration(newConfig);
+        var result = _controller.UpdateConfiguration(request);
 
         Assert.IsType<BadRequestObjectResult>(result);
     }
@@ -66,9 +66,9 @@ public class ConfigurationControllerTests : IDisposable
     [Fact]
     public void UpdateConfiguration_InvalidTrashRetention_ReturnsBadRequest()
     {
-        var newConfig = new PluginConfiguration { TrashRetentionDays = -1 };
+        var request = new ConfigurationUpdateRequest { TrashRetentionDays = -1 };
 
-        var result = _controller.UpdateConfiguration(newConfig);
+        var result = _controller.UpdateConfiguration(request);
 
         Assert.IsType<BadRequestObjectResult>(result);
     }

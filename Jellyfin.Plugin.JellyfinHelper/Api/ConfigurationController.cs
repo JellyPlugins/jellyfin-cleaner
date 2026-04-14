@@ -44,12 +44,12 @@ public class ConfigurationController : ControllerBase
     /// <summary>
     /// Updates the plugin configuration.
     /// </summary>
-    /// <param name="updatedConfig">The updated configuration.</param>
+    /// <param name="request">The configuration update request.</param>
     /// <returns>A status result.</returns>
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public ActionResult UpdateConfiguration([FromBody] PluginConfiguration updatedConfig)
+    public ActionResult UpdateConfiguration([FromBody] ConfigurationUpdateRequest request)
     {
         var plugin = Plugin.Instance;
         if (plugin == null)
@@ -58,24 +58,54 @@ public class ConfigurationController : ControllerBase
         }
 
         // Validate
-        if (updatedConfig.OrphanMinAgeDays < 0)
+        if (request.OrphanMinAgeDays < 0)
         {
             return BadRequest(new { message = "OrphanMinAgeDays must be >= 0." });
         }
 
-        if (updatedConfig.TrashRetentionDays < 0)
+        if (request.TrashRetentionDays < 0)
         {
             return BadRequest(new { message = "TrashRetentionDays must be >= 0." });
         }
 
-        // Preserve accumulated statistics and internal state (don't let the UI overwrite them)
-        var currentConfig = plugin.Configuration;
-        updatedConfig.TotalBytesFreed = currentConfig.TotalBytesFreed;
-        updatedConfig.TotalItemsDeleted = currentConfig.TotalItemsDeleted;
-        updatedConfig.LastCleanupTimestamp = currentConfig.LastCleanupTimestamp;
-        updatedConfig.ConfigVersion = currentConfig.ConfigVersion;
+        // Apply request values to the existing config (preserves accumulated statistics and internal state)
+        var config = plugin.Configuration;
 
-        plugin.UpdateConfiguration(updatedConfig);
+        config.IncludedLibraries = request.IncludedLibraries;
+        config.ExcludedLibraries = request.ExcludedLibraries;
+        config.OrphanMinAgeDays = request.OrphanMinAgeDays;
+
+        config.TrickplayTaskMode = request.TrickplayTaskMode;
+        config.EmptyMediaFolderTaskMode = request.EmptyMediaFolderTaskMode;
+        config.OrphanedSubtitleTaskMode = request.OrphanedSubtitleTaskMode;
+        config.StrmRepairTaskMode = request.StrmRepairTaskMode;
+
+        config.UseTrash = request.UseTrash;
+        config.TrashFolderPath = request.TrashFolderPath;
+        config.TrashRetentionDays = request.TrashRetentionDays;
+
+        config.RadarrUrl = request.RadarrUrl;
+        config.RadarrApiKey = request.RadarrApiKey;
+        config.SonarrUrl = request.SonarrUrl;
+        config.SonarrApiKey = request.SonarrApiKey;
+
+        config.Language = request.Language;
+
+        // Update Radarr instances (clear + re-add from request)
+        config.RadarrInstances.Clear();
+        foreach (var instance in request.RadarrInstances)
+        {
+            config.RadarrInstances.Add(instance);
+        }
+
+        // Update Sonarr instances (clear + re-add from request)
+        config.SonarrInstances.Clear();
+        foreach (var instance in request.SonarrInstances)
+        {
+            config.SonarrInstances.Add(instance);
+        }
+
+        plugin.SaveConfiguration();
 
         PluginLogService.LogInfo("API", "Plugin configuration updated.", _logger);
         return Ok(new { message = "Configuration saved." });
