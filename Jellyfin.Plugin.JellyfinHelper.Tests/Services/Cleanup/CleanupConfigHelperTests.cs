@@ -1,11 +1,22 @@
+using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Cleanup;
 
 [Collection("ConfigOverride")]
-public class CleanupConfigHelperTests
+public class CleanupConfigHelperTests : IDisposable
 {
+    public CleanupConfigHelperTests()
+    {
+        // Use an explicit override to isolate these tests from the global Plugin.Instance.
+        CleanupConfigHelper.ConfigOverride = new PluginConfiguration();
+    }
+
+    public void Dispose()
+    {
+        CleanupConfigHelper.ConfigOverride = null;
+    }
     // ===== ParseCommaSeparated Tests =====
 
     [Fact]

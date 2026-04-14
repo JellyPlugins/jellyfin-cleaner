@@ -1,3 +1,4 @@
+using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -12,14 +13,25 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Cleanup;
 /// (increment + save), so the null-safety is the critical path to verify.
 /// </summary>
 [Collection("ConfigOverride")]
-public class CleanupTrackingServiceTests
+public class CleanupTrackingServiceTests : IDisposable
 {
     private readonly Mock<ILogger> _loggerMock = new();
+
+    public CleanupTrackingServiceTests()
+    {
+        // Use an explicit override to isolate these tests from the global Plugin.Instance.
+        CleanupConfigHelper.ConfigOverride = new PluginConfiguration();
+    }
+
+    public void Dispose()
+    {
+        CleanupConfigHelper.ConfigOverride = null;
+    }
 
     [Fact]
     public void GetStatistics_WhenPluginInstanceNull_ReturnsDefaults()
     {
-        // Plugin.Instance is null in test context
+        // GetStatistics now respects CleanupConfigHelper.ConfigOverride
         var (totalBytesFreed, totalItemsDeleted, lastCleanupTimestamp) = CleanupTrackingService.GetStatistics();
 
         Assert.Equal(0, totalBytesFreed);
@@ -30,7 +42,7 @@ public class CleanupTrackingServiceTests
     [Fact]
     public void RecordCleanup_WhenPluginInstanceNull_DoesNotThrow()
     {
-        // Plugin.Instance is null in test context – should log warning but not throw
+        // Should use ConfigOverride and not throw
         var exception = Record.Exception(() =>
             CleanupTrackingService.RecordCleanup(1024, 5, _loggerMock.Object));
 
@@ -38,15 +50,17 @@ public class CleanupTrackingServiceTests
     }
 
     [Fact]
-    public void RecordCleanup_WhenPluginInstanceNull_StatisticsRemainDefault()
+    public void RecordCleanup_WhenPluginInstanceNull_StatisticsAreUpdated()
     {
+        // RecordCleanup updates the ConfigOverride if it is set.
+        // We want to verify that when we record, statistics ARE updated in our controlled config.
         CleanupTrackingService.RecordCleanup(2048, 10, _loggerMock.Object);
 
         var (totalBytesFreed, totalItemsDeleted, lastCleanupTimestamp) = CleanupTrackingService.GetStatistics();
 
-        Assert.Equal(0, totalBytesFreed);
-        Assert.Equal(0, totalItemsDeleted);
-        Assert.Equal(DateTime.MinValue, lastCleanupTimestamp);
+        Assert.Equal(2048, totalBytesFreed);
+        Assert.Equal(10, totalItemsDeleted);
+        Assert.NotEqual(DateTime.MinValue, lastCleanupTimestamp);
     }
 
     [Fact]

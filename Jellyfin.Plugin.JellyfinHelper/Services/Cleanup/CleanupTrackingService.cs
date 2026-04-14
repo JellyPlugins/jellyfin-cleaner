@@ -23,8 +23,11 @@ public static class CleanupTrackingService
     /// <param name="pluginInstance">Optional plugin instance to use; if null, uses the static <see cref="Plugin.Instance"/>.</param>
     public static void RecordCleanup(long bytesFreed, int itemsDeleted, ILogger logger, Plugin? pluginInstance = null)
     {
+        var config = CleanupConfigHelper.GetConfig();
         var plugin = pluginInstance ?? Plugin.Instance;
-        if (plugin == null)
+
+        // In test context, ConfigOverride might be used even if Plugin.Instance is null.
+        if (plugin == null && CleanupConfigHelper.ConfigOverride == null)
         {
             PluginLogService.LogWarning("CleanupTracking", "Plugin instance is null, cannot record cleanup statistics.", logger: logger);
             return;
@@ -32,12 +35,11 @@ public static class CleanupTrackingService
 
         lock (SyncLock)
         {
-            var config = plugin.Configuration;
             config.TotalBytesFreed += bytesFreed;
             config.TotalItemsDeleted += itemsDeleted;
             config.LastCleanupTimestamp = DateTime.UtcNow;
 
-            plugin.SaveConfiguration();
+            plugin?.SaveConfiguration();
 
             PluginLogService.LogInfo("CleanupTracking", $"Cleanup recorded: {bytesFreed} bytes freed, {itemsDeleted} items deleted. Lifetime total: {config.TotalBytesFreed} bytes, {config.TotalItemsDeleted} items.", logger);
         }
@@ -50,13 +52,7 @@ public static class CleanupTrackingService
     /// <returns>The cleanup statistics or default values if the plugin is not available.</returns>
     public static (long TotalBytesFreed, int TotalItemsDeleted, DateTime LastCleanupTimestamp) GetStatistics(Plugin? pluginInstance = null)
     {
-        var plugin = pluginInstance ?? Plugin.Instance;
-        if (plugin == null)
-        {
-            return (0, 0, DateTime.MinValue);
-        }
-
-        var config = plugin.Configuration;
+        var config = CleanupConfigHelper.GetConfig();
         return (config.TotalBytesFreed, config.TotalItemsDeleted, config.LastCleanupTimestamp);
     }
 }
