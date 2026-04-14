@@ -86,7 +86,7 @@ public class LogsController : ControllerBase
     public ActionResult ClearLogs()
     {
         PluginLogService.Clear();
-        PluginLogService.LogInfo("API", "Plugin log buffer cleared by admin", _logger);
+        PluginLogService.LogDebug("API", "Plugin log buffer cleared by admin", _logger);
         return Ok(new { message = "Logs cleared." });
     }
 }

@@ -209,7 +209,7 @@ public class BackupController : ControllerBase
                 },
             });
         }
-        catch (IOException ex)
+        catch (Exception ex)
         {
             PluginLogService.LogError("API", "Unexpected backup import failure", ex, _logger);
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to import backup." });

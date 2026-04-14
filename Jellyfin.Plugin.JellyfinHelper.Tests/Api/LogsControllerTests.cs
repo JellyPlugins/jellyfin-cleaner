@@ -50,6 +50,6 @@ public class LogsControllerTests
         var result = _controller.ClearLogs();
 
         Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(0, PluginLogService.GetCount() - 1); // -1 because ClearLogs logs a "buffer cleared" message
+        Assert.Equal(0, PluginLogService.GetCount());
     }
 }

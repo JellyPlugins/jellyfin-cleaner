@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.8] — 2026-07-12
+## [1.0.8] — 2026-04-12
 
 ### Added
 - **Backup & Restore** — New backup/restore functionality to export and import plugin configuration and historical data as JSON.

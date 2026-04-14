@@ -40,7 +40,7 @@ public class TrendsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_LoadTrendData_ReferencesCorrectApiEndpoint()
     {
-        Assert.Contains("GrowthTimeline", HtmlContent);
+        Assert.Contains("JellyfinHelper/GrowthTimeline", HtmlContent);
     }
 
     [Fact]

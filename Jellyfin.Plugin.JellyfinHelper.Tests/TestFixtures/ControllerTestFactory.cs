@@ -116,7 +116,7 @@ public static class ControllerTestFactory
     }
 
     /// <summary>
-    /// Adds a JSON body to a controller's request.'
+    /// Adds a JSON body to a controller's request.
     /// </summary>
     /// <param name="controller">The controller to which the JSON body will be added.</param>
     /// <param name="jsonBody">The JSON body content to be added.</param>

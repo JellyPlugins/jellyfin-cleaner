@@ -23,7 +23,6 @@ public static class CleanupTrackingService
     /// <param name="pluginInstance">Optional plugin instance to use; if null, uses the static <see cref="Plugin.Instance"/>.</param>
     public static void RecordCleanup(long bytesFreed, int itemsDeleted, ILogger logger, Plugin? pluginInstance = null)
     {
-        var config = CleanupConfigHelper.GetConfig();
         var plugin = pluginInstance ?? Plugin.Instance;
 
         // In test context, ConfigOverride might be used even if Plugin.Instance is null.
@@ -35,6 +34,7 @@ public static class CleanupTrackingService
 
         lock (SyncLock)
         {
+            var config = CleanupConfigHelper.GetConfig();
             config.TotalBytesFreed += bytesFreed;
             config.TotalItemsDeleted += itemsDeleted;
             config.LastCleanupTimestamp = DateTime.UtcNow;
@@ -48,9 +48,8 @@ public static class CleanupTrackingService
     /// <summary>
     /// Gets the current cleanup statistics from the plugin configuration.
     /// </summary>
-    /// <param name="pluginInstance">Optional plugin instance to use; if null, uses the static <see cref="Plugin.Instance"/>.</param>
     /// <returns>The cleanup statistics or default values if the plugin is not available.</returns>
-    public static (long TotalBytesFreed, int TotalItemsDeleted, DateTime LastCleanupTimestamp) GetStatistics(Plugin? pluginInstance = null)
+    public static (long TotalBytesFreed, int TotalItemsDeleted, DateTime LastCleanupTimestamp) GetStatistics()
     {
         var config = CleanupConfigHelper.GetConfig();
         return (config.TotalBytesFreed, config.TotalItemsDeleted, config.LastCleanupTimestamp);
