@@ -89,12 +89,12 @@ public static class TestMockFactory
         return mock;
     }
 
-    /// <summary>Creates a new <see cref="Mock{StatisticsHistoryService}"/>.</summary>
-    public static Mock<StatisticsHistoryService> CreateStatisticsHistoryService(IApplicationPaths appPaths)
+    /// <summary>Creates a new <see cref="Mock{StatisticsCacheService}"/>.</summary>
+    public static Mock<StatisticsCacheService> CreateStatisticsCacheService(IApplicationPaths appPaths)
     {
-        var mock = new Mock<StatisticsHistoryService>(
+        var mock = new Mock<StatisticsCacheService>(
             appPaths,
-            new Mock<ILogger<StatisticsHistoryService>>().Object);
+            new Mock<ILogger<StatisticsCacheService>>().Object);
         return mock;
     }
     

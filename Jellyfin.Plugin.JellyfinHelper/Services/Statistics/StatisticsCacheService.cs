@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using MediaBrowser.Common.Configuration;
 using Microsoft.Extensions.Logging;
@@ -22,7 +23,7 @@ public class StatisticsCacheService
 
     private readonly string _latestResultFilePath;
     private readonly ILogger<StatisticsCacheService> _logger;
-    private readonly object _fileLock = new();
+    private readonly Lock _fileLock = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="StatisticsCacheService"/> class.
@@ -41,8 +42,6 @@ public class StatisticsCacheService
     /// <param name="result">The statistics result to persist.</param>
     public void SaveLatestResult(MediaStatisticsResult result)
     {
-        ArgumentNullException.ThrowIfNull(result);
-
         lock (_fileLock)
         {
             try

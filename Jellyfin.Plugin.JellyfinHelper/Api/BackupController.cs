@@ -61,7 +61,7 @@ public class BackupController : ControllerBase
             case > BackupService.MaxBackupSizeBytes:
                 PluginLogService.LogWarning(
                     "API",
-                    $"Backup export rejected: payload size {FormatBackupSize(bytes.LongLength)} exceeds limit {FormatBackupSize(BackupService.MaxBackupSizeBytes)} (timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0}, historySnapshots={backup.StatisticsHistory.Count}).",
+                    $"Backup export rejected: payload size {FormatBackupSize(bytes.LongLength)} exceeds limit {FormatBackupSize(BackupService.MaxBackupSizeBytes)} (timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0}).",
                     logger: _logger);
 
                 return BadRequest(new
@@ -71,13 +71,13 @@ public class BackupController : ControllerBase
             case >= BackupService.LargeBackupWarningThresholdBytes:
                 PluginLogService.LogWarning(
                     "API",
-                    $"Large backup export created: {FormatBackupSize(bytes.LongLength)} of {FormatBackupSize(BackupService.MaxBackupSizeBytes)} limit (timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0}, historySnapshots={backup.StatisticsHistory.Count}).",
+                    $"Large backup export created: {FormatBackupSize(bytes.LongLength)} of {FormatBackupSize(BackupService.MaxBackupSizeBytes)} limit (timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0}).",
                     logger: _logger);
                 break;
         }
 
         var timestamp = backup.CreatedAt.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        PluginLogService.LogInfo("API", $"Backup exported ({FormatBackupSize(bytes.LongLength)}, timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0}, historySnapshots={backup.StatisticsHistory.Count})", _logger);
+        PluginLogService.LogInfo("API", $"Backup exported ({FormatBackupSize(bytes.LongLength)}, timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0})", _logger);
         return File(bytes, "application/json", $"jellyfin-helper-backup-{timestamp}.json");
     }
 
@@ -195,7 +195,7 @@ public class BackupController : ControllerBase
             var backupService = new BackupService(_applicationPaths, _logger);
             var summary = backupService.RestoreBackup(backup);
 
-            PluginLogService.LogInfo("API", $"Backup imported successfully. Config={summary.ConfigurationRestored}, Timeline={summary.TimelineRestored}, Baseline={summary.BaselineRestored}, History={summary.HistorySnapshotsRestored} snapshots", _logger);
+            PluginLogService.LogInfo("API", $"Backup imported successfully. Config={summary.ConfigurationRestored}, Timeline={summary.TimelineRestored}, Baseline={summary.BaselineRestored}", _logger);
 
             return Ok(new
             {
@@ -206,7 +206,6 @@ public class BackupController : ControllerBase
                     summary.ConfigurationRestored,
                     summary.TimelineRestored,
                     summary.BaselineRestored,
-                    summary.HistorySnapshotsRestored,
                 },
             });
         }

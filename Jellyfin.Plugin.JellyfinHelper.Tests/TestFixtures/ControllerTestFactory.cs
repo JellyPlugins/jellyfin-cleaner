@@ -31,12 +31,12 @@ public static class ControllerTestFactory
         var appPathsMock = TestMockFactory.CreateAppPaths(dataPath: dataPath ?? Path.GetTempPath());
         var memoryCache = cache ?? TestMockFactory.CreateMemoryCache();
         var statisticsServiceMock = TestMockFactory.CreateMediaStatisticsService();
-        var historyServiceMock = TestMockFactory.CreateStatisticsHistoryService(appPathsMock.Object);
+        var statisticsCacheServiceMock = TestMockFactory.CreateStatisticsCacheService(appPathsMock.Object);
 
         var controller = new MediaStatisticsController(
             memoryCache,
             statisticsServiceMock.Object,
-            historyServiceMock.Object,
+            statisticsCacheServiceMock.Object,
             new Mock<ILogger<MediaStatisticsController>>().Object);
         return (controller, memoryCache);
     }

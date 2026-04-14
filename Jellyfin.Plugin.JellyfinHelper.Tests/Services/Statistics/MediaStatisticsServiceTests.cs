@@ -1811,7 +1811,7 @@ public class MediaStatisticsServiceTests
         };
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([mvFolder]);
 
-        var m4vFile = new FileSystemMetadata
+        var m4VFile = new FileSystemMetadata
         {
             FullName = TestPath("media", "musicvideos", "Artist - Song.m4v"),
             Name = "Artist - Song.m4v",
@@ -1819,7 +1819,7 @@ public class MediaStatisticsServiceTests
             IsDirectory = false
         };
 
-        _fileSystemMock.Setup(f => f.GetFiles(mvPath, false)).Returns([m4vFile]);
+        _fileSystemMock.Setup(f => f.GetFiles(mvPath, false)).Returns([m4VFile]);
         _fileSystemMock.Setup(f => f.GetDirectories(mvPath, false)).Returns([]);
 
         var result = _service.CalculateStatistics();
@@ -1899,16 +1899,15 @@ public class EmbeddedSubtitleDetectionTests
 {
     private readonly Mock<ILibraryManager> _libraryManagerMock;
     private readonly Mock<IFileSystem> _fileSystemMock;
-    private readonly Mock<ILogger<MediaStatisticsService>> _loggerMock;
     private readonly TestableMediaStatisticsService _service;
 
     public EmbeddedSubtitleDetectionTests()
     {
         _libraryManagerMock = new Mock<ILibraryManager>();
         _fileSystemMock = new Mock<IFileSystem>();
-        _loggerMock = new Mock<ILogger<MediaStatisticsService>>();
+        var loggerMock = new Mock<ILogger<MediaStatisticsService>>();
         _service = new TestableMediaStatisticsService(
-            _libraryManagerMock.Object, _fileSystemMock.Object, _loggerMock.Object);
+            _libraryManagerMock.Object, _fileSystemMock.Object, loggerMock.Object);
     }
 
     private static string TestPath(params string[] segments)
@@ -2198,17 +2197,13 @@ public class EmbeddedSubtitleDetectionTests
     /// Testable subclass that overrides <see cref="MediaStatisticsService.HasEmbeddedSubtitles"/>
     /// to allow controlling embedded subtitle detection without Jellyfin's runtime infrastructure.
     /// </summary>
-    private sealed class TestableMediaStatisticsService : MediaStatisticsService
+    private sealed class TestableMediaStatisticsService(
+        ILibraryManager libraryManager,
+        IFileSystem fileSystem,
+        ILogger<MediaStatisticsService> logger)
+        : MediaStatisticsService(libraryManager, fileSystem, logger)
     {
         private readonly Dictionary<string, bool> _embeddedSubtitles = new(StringComparer.OrdinalIgnoreCase);
-
-        public TestableMediaStatisticsService(
-            ILibraryManager libraryManager,
-            IFileSystem fileSystem,
-            ILogger<MediaStatisticsService> logger)
-            : base(libraryManager, fileSystem, logger)
-        {
-        }
 
         public void SetHasEmbeddedSubtitles(string filePath, bool value)
             => _embeddedSubtitles[filePath] = value;

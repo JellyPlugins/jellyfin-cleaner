@@ -385,8 +385,6 @@ public class BackupService
 
         // Normalize nullable collections (JSON deserialization can set them to null
         // even though the model has default initializers, e.g. "radarrInstances": null)
-        backup.RadarrInstances ??= new List<BackupArrInstance>();
-        backup.SonarrInstances ??= new List<BackupArrInstance>();
 
         // Language
         if (string.IsNullOrEmpty(backup.Language) || !ValidLanguages.Contains(backup.Language))
@@ -420,7 +418,7 @@ public class BackupService
         SanitizeArrInstances(backup.SonarrInstances);
 
         // Timeline data points limit
-        if (backup.GrowthTimeline != null && backup.GrowthTimeline.DataPoints.Count > MaxTimelineDataPoints)
+        if (backup.GrowthTimeline is { DataPoints.Count: > MaxTimelineDataPoints })
         {
             var trimmed = backup.GrowthTimeline.DataPoints
                 .Skip(backup.GrowthTimeline.DataPoints.Count - MaxTimelineDataPoints)
@@ -433,15 +431,17 @@ public class BackupService
         }
 
         // Baseline directories limit
-        if (backup.GrowthBaseline != null && backup.GrowthBaseline.Directories.Count > MaxBaselineDirectories)
+        if (backup.GrowthBaseline is not { Directories.Count: > MaxBaselineDirectories })
         {
-            var keysToRemove = backup.GrowthBaseline.Directories.Keys
-                .Skip(MaxBaselineDirectories)
-                .ToList();
-            foreach (var key in keysToRemove)
-            {
-                backup.GrowthBaseline.Directories.Remove(key);
-            }
+            return;
+        }
+
+        var keysToRemove = backup.GrowthBaseline.Directories.Keys
+            .Skip(MaxBaselineDirectories)
+            .ToList();
+        foreach (var key in keysToRemove)
+        {
+            backup.GrowthBaseline.Directories.Remove(key);
         }
     }
 
@@ -642,8 +642,8 @@ public class BackupService
 
         // Restore preferences
         config.Language = ValidLanguages.Contains(backup.Language) ? backup.Language : "en";
-        config.IncludedLibraries = backup.IncludedLibraries ?? string.Empty;
-        config.ExcludedLibraries = backup.ExcludedLibraries ?? string.Empty;
+        config.IncludedLibraries = backup.IncludedLibraries;
+        config.ExcludedLibraries = backup.ExcludedLibraries;
         config.OrphanMinAgeDays = Math.Clamp(backup.OrphanMinAgeDays, 0, 3650);
         config.PluginLogLevel = ValidLogLevels.Contains(backup.PluginLogLevel) ? backup.PluginLogLevel : "INFO";
 
@@ -655,7 +655,7 @@ public class BackupService
 
         // Trash settings
         config.UseTrash = backup.UseTrash;
-        config.TrashFolderPath = backup.TrashFolderPath ?? ".jellyfin-trash";
+        config.TrashFolderPath = backup.TrashFolderPath;
         config.TrashRetentionDays = Math.Clamp(backup.TrashRetentionDays, 0, 3650);
 
         // Arr instances

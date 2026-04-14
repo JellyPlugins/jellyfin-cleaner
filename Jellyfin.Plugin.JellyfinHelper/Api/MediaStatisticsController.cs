@@ -40,16 +40,16 @@ public class MediaStatisticsController : ControllerBase
     /// </summary>
     /// <param name="cache">The memory cache.</param>
     /// <param name="statisticsService">The media statistics service.</param>
-    /// <param name="statisticsHistoryService">The media statistics history service.</param>
+    /// <param name="statisticsCacheService">The statistics cache service.</param>
     /// <param name="logger">The controller logger.</param>
     public MediaStatisticsController(
         IMemoryCache cache,
         MediaStatisticsService statisticsService,
-        StatisticsCacheService cacheService,
+        StatisticsCacheService statisticsCacheService,
         ILogger<MediaStatisticsController> logger)
     {
         _statisticsService = statisticsService;
-        _cacheService = cacheService;
+        _cacheService = statisticsCacheService;
         _cache = cache;
         _logger = logger;
     }

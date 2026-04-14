@@ -420,11 +420,16 @@ public class BackupServiceTests
     public void Validate_BaselineWithScriptInPath_ReturnsError()
     {
         var backup = CreateValidBackup();
-        backup.GrowthBaseline = new GrowthTimelineBaseline();
-        backup.GrowthBaseline.Directories["<script>alert(1)</script>"] = new BaselineDirectoryEntry
+        backup.GrowthBaseline = new GrowthTimelineBaseline
         {
-            CreatedUtc = DateTime.UtcNow,
-            Size = 1000,
+            Directories =
+            {
+                ["<script>alert(1)</script>"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = DateTime.UtcNow,
+                    Size = 1000,
+                }
+            }
         };
 
         var result = BackupService.Validate(backup);
@@ -437,11 +442,16 @@ public class BackupServiceTests
     public void Validate_BaselineWithLongPath_ReturnsError()
     {
         var backup = CreateValidBackup();
-        backup.GrowthBaseline = new GrowthTimelineBaseline();
-        backup.GrowthBaseline.Directories[new string('A', 1001)] = new BaselineDirectoryEntry
+        backup.GrowthBaseline = new GrowthTimelineBaseline
         {
-            CreatedUtc = DateTime.UtcNow,
-            Size = 1000,
+            Directories =
+            {
+                [new string('A', 1001)] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = DateTime.UtcNow,
+                    Size = 1000,
+                }
+            }
         };
 
         var result = BackupService.Validate(backup);
@@ -539,18 +549,21 @@ public class BackupServiceTests
         backup.GrowthBaseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        backup.GrowthBaseline.Directories[@"C:\Media\Movie 1"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 55555,
+            Directories =
+            {
+                [@"C:\Media\Movie 1"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 55555,
+                }
+            }
         };
 
         var json = BackupService.SerializeBackup(backup);
         var restored = BackupService.DeserializeBackup(json);
 
         Assert.NotNull(restored);
-        Assert.Equal(backup.BackupVersion, restored!.BackupVersion);
+        Assert.Equal(backup.BackupVersion, restored.BackupVersion);
         Assert.Equal(backup.Language, restored.Language);
         Assert.Equal(backup.TrickplayTaskMode, restored.TrickplayTaskMode);
         Assert.Equal(backup.UseTrash, restored.UseTrash);
@@ -587,7 +600,7 @@ public class BackupServiceTests
     {
         var result = BackupService.DeserializeBackup("{}");
         Assert.NotNull(result);
-        Assert.Equal(1, result!.BackupVersion); // default from class initializer
+        Assert.Equal(1, result.BackupVersion); // default from class initializer
         Assert.Equal("en", result.Language); // default from class
     }
 
@@ -706,11 +719,14 @@ public class BackupServiceTests
             var baseline = new GrowthTimelineBaseline
             {
                 FirstScanTimestamp = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
-            };
-            baseline.Directories[@"C:\Media\Movie 1"] = new BaselineDirectoryEntry
-            {
-                CreatedUtc = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
-                Size = 2000,
+                Directories =
+                {
+                    [@"C:\Media\Movie 1"] = new BaselineDirectoryEntry
+                    {
+                        CreatedUtc = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
+                        Size = 2000,
+                    }
+                }
             };
 
             File.WriteAllText(Path.Combine(tempDir, "jellyfin-helper-growth-timeline.json"), JsonSerializer.Serialize(timeline));
