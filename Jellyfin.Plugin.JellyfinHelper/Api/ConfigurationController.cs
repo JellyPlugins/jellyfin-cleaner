@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Net.Mime;
 using System.Threading;
 using System.Threading.Tasks;
@@ -184,11 +185,8 @@ public class ConfigurationController : ControllerBase
                     PluginLogService.LogWarning("API", warning, logger: _logger);
                 }
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is HttpRequestException or TimeoutException
+                or (TaskCanceledException and not OperationCanceledException))
             {
                 var label = !string.IsNullOrWhiteSpace(instance.Name) ? instance.Name : $"Radarr #{i + 1}";
                 var warning = $"Radarr instance '{label}' ({instance.Url}) connection test failed: {ex.Message}";
@@ -224,11 +222,8 @@ public class ConfigurationController : ControllerBase
                     PluginLogService.LogWarning("API", warning, logger: _logger);
                 }
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is HttpRequestException or TimeoutException
+                or (TaskCanceledException and not OperationCanceledException))
             {
                 var label = !string.IsNullOrWhiteSpace(instance.Name) ? instance.Name : $"Sonarr #{i + 1}";
                 var warning = $"Sonarr instance '{label}' ({instance.Url}) connection test failed: {ex.Message}";
@@ -259,14 +254,12 @@ public class ConfigurationController : ControllerBase
             }
 
             // If URL is provided, validate format
-            if (!string.IsNullOrWhiteSpace(instance.Url))
+            if (!string.IsNullOrWhiteSpace(instance.Url) &&
+                (!Uri.TryCreate(instance.Url, UriKind.Absolute, out var uri) ||
+                 (uri.Scheme != "http" && uri.Scheme != "https")))
             {
-                if (!Uri.TryCreate(instance.Url, UriKind.Absolute, out var uri) ||
-                    (uri.Scheme != "http" && uri.Scheme != "https"))
-                {
-                    var label = !string.IsNullOrWhiteSpace(instance.Name) ? instance.Name : $"#{i + 1}";
-                    return $"{typeName} instance '{label}' has an invalid URL. Only http:// and https:// URLs are allowed.";
-                }
+                var label = !string.IsNullOrWhiteSpace(instance.Name) ? instance.Name : $"#{i + 1}";
+                return $"{typeName} instance '{label}' has an invalid URL. Only http:// and https:// URLs are allowed.";
             }
 
             // If URL is set, API key must also be set

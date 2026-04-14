@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Net.Mime;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Services.Backup;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
@@ -206,7 +207,8 @@ public class BackupController : ControllerBase
                 },
             });
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+            or FormatException or InvalidDataException or JsonException)
         {
             PluginLogService.LogError("API", "Unexpected backup import failure", ex, _logger);
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to import backup." });
