@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -8,7 +7,6 @@ using System.Net.Http;
 using System.Net.Mime;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
@@ -45,20 +43,13 @@ public class MediaStatisticsController : ControllerBase
 
     private static readonly TimeSpan MinScanInterval = TimeSpan.FromSeconds(30);
     private static readonly object RateLimitLock = new();
-    private static readonly JsonSerializerOptions ExportJsonOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
-    };
-
     // Simple in-memory rate limiting
     private static DateTime _lastScanTime = DateTime.MinValue;
 
     private readonly ILibraryManager _libraryManager;
     private readonly IFileSystem _fileSystem;
     private readonly MediaStatisticsService _statisticsService;
-    private readonly StatisticsHistoryService _historyService;
+    private readonly StatisticsCacheService _cacheService;
     private readonly GrowthTimelineService _growthTimelineService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IMemoryCache _cache;
@@ -75,7 +66,7 @@ public class MediaStatisticsController : ControllerBase
     /// <param name="cache">The memory cache.</param>
     /// <param name="logger">The controller logger.</param>
     /// <param name="serviceLogger">The statistics service logger.</param>
-    /// <param name="historyLogger">The history service logger.</param>
+    /// <param name="cacheLogger">The statistics cache service logger.</param>
     /// <param name="growthTimelineLogger">The growth timeline service logger.</param>
     public MediaStatisticsController(
         ILibraryManager libraryManager,
@@ -85,13 +76,13 @@ public class MediaStatisticsController : ControllerBase
         IMemoryCache cache,
         ILogger<MediaStatisticsController> logger,
         ILogger<MediaStatisticsService> serviceLogger,
-        ILogger<StatisticsHistoryService> historyLogger,
+        ILogger<StatisticsCacheService> cacheLogger,
         ILogger<GrowthTimelineService> growthTimelineLogger)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
         _statisticsService = new MediaStatisticsService(libraryManager, fileSystem, serviceLogger);
-        _historyService = new StatisticsHistoryService(applicationPaths, historyLogger);
+        _cacheService = new StatisticsCacheService(applicationPaths, cacheLogger);
         _growthTimelineService = new GrowthTimelineService(libraryManager, fileSystem, applicationPaths, growthTimelineLogger);
         _httpClientFactory = httpClientFactory;
         _cache = cache;
@@ -140,20 +131,10 @@ public class MediaStatisticsController : ControllerBase
         // Cache the result
         _cache.Set(StatsCacheKey, result, CacheDuration);
 
-        // Save snapshot for historical tracking
-        try
-        {
-            _historyService.SaveSnapshot(result);
-        }
-        catch (Exception ex)
-        {
-            PluginLogService.LogWarning("API", "Failed to save statistics snapshot", ex, _logger);
-        }
-
         // Persist latest result to disk
         try
         {
-            _historyService.SaveLatestResult(result);
+            _cacheService.SaveLatestResult(result);
         }
         catch (Exception ex)
         {
@@ -183,7 +164,7 @@ public class MediaStatisticsController : ControllerBase
         // Fall back to disk-persisted result
         try
         {
-            var persisted = _historyService.LoadLatestResult();
+            var persisted = _cacheService.LoadLatestResult();
             if (persisted != null)
             {
                 // Re-populate memory cache from disk
@@ -198,132 +179,6 @@ public class MediaStatisticsController : ControllerBase
         }
 
         return NoContent();
-    }
-
-    /// <summary>
-    /// Exports the current statistics as a JSON file download.
-    /// </summary>
-    /// <returns>A JSON file containing the statistics.</returns>
-    [HttpGet("Statistics/Export/Json")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public ActionResult ExportJson()
-    {
-        var result = GetCachedOrCalculate();
-
-        var json = JsonSerializer.Serialize(result, ExportJsonOptions);
-
-        var bytes = Encoding.UTF8.GetBytes(json);
-        var timestamp = result.ScanTimestamp.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        return File(bytes, "application/json", $"jellyfin-statistics-{timestamp}.json");
-    }
-
-    /// <summary>
-    /// Exports the current statistics as a CSV file download.
-    /// Includes all fields matching the JSON export: file counts, sizes, codec/resolution breakdowns,
-    /// health check counters, and detail paths.
-    /// </summary>
-    /// <returns>A CSV file containing the per-library statistics.</returns>
-    [HttpGet("Statistics/Export/Csv")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public ActionResult ExportCsv()
-    {
-        var result = GetCachedOrCalculate();
-
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(
-            ",",
-            "Library",
-            "CollectionType",
-            "VideoFiles",
-            "VideoSizeBytes",
-            "AudioFiles",
-            "AudioSizeBytes",
-            "SubtitleFiles",
-            "SubtitleSizeBytes",
-            "ImageFiles",
-            "ImageSizeBytes",
-            "NfoFiles",
-            "NfoSizeBytes",
-            "TrickplayFolders",
-            "TrickplaySizeBytes",
-            "OtherFiles",
-            "OtherSizeBytes",
-            "TotalSizeBytes",
-            "ContainerFormats",
-            "Resolutions",
-            "VideoCodecs",
-            "VideoAudioCodecs",
-            "MusicAudioCodecs",
-            "ContainerSizes",
-            "ResolutionSizes",
-            "VideoCodecSizes",
-            "VideoAudioCodecSizes",
-            "MusicAudioCodecSizes",
-            "VideosWithoutSubtitles",
-            "VideosWithoutImages",
-            "VideosWithoutNfo",
-            "OrphanedMetadataDirectories",
-            "VideosWithoutSubtitlesPaths",
-            "VideosWithoutImagesPaths",
-            "VideosWithoutNfoPaths",
-            "OrphanedMetadataDirectoriesPaths"));
-
-        foreach (var lib in result.Libraries)
-        {
-            sb.AppendLine(string.Join(
-                ",",
-                EscapeCsv(lib.LibraryName),
-                EscapeCsv(lib.CollectionType),
-                lib.VideoFileCount,
-                lib.VideoSize,
-                lib.AudioFileCount,
-                lib.AudioSize,
-                lib.SubtitleFileCount,
-                lib.SubtitleSize,
-                lib.ImageFileCount,
-                lib.ImageSize,
-                lib.NfoFileCount,
-                lib.NfoSize,
-                lib.TrickplayFolderCount,
-                lib.TrickplaySize,
-                lib.OtherFileCount,
-                lib.OtherSize,
-                lib.TotalSize,
-                EscapeCsv(SerializeDictionary(lib.ContainerFormats)),
-                EscapeCsv(SerializeDictionary(lib.Resolutions)),
-                EscapeCsv(SerializeDictionary(lib.VideoCodecs)),
-                EscapeCsv(SerializeDictionary(lib.VideoAudioCodecs)),
-                EscapeCsv(SerializeDictionary(lib.MusicAudioCodecs)),
-                EscapeCsv(SerializeDictionary(lib.ContainerSizes)),
-                EscapeCsv(SerializeDictionary(lib.ResolutionSizes)),
-                EscapeCsv(SerializeDictionary(lib.VideoCodecSizes)),
-                EscapeCsv(SerializeDictionary(lib.VideoAudioCodecSizes)),
-                EscapeCsv(SerializeDictionary(lib.MusicAudioCodecSizes)),
-                lib.VideosWithoutSubtitles,
-                lib.VideosWithoutImages,
-                lib.VideosWithoutNfo,
-                lib.OrphanedMetadataDirectories,
-                EscapeCsv(SerializeCollection(lib.VideosWithoutSubtitlesPaths)),
-                EscapeCsv(SerializeCollection(lib.VideosWithoutImagesPaths)),
-                EscapeCsv(SerializeCollection(lib.VideosWithoutNfoPaths)),
-                EscapeCsv(SerializeCollection(lib.OrphanedMetadataDirectoriesPaths))));
-        }
-
-        var bytes = Encoding.UTF8.GetBytes(sb.ToString());
-        var timestamp = result.ScanTimestamp.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        return File(bytes, "text/csv", $"jellyfin-statistics-{timestamp}.csv");
-    }
-
-    /// <summary>
-    /// Gets the historical statistics trend data (legacy scan-based snapshots).
-    /// </summary>
-    /// <returns>A list of historical snapshots.</returns>
-    [HttpGet("Statistics/History")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public ActionResult<List<StatisticsSnapshot>> GetHistory()
-    {
-        var history = _historyService.LoadHistory();
-        return Ok(history);
     }
 
     /// <summary>
@@ -851,7 +706,7 @@ public class MediaStatisticsController : ControllerBase
         {
             PluginLogService.LogWarning(
                 "API",
-                $"Backup export rejected: payload size {FormatBackupSize(bytes.LongLength)} exceeds limit {FormatBackupSize(BackupService.MaxBackupSizeBytes)} (timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0}, historySnapshots={backup.StatisticsHistory.Count}).",
+                $"Backup export rejected: payload size {FormatBackupSize(bytes.LongLength)} exceeds limit {FormatBackupSize(BackupService.MaxBackupSizeBytes)} (timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0}).",
                 logger: _logger);
 
             return BadRequest(new
@@ -864,12 +719,12 @@ public class MediaStatisticsController : ControllerBase
         {
             PluginLogService.LogWarning(
                 "API",
-                $"Large backup export created: {FormatBackupSize(bytes.LongLength)} of {FormatBackupSize(BackupService.MaxBackupSizeBytes)} limit (timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0}, historySnapshots={backup.StatisticsHistory.Count}).",
+                $"Large backup export created: {FormatBackupSize(bytes.LongLength)} of {FormatBackupSize(BackupService.MaxBackupSizeBytes)} limit (timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0}).",
                 logger: _logger);
         }
 
         var timestamp = backup.CreatedAt.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        PluginLogService.LogInfo("API", $"Backup exported ({FormatBackupSize(bytes.LongLength)}, timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0}, historySnapshots={backup.StatisticsHistory.Count})", _logger);
+        PluginLogService.LogInfo("API", $"Backup exported ({FormatBackupSize(bytes.LongLength)}, timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0})", _logger);
         return File(bytes, "application/json", $"jellyfin-helper-backup-{timestamp}.json");
     }
 
@@ -981,7 +836,7 @@ public class MediaStatisticsController : ControllerBase
             var backupService = new BackupService(_applicationPaths, _logger);
             var summary = backupService.RestoreBackup(backup);
 
-            PluginLogService.LogInfo("API", $"Backup imported successfully. Config={summary.ConfigurationRestored}, Timeline={summary.TimelineRestored}, Baseline={summary.BaselineRestored}, History={summary.HistorySnapshotsRestored} snapshots", _logger);
+            PluginLogService.LogInfo("API", $"Backup imported successfully. Config={summary.ConfigurationRestored}, Timeline={summary.TimelineRestored}, Baseline={summary.BaselineRestored}", _logger);
 
             return Ok(new
             {
@@ -992,7 +847,6 @@ public class MediaStatisticsController : ControllerBase
                     summary.ConfigurationRestored,
                     summary.TimelineRestored,
                     summary.BaselineRestored,
-                    summary.HistorySnapshotsRestored,
                 },
             });
         }
@@ -1004,21 +858,6 @@ public class MediaStatisticsController : ControllerBase
     }
 
     // === Private helpers ===
-
-    /// <summary>
-    /// Returns cached statistics or calculates fresh ones.
-    /// </summary>
-    private MediaStatisticsResult GetCachedOrCalculate()
-    {
-        if (_cache.TryGetValue(StatsCacheKey, out MediaStatisticsResult? cached) && cached != null)
-        {
-            return cached;
-        }
-
-        var result = _statisticsService.CalculateStatistics();
-        _cache.Set(StatsCacheKey, result, CacheDuration);
-        return result;
-    }
 
     /// <summary>
     /// Gets the set of top-level folder names for a given collection type from Jellyfin libraries.
@@ -1059,32 +898,6 @@ public class MediaStatisticsController : ControllerBase
         }
 
         return result;
-    }
-
-    /// <summary>
-    /// Serializes a dictionary to a compact JSON string for CSV embedding.
-    /// </summary>
-    private static string SerializeDictionary<TValue>(Dictionary<string, TValue>? dict)
-    {
-        if (dict == null || dict.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        return JsonSerializer.Serialize(dict);
-    }
-
-    /// <summary>
-    /// Serializes a collection (list) to a compact JSON array string for CSV embedding.
-    /// </summary>
-    private static string SerializeCollection(Collection<string>? list)
-    {
-        if (list == null || list.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        return JsonSerializer.Serialize(list);
     }
 
     /// <summary>
@@ -1132,26 +945,6 @@ public class MediaStatisticsController : ControllerBase
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// Escapes a value for CSV output.
-    /// </summary>
-    private static string EscapeCsv(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        if (value.Contains(',', StringComparison.Ordinal) ||
-            value.Contains('"', StringComparison.Ordinal) ||
-            value.Contains('\n', StringComparison.Ordinal))
-        {
-            return $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
-        }
-
-        return value;
     }
 
     private static string FormatBackupSize(long bytes)

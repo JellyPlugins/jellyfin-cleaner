@@ -39,7 +39,7 @@ public static class ControllerTestFactory
             memoryCache,
             new Mock<ILogger<MediaStatisticsController>>().Object,
             new Mock<ILogger<MediaStatisticsService>>().Object,
-            new Mock<ILogger<StatisticsHistoryService>>().Object,
+            new Mock<ILogger<StatisticsCacheService>>().Object,
             new Mock<ILogger<GrowthTimelineService>>().Object);
 
         return (controller, libraryManagerMock, memoryCache);
