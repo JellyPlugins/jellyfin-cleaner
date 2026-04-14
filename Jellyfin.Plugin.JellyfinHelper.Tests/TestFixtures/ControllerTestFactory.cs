@@ -3,6 +3,7 @@ using Jellyfin.Plugin.JellyfinHelper.Api;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Backup;
+using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
@@ -66,22 +67,27 @@ public static class ControllerTestFactory
     /// Creates a <see cref="TrashController"/> with all dependencies mocked.
     /// </summary>
     /// <returns>A tuple of the controller and its library manager.</returns>
-    public static (TrashController controller, Mock<ILibraryManager> libraryManagerMock) CreateTrashController()
+    public static (TrashController controller, Mock<ILibraryManager> libraryManagerMock, Mock<ICleanupConfigHelper> configHelperMock, Mock<ITrashService> trashServiceMock) CreateTrashController()
     {
         var libraryManagerMock = TestMockFactory.CreateLibraryManager();
+        
+        var configHelperMock = new Mock<ICleanupConfigHelper>();
+        var trashServiceMock = new Mock<ITrashService>();
         
         var controller = new TrashController(
             libraryManagerMock.Object,
             new PluginLogService(),
-            new Mock<ILogger<TrashController>>().Object);
-        return (controller, libraryManagerMock);
+            new Mock<ILogger<TrashController>>().Object,
+            configHelperMock.Object,
+            trashServiceMock.Object);
+        return (controller, libraryManagerMock, configHelperMock, trashServiceMock);
     }
 
     /// <summary>
     /// Creates a <see cref="ArrIntegrationController"/> with all dependencies mocked.
     /// </summary>
     /// <returns>A tuple of the controller and its mocks.</returns>
-    public static (ArrIntegrationController Controller, Mock<ILibraryManager> LibraryManagerMock, Mock<IFileSystem> FileSystemMock, Mock<IHttpClientFactory> HttpClientFactoryMock) CreateArrIntegrationController()
+    public static (ArrIntegrationController Controller, Mock<ILibraryManager> LibraryManagerMock, Mock<IFileSystem> FileSystemMock, Mock<IHttpClientFactory> HttpClientFactoryMock, Mock<ICleanupConfigHelper> ConfigHelperMock) CreateArrIntegrationController()
     {
         var libraryManagerMock = TestMockFactory.CreateLibraryManager();
         var fileSystemMock = TestMockFactory.CreateFileSystem();
@@ -89,14 +95,17 @@ public static class ControllerTestFactory
         var pluginLog = new PluginLogService();
         var arrService = new ArrIntegrationService(httpClientFactoryMock.Object, pluginLog, new Mock<ILogger<ArrIntegrationService>>().Object);
 
+        var configHelperMock = new Mock<ICleanupConfigHelper>();
+        
         var controller = new ArrIntegrationController(
             libraryManagerMock.Object,
             fileSystemMock.Object,
             arrService,
             pluginLog,
-            new Mock<ILogger<ArrIntegrationController>>().Object);
+            new Mock<ILogger<ArrIntegrationController>>().Object,
+            configHelperMock.Object);
 
-        return (controller, libraryManagerMock, fileSystemMock, httpClientFactoryMock);
+        return (controller, libraryManagerMock, fileSystemMock, httpClientFactoryMock, configHelperMock);
     }
 
     /// <summary>

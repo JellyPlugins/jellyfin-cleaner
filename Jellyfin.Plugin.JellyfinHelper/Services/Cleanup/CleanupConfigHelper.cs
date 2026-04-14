@@ -3,36 +3,52 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
-using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 
 /// <summary>
-/// Helper methods that apply plugin configuration rules to cleanup operations.
+/// Helper that applies plugin configuration rules to cleanup operations.
 /// Provides library filtering, orphan age checking, trash/delete resolution, and task mode queries.
+/// Registered as a singleton via DI; reads configuration from <see cref="Plugin.Instance"/>.
 /// </summary>
-public static class CleanupConfigHelper
+public class CleanupConfigHelper : ICleanupConfigHelper
 {
-    /// <summary>
-    /// Gets or sets a configuration override for testing purposes.
-    /// When set, <see cref="GetConfig"/> returns this instead of the plugin configuration.
-    /// </summary>
-    internal static PluginConfiguration? ConfigOverride { get; set; }
+    // ===== Pure static helpers (no state, no config access) =====
 
     /// <summary>
-    /// Gets the current plugin configuration, or a default configuration if the plugin is not available.
-    /// Automatically triggers migration from legacy booleans to <see cref="TaskMode"/> on first access.
+    /// Determines whether a task should run in dry-run mode based on its <see cref="TaskMode"/>.
+    /// Returns true for <see cref="TaskMode.DryRun"/>, false for <see cref="TaskMode.Activate"/>.
+    /// Should NOT be called if the task mode is <see cref="TaskMode.Deactivate"/> (check first).
     /// </summary>
-    /// <returns>The plugin configuration.</returns>
-    public static PluginConfiguration GetConfig()
+    /// <param name="mode">The task mode.</param>
+    /// <returns>True if the task should run in dry-run mode.</returns>
+    public static bool IsDryRun(TaskMode mode) => mode != TaskMode.Activate;
+
+    /// <summary>
+    /// Parses a comma-separated string into a case-insensitive hash set of trimmed, non-empty values.
+    /// </summary>
+    /// <param name="value">The comma-separated input string.</param>
+    /// <returns>A hash set of parsed values.</returns>
+    public static HashSet<string> ParseCommaSeparated(string? value)
     {
-        if (ConfigOverride != null)
+        if (string.IsNullOrWhiteSpace(value))
         {
-            return ConfigOverride;
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
+        return value
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    // ===== Instance members (config access via Plugin.Instance) =====
+
+    /// <inheritdoc />
+    public PluginConfiguration GetConfig()
+    {
         var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
 
         // One-time migration from legacy booleans to TaskMode
@@ -45,71 +61,32 @@ public static class CleanupConfigHelper
         return config;
     }
 
-    // ===== TaskMode queries =====
+    /// <inheritdoc />
+    public TaskMode GetTrickplayTaskMode() => GetConfig().TrickplayTaskMode;
 
-    /// <summary>
-    /// Gets the <see cref="TaskMode"/> for the Trickplay Folder Cleaner.
-    /// </summary>
-    /// <returns>The configured task mode.</returns>
-    internal static TaskMode GetTrickplayTaskMode() => GetConfig().TrickplayTaskMode;
+    /// <inheritdoc />
+    public TaskMode GetEmptyMediaFolderTaskMode() => GetConfig().EmptyMediaFolderTaskMode;
 
-    /// <summary>
-    /// Gets the <see cref="TaskMode"/> for the Empty Media Folder Cleaner.
-    /// </summary>
-    /// <returns>The configured task mode.</returns>
-    internal static TaskMode GetEmptyMediaFolderTaskMode() => GetConfig().EmptyMediaFolderTaskMode;
+    /// <inheritdoc />
+    public TaskMode GetOrphanedSubtitleTaskMode() => GetConfig().OrphanedSubtitleTaskMode;
 
-    /// <summary>
-    /// Gets the <see cref="TaskMode"/> for the Orphaned Subtitle Cleaner.
-    /// </summary>
-    /// <returns>The configured task mode.</returns>
-    internal static TaskMode GetOrphanedSubtitleTaskMode() => GetConfig().OrphanedSubtitleTaskMode;
+    /// <inheritdoc />
+    public TaskMode GetStrmRepairTaskMode() => GetConfig().StrmRepairTaskMode;
 
-    /// <summary>
-    /// Gets the <see cref="TaskMode"/> for the .strm File Repair task.
-    /// </summary>
-    /// <returns>The configured task mode.</returns>
-    internal static TaskMode GetStrmRepairTaskMode() => GetConfig().StrmRepairTaskMode;
+    /// <inheritdoc />
+    public bool IsDryRunTrickplay() => IsDryRun(GetConfig().TrickplayTaskMode);
 
-    /// <summary>
-    /// Determines whether a task should run in dry-run mode based on its <see cref="TaskMode"/>.
-    /// Returns true for <see cref="TaskMode.DryRun"/>, false for <see cref="TaskMode.Activate"/>.
-    /// Should NOT be called if the task mode is <see cref="TaskMode.Deactivate"/> (check first).
-    /// </summary>
-    /// <param name="mode">The task mode.</param>
-    /// <returns>True if the task should run in dry-run mode.</returns>
-    internal static bool IsDryRun(TaskMode mode) => mode != TaskMode.Activate;
+    /// <inheritdoc />
+    public bool IsDryRunEmptyMediaFolders() => IsDryRun(GetConfig().EmptyMediaFolderTaskMode);
 
-    /// <summary>
-    /// Determines whether the Trickplay Folder Cleaner should run in dry-run mode.
-    /// </summary>
-    /// <returns>True if the operation should be a dry run.</returns>
-    internal static bool IsDryRunTrickplay() => IsDryRun(GetConfig().TrickplayTaskMode);
+    /// <inheritdoc />
+    public bool IsDryRunOrphanedSubtitles() => IsDryRun(GetConfig().OrphanedSubtitleTaskMode);
 
-    /// <summary>
-    /// Determines whether the Empty Media Folder Cleaner should run in dry-run mode.
-    /// </summary>
-    /// <returns>True if the operation should be a dry run.</returns>
-    internal static bool IsDryRunEmptyMediaFolders() => IsDryRun(GetConfig().EmptyMediaFolderTaskMode);
+    /// <inheritdoc />
+    public bool IsDryRunStrmRepair() => IsDryRun(GetConfig().StrmRepairTaskMode);
 
-    /// <summary>
-    /// Determines whether the Orphaned Subtitle Cleaner should run in dry-run mode.
-    /// </summary>
-    /// <returns>True if the operation should be a dry run.</returns>
-    internal static bool IsDryRunOrphanedSubtitles() => IsDryRun(GetConfig().OrphanedSubtitleTaskMode);
-
-    /// <summary>
-    /// Determines whether the .strm File Repair task should run in dry-run mode.
-    /// </summary>
-    /// <returns>True if the operation should be a dry run.</returns>
-    internal static bool IsDryRunStrmRepair() => IsDryRun(GetConfig().StrmRepairTaskMode);
-
-    /// <summary>
-    /// Gets the filtered library locations based on the whitelist/blacklist configuration.
-    /// </summary>
-    /// <param name="libraryManager">The library manager.</param>
-    /// <returns>A filtered, deduplicated list of library root paths.</returns>
-    public static IReadOnlyList<string> GetFilteredLibraryLocations(ILibraryManager libraryManager)
+    /// <inheritdoc />
+    public IReadOnlyList<string> GetFilteredLibraryLocations(ILibraryManager libraryManager)
     {
         ArgumentNullException.ThrowIfNull(libraryManager);
 
@@ -164,12 +141,8 @@ public static class CleanupConfigHelper
             .ToList();
     }
 
-    /// <summary>
-    /// Checks whether a directory is old enough to be considered an orphan based on the configured minimum age.
-    /// </summary>
-    /// <param name="directoryPath">The path to the directory.</param>
-    /// <returns>True if the directory is old enough (or age check is disabled), false if it's too new.</returns>
-    internal static bool IsOldEnoughForDeletion(string directoryPath)
+    /// <inheritdoc />
+    public bool IsOldEnoughForDeletion(string directoryPath)
     {
         var config = GetConfig();
         if (config.OrphanMinAgeDays <= 0)
@@ -195,12 +168,8 @@ public static class CleanupConfigHelper
         }
     }
 
-    /// <summary>
-    /// Checks whether a file is old enough to be considered an orphan based on the configured minimum age.
-    /// </summary>
-    /// <param name="filePath">The path to the file.</param>
-    /// <returns>True if the file is old enough (or age check is disabled), false if it's too new.</returns>
-    internal static bool IsFileOldEnoughForDeletion(string filePath)
+    /// <inheritdoc />
+    public bool IsFileOldEnoughForDeletion(string filePath)
     {
         var config = GetConfig();
         if (config.OrphanMinAgeDays <= 0)
@@ -226,13 +195,8 @@ public static class CleanupConfigHelper
         }
     }
 
-    /// <summary>
-    /// Gets the resolved trash folder path for a given library root.
-    /// If the configured path is relative, it is resolved relative to the library root.
-    /// </summary>
-    /// <param name="libraryRootPath">The library root path.</param>
-    /// <returns>The full trash folder path.</returns>
-    internal static string GetTrashPath(string libraryRootPath)
+    /// <inheritdoc />
+    public string GetTrashPath(string libraryRootPath)
     {
         var config = GetConfig();
         var trashPath = config.TrashFolderPath;
@@ -248,23 +212,5 @@ public static class CleanupConfigHelper
         }
 
         return Path.Combine(libraryRootPath, trashPath);
-    }
-
-    /// <summary>
-    /// Parses a comma-separated string into a case-insensitive hash set of trimmed, non-empty values.
-    /// </summary>
-    /// <param name="value">The comma-separated input string.</param>
-    /// <returns>A hash set of parsed values.</returns>
-    internal static HashSet<string> ParseCommaSeparated(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        }
-
-        return value
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(s => !string.IsNullOrWhiteSpace(s))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 }

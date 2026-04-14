@@ -20,6 +20,7 @@ public class RepairStrmFilesTask
     private readonly ILibraryManager _libraryManager;
     private readonly IPluginLogService _pluginLog;
     private readonly StrmRepairService _strmRepairService;
+    private readonly ICleanupConfigHelper _configHelper;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RepairStrmFilesTask"/> class.
@@ -29,17 +30,20 @@ public class RepairStrmFilesTask
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="fileSystem">The file system abstraction.</param>
     /// <param name="strmRepairServiceLogger">The logger for the strm repair service.</param>
+    /// <param name="configHelper">The cleanup configuration helper.</param>
     public RepairStrmFilesTask(
         ILogger<RepairStrmFilesTask> logger,
         ILibraryManager libraryManager,
         IPluginLogService pluginLog,
         IFileSystem fileSystem,
-        ILogger<StrmRepairService> strmRepairServiceLogger)
+        ILogger<StrmRepairService> strmRepairServiceLogger,
+        ICleanupConfigHelper configHelper)
     {
         _logger = logger;
         _libraryManager = libraryManager;
         _pluginLog = pluginLog;
         _strmRepairService = new StrmRepairService(fileSystem, pluginLog, strmRepairServiceLogger);
+        _configHelper = configHelper;
     }
 
     /// <summary>
@@ -50,16 +54,19 @@ public class RepairStrmFilesTask
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="strmRepairService">The strm repair service.</param>
+    /// <param name="configHelper">The cleanup configuration helper.</param>
     internal RepairStrmFilesTask(
         ILogger<RepairStrmFilesTask> logger,
         ILibraryManager libraryManager,
         IPluginLogService pluginLog,
-        StrmRepairService strmRepairService)
+        StrmRepairService strmRepairService,
+        ICleanupConfigHelper configHelper)
     {
         _logger = logger;
         _libraryManager = libraryManager;
         _pluginLog = pluginLog;
         _strmRepairService = strmRepairService;
+        _configHelper = configHelper;
     }
 
     /// <summary>
@@ -70,12 +77,12 @@ public class RepairStrmFilesTask
     /// <returns>A completed task.</returns>
     public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var dryRun = CleanupConfigHelper.IsDryRunStrmRepair();
+        var dryRun = _configHelper.IsDryRunStrmRepair();
 
         _pluginLog.LogInfo("StrmRepair", "Task started.", _logger);
         progress.Report(0);
 
-        var libraryPaths = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
+        var libraryPaths = _configHelper.GetFilteredLibraryLocations(_libraryManager);
 
         if (libraryPaths.Count == 0)
         {

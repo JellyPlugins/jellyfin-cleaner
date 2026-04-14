@@ -27,6 +27,7 @@ public class ConfigurationController : ControllerBase
     private readonly ArrIntegrationService _arrService;
     private readonly IPluginLogService _pluginLog;
     private readonly ILogger<ConfigurationController> _logger;
+    private readonly ICleanupConfigHelper _configHelper;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ConfigurationController"/> class.
@@ -34,11 +35,13 @@ public class ConfigurationController : ControllerBase
     /// <param name="arrService">The Arr integration service for connection testing.</param>
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The controller logger.</param>
-    public ConfigurationController(ArrIntegrationService arrService, IPluginLogService pluginLog, ILogger<ConfigurationController> logger)
+    /// <param name="configHelper">The cleanup configuration helper.</param>
+    public ConfigurationController(ArrIntegrationService arrService, IPluginLogService pluginLog, ILogger<ConfigurationController> logger, ICleanupConfigHelper configHelper)
     {
         _arrService = arrService;
         _pluginLog = pluginLog;
         _logger = logger;
+        _configHelper = configHelper;
     }
 
     /// <summary>
@@ -49,7 +52,7 @@ public class ConfigurationController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult<PluginConfiguration> GetConfiguration()
     {
-        var config = CleanupConfigHelper.GetConfig();
+        var config = _configHelper.GetConfig();
         return Ok(config);
     }
 

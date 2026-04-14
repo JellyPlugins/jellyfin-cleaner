@@ -1,7 +1,9 @@
 using System.Text.Json;
 using Jellyfin.Plugin.JellyfinHelper.Api;
+using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using Microsoft.AspNetCore.Mvc;
+using Moq;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
@@ -13,7 +15,10 @@ public class CleanupStatisticsControllerTests
     public CleanupStatisticsControllerTests()
     {
         ControllerTestFactory.InitializePluginInstance();
-        _controller = new CleanupStatisticsController();
+        var trackingServiceMock = new Mock<ICleanupTrackingService>();
+        trackingServiceMock.Setup(t => t.GetStatistics())
+            .Returns((0L, 0, DateTime.MinValue));
+        _controller = new CleanupStatisticsController(trackingServiceMock.Object);
     }
 
     [Fact]

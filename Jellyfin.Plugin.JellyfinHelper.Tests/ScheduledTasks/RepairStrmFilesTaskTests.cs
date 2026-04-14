@@ -1,5 +1,6 @@
 using System.IO.Abstractions.TestingHelpers;
 using Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
+using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Controller.Library;
@@ -17,11 +18,13 @@ public class RepairStrmFilesTaskTests
     {
         var fileSystem = new MockFileSystem();
         var pluginLog = new Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.PluginLogService();
-        var service = new StrmRepairService(fileSystem, pluginLog, TestMockFactory.CreateLogger<StrmRepairService>().Object);
+        var configHelper = new CleanupConfigHelper();
         return new RepairStrmFilesTask(
             TestMockFactory.CreateLogger<RepairStrmFilesTask>().Object,
             new Mock<ILibraryManager>().Object,
             pluginLog,
-            service);
+            fileSystem,
+            TestMockFactory.CreateLogger<StrmRepairService>().Object,
+            configHelper);
     }
 }

@@ -38,6 +38,7 @@ public class GrowthTimelineService : IDisposable
     private readonly string _timelineFilePath;
     private readonly string _baselineFilePath;
     private readonly ILogger<GrowthTimelineService> _logger;
+    private readonly ICleanupConfigHelper _configHelper;
     private readonly SemaphoreSlim _fileLock = new(1, 1);
 
     /// <summary>
@@ -48,16 +49,19 @@ public class GrowthTimelineService : IDisposable
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="applicationPaths">The application paths.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="configHelper">The cleanup configuration helper.</param>
     public GrowthTimelineService(
         ILibraryManager libraryManager,
         IFileSystem fileSystem,
         IPluginLogService pluginLog,
         IApplicationPaths applicationPaths,
-        ILogger<GrowthTimelineService> logger)
+        ILogger<GrowthTimelineService> logger,
+        ICleanupConfigHelper configHelper)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
         _pluginLog = pluginLog;
+        _configHelper = configHelper;
         _logger = logger;
         _timelineFilePath = Path.Combine(applicationPaths.DataPath, TimelineFileName);
         _baselineFilePath = Path.Combine(applicationPaths.DataPath, BaselineFileName);
@@ -536,7 +540,7 @@ public class GrowthTimelineService : IDisposable
     {
         var entries = new List<DirectoryEntry>();
         var locations = LibraryPathResolver.GetDistinctLibraryLocations(_libraryManager);
-        var config = CleanupConfigHelper.GetConfig();
+        var config = _configHelper.GetConfig();
         var trashFolderName = config.TrashFolderPath;
 
         foreach (var location in locations)

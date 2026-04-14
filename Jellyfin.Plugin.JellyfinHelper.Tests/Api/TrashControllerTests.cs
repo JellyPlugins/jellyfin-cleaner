@@ -10,11 +10,12 @@ using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 
-[Collection("ConfigOverride")]
 public class TrashControllerTests : IDisposable
 {
     private readonly TrashController _controller;
     private readonly Mock<ILibraryManager> _libraryManagerMock;
+    private readonly Mock<ICleanupConfigHelper> _configHelperMock;
+    private readonly Mock<ITrashService> _trashServiceMock;
     private readonly string _tempPath;
 
     public TrashControllerTests()
@@ -22,14 +23,14 @@ public class TrashControllerTests : IDisposable
         _tempPath = Path.Combine(Path.GetTempPath(), "JellyfinHelperTests_" + Guid.NewGuid());
         Directory.CreateDirectory(_tempPath);
 
-        (_controller, _libraryManagerMock) = ControllerTestFactory.CreateTrashController();
+        (_controller, _libraryManagerMock, _configHelperMock, _trashServiceMock) = ControllerTestFactory.CreateTrashController();
 
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration();
+        // Default: return empty config
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(new PluginConfiguration());
     }
 
     public void Dispose()
     {
-        CleanupConfigHelper.ConfigOverride = null;
         if (Directory.Exists(_tempPath))
         {
             Directory.Delete(_tempPath, true);
@@ -40,6 +41,12 @@ public class TrashControllerTests : IDisposable
     {
         var folders = paths.Select(path => new VirtualFolderInfo { Name = Path.GetFileName(path), Locations = [path], CollectionType = CollectionTypeOptions.movies }).ToList();
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns(folders);
+        _configHelperMock.Setup(c => c.GetFilteredLibraryLocations(It.IsAny<ILibraryManager>())).Returns(paths.ToList());
+    }
+
+    private void SetupConfig(PluginConfiguration config)
+    {
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(config);
     }
 
     [Fact]
@@ -47,11 +54,8 @@ public class TrashControllerTests : IDisposable
     {
         var trashPath = Path.Combine(_tempPath, "GlobalTrash");
         Directory.CreateDirectory(trashPath);
-        
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
-        {
-            TrashFolderPath = trashPath
-        };
+
+        SetupConfig(new PluginConfiguration { TrashFolderPath = trashPath });
 
         var result = _controller.GetTrashFolders();
 
@@ -67,11 +71,8 @@ public class TrashControllerTests : IDisposable
     public void GetTrashFolders_AbsoluteTrashPath_ReturnsEmptyIfNotExist()
     {
         var trashPath = Path.Combine(_tempPath, "NonExistentTrash");
-        
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
-        {
-            TrashFolderPath = trashPath
-        };
+
+        SetupConfig(new PluginConfiguration { TrashFolderPath = trashPath });
 
         var result = _controller.GetTrashFolders();
 
@@ -89,16 +90,16 @@ public class TrashControllerTests : IDisposable
         var lib2 = Path.Combine(_tempPath, "TV");
         Directory.CreateDirectory(lib1);
         Directory.CreateDirectory(lib2);
-        
+
         var trash1 = Path.Combine(lib1, ".jellyfin-trash");
         Directory.CreateDirectory(trash1);
-        
+
         SetupLibraries(lib1, lib2);
-        
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
-        {
-            TrashFolderPath = ".jellyfin-trash"
-        };
+
+        SetupConfig(new PluginConfiguration { TrashFolderPath = ".jellyfin-trash" });
+
+        _configHelperMock.Setup(c => c.GetTrashPath(lib1)).Returns(trash1);
+        _configHelperMock.Setup(c => c.GetTrashPath(lib2)).Returns(Path.Combine(lib2, ".jellyfin-trash"));
 
         var result = _controller.GetTrashFolders();
 
@@ -117,18 +118,18 @@ public class TrashControllerTests : IDisposable
         var lib2 = Path.Combine(_tempPath, "TV");
         Directory.CreateDirectory(lib1);
         Directory.CreateDirectory(lib2);
-        
+
         var trash1 = Path.Combine(lib1, ".jellyfin-trash");
         var trash2 = Path.Combine(lib2, ".jellyfin-trash");
         Directory.CreateDirectory(trash1);
         Directory.CreateDirectory(trash2);
-        
+
         SetupLibraries(lib1, lib2);
-        
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
-        {
-            TrashFolderPath = ".jellyfin-trash"
-        };
+
+        SetupConfig(new PluginConfiguration { TrashFolderPath = ".jellyfin-trash" });
+
+        _configHelperMock.Setup(c => c.GetTrashPath(lib1)).Returns(trash1);
+        _configHelperMock.Setup(c => c.GetTrashPath(lib2)).Returns(trash2);
 
         var result = _controller.GetTrashFolders();
 
@@ -147,11 +148,11 @@ public class TrashControllerTests : IDisposable
         var trashPath = Path.Combine(_tempPath, "GlobalTrash");
         Directory.CreateDirectory(trashPath);
         File.WriteAllText(Path.Combine(trashPath, "test.txt"), "content");
-        
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
-        {
-            TrashFolderPath = trashPath
-        };
+
+        SetupConfig(new PluginConfiguration { TrashFolderPath = trashPath });
+
+        // Need to setup filtered library locations so safety check works
+        _configHelperMock.Setup(c => c.GetFilteredLibraryLocations(It.IsAny<ILibraryManager>())).Returns(new List<string>());
 
         var result = _controller.DeleteTrashFolders();
 
@@ -170,18 +171,18 @@ public class TrashControllerTests : IDisposable
         var lib2 = Path.Combine(_tempPath, "TV");
         Directory.CreateDirectory(lib1);
         Directory.CreateDirectory(lib2);
-        
+
         var trash1 = Path.Combine(lib1, ".jellyfin-trash");
         var trash2 = Path.Combine(lib2, ".jellyfin-trash");
         Directory.CreateDirectory(trash1);
         Directory.CreateDirectory(trash2);
-        
+
         SetupLibraries(lib1, lib2);
-        
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
-        {
-            TrashFolderPath = ".jellyfin-trash"
-        };
+
+        SetupConfig(new PluginConfiguration { TrashFolderPath = ".jellyfin-trash" });
+
+        _configHelperMock.Setup(c => c.GetTrashPath(lib1)).Returns(trash1);
+        _configHelperMock.Setup(c => c.GetTrashPath(lib2)).Returns(trash2);
 
         var result = _controller.DeleteTrashFolders();
 
@@ -198,13 +199,11 @@ public class TrashControllerTests : IDisposable
     {
         var lib1 = Path.Combine(_tempPath, "Movies");
         Directory.CreateDirectory(lib1);
-        
+
         SetupLibraries(lib1);
-        
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
-        {
-            TrashFolderPath = lib1
-        };
+
+        // Set TrashFolderPath to the library root itself (unsafe)
+        SetupConfig(new PluginConfiguration { TrashFolderPath = lib1 });
 
         var result = _controller.DeleteTrashFolders();
 

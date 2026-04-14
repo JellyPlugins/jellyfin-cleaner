@@ -32,6 +32,7 @@ public class ArrIntegrationController : ControllerBase
     private readonly ArrIntegrationService _arrService;
     private readonly IPluginLogService _pluginLog;
     private readonly ILogger<ArrIntegrationController> _logger;
+    private readonly ICleanupConfigHelper _configHelper;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ArrIntegrationController"/> class.
@@ -41,18 +42,21 @@ public class ArrIntegrationController : ControllerBase
     /// <param name="arrService">The Arr integration service.</param>
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The controller logger.</param>
+    /// <param name="configHelper">The cleanup configuration helper.</param>
     public ArrIntegrationController(
         ILibraryManager libraryManager,
         IFileSystem fileSystem,
         ArrIntegrationService arrService,
         IPluginLogService pluginLog,
-        ILogger<ArrIntegrationController> logger)
+        ILogger<ArrIntegrationController> logger,
+        ICleanupConfigHelper configHelper)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
         _arrService = arrService;
         _pluginLog = pluginLog;
         _logger = logger;
+        _configHelper = configHelper;
     }
 
     /// <summary>
@@ -85,7 +89,7 @@ public class ArrIntegrationController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ArrComparisonResult>> CompareRadarrAsync([FromQuery] int? index, CancellationToken cancellationToken)
     {
-        var config = CleanupConfigHelper.GetConfig();
+        var config = _configHelper.GetConfig();
         var instances = config.GetEffectiveRadarrInstances();
 
         if (instances.Count == 0)
@@ -140,7 +144,7 @@ public class ArrIntegrationController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ArrComparisonResult>> CompareSonarrAsync([FromQuery] int? index, CancellationToken cancellationToken)
     {
-        var config = CleanupConfigHelper.GetConfig();
+        var config = _configHelper.GetConfig();
         var instances = config.GetEffectiveSonarrInstances();
 
         if (instances.Count == 0)
@@ -195,7 +199,7 @@ public class ArrIntegrationController : ControllerBase
 
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        var config = CleanupConfigHelper.GetConfig();
+        var config = _configHelper.GetConfig();
         var trashFolderName = config.TrashFolderPath;
         var isTrashRelative = !Path.IsPathRooted(trashFolderName);
 

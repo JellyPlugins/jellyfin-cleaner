@@ -35,6 +35,9 @@ public class HelperCleanupTask : IScheduledTask
     private readonly MediaStatisticsService _statisticsService;
     private readonly StatisticsCacheService _cacheService;
     private readonly GrowthTimelineService _growthService;
+    private readonly ICleanupConfigHelper _configHelper;
+    private readonly ICleanupTrackingService _trackingService;
+    private readonly ITrashService _trashService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HelperCleanupTask"/> class.
@@ -47,6 +50,9 @@ public class HelperCleanupTask : IScheduledTask
     /// <param name="statisticsService">The media statistics service.</param>
     /// <param name="cacheService">The statistics cache service.</param>
     /// <param name="growthService">The growth timeline service.</param>
+    /// <param name="configHelper">The cleanup configuration helper.</param>
+    /// <param name="trackingService">The cleanup tracking service.</param>
+    /// <param name="trashService">The trash service.</param>
     public HelperCleanupTask(
         ILibraryManager libraryManager,
         IFileSystem fileSystem,
@@ -55,7 +61,10 @@ public class HelperCleanupTask : IScheduledTask
         ILoggerFactory loggerFactory,
         MediaStatisticsService statisticsService,
         StatisticsCacheService cacheService,
-        GrowthTimelineService growthService)
+        GrowthTimelineService growthService,
+        ICleanupConfigHelper configHelper,
+        ICleanupTrackingService trackingService,
+        ITrashService trashService)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
@@ -66,6 +75,9 @@ public class HelperCleanupTask : IScheduledTask
         _statisticsService = statisticsService;
         _cacheService = cacheService;
         _growthService = growthService;
+        _configHelper = configHelper;
+        _trackingService = trackingService;
+        _trashService = trashService;
     }
 
     /// <inheritdoc />
@@ -83,7 +95,7 @@ public class HelperCleanupTask : IScheduledTask
     /// <inheritdoc />
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var config = CleanupConfigHelper.GetConfig();
+        var config = _configHelper.GetConfig();
 
         // Define sub-tasks with their mode and weight (for progress calculation)
         var subTasks = new (string Name, TaskMode Mode, Func<IProgress<double>, CancellationToken, Task> Execute)[]
@@ -168,7 +180,7 @@ public class HelperCleanupTask : IScheduledTask
                         continue;
                     }
 
-                    var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, config.TrashRetentionDays, _logger, _pluginLog);
+                    var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, config.TrashRetentionDays, _logger);
                     totalBytesFreed += bytesFreed;
                     totalItemsPurged += itemsPurged;
                 }
@@ -244,7 +256,10 @@ public class HelperCleanupTask : IScheduledTask
             _libraryManager,
             _fileSystem,
             _pluginLog,
-            _loggerFactory.CreateLogger<CleanTrickplayTask>());
+            _loggerFactory.CreateLogger<CleanTrickplayTask>(),
+            _configHelper,
+            _trackingService,
+            _trashService);
         return task.ExecuteAsync(progress, cancellationToken);
     }
 
@@ -254,7 +269,10 @@ public class HelperCleanupTask : IScheduledTask
             _libraryManager,
             _fileSystem,
             _pluginLog,
-            _loggerFactory.CreateLogger<CleanEmptyMediaFoldersTask>());
+            _loggerFactory.CreateLogger<CleanEmptyMediaFoldersTask>(),
+            _configHelper,
+            _trackingService,
+            _trashService);
         return task.ExecuteAsync(progress, cancellationToken);
     }
 
@@ -264,7 +282,10 @@ public class HelperCleanupTask : IScheduledTask
             _libraryManager,
             _fileSystem,
             _pluginLog,
-            _loggerFactory.CreateLogger<CleanOrphanedSubtitlesTask>());
+            _loggerFactory.CreateLogger<CleanOrphanedSubtitlesTask>(),
+            _configHelper,
+            _trackingService,
+            _trashService);
         return task.ExecuteAsync(progress, cancellationToken);
     }
 
@@ -298,7 +319,8 @@ public class HelperCleanupTask : IScheduledTask
             _libraryManager,
             _pluginLog,
             new FileSystem(),
-            _loggerFactory.CreateLogger<StrmRepairService>());
+            _loggerFactory.CreateLogger<StrmRepairService>(),
+            _configHelper);
         return task.ExecuteAsync(progress, cancellationToken);
     }
 

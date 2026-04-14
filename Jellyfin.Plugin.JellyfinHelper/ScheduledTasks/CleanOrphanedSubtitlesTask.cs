@@ -37,6 +37,9 @@ public class CleanOrphanedSubtitlesTask
     private readonly IFileSystem _fileSystem;
     private readonly IPluginLogService _pluginLog;
     private readonly ILogger<CleanOrphanedSubtitlesTask> _logger;
+    private readonly ICleanupConfigHelper _configHelper;
+    private readonly ICleanupTrackingService _trackingService;
+    private readonly ITrashService _trashService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CleanOrphanedSubtitlesTask"/> class.
@@ -45,12 +48,18 @@ public class CleanOrphanedSubtitlesTask
     /// <param name="fileSystem">The file system.</param>
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The logger.</param>
-    public CleanOrphanedSubtitlesTask(ILibraryManager libraryManager, IFileSystem fileSystem, IPluginLogService pluginLog, ILogger<CleanOrphanedSubtitlesTask> logger)
+    /// <param name="configHelper">The cleanup configuration helper.</param>
+    /// <param name="trackingService">The cleanup tracking service.</param>
+    /// <param name="trashService">The trash service.</param>
+    public CleanOrphanedSubtitlesTask(ILibraryManager libraryManager, IFileSystem fileSystem, IPluginLogService pluginLog, ILogger<CleanOrphanedSubtitlesTask> logger, ICleanupConfigHelper configHelper, ICleanupTrackingService trackingService, ITrashService trashService)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
         _pluginLog = pluginLog;
         _logger = logger;
+        _configHelper = configHelper;
+        _trackingService = trackingService;
+        _trashService = trashService;
     }
 
     /// <summary>
@@ -61,8 +70,8 @@ public class CleanOrphanedSubtitlesTask
     /// <returns>A completed task.</returns>
     public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var effectiveDryRun = CleanupConfigHelper.IsDryRunOrphanedSubtitles();
-        var config = CleanupConfigHelper.GetConfig();
+        var effectiveDryRun = _configHelper.IsDryRunOrphanedSubtitles();
+        var config = _configHelper.GetConfig();
 
         if (effectiveDryRun)
         {
@@ -73,7 +82,7 @@ public class CleanOrphanedSubtitlesTask
             _pluginLog.LogInfo("SubtitleCleaner", "Task started.", _logger);
         }
 
-        var libraryFolders = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
+        var libraryFolders = _configHelper.GetFilteredLibraryLocations(_libraryManager);
 
         int totalDeleted = 0;
         long totalBytesFreed = 0;
@@ -104,7 +113,7 @@ public class CleanOrphanedSubtitlesTask
 
         if (!effectiveDryRun && totalDeleted > 0)
         {
-            CleanupTrackingService.RecordCleanup(totalBytesFreed, totalDeleted, _logger, _pluginLog);
+            _trackingService.RecordCleanup(totalBytesFreed, totalDeleted, _logger);
         }
 
         return Task.CompletedTask;
@@ -114,7 +123,7 @@ public class CleanOrphanedSubtitlesTask
     {
         int deletedCount = 0;
         long bytesFreed = 0;
-        var config = CleanupConfigHelper.GetConfig();
+        var config = _configHelper.GetConfig();
 
         try
         {
@@ -148,7 +157,7 @@ public class CleanOrphanedSubtitlesTask
                 }
 
                 // Skip trash directories
-                var trashFolderName = Path.GetFileName(CleanupConfigHelper.GetTrashPath(rootPath));
+                var trashFolderName = Path.GetFileName(_configHelper.GetTrashPath(rootPath));
                 if (Path.GetFileName(dirPath).Equals(trashFolderName, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
@@ -209,7 +218,7 @@ public class CleanOrphanedSubtitlesTask
                     }
 
                     // Check orphan age
-                    if (!CleanupConfigHelper.IsFileOldEnoughForDeletion(file.FullName))
+                    if (!_configHelper.IsFileOldEnoughForDeletion(file.FullName))
                     {
                         _pluginLog.LogDebug("SubtitleCleaner", $"Skipping too-new orphaned subtitle (min age {config.OrphanMinAgeDays}d): {file.FullName}", _logger);
                         continue;
@@ -222,8 +231,8 @@ public class CleanOrphanedSubtitlesTask
                     }
                     else if (config.UseTrash)
                     {
-                        var trashPath = CleanupConfigHelper.GetTrashPath(rootPath);
-                        long size = TrashService.MoveFileToTrash(file.FullName, trashPath, _logger, _pluginLog);
+                        var trashPath = _configHelper.GetTrashPath(rootPath);
+                        long size = _trashService.MoveFileToTrash(file.FullName, trashPath, _logger);
                         if (size > 0)
                         {
                             bytesFreed += size;

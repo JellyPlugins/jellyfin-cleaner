@@ -17,6 +17,17 @@ namespace Jellyfin.Plugin.JellyfinHelper.Api;
 [Produces(MediaTypeNames.Application.Json)]
 public class TranslationsController : ControllerBase
 {
+    private readonly ICleanupConfigHelper _configHelper;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TranslationsController"/> class.
+    /// </summary>
+    /// <param name="configHelper">The cleanup configuration helper.</param>
+    public TranslationsController(ICleanupConfigHelper configHelper)
+    {
+        _configHelper = configHelper;
+    }
+
     /// <summary>
     /// Gets the translation strings for the specified language (or the configured language).
     /// </summary>
@@ -27,7 +38,7 @@ public class TranslationsController : ControllerBase
     [AllowAnonymous] // Intentional: translations are needed before user authentication (e.g. login page)
     public ActionResult<Dictionary<string, string>> GetTranslations([FromQuery] string? lang = null)
     {
-        var languageCode = lang ?? CleanupConfigHelper.GetConfig().Language;
+        var languageCode = lang ?? _configHelper.GetConfig().Language;
         var translations = I18nService.GetTranslations(languageCode);
         return Ok(translations);
     }

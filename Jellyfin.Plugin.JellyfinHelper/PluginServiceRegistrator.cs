@@ -1,6 +1,7 @@
 ﻿using System;
 using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Backup;
+using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
 using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
@@ -23,6 +24,9 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         {
             client.Timeout = TimeSpan.FromSeconds(15);
         });
+        serviceCollection.AddSingleton<ICleanupConfigHelper, CleanupConfigHelper>();
+        serviceCollection.AddSingleton<ICleanupTrackingService, CleanupTrackingService>();
+        serviceCollection.AddSingleton<ITrashService, TrashService>();
         serviceCollection.AddSingleton<IPluginLogService, PluginLogService>();
         serviceCollection.AddSingleton<MediaStatisticsService>();
         serviceCollection.AddSingleton<StatisticsCacheService>();

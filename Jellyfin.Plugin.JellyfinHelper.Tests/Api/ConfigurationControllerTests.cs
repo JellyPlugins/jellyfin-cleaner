@@ -14,8 +14,7 @@ using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 
-[Collection("ConfigOverride")]
-public class ConfigurationControllerTests : IDisposable
+public class ConfigurationControllerTests
 {
     private readonly ConfigurationController _controller;
     private readonly Mock<ArrIntegrationService> _arrServiceMock;
@@ -35,17 +34,8 @@ public class ConfigurationControllerTests : IDisposable
             .Setup(s => s.TestConnectionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((true, "OK"));
 
-        _controller = new ConfigurationController(_arrServiceMock.Object, new PluginLogService(), loggerMock.Object);
-
-        // Use the same config instance that Plugin.Instance.Configuration returns.
-        // This ensures UpdateConfigurationAsync (writes to Plugin.Instance.Configuration)
-        // and GetConfiguration (reads via CleanupConfigHelper.GetConfig()) share the same object.
-        CleanupConfigHelper.ConfigOverride = Plugin.Instance!.Configuration;
-    }
-
-    public void Dispose()
-    {
-        CleanupConfigHelper.ConfigOverride = null;
+        var configHelper = new CleanupConfigHelper();
+        _controller = new ConfigurationController(_arrServiceMock.Object, new PluginLogService(), loggerMock.Object, configHelper);
     }
 
     [Fact]

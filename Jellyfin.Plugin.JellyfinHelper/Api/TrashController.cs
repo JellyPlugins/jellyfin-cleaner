@@ -26,6 +26,8 @@ public class TrashController : ControllerBase
     private readonly ILibraryManager _libraryManager;
     private readonly IPluginLogService _pluginLog;
     private readonly ILogger<TrashController> _logger;
+    private readonly ICleanupConfigHelper _configHelper;
+    private readonly ITrashService _trashService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TrashController"/> class.
@@ -33,14 +35,20 @@ public class TrashController : ControllerBase
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The controller logger.</param>
+    /// <param name="configHelper">The cleanup configuration helper.</param>
+    /// <param name="trashService">The trash service.</param>
     public TrashController(
         ILibraryManager libraryManager,
         IPluginLogService pluginLog,
-        ILogger<TrashController> logger)
+        ILogger<TrashController> logger,
+        ICleanupConfigHelper configHelper,
+        ITrashService trashService)
     {
         _libraryManager = libraryManager;
         _pluginLog = pluginLog;
         _logger = logger;
+        _configHelper = configHelper;
+        _trashService = trashService;
     }
 
     /// <summary>
@@ -51,20 +59,20 @@ public class TrashController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult GetTrashSummary()
     {
-        var libraryFolders = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
+        var libraryFolders = _configHelper.GetFilteredLibraryLocations(_libraryManager);
         long totalSize = 0;
         var totalItems = 0;
 
         // Deduplicate trash paths so absolute paths are not counted once per library
         var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var trashPath in libraryFolders.Select(CleanupConfigHelper.GetTrashPath))
+        foreach (var trashPath in libraryFolders.Select(f => _configHelper.GetTrashPath(f)))
         {
             if (!seenPaths.Add(trashPath))
             {
                 continue;
             }
 
-            var (size, count) = TrashService.GetTrashSummary(trashPath);
+            var (size, count) = _trashService.GetTrashSummary(trashPath);
             totalSize += size;
             totalItems += count;
         }
@@ -87,8 +95,8 @@ public class TrashController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult GetTrashFolders()
     {
-        var config = CleanupConfigHelper.GetConfig();
-        var libraryFolders = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
+        var config = _configHelper.GetConfig();
+        var libraryFolders = _configHelper.GetFilteredLibraryLocations(_libraryManager);
         var existingPaths = new List<string>();
 
         if (!string.IsNullOrWhiteSpace(config.TrashFolderPath) && Path.IsPathRooted(config.TrashFolderPath))
@@ -102,7 +110,7 @@ public class TrashController : ControllerBase
         else
         {
             // Relative path: one trash folder per library
-            existingPaths.AddRange(libraryFolders.Select(CleanupConfigHelper.GetTrashPath).Where(Directory.Exists));
+            existingPaths.AddRange(libraryFolders.Select(f => _configHelper.GetTrashPath(f)).Where(Directory.Exists));
         }
 
         return Ok(new
@@ -121,8 +129,8 @@ public class TrashController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult DeleteTrashFolders()
     {
-        var config = CleanupConfigHelper.GetConfig();
-        var libraryFolders = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
+        var config = _configHelper.GetConfig();
+        var libraryFolders = _configHelper.GetFilteredLibraryLocations(_libraryManager);
         var deleted = new List<string>();
         var failed = new List<string>();
 
@@ -145,7 +153,7 @@ public class TrashController : ControllerBase
         {
             foreach (var folder in libraryFolders)
             {
-                var trashPath = Path.GetFullPath(CleanupConfigHelper.GetTrashPath(folder));
+                var trashPath = Path.GetFullPath(_configHelper.GetTrashPath(folder));
                 var libraryRoot = Path.GetFullPath(folder);
                 if (!trashPath.StartsWith(libraryRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 {
@@ -191,20 +199,20 @@ public class TrashController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult GetTrashContents()
     {
-        var config = CleanupConfigHelper.GetConfig();
-        var libraryFolders = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
+        var config = _configHelper.GetConfig();
+        var libraryFolders = _configHelper.GetFilteredLibraryLocations(_libraryManager);
         var libraries = new List<object>();
 
         var seenTrashPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var folder in libraryFolders)
         {
-            var trashPath = CleanupConfigHelper.GetTrashPath(folder);
+            var trashPath = _configHelper.GetTrashPath(folder);
             if (!seenTrashPaths.Add(Path.GetFullPath(trashPath)))
             {
                 continue;
             }
 
-            var items = TrashService.GetTrashContents(trashPath, config.TrashRetentionDays);
+            var items = _trashService.GetTrashContents(trashPath, config.TrashRetentionDays);
 
             if (items.Count > 0)
             {

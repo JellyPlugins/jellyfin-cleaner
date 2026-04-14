@@ -21,6 +21,7 @@ public partial class MediaStatisticsService
     private readonly IFileSystem _fileSystem;
     private readonly IPluginLogService _pluginLog;
     private readonly ILogger<MediaStatisticsService> _logger;
+    private readonly ICleanupConfigHelper _configHelper;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MediaStatisticsService"/> class.
@@ -29,12 +30,14 @@ public partial class MediaStatisticsService
     /// <param name="fileSystem">The file system.</param>
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The logger.</param>
-    public MediaStatisticsService(ILibraryManager libraryManager, IFileSystem fileSystem, IPluginLogService pluginLog, ILogger<MediaStatisticsService> logger)
+    /// <param name="configHelper">The cleanup configuration helper.</param>
+    public MediaStatisticsService(ILibraryManager libraryManager, IFileSystem fileSystem, IPluginLogService pluginLog, ILogger<MediaStatisticsService> logger, ICleanupConfigHelper configHelper)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
         _pluginLog = pluginLog;
         _logger = logger;
+        _configHelper = configHelper;
     }
 
     /// <summary>
@@ -215,10 +218,10 @@ public partial class MediaStatisticsService
             var subDirs = _fileSystem.GetDirectories(directoryPath);
             bool subDirHasVideo = false;
 
-            var config = CleanupConfigHelper.GetConfig();
+            var config = _configHelper.GetConfig();
             var trashFolderName = config.TrashFolderPath.Trim().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var fullTrashPath = libraryRoot != null
-                ? Path.GetFullPath(CleanupConfigHelper.GetTrashPath(libraryRoot)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                ? Path.GetFullPath(_configHelper.GetTrashPath(libraryRoot)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
                 : null;
 
             foreach (var subDir in subDirs)

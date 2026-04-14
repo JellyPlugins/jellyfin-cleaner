@@ -49,6 +49,9 @@ public class CleanEmptyMediaFoldersTask
     private readonly IFileSystem _fileSystem;
     private readonly IPluginLogService _pluginLog;
     private readonly ILogger<CleanEmptyMediaFoldersTask> _logger;
+    private readonly ICleanupConfigHelper _configHelper;
+    private readonly ICleanupTrackingService _trackingService;
+    private readonly ITrashService _trashService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CleanEmptyMediaFoldersTask"/> class.
@@ -57,12 +60,18 @@ public class CleanEmptyMediaFoldersTask
     /// <param name="fileSystem">The file system.</param>
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The logger.</param>
-    public CleanEmptyMediaFoldersTask(ILibraryManager libraryManager, IFileSystem fileSystem, IPluginLogService pluginLog, ILogger<CleanEmptyMediaFoldersTask> logger)
+    /// <param name="configHelper">The cleanup configuration helper.</param>
+    /// <param name="trackingService">The cleanup tracking service.</param>
+    /// <param name="trashService">The trash service.</param>
+    public CleanEmptyMediaFoldersTask(ILibraryManager libraryManager, IFileSystem fileSystem, IPluginLogService pluginLog, ILogger<CleanEmptyMediaFoldersTask> logger, ICleanupConfigHelper configHelper, ICleanupTrackingService trackingService, ITrashService trashService)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
         _pluginLog = pluginLog;
         _logger = logger;
+        _configHelper = configHelper;
+        _trackingService = trackingService;
+        _trashService = trashService;
     }
 
     /// <summary>
@@ -73,8 +82,8 @@ public class CleanEmptyMediaFoldersTask
     /// <returns>A completed task.</returns>
     public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var effectiveDryRun = CleanupConfigHelper.IsDryRunEmptyMediaFolders();
-        var config = CleanupConfigHelper.GetConfig();
+        var effectiveDryRun = _configHelper.IsDryRunEmptyMediaFolders();
+        var config = _configHelper.GetConfig();
 
         if (effectiveDryRun)
         {
@@ -95,7 +104,7 @@ public class CleanEmptyMediaFoldersTask
             _pluginLog.LogInfo("EmptyFolderCleaner", "Trash mode enabled. Items will be moved to trash instead of permanent deletion.", _logger);
         }
 
-        var libraryFolders = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
+        var libraryFolders = _configHelper.GetFilteredLibraryLocations(_libraryManager);
 
         int totalDeleted = 0;
         long totalBytesFreed = 0;
@@ -126,7 +135,7 @@ public class CleanEmptyMediaFoldersTask
 
         if (!effectiveDryRun && totalDeleted > 0)
         {
-            CleanupTrackingService.RecordCleanup(totalBytesFreed, totalDeleted, _logger, _pluginLog);
+            _trackingService.RecordCleanup(totalBytesFreed, totalDeleted, _logger);
         }
 
         // Purge expired trash items if trash is enabled
@@ -142,7 +151,7 @@ public class CleanEmptyMediaFoldersTask
     {
         int deletedCount = 0;
         long bytesFreed = 0;
-        var config = CleanupConfigHelper.GetConfig();
+        var config = _configHelper.GetConfig();
 
         try
         {
@@ -159,7 +168,7 @@ public class CleanEmptyMediaFoldersTask
                 }
 
                 // Skip trash folder
-                var trashFolderName = Path.GetFileName(CleanupConfigHelper.GetTrashPath(libraryRootPath));
+                var trashFolderName = Path.GetFileName(_configHelper.GetTrashPath(libraryRootPath));
                 if (topDir.Name.Equals(trashFolderName, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
@@ -211,7 +220,7 @@ public class CleanEmptyMediaFoldersTask
                 // anywhere in the tree ? it's an orphaned media folder whose video was deleted.
 
                 // Check orphan age
-                if (!CleanupConfigHelper.IsOldEnoughForDeletion(topDir.FullName))
+                if (!_configHelper.IsOldEnoughForDeletion(topDir.FullName))
                 {
                     _pluginLog.LogDebug("EmptyFolderCleaner", $"Skipping too-new orphan (min age {config.OrphanMinAgeDays}d): {topDir.FullName}", _logger);
                     continue;
@@ -224,8 +233,8 @@ public class CleanEmptyMediaFoldersTask
                 }
                 else if (config.UseTrash)
                 {
-                    var trashPath = CleanupConfigHelper.GetTrashPath(libraryRootPath);
-                    long size = TrashService.MoveToTrash(topDir.FullName, trashPath, _logger, _pluginLog);
+                    var trashPath = _configHelper.GetTrashPath(libraryRootPath);
+                    long size = _trashService.MoveToTrash(topDir.FullName, trashPath, _logger);
                     if (size > 0)
                     {
                         bytesFreed += size;
@@ -319,10 +328,10 @@ public class CleanEmptyMediaFoldersTask
     {
         foreach (var folder in libraryFolders)
         {
-            var trashPath = CleanupConfigHelper.GetTrashPath(folder);
+            var trashPath = _configHelper.GetTrashPath(folder);
             if (Directory.Exists(trashPath))
             {
-                var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, retentionDays, _logger, _pluginLog);
+                var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, retentionDays, _logger);
                 if (itemsPurged > 0)
                 {
                     _pluginLog.LogInfo("EmptyFolderCleaner", $"Purged {itemsPurged} expired items from trash ({bytesFreed} bytes): {trashPath}", _logger);

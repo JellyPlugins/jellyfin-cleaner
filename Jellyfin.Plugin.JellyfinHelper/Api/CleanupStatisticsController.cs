@@ -15,6 +15,17 @@ namespace Jellyfin.Plugin.JellyfinHelper.Api;
 [Produces(MediaTypeNames.Application.Json)]
 public class CleanupStatisticsController : ControllerBase
 {
+    private readonly ICleanupTrackingService _trackingService;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CleanupStatisticsController"/> class.
+    /// </summary>
+    /// <param name="trackingService">The cleanup tracking service.</param>
+    public CleanupStatisticsController(ICleanupTrackingService trackingService)
+    {
+        _trackingService = trackingService;
+    }
+
     /// <summary>
     /// Gets the accumulated cleanup statistics (total bytes freed, items deleted, last cleanup time).
     /// </summary>
@@ -23,7 +34,7 @@ public class CleanupStatisticsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public ActionResult GetCleanupStatistics()
     {
-        var (totalBytesFreed, totalItemsDeleted, lastCleanupTimestamp) = CleanupTrackingService.GetStatistics();
+        var (totalBytesFreed, totalItemsDeleted, lastCleanupTimestamp) = _trackingService.GetStatistics();
         return Ok(new
         {
             TotalBytesFreed = totalBytesFreed,

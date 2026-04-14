@@ -8,51 +8,45 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 /// <summary>
 /// Tracks cleanup statistics (bytes freed, items deleted) and persists them in the plugin configuration.
 /// Thread-safe: multiple cleanup tasks may call <see cref="RecordCleanup"/> concurrently.
+/// Registered as a singleton via DI; reads configuration through <see cref="ICleanupConfigHelper"/>.
 /// </summary>
-public static class CleanupTrackingService
+public class CleanupTrackingService : ICleanupTrackingService
 {
-    private static readonly Lock SyncLock = new();
+    private readonly Lock _syncLock = new();
+    private readonly ICleanupConfigHelper _configHelper;
+    private readonly IPluginLogService _pluginLog;
 
     /// <summary>
-    /// Records bytes freed and items deleted from a cleanup run into the plugin configuration.
-    /// This method is thread-safe and can be called from multiple cleanup tasks concurrently.
+    /// Initializes a new instance of the <see cref="CleanupTrackingService"/> class.
     /// </summary>
-    /// <param name="bytesFreed">The number of bytes freed.</param>
-    /// <param name="itemsDeleted">The number of items deleted.</param>
-    /// <param name="logger">The logger.</param>
+    /// <param name="configHelper">The cleanup configuration helper.</param>
     /// <param name="pluginLog">The plugin log service.</param>
-    /// <param name="pluginInstance">Optional plugin instance to use; if null, uses the static <see cref="Plugin.Instance"/>.</param>
-    public static void RecordCleanup(long bytesFreed, int itemsDeleted, ILogger logger, IPluginLogService? pluginLog = null, Plugin? pluginInstance = null)
+    public CleanupTrackingService(ICleanupConfigHelper configHelper, IPluginLogService pluginLog)
     {
-        var plugin = pluginInstance ?? Plugin.Instance;
+        _configHelper = configHelper;
+        _pluginLog = pluginLog;
+    }
 
-        // In test context, ConfigOverride might be used even if Plugin.Instance is null.
-        if (plugin == null && CleanupConfigHelper.ConfigOverride == null)
+    /// <inheritdoc />
+    public void RecordCleanup(long bytesFreed, int itemsDeleted, ILogger logger)
+    {
+        lock (_syncLock)
         {
-            pluginLog?.LogWarning("CleanupTracking", "Plugin instance is null, cannot record cleanup statistics.", logger: logger);
-            return;
-        }
-
-        lock (SyncLock)
-        {
-            var config = CleanupConfigHelper.GetConfig();
+            var config = _configHelper.GetConfig();
             config.TotalBytesFreed += bytesFreed;
             config.TotalItemsDeleted += itemsDeleted;
             config.LastCleanupTimestamp = DateTime.UtcNow;
 
-            plugin?.SaveConfiguration();
+            Plugin.Instance?.SaveConfiguration();
 
-            pluginLog?.LogInfo("CleanupTracking", $"Cleanup recorded: {bytesFreed} bytes freed, {itemsDeleted} items deleted. Lifetime total: {config.TotalBytesFreed} bytes, {config.TotalItemsDeleted} items.", logger);
+            _pluginLog.LogInfo("CleanupTracking", $"Cleanup recorded: {bytesFreed} bytes freed, {itemsDeleted} items deleted. Lifetime total: {config.TotalBytesFreed} bytes, {config.TotalItemsDeleted} items.", logger);
         }
     }
 
-    /// <summary>
-    /// Gets the current cleanup statistics from the plugin configuration.
-    /// </summary>
-    /// <returns>The cleanup statistics or default values if the plugin is not available.</returns>
-    public static (long TotalBytesFreed, int TotalItemsDeleted, DateTime LastCleanupTimestamp) GetStatistics()
+    /// <inheritdoc />
+    public (long TotalBytesFreed, int TotalItemsDeleted, DateTime LastCleanupTimestamp) GetStatistics()
     {
-        var config = CleanupConfigHelper.GetConfig();
+        var config = _configHelper.GetConfig();
         return (config.TotalBytesFreed, config.TotalItemsDeleted, config.LastCleanupTimestamp);
     }
 }

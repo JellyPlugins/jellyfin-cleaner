@@ -23,6 +23,9 @@ public class CleanTrickplayTask
     private readonly IFileSystem _fileSystem;
     private readonly IPluginLogService _pluginLog;
     private readonly ILogger<CleanTrickplayTask> _logger;
+    private readonly ICleanupConfigHelper _configHelper;
+    private readonly ICleanupTrackingService _trackingService;
+    private readonly ITrashService _trashService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CleanTrickplayTask"/> class.
@@ -31,12 +34,18 @@ public class CleanTrickplayTask
     /// <param name="fileSystem">The file system.</param>
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The logger.</param>
-    public CleanTrickplayTask(ILibraryManager libraryManager, IFileSystem fileSystem, IPluginLogService pluginLog, ILogger<CleanTrickplayTask> logger)
+    /// <param name="configHelper">The cleanup configuration helper.</param>
+    /// <param name="trackingService">The cleanup tracking service.</param>
+    /// <param name="trashService">The trash service.</param>
+    public CleanTrickplayTask(ILibraryManager libraryManager, IFileSystem fileSystem, IPluginLogService pluginLog, ILogger<CleanTrickplayTask> logger, ICleanupConfigHelper configHelper, ICleanupTrackingService trackingService, ITrashService trashService)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
         _pluginLog = pluginLog;
         _logger = logger;
+        _configHelper = configHelper;
+        _trackingService = trackingService;
+        _trashService = trashService;
     }
 
     /// <summary>
@@ -47,8 +56,8 @@ public class CleanTrickplayTask
     /// <returns>A completed task.</returns>
     public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var effectiveDryRun = CleanupConfigHelper.IsDryRunTrickplay();
-        var config = CleanupConfigHelper.GetConfig();
+        var effectiveDryRun = _configHelper.IsDryRunTrickplay();
+        var config = _configHelper.GetConfig();
 
         if (effectiveDryRun)
         {
@@ -69,7 +78,7 @@ public class CleanTrickplayTask
             _pluginLog.LogInfo("TrickplayCleaner", "Trash mode enabled. Items will be moved to trash instead of permanent deletion.", _logger);
         }
 
-        var libraryFolders = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
+        var libraryFolders = _configHelper.GetFilteredLibraryLocations(_libraryManager);
 
         int totalDeleted = 0;
         long totalBytesFreed = 0;
@@ -100,7 +109,7 @@ public class CleanTrickplayTask
 
         if (!effectiveDryRun && totalDeleted > 0)
         {
-            CleanupTrackingService.RecordCleanup(totalBytesFreed, totalDeleted, _logger, _pluginLog);
+            _trackingService.RecordCleanup(totalBytesFreed, totalDeleted, _logger);
         }
 
         // Purge expired trash items if trash is enabled
@@ -116,7 +125,7 @@ public class CleanTrickplayTask
     {
         int deletedCount = 0;
         long bytesFreed = 0;
-        var config = CleanupConfigHelper.GetConfig();
+        var config = _configHelper.GetConfig();
 
         try
         {
@@ -165,7 +174,7 @@ public class CleanTrickplayTask
                 }
 
                 // Check orphan age
-                if (!CleanupConfigHelper.IsOldEnoughForDeletion(dir.FullName))
+                if (!_configHelper.IsOldEnoughForDeletion(dir.FullName))
                 {
                     _pluginLog.LogDebug("TrickplayCleaner", $"Skipping too-new orphan (min age {config.OrphanMinAgeDays}d): {dir.FullName}", _logger);
                     continue;
@@ -178,8 +187,8 @@ public class CleanTrickplayTask
                 }
                 else if (config.UseTrash)
                 {
-                    var trashPath = CleanupConfigHelper.GetTrashPath(path);
-                    long size = TrashService.MoveToTrash(dir.FullName, trashPath, _logger, _pluginLog);
+                    var trashPath = _configHelper.GetTrashPath(path);
+                    long size = _trashService.MoveToTrash(dir.FullName, trashPath, _logger);
                     if (size > 0)
                     {
                         bytesFreed += size;
@@ -215,10 +224,10 @@ public class CleanTrickplayTask
     {
         foreach (var folder in libraryFolders)
         {
-            var trashPath = CleanupConfigHelper.GetTrashPath(folder);
+            var trashPath = _configHelper.GetTrashPath(folder);
             if (Directory.Exists(trashPath))
             {
-                var (bytesFreed, itemsPurged) = TrashService.PurgeExpiredTrash(trashPath, retentionDays, _logger, _pluginLog);
+                var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, retentionDays, _logger);
                 if (itemsPurged > 0)
                 {
                     _pluginLog.LogInfo("TrickplayCleaner", $"Purged {itemsPurged} expired items from trash ({bytesFreed} bytes): {trashPath}", _logger);

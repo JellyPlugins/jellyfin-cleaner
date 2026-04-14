@@ -14,13 +14,13 @@ using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 
-[Collection("ConfigOverride")]
 public class ArrIntegrationControllerTests : IDisposable
 {
     private readonly ArrIntegrationController _controller;
     private readonly Mock<ILibraryManager> _libraryManagerMock;
     private readonly Mock<IFileSystem> _fileSystemMock;
     private readonly Mock<IHttpClientFactory> _httpClientFactoryMock;
+    private readonly Mock<ICleanupConfigHelper> _configHelperMock;
     private readonly string _tempPath;
 
     public ArrIntegrationControllerTests()
@@ -29,14 +29,13 @@ public class ArrIntegrationControllerTests : IDisposable
         _tempPath = Path.Combine(Path.GetTempPath(), tempDirectoryName);
         Directory.CreateDirectory(_tempPath);
 
-        (_controller, _libraryManagerMock, _fileSystemMock, _httpClientFactoryMock) = ControllerTestFactory.CreateArrIntegrationController();
+        (_controller, _libraryManagerMock, _fileSystemMock, _httpClientFactoryMock, _configHelperMock) = ControllerTestFactory.CreateArrIntegrationController();
 
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration();
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(new PluginConfiguration());
     }
 
     public void Dispose()
     {
-        CleanupConfigHelper.ConfigOverride = null;
         if (Directory.Exists(_tempPath))
         {
             Directory.Delete(_tempPath, true);
@@ -77,7 +76,7 @@ public class ArrIntegrationControllerTests : IDisposable
     [Fact]
     public async Task CompareRadarrAsync_NoInstancesConfigured_ReturnsBadRequest()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration();
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(new PluginConfiguration());
         // RadarrInstances is empty by default
 
         var result = await _controller.CompareRadarrAsync(null, CancellationToken.None);
@@ -95,7 +94,7 @@ public class ArrIntegrationControllerTests : IDisposable
 
         var config = new PluginConfiguration();
         config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://localhost:7878", ApiKey = "key", Name = "Radarr" });
-        CleanupConfigHelper.ConfigOverride = config;
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(config);
 
         var folders = new List<VirtualFolderInfo>
         {
@@ -121,7 +120,7 @@ public class ArrIntegrationControllerTests : IDisposable
     [Fact]
     public async Task CompareSonarrAsync_NoInstancesConfigured_ReturnsBadRequest()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration();
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(new PluginConfiguration());
 
         var result = await _controller.CompareSonarrAsync(null, CancellationToken.None);
 
@@ -138,7 +137,7 @@ public class ArrIntegrationControllerTests : IDisposable
 
         var config = new PluginConfiguration();
         config.SonarrInstances.Add(new ArrInstanceConfig { Url = "http://localhost:8989", ApiKey = "key", Name = "Sonarr" });
-        CleanupConfigHelper.ConfigOverride = config;
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(config);
 
         var folders = new List<VirtualFolderInfo>
         {

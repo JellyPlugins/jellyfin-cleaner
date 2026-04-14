@@ -1,4 +1,5 @@
 using Jellyfin.Plugin.JellyfinHelper.Services;
+using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Controller.Library;
@@ -21,7 +22,8 @@ public class MediaStatisticsServiceTests
         _libraryManagerMock = TestMockFactory.CreateLibraryManager();
         _fileSystemMock = TestMockFactory.CreateFileSystem();
         var loggerMock = TestMockFactory.CreateLogger<MediaStatisticsService>();
-        _service = new MediaStatisticsService(_libraryManagerMock.Object, _fileSystemMock.Object, new Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.PluginLogService(), loggerMock.Object);
+        var configHelper = new CleanupConfigHelper();
+        _service = new MediaStatisticsService(_libraryManagerMock.Object, _fileSystemMock.Object, new Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.PluginLogService(), loggerMock.Object, configHelper);
     }
 
     private static string TestPath(params string[] segments)
@@ -1907,7 +1909,7 @@ public class EmbeddedSubtitleDetectionTests
         _fileSystemMock = new Mock<IFileSystem>();
         var loggerMock = new Mock<ILogger<MediaStatisticsService>>();
         _service = new TestableMediaStatisticsService(
-            _libraryManagerMock.Object, _fileSystemMock.Object, new Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.PluginLogService(), loggerMock.Object);
+            _libraryManagerMock.Object, _fileSystemMock.Object, new Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.PluginLogService(), loggerMock.Object, new CleanupConfigHelper());
     }
 
     private static string TestPath(params string[] segments)
@@ -2201,8 +2203,9 @@ public class EmbeddedSubtitleDetectionTests
         ILibraryManager libraryManager,
         IFileSystem fileSystem,
         Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.IPluginLogService pluginLog,
-        ILogger<MediaStatisticsService> logger)
-        : MediaStatisticsService(libraryManager, fileSystem, pluginLog, logger)
+        ILogger<MediaStatisticsService> logger,
+        ICleanupConfigHelper configHelper)
+        : MediaStatisticsService(libraryManager, fileSystem, pluginLog, logger, configHelper)
     {
         private readonly Dictionary<string, bool> _embeddedSubtitles = new(StringComparer.OrdinalIgnoreCase);
 

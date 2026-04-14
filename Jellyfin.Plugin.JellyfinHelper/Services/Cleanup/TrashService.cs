@@ -11,26 +11,30 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 /// <summary>
 /// Manages a trash/recycle bin for deleted media items instead of permanent deletion.
 /// Items are moved to a timestamped trash folder and can be permanently purged after a retention period.
+/// Registered as a singleton via DI.
 /// </summary>
-public static class TrashService
+public class TrashService : ITrashService
 {
     private const string TimestampFormat = "yyyyMMdd-HHmmss";
+    private readonly IPluginLogService _pluginLog;
 
     /// <summary>
-    /// Moves a directory to the trash folder instead of permanently deleting it.
+    /// Initializes a new instance of the <see cref="TrashService"/> class.
     /// </summary>
-    /// <param name="sourcePath">The full path of the directory to trash.</param>
-    /// <param name="trashBasePath">The base path of the trash folder.</param>
-    /// <param name="logger">The logger.</param>
     /// <param name="pluginLog">The plugin log service.</param>
-    /// <returns>The total size in bytes of the trashed directory, or 0 if the operation failed.</returns>
-    public static long MoveToTrash(string sourcePath, string trashBasePath, ILogger logger, IPluginLogService? pluginLog = null)
+    public TrashService(IPluginLogService pluginLog)
+    {
+        _pluginLog = pluginLog;
+    }
+
+    /// <inheritdoc />
+    public long MoveToTrash(string sourcePath, string trashBasePath, ILogger logger)
     {
         try
         {
             if (!Directory.Exists(sourcePath))
             {
-                pluginLog?.LogWarning("Trash", $"Source path does not exist for trash: {sourcePath}", logger: logger);
+                _pluginLog.LogWarning("Trash", $"Source path does not exist for trash: {sourcePath}", logger: logger);
                 return 0;
             }
 
@@ -48,31 +52,24 @@ public static class TrashService
             // Move to trash
             Directory.Move(sourcePath, trashItemPath);
 
-            pluginLog?.LogInfo("Trash", $"Moved to trash: {sourcePath} → {trashItemPath} ({size} bytes)", logger);
+            _pluginLog.LogInfo("Trash", $"Moved to trash: {sourcePath} → {trashItemPath} ({size} bytes)", logger);
             return size;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            pluginLog?.LogError("Trash", $"Failed to move directory to trash: {sourcePath}", ex, logger);
+            _pluginLog.LogError("Trash", $"Failed to move directory to trash: {sourcePath}", ex, logger);
             return 0;
         }
     }
 
-    /// <summary>
-    /// Moves a single file to the trash folder instead of permanently deleting it.
-    /// </summary>
-    /// <param name="sourceFilePath">The full path of the file to trash.</param>
-    /// <param name="trashBasePath">The base path of the trash folder.</param>
-    /// <param name="logger">The logger.</param>
-    /// <param name="pluginLog">The plugin log service.</param>
-    /// <returns>The size in bytes of the trashed file, or 0 if the operation failed.</returns>
-    public static long MoveFileToTrash(string sourceFilePath, string trashBasePath, ILogger logger, IPluginLogService? pluginLog = null)
+    /// <inheritdoc />
+    public long MoveFileToTrash(string sourceFilePath, string trashBasePath, ILogger logger)
     {
         try
         {
             if (!File.Exists(sourceFilePath))
             {
-                pluginLog?.LogWarning("Trash", $"Source file does not exist for trash: {sourceFilePath}", logger: logger);
+                _pluginLog.LogWarning("Trash", $"Source file does not exist for trash: {sourceFilePath}", logger: logger);
                 return 0;
             }
 
@@ -90,25 +87,18 @@ public static class TrashService
             // Move to trash
             File.Move(sourceFilePath, trashItemPath);
 
-            pluginLog?.LogInfo("Trash", $"Moved file to trash: {sourceFilePath} → {trashItemPath} ({size} bytes)", logger);
+            _pluginLog.LogInfo("Trash", $"Moved file to trash: {sourceFilePath} → {trashItemPath} ({size} bytes)", logger);
             return size;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            pluginLog?.LogError("Trash", $"Failed to move file to trash: {sourceFilePath}", ex, logger);
+            _pluginLog.LogError("Trash", $"Failed to move file to trash: {sourceFilePath}", ex, logger);
             return 0;
         }
     }
 
-    /// <summary>
-    /// Purges items from the trash folder that are older than the specified retention period.
-    /// </summary>
-    /// <param name="trashBasePath">The base path of the trash folder.</param>
-    /// <param name="retentionDays">The number of days to retain items in the trash.</param>
-    /// <param name="logger">The logger.</param>
-    /// <param name="pluginLog">The plugin log service.</param>
-    /// <returns>The total bytes freed and items purged.</returns>
-    public static (long BytesFreed, int ItemsPurged) PurgeExpiredTrash(string trashBasePath, int retentionDays, ILogger logger, IPluginLogService? pluginLog = null)
+    /// <inheritdoc />
+    public (long BytesFreed, int ItemsPurged) PurgeExpiredTrash(string trashBasePath, int retentionDays, ILogger logger)
     {
         long totalBytesFreed = 0;
         int itemsPurged = 0;
@@ -134,11 +124,11 @@ public static class TrashService
                         Directory.Delete(dir, true);
                         totalBytesFreed += size;
                         itemsPurged++;
-                        pluginLog?.LogInfo("Trash", $"Purged expired trash directory: {dir} ({size} bytes, created {timestamp})", logger);
+                        _pluginLog.LogInfo("Trash", $"Purged expired trash directory: {dir} ({size} bytes, created {timestamp})", logger);
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
-                        pluginLog?.LogError("Trash", $"Failed to purge trash directory: {dir}", ex, logger);
+                        _pluginLog.LogError("Trash", $"Failed to purge trash directory: {dir}", ex, logger);
                     }
                 }
             }
@@ -155,29 +145,25 @@ public static class TrashService
                         File.Delete(file);
                         totalBytesFreed += size;
                         itemsPurged++;
-                        pluginLog?.LogInfo("Trash", $"Purged expired trash file: {file} ({size} bytes, created {timestamp})", logger);
+                        _pluginLog.LogInfo("Trash", $"Purged expired trash file: {file} ({size} bytes, created {timestamp})", logger);
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
-                        pluginLog?.LogError("Trash", $"Failed to purge trash file: {file}", ex, logger);
+                        _pluginLog.LogError("Trash", $"Failed to purge trash file: {file}", ex, logger);
                     }
                 }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            pluginLog?.LogError("Trash", $"Failed to enumerate trash folder: {trashBasePath}", ex, logger);
+            _pluginLog.LogError("Trash", $"Failed to enumerate trash folder: {trashBasePath}", ex, logger);
         }
 
         return (totalBytesFreed, itemsPurged);
     }
 
-    /// <summary>
-    /// Gets a summary of the current trash contents.
-    /// </summary>
-    /// <param name="trashBasePath">The base path of the trash folder.</param>
-    /// <returns>A tuple of total size in bytes and item count, or (0, 0) if the trash does not exist.</returns>
-    public static (long TotalSize, int ItemCount) GetTrashSummary(string trashBasePath)
+    /// <inheritdoc />
+    public (long TotalSize, int ItemCount) GetTrashSummary(string trashBasePath)
     {
         if (!Directory.Exists(trashBasePath))
         {
@@ -205,13 +191,8 @@ public static class TrashService
         return (totalSize, itemCount);
     }
 
-    /// <summary>
-    /// Gets detailed contents of the trash folder, including item name, size, trashed date, and purge date.
-    /// </summary>
-    /// <param name="trashBasePath">The base path of the trash folder.</param>
-    /// <param name="retentionDays">The configured retention days to calculate purge dates.</param>
-    /// <returns>A list of trash item details.</returns>
-    public static IReadOnlyList<TrashItemInfo> GetTrashContents(string trashBasePath, int retentionDays)
+    /// <inheritdoc />
+    public IReadOnlyList<TrashItemInfo> GetTrashContents(string trashBasePath, int retentionDays)
     {
         var items = new List<TrashItemInfo>();
 

@@ -1,4 +1,5 @@
 using System.Net;
+using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
 using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
@@ -87,7 +88,8 @@ public static class TestMockFactory
             CreateLibraryManager().Object,
             CreateFileSystem().Object,
             new PluginLogService(),
-            new Mock<ILogger<MediaStatisticsService>>().Object);
+            new Mock<ILogger<MediaStatisticsService>>().Object,
+            new Mock<ICleanupConfigHelper>().Object);
         return mock;
     }
 
@@ -109,7 +111,8 @@ public static class TestMockFactory
             CreateFileSystem().Object,
             new PluginLogService(),
             appPaths,
-            new Mock<ILogger<GrowthTimelineService>>().Object);
+            new Mock<ILogger<GrowthTimelineService>>().Object,
+            new Mock<ICleanupConfigHelper>().Object);
         return mock;
     }
 }

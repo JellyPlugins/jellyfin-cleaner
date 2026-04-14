@@ -23,13 +23,19 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
         _libraryManagerMock = TestMockFactory.CreateLibraryManager();
         _fileSystemMock = TestMockFactory.CreateFileSystem();
         _loggerMock = TestMockFactory.CreateLogger<CleanTrickplayTask>();
-        _task = new CleanTrickplayTask(_libraryManagerMock.Object, _fileSystemMock.Object, new Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.PluginLogService(), _loggerMock.Object);
+        _task = new CleanTrickplayTask(
+            _libraryManagerMock.Object,
+            _fileSystemMock.Object,
+            new Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.PluginLogService(),
+            _loggerMock.Object,
+            MockConfigHelper.Object,
+            MockTrackingService.Object,
+            MockTrashService.Object);
 
         // Default: DryRun OFF for most existing tests (non-dry-run behavior)
         Config.TrickplayTaskMode = TaskMode.Activate;
         Config.EmptyMediaFolderTaskMode = TaskMode.Activate;
         Config.OrphanedSubtitleTaskMode = TaskMode.Activate;
-        CleanupConfigHelper.ConfigOverride = Config;
     }
 
     private void VerifyLogContains(string messagePart, LogLevel level)
@@ -104,7 +110,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
     [Fact]
     public async Task ExecuteInternalAsync_DryRun_LogsWouldDelete()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration { TrickplayTaskMode = TaskMode.DryRun };
+        Config.TrickplayTaskMode = TaskMode.DryRun;
 
         var libraryPath = TestPath("media");
         var trickplayFullName = TestPath("media", "Movie.trickplay");
@@ -135,7 +141,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
     [Fact]
     public async Task ExecuteInternalAsync_DryRun_NoLibraryFolders_CompletesWithoutError()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration { TrickplayTaskMode = TaskMode.DryRun };
+        Config.TrickplayTaskMode = TaskMode.DryRun;
 
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([]);
 
@@ -147,7 +153,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
     [Fact]
     public async Task ExecuteInternalAsync_DryRun_NoTrickplayFolders_DeletesNothing()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration { TrickplayTaskMode = TaskMode.DryRun };
+        Config.TrickplayTaskMode = TaskMode.DryRun;
 
         var libraryPath = TestPath("media");
         var virtualFolder = new VirtualFolderInfo { Locations = [libraryPath] };
@@ -170,7 +176,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
     [Fact]
     public async Task ExecuteInternalAsync_DryRun_DirectoryScanError_LogsErrorAndContinues()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration { TrickplayTaskMode = TaskMode.DryRun };
+        Config.TrickplayTaskMode = TaskMode.DryRun;
 
         var libraryPath1 = TestPath("media1");
         var libraryPath2 = TestPath("media2");
@@ -334,7 +340,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
     [Fact]
     public async Task ExecuteInternalAsync_MultipleOrphanedFolders_DeletesAllAndReportsCount()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration { TrickplayTaskMode = TaskMode.DryRun };
+        Config.TrickplayTaskMode = TaskMode.DryRun;
 
         var libraryPath = TestPath("media");
         var trickplayFullName1 = TestPath("media", "Movie1.trickplay");

@@ -3,25 +3,22 @@ using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using Microsoft.AspNetCore.Mvc;
+using Moq;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 
-[Collection("ConfigOverride")]
-public class TranslationsControllerTests : IDisposable
+public class TranslationsControllerTests
 {
+    private readonly Mock<ICleanupConfigHelper> _configHelperMock;
     private readonly TranslationsController _controller;
 
     public TranslationsControllerTests()
     {
         ControllerTestFactory.InitializePluginInstance();
-        _controller = new TranslationsController();
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration();
-    }
-
-    public void Dispose()
-    {
-        CleanupConfigHelper.ConfigOverride = null;
+        _configHelperMock = new Mock<ICleanupConfigHelper>();
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(new PluginConfiguration());
+        _controller = new TranslationsController(_configHelperMock.Object);
     }
 
     [Fact]
@@ -37,7 +34,7 @@ public class TranslationsControllerTests : IDisposable
     [Fact]
     public void GetTranslations_DefaultsToConfigLanguage()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration { Language = "de" };
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(new PluginConfiguration { Language = "de" });
 
         var result = _controller.GetTranslations(null);
 

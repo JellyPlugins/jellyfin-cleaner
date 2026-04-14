@@ -4,19 +4,19 @@ using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Cleanup;
 
-[Collection("ConfigOverride")]
-public class CleanupConfigHelperTests : IDisposable
+/// <summary>
+/// Tests for <see cref="CleanupConfigHelper"/>.
+/// Uses a real instance with a known PluginConfiguration instead of the removed ConfigOverride.
+/// </summary>
+public class CleanupConfigHelperTests
 {
+    private readonly CleanupConfigHelper _configHelper;
+
     public CleanupConfigHelperTests()
     {
-        // Use an explicit override to isolate these tests from the global Plugin.Instance.
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration();
+        _configHelper = new CleanupConfigHelper();
     }
 
-    public void Dispose()
-    {
-        CleanupConfigHelper.ConfigOverride = null;
-    }
     // ===== ParseCommaSeparated Tests =====
 
     [Fact]
@@ -92,7 +92,7 @@ public class CleanupConfigHelperTests : IDisposable
     {
         // When Plugin.Instance is null, GetConfig() returns new PluginConfiguration()
         // which has TrashFolderPath = ".jellyfin-trash"
-        var result = CleanupConfigHelper.GetTrashPath("/media/movies");
+        var result = _configHelper.GetTrashPath("/media/movies");
 
         // On Windows the path separator differs, so just check it contains the expected components
         Assert.Contains(".jellyfin-trash", result);
@@ -104,18 +104,18 @@ public class CleanupConfigHelperTests : IDisposable
     public void IsDryRunTrickplay_DefaultConfig_ReturnsTrue()
     {
         // When Plugin.Instance is null, config defaults have DryRunTrickplay = true
-        Assert.True(CleanupConfigHelper.IsDryRunTrickplay());
+        Assert.True(_configHelper.IsDryRunTrickplay());
     }
 
     [Fact]
     public void IsDryRunEmptyMediaFolders_DefaultConfig_ReturnsTrue()
     {
-        Assert.True(CleanupConfigHelper.IsDryRunEmptyMediaFolders());
+        Assert.True(_configHelper.IsDryRunEmptyMediaFolders());
     }
 
     [Fact]
     public void IsDryRunOrphanedSubtitles_DefaultConfig_ReturnsTrue()
     {
-        Assert.True(CleanupConfigHelper.IsDryRunOrphanedSubtitles());
+        Assert.True(_configHelper.IsDryRunOrphanedSubtitles());
     }
 }
