@@ -93,9 +93,10 @@
         // consecutive identical points for compact storage. We only need to interpolate
         // the gaps back for a continuous chart line.
         var validGranularities = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'];
-        var granularity = timeline.granularity || 'monthly';
+        var rawGranularity = timeline.granularity || 'monthly';
+        var granularity = String(rawGranularity).toLowerCase();
         if (validGranularities.indexOf(granularity) === -1) {
-            console.warn('[JellyfinHelper] Unknown granularity "' + granularity + '", falling back to "monthly".');
+            console.warn('[JellyfinHelper] Unknown granularity "' + rawGranularity + '", falling back to "monthly".');
             granularity = 'monthly';
         }
         var dataPoints = interpolateDataPoints(timeline.dataPoints, granularity);
