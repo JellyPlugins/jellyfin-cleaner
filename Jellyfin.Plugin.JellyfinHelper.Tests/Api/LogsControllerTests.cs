@@ -14,7 +14,7 @@ public class LogsControllerTests
 
     public LogsControllerTests()
     {
-        var loggerMock = new Mock<ILogger<MediaStatisticsController>>();
+        var loggerMock = new Mock<ILogger<LogsController>>();
         _controller = new LogsController(loggerMock.Object);
         PluginLogService.Clear();
     }

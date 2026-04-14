@@ -24,7 +24,7 @@ public class TranslationsController : ControllerBase
     /// <returns>A dictionary of translation keys to strings.</returns>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [AllowAnonymous]
+    [AllowAnonymous] // Intentional: translations are needed before user authentication (e.g. login page)
     public ActionResult<Dictionary<string, string>> GetTranslations([FromQuery] string? lang = null)
     {
         var languageCode = lang ?? CleanupConfigHelper.GetConfig().Language;

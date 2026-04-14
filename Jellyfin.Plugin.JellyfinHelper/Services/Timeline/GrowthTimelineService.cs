@@ -21,7 +21,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 /// Automatically selects the best granularity (daily/weekly/monthly/quarterly/yearly)
 /// depending on the time span between the oldest file and today.
 /// </summary>
-public class GrowthTimelineService
+public class GrowthTimelineService : IDisposable
 {
     private const string TimelineFileName = "jellyfin-helper-growth-timeline.json";
     private const string BaselineFileName = "jellyfin-helper-growth-baseline.json";
@@ -37,6 +37,7 @@ public class GrowthTimelineService
     private readonly string _timelineFilePath;
     private readonly string _baselineFilePath;
     private readonly ILogger<GrowthTimelineService> _logger;
+    private readonly SemaphoreSlim _fileLock = new(1, 1);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GrowthTimelineService"/> class.
@@ -795,6 +796,7 @@ public class GrowthTimelineService
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     private async Task SaveBaselineAsync(GrowthTimelineBaseline baseline, CancellationToken cancellationToken)
     {
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var directory = Path.GetDirectoryName(_baselineFilePath);
@@ -814,6 +816,10 @@ public class GrowthTimelineService
         {
             PluginLogService.LogWarning("GrowthTimeline", $"Could not save baseline to {_baselineFilePath}", ex, _logger);
         }
+        finally
+        {
+            _fileLock.Release();
+        }
     }
 
     /// <summary>
@@ -823,6 +829,7 @@ public class GrowthTimelineService
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     private async Task SaveTimelineAsync(GrowthTimelineResult result, CancellationToken cancellationToken)
     {
+        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var directory = Path.GetDirectoryName(_timelineFilePath);
@@ -841,6 +848,10 @@ public class GrowthTimelineService
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             PluginLogService.LogWarning("GrowthTimeline", $"Could not save timeline to {_timelineFilePath}", ex, _logger);
+        }
+        finally
+        {
+            _fileLock.Release();
         }
     }
 
@@ -960,6 +971,25 @@ public class GrowthTimelineService
         result.Add(points[points.Count - 1]);
 
         return result;
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases the managed resources used by the <see cref="GrowthTimelineService"/>.
+    /// </summary>
+    /// <param name="disposing">true to release managed resources; false for native resources only.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _fileLock.Dispose();
+        }
     }
 
     /// <summary>

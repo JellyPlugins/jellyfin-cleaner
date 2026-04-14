@@ -19,13 +19,13 @@ namespace Jellyfin.Plugin.JellyfinHelper.Api;
 [Produces(MediaTypeNames.Application.Json)]
 public class LogsController : ControllerBase
 {
-    private readonly ILogger<MediaStatisticsController> _logger;
+    private readonly ILogger<LogsController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LogsController"/> class.
     /// </summary>
     /// <param name="logger">The controller logger.</param>
-    public LogsController(ILogger<MediaStatisticsController> logger)
+    public LogsController(ILogger<LogsController> logger)
     {
         _logger = logger;
     }

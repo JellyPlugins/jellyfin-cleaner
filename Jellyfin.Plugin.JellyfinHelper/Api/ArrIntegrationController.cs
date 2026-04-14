@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Net.Mime;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,7 +29,7 @@ public class ArrIntegrationController : ControllerBase
 {
     private readonly ILibraryManager _libraryManager;
     private readonly IFileSystem _fileSystem;
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ArrIntegrationService _arrService;
     private readonly ILogger<ArrIntegrationController> _logger;
 
     /// <summary>
@@ -38,17 +37,17 @@ public class ArrIntegrationController : ControllerBase
     /// </summary>
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="fileSystem">The file system.</param>
-    /// <param name="httpClientFactory">The HTTP client factory for Arr API requests.</param>
+    /// <param name="arrService">The Arr integration service.</param>
     /// <param name="logger">The controller logger.</param>
     public ArrIntegrationController(
         ILibraryManager libraryManager,
         IFileSystem fileSystem,
-        IHttpClientFactory httpClientFactory,
+        ArrIntegrationService arrService,
         ILogger<ArrIntegrationController> logger)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
-        _httpClientFactory = httpClientFactory;
+        _arrService = arrService;
         _logger = logger;
     }
 
@@ -62,10 +61,7 @@ public class ArrIntegrationController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> TestArrConnectionAsync([FromBody] ArrTestConnectionRequest request, CancellationToken cancellationToken)
     {
-        var httpClient = _httpClientFactory.CreateClient("ArrIntegration");
-        var arrService = new ArrIntegrationService(httpClient, _logger);
-
-        var (success, message) = await arrService.TestConnectionAsync(
+        var (success, message) = await _arrService.TestConnectionAsync(
             request.Url ?? string.Empty,
             request.ApiKey ?? string.Empty,
             cancellationToken).ConfigureAwait(false);
@@ -103,8 +99,6 @@ public class ArrIntegrationController : ControllerBase
             instances = new[] { instances[index.Value] }.ToList().AsReadOnly();
         }
 
-        var httpClient = _httpClientFactory.CreateClient("ArrIntegration");
-        var arrService = new ArrIntegrationService(httpClient, _logger);
         var movieFolders = GetJellyfinFolderNames("movies");
 
         var allMovies = new List<ArrMovie>();
@@ -115,7 +109,7 @@ public class ArrIntegrationController : ControllerBase
                 continue;
             }
 
-            var movies = await arrService.GetRadarrMoviesAsync(instance.Url, instance.ApiKey, cancellationToken).ConfigureAwait(false);
+            var movies = await _arrService.GetRadarrMoviesAsync(instance.Url, instance.ApiKey, cancellationToken).ConfigureAwait(false);
             allMovies.AddRange(movies);
         }
 
@@ -153,8 +147,6 @@ public class ArrIntegrationController : ControllerBase
             instances = new[] { instances[index.Value] }.ToList().AsReadOnly();
         }
 
-        var httpClient = _httpClientFactory.CreateClient("ArrIntegration");
-        var arrService = new ArrIntegrationService(httpClient, _logger);
         var tvFolders = GetJellyfinFolderNames("tvshows");
 
         var allSeries = new List<ArrSeries>();
@@ -165,7 +157,7 @@ public class ArrIntegrationController : ControllerBase
                 continue;
             }
 
-            var series = await arrService.GetSonarrSeriesAsync(instance.Url, instance.ApiKey, cancellationToken).ConfigureAwait(false);
+            var series = await _arrService.GetSonarrSeriesAsync(instance.Url, instance.ApiKey, cancellationToken).ConfigureAwait(false);
             allSeries.AddRange(series);
         }
 

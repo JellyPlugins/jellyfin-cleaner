@@ -27,7 +27,7 @@ public class MediaStatisticsController : ControllerBase
     private static readonly TimeSpan MinScanInterval = TimeSpan.FromSeconds(30);
     private static readonly Lock RateLimitLock = new();
 
-    // Simple in-memory rate limiting
+    // Simple in-memory rate limiting (single-instance only; not effective in clustered/multi-pod deployments)
     private static DateTime _lastScanTime = DateTime.MinValue;
 
     private readonly MediaStatisticsService _statisticsService;

@@ -1,6 +1,8 @@
 using System.Text;
 using Jellyfin.Plugin.JellyfinHelper.Api;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
+using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
+using Jellyfin.Plugin.JellyfinHelper.Services.Backup;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Serialization;
@@ -49,9 +51,10 @@ public static class ControllerTestFactory
     public static BackupController CreateBackupController(string? dataPath = null)
     {
         var appPathsMock = TestMockFactory.CreateAppPaths(dataPath: dataPath ?? Path.GetTempPath());
+        var backupService = new BackupService(appPathsMock.Object, new Mock<ILogger<BackupService>>().Object);
 
         var controller = new BackupController(
-            appPathsMock.Object,
+            backupService,
             new Mock<ILogger<BackupController>>().Object);
         return controller;
     }
@@ -79,11 +82,12 @@ public static class ControllerTestFactory
         var libraryManagerMock = TestMockFactory.CreateLibraryManager();
         var fileSystemMock = TestMockFactory.CreateFileSystem();
         var httpClientFactoryMock = TestMockFactory.CreateHttpClientFactory();
+        var arrService = new ArrIntegrationService(httpClientFactoryMock.Object, new Mock<ILogger<ArrIntegrationService>>().Object);
 
         var controller = new ArrIntegrationController(
             libraryManagerMock.Object,
             fileSystemMock.Object,
-            httpClientFactoryMock.Object,
+            arrService,
             new Mock<ILogger<ArrIntegrationController>>().Object);
 
         return (controller, libraryManagerMock, fileSystemMock, httpClientFactoryMock);

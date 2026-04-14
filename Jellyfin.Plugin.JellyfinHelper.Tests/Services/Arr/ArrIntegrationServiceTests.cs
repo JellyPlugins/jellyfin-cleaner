@@ -12,8 +12,10 @@ public class ArrIntegrationServiceTests
     private static ArrIntegrationService CreateService(HttpMessageHandler handler)
     {
         var httpClient = new HttpClient(handler);
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(httpClient);
         var logger = TestMockFactory.CreateLogger<ArrIntegrationService>();
-        return new ArrIntegrationService(httpClient, logger.Object);
+        return new ArrIntegrationService(factoryMock.Object, logger.Object);
     }
 
     private static Mock<HttpMessageHandler> CreateMockHandler(HttpStatusCode statusCode, string content)
@@ -163,6 +165,7 @@ public class ArrIntegrationServiceTests
                 Content = new StringContent(json),
             })
             .Verifiable();
+        mockHandler.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
 
         var service = CreateService(mockHandler.Object);
 
@@ -189,6 +192,7 @@ public class ArrIntegrationServiceTests
                 Content = new StringContent(json),
             })
             .Verifiable();
+        mockHandler.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
 
         var service = CreateService(mockHandler.Object);
 
@@ -215,6 +219,7 @@ public class ArrIntegrationServiceTests
                 Content = new StringContent(json),
             })
             .Verifiable();
+        mockHandler.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
 
         var service = CreateService(mockHandler.Object);
 
@@ -237,6 +242,7 @@ public class ArrIntegrationServiceTests
                 ItExpr.IsAny<CancellationToken>())
             .ThrowsAsync(new TaskCanceledException("Request was canceled"))
             .Verifiable();
+        mockHandler.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
 
         var service = CreateService(mockHandler.Object);
 

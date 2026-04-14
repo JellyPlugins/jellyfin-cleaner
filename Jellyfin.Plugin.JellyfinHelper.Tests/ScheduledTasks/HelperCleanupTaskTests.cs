@@ -1,6 +1,8 @@
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
+using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
+using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Library;
@@ -53,11 +55,18 @@ public class HelperCleanupTaskTests : IDisposable
         // Default: empty libraries so sub-tasks finish quickly
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([]);
 
+        var statisticsServiceMock = TestMockFactory.CreateMediaStatisticsService();
+        var cacheServiceMock = TestMockFactory.CreateStatisticsCacheService(_applicationPathsMock.Object);
+        var growthServiceMock = TestMockFactory.CreateGrowthTimelineService(_applicationPathsMock.Object);
+
         _task = new HelperCleanupTask(
             _libraryManagerMock.Object,
             _fileSystemMock.Object,
             _applicationPathsMock.Object,
-            _loggerFactoryMock.Object);
+            _loggerFactoryMock.Object,
+            statisticsServiceMock.Object,
+            cacheServiceMock.Object,
+            growthServiceMock.Object);
 
         // Default: All tasks activated
         CleanupConfigHelper.ConfigOverride = new PluginConfiguration

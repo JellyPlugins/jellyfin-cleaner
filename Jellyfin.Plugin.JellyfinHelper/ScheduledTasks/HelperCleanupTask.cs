@@ -31,6 +31,9 @@ public class HelperCleanupTask : IScheduledTask
     private readonly IApplicationPaths _applicationPaths;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<HelperCleanupTask> _logger;
+    private readonly MediaStatisticsService _statisticsService;
+    private readonly StatisticsCacheService _cacheService;
+    private readonly GrowthTimelineService _growthService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HelperCleanupTask"/> class.
@@ -39,17 +42,26 @@ public class HelperCleanupTask : IScheduledTask
     /// <param name="fileSystem">The file system.</param>
     /// <param name="applicationPaths">The application paths.</param>
     /// <param name="loggerFactory">The logger factory.</param>
+    /// <param name="statisticsService">The media statistics service.</param>
+    /// <param name="cacheService">The statistics cache service.</param>
+    /// <param name="growthService">The growth timeline service.</param>
     public HelperCleanupTask(
         ILibraryManager libraryManager,
         IFileSystem fileSystem,
         IApplicationPaths applicationPaths,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        MediaStatisticsService statisticsService,
+        StatisticsCacheService cacheService,
+        GrowthTimelineService growthService)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
         _applicationPaths = applicationPaths;
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<HelperCleanupTask>();
+        _statisticsService = statisticsService;
+        _cacheService = cacheService;
+        _growthService = growthService;
     }
 
     /// <inheritdoc />
@@ -185,21 +197,14 @@ public class HelperCleanupTask : IScheduledTask
         try
         {
             PluginLogService.LogInfo("HelperCleanup", "Running post-cleanup statistics scan...", _logger);
-            var statsService = new MediaStatisticsService(_libraryManager, _fileSystem, _loggerFactory.CreateLogger<MediaStatisticsService>());
-            var cacheService = new StatisticsCacheService(_applicationPaths, _loggerFactory.CreateLogger<StatisticsCacheService>());
-            var result = statsService.CalculateStatistics();
-            cacheService.SaveLatestResult(result);
+            var result = _statisticsService.CalculateStatistics();
+            _cacheService.SaveLatestResult(result);
             PluginLogService.LogInfo("HelperCleanup", "Post-cleanup statistics scan completed and persisted.", _logger);
 
             // Recompute growth timeline
             cancellationToken.ThrowIfCancellationRequested();
             PluginLogService.LogInfo("HelperCleanup", "Recomputing growth timeline...", _logger);
-            var growthService = new GrowthTimelineService(
-                _libraryManager,
-                _fileSystem,
-                _applicationPaths,
-                _loggerFactory.CreateLogger<GrowthTimelineService>());
-            await growthService.ComputeTimelineAsync(cancellationToken).ConfigureAwait(false);
+            await _growthService.ComputeTimelineAsync(cancellationToken).ConfigureAwait(false);
             PluginLogService.LogInfo("HelperCleanup", "Growth timeline recomputed and persisted.", _logger);
         }
         catch (OperationCanceledException)

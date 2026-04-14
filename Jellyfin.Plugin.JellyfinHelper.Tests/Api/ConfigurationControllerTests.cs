@@ -1,6 +1,9 @@
 ﻿using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Api;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
+using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using Microsoft.AspNetCore.Mvc;
@@ -14,12 +17,28 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 public class ConfigurationControllerTests : IDisposable
 {
     private readonly ConfigurationController _controller;
+    private readonly Mock<ArrIntegrationService> _arrServiceMock;
 
     public ConfigurationControllerTests()
     {
         ControllerTestFactory.InitializePluginInstance();
         var loggerMock = new Mock<ILogger<ConfigurationController>>();
-        _controller = new ConfigurationController(loggerMock.Object);
+
+        // Mock ArrIntegrationService (TestConnectionAsync is virtual → mockable)
+        var httpClientFactoryMock = new Mock<IHttpClientFactory>();
+        var arrLoggerMock = new Mock<ILogger<ArrIntegrationService>>();
+        _arrServiceMock = new Mock<ArrIntegrationService>(httpClientFactoryMock.Object, arrLoggerMock.Object) { CallBase = false };
+
+        // Default: connection tests succeed
+        _arrServiceMock
+            .Setup(s => s.TestConnectionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((true, "OK"));
+
+        _controller = new ConfigurationController(_arrServiceMock.Object, loggerMock.Object);
+
+        // Use the same config instance that Plugin.Instance.Configuration returns.
+        // This ensures UpdateConfigurationAsync (writes to Plugin.Instance.Configuration)
+        // and GetConfiguration (reads via CleanupConfigHelper.GetConfig()) share the same object.
         CleanupConfigHelper.ConfigOverride = Plugin.Instance!.Configuration;
     }
 
@@ -39,7 +58,7 @@ public class ConfigurationControllerTests : IDisposable
     }
 
     [Fact]
-    public void UpdateConfiguration_ValidConfig_ReturnsOk()
+    public async Task UpdateConfiguration_ValidConfig_ReturnsOk()
     {
         var request = new ConfigurationUpdateRequest
         {
@@ -47,7 +66,7 @@ public class ConfigurationControllerTests : IDisposable
             TrashRetentionDays = 10
         };
 
-        var result = _controller.UpdateConfiguration(request);
+        var result = await _controller.UpdateConfigurationAsync(request, CancellationToken.None);
 
         Assert.IsType<OkObjectResult>(result);
         Assert.Equal(5, Plugin.Instance!.Configuration.OrphanMinAgeDays);
@@ -55,27 +74,27 @@ public class ConfigurationControllerTests : IDisposable
     }
 
     [Fact]
-    public void UpdateConfiguration_InvalidOrphanAge_ReturnsBadRequest()
+    public async Task UpdateConfiguration_InvalidOrphanAge_ReturnsBadRequest()
     {
         var request = new ConfigurationUpdateRequest { OrphanMinAgeDays = -1 };
 
-        var result = _controller.UpdateConfiguration(request);
+        var result = await _controller.UpdateConfigurationAsync(request, CancellationToken.None);
 
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
     [Fact]
-    public void UpdateConfiguration_InvalidTrashRetention_ReturnsBadRequest()
+    public async Task UpdateConfiguration_InvalidTrashRetention_ReturnsBadRequest()
     {
         var request = new ConfigurationUpdateRequest { TrashRetentionDays = -1 };
 
-        var result = _controller.UpdateConfiguration(request);
+        var result = await _controller.UpdateConfigurationAsync(request, CancellationToken.None);
 
         Assert.IsType<BadRequestObjectResult>(result);
     }
 
     [Fact]
-    public void UpdateConfiguration_MultipleRadarrInstances_AllPersisted()
+    public async Task UpdateConfiguration_MultipleRadarrInstances_AllPersisted()
     {
         var request = new ConfigurationUpdateRequest
         {
@@ -87,7 +106,7 @@ public class ConfigurationControllerTests : IDisposable
             },
         };
 
-        var result = _controller.UpdateConfiguration(request);
+        var result = await _controller.UpdateConfigurationAsync(request, CancellationToken.None);
 
         Assert.IsType<OkObjectResult>(result);
         var config = Plugin.Instance!.Configuration;
@@ -97,7 +116,7 @@ public class ConfigurationControllerTests : IDisposable
     }
 
     [Fact]
-    public void UpdateConfiguration_MultipleInstances_SurviveGetAfterSave()
+    public async Task UpdateConfiguration_MultipleInstances_SurviveGetAfterSave()
     {
         // Simulate POST: save 3 Radarr + 2 Sonarr instances
         var request = new ConfigurationUpdateRequest
@@ -115,7 +134,7 @@ public class ConfigurationControllerTests : IDisposable
             },
         };
 
-        _controller.UpdateConfiguration(request);
+        await _controller.UpdateConfigurationAsync(request, CancellationToken.None);
 
         // Simulate GET: retrieve the config and serialize to JSON (like Jellyfin API)
         var getResult = _controller.GetConfiguration();
@@ -149,6 +168,38 @@ public class ConfigurationControllerTests : IDisposable
         Assert.NotNull(restored);
         Assert.Equal(3, restored!.RadarrInstances.Count);
         Assert.Equal(2, restored.SonarrInstances.Count);
+    }
+
+    [Fact]
+    public async Task UpdateConfiguration_UnreachableArr_SavesButReturnsWarnings()
+    {
+        // Simulate one reachable and one unreachable Radarr instance
+        _arrServiceMock
+            .Setup(s => s.TestConnectionAsync("http://r1:7878", "key1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((true, "Radarr v5.0"));
+        _arrServiceMock
+            .Setup(s => s.TestConnectionAsync("http://r2:7878", "key2", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((false, "Connection refused"));
+
+        var request = new ConfigurationUpdateRequest
+        {
+            RadarrInstances = new[]
+            {
+                new ArrInstanceConfig { Name = "OK-Radarr", Url = "http://r1:7878", ApiKey = "key1" },
+                new ArrInstanceConfig { Name = "Bad-Radarr", Url = "http://r2:7878", ApiKey = "key2" },
+            },
+        };
+
+        var result = await _controller.UpdateConfigurationAsync(request, CancellationToken.None);
+
+        // Config should still be saved
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(2, Plugin.Instance!.Configuration.RadarrInstances.Count);
+
+        // Response should contain warnings
+        var json = JsonSerializer.Serialize(okResult.Value);
+        Assert.Contains("Bad-Radarr", json);
+        Assert.Contains("not reachable", json);
     }
 
     [Fact]

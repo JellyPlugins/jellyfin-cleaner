@@ -6,7 +6,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Services.Backup;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
-using MediaBrowser.Common.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -24,19 +23,19 @@ namespace Jellyfin.Plugin.JellyfinHelper.Api;
 [Produces(MediaTypeNames.Application.Json)]
 public class BackupController : ControllerBase
 {
-    private readonly IApplicationPaths _applicationPaths;
+    private readonly BackupService _backupService;
     private readonly ILogger<BackupController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BackupController"/> class.
     /// </summary>
-    /// <param name="applicationPaths">The application paths.</param>
+    /// <param name="backupService">The backup service.</param>
     /// <param name="logger">The controller logger.</param>
     public BackupController(
-        IApplicationPaths applicationPaths,
+        BackupService backupService,
         ILogger<BackupController> logger)
     {
-        _applicationPaths = applicationPaths;
+        _backupService = backupService;
         _logger = logger;
     }
 
@@ -51,8 +50,7 @@ public class BackupController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public ActionResult ExportBackup()
     {
-        var backupService = new BackupService(_applicationPaths, _logger);
-        var backup = backupService.CreateBackup();
+        var backup = _backupService.CreateBackup();
         var json = BackupService.SerializeBackup(backup);
 
         var bytes = Encoding.UTF8.GetBytes(json);
@@ -192,8 +190,7 @@ public class BackupController : ControllerBase
             BackupService.Sanitize(backup);
 
             // Restore
-            var backupService = new BackupService(_applicationPaths, _logger);
-            var summary = backupService.RestoreBackup(backup);
+            var summary = _backupService.RestoreBackup(backup);
 
             PluginLogService.LogInfo("API", $"Backup imported successfully. Config={summary.ConfigurationRestored}, Timeline={summary.TimelineRestored}, Baseline={summary.BaselineRestored}", _logger);
 

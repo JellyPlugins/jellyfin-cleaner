@@ -21,17 +21,17 @@ public class ArrIntegrationService
         PropertyNameCaseInsensitive = true,
     };
 
-    private readonly HttpClient _httpClient;
-    private readonly ILogger _logger;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<ArrIntegrationService> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ArrIntegrationService"/> class.
     /// </summary>
-    /// <param name="httpClient">The HTTP client (should be obtained from <c>IHttpClientFactory</c>).</param>
+    /// <param name="httpClientFactory">The HTTP client factory for creating named HTTP clients.</param>
     /// <param name="logger">The logger.</param>
-    public ArrIntegrationService(HttpClient httpClient, ILogger logger)
+    public ArrIntegrationService(IHttpClientFactory httpClientFactory, ILogger<ArrIntegrationService> logger)
     {
-        _httpClient = httpClient;
+        _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
@@ -42,7 +42,7 @@ public class ArrIntegrationService
     /// <param name="apiKey">The API key.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A tuple indicating success and a status message.</returns>
-    public async Task<(bool Success, string Message)> TestConnectionAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default)
+    public virtual async Task<(bool Success, string Message)> TestConnectionAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
@@ -57,10 +57,11 @@ public class ArrIntegrationService
         try
         {
             var url = $"{baseUrl.TrimEnd('/')}/api/v3/system/status";
+            using var httpClient = _httpClientFactory.CreateClient("ArrIntegration");
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Add("X-Api-Key", apiKey);
 
-            var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -98,11 +99,12 @@ public class ArrIntegrationService
 
         try
         {
+            using var httpClient = _httpClientFactory.CreateClient("ArrIntegration");
             var url = $"{baseUrl.TrimEnd('/')}/api/v3/movie";
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Add("X-Api-Key", apiKey);
 
-            var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -141,11 +143,12 @@ public class ArrIntegrationService
 
         try
         {
+            using var httpClient = _httpClientFactory.CreateClient("ArrIntegration");
             var url = $"{baseUrl.TrimEnd('/')}/api/v3/series";
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Add("X-Api-Key", apiKey);
 
-            var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
