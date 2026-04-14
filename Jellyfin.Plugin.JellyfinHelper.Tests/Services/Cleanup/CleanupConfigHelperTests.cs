@@ -1,5 +1,5 @@
-using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
+using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Cleanup;
@@ -7,13 +7,20 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Cleanup;
 /// <summary>
 /// Tests for <see cref="CleanupConfigHelper"/>.
 /// Uses a real instance with a known PluginConfiguration instead of the removed ConfigOverride.
+/// Shares the <see cref="PluginInstanceCollection"/> to prevent parallel execution with
+/// other test classes that mutate <see cref="Plugin.Instance"/> (e.g. ConfigurationControllerTests).
 /// </summary>
+[Collection("ConfigOverride")]
 public class CleanupConfigHelperTests
 {
     private readonly CleanupConfigHelper _configHelper;
 
     public CleanupConfigHelperTests()
     {
+        // Reset Plugin.Instance configuration to a fresh default so tests
+        // that rely on default config values are not affected by prior test state.
+        ControllerTestFactory.ResetPluginConfiguration();
+
         _configHelper = new CleanupConfigHelper();
     }
 

@@ -14,6 +14,7 @@ using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 
+[Collection("ConfigOverride")]
 public class ConfigurationControllerTests
 {
     private readonly ConfigurationController _controller;
@@ -215,6 +216,74 @@ public class ConfigurationControllerTests
         var json = JsonSerializer.Serialize(okResult.Value);
         Assert.Contains("Bad-Radarr", json);
         Assert.Contains("not reachable", json);
+    }
+
+    // ===== UpdateLogLevel Tests =====
+
+    [Fact]
+    public void UpdateLogLevel_ValidLevel_PersistsAndReturnsOk()
+    {
+        var request = new LogLevelUpdateRequest { PluginLogLevel = "DEBUG" };
+
+        var result = _controller.UpdateLogLevel(request);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.Equal("DEBUG", Plugin.Instance!.Configuration.PluginLogLevel);
+    }
+
+    [Fact]
+    public void UpdateLogLevel_EmptyLevel_DefaultsToInfo()
+    {
+        var request = new LogLevelUpdateRequest { PluginLogLevel = "" };
+
+        var result = _controller.UpdateLogLevel(request);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.Equal("INFO", Plugin.Instance!.Configuration.PluginLogLevel);
+    }
+
+    [Fact]
+    public void UpdateLogLevel_InvalidLevel_ReturnsBadRequest()
+    {
+        var request = new LogLevelUpdateRequest { PluginLogLevel = "TRACE" };
+
+        var result = _controller.UpdateLogLevel(request);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public void UpdateLogLevel_CaseInsensitive_NormalizesToUpperCase()
+    {
+        var request = new LogLevelUpdateRequest { PluginLogLevel = "warn" };
+
+        var result = _controller.UpdateLogLevel(request);
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.Equal("WARN", Plugin.Instance!.Configuration.PluginLogLevel);
+    }
+
+    [Fact]
+    public async Task UpdateLogLevel_DoesNotAffectOtherSettings()
+    {
+        // First set some config values
+        var configRequest = new ConfigurationUpdateRequest
+        {
+            OrphanMinAgeDays = 42,
+            TrashRetentionDays = 15,
+            PluginLogLevel = "INFO"
+        };
+        await _controller.UpdateConfigurationAsync(configRequest, CancellationToken.None);
+
+        // Now update only the log level
+        var logRequest = new LogLevelUpdateRequest { PluginLogLevel = "ERROR" };
+        _controller.UpdateLogLevel(logRequest);
+
+        // Verify log level changed but other settings untouched
+        var config = Plugin.Instance!.Configuration;
+        Assert.Equal("ERROR", config.PluginLogLevel);
+        Assert.Equal(42, config.OrphanMinAgeDays);
+        Assert.Equal(15, config.TrashRetentionDays);
     }
 
     [Fact]

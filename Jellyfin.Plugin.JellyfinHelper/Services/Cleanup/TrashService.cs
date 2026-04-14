@@ -28,7 +28,7 @@ public class TrashService : ITrashService
     }
 
     /// <inheritdoc />
-    public long MoveToTrash(string sourcePath, string trashBasePath, ILogger logger)
+    public long MoveToTrash(string sourcePath, string trashBasePath, ILogger logger, DateTime? utcNow = null)
     {
         try
         {
@@ -39,7 +39,7 @@ public class TrashService : ITrashService
             }
 
             var dirName = Path.GetFileName(sourcePath);
-            var timestamp = DateTime.UtcNow.ToString(TimestampFormat, CultureInfo.InvariantCulture);
+            var timestamp = (utcNow ?? DateTime.UtcNow).ToString(TimestampFormat, CultureInfo.InvariantCulture);
             var trashItemName = $"{timestamp}_{dirName}";
             var trashItemPath = Path.Combine(trashBasePath, trashItemName);
 
@@ -63,7 +63,7 @@ public class TrashService : ITrashService
     }
 
     /// <inheritdoc />
-    public long MoveFileToTrash(string sourceFilePath, string trashBasePath, ILogger logger)
+    public long MoveFileToTrash(string sourceFilePath, string trashBasePath, ILogger logger, DateTime? utcNow = null)
     {
         try
         {
@@ -74,7 +74,7 @@ public class TrashService : ITrashService
             }
 
             var fileName = Path.GetFileName(sourceFilePath);
-            var timestamp = DateTime.UtcNow.ToString(TimestampFormat, CultureInfo.InvariantCulture);
+            var timestamp = (utcNow ?? DateTime.UtcNow).ToString(TimestampFormat, CultureInfo.InvariantCulture);
             var trashItemName = $"{timestamp}_{fileName}";
             var trashItemPath = Path.Combine(trashBasePath, trashItemName);
 
@@ -98,7 +98,7 @@ public class TrashService : ITrashService
     }
 
     /// <inheritdoc />
-    public (long BytesFreed, int ItemsPurged) PurgeExpiredTrash(string trashBasePath, int retentionDays, ILogger logger)
+    public (long BytesFreed, int ItemsPurged) PurgeExpiredTrash(string trashBasePath, int retentionDays, ILogger logger, DateTime? utcNow = null)
     {
         long totalBytesFreed = 0;
         int itemsPurged = 0;
@@ -108,7 +108,7 @@ public class TrashService : ITrashService
             return (0, 0);
         }
 
-        var cutoff = DateTime.UtcNow.AddDays(-retentionDays);
+        var cutoff = (utcNow ?? DateTime.UtcNow).AddDays(-retentionDays);
 
         try
         {

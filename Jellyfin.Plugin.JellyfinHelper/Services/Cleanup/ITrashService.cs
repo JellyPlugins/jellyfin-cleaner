@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 
@@ -15,8 +16,9 @@ public interface ITrashService
     /// <param name="sourcePath">The full path of the directory to trash.</param>
     /// <param name="trashBasePath">The base path of the trash folder.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="utcNow">Optional fixed UTC timestamp for the trash entry. Defaults to <see cref="DateTime.UtcNow"/>.</param>
     /// <returns>The total size in bytes of the trashed directory, or 0 if the operation failed.</returns>
-    long MoveToTrash(string sourcePath, string trashBasePath, ILogger logger);
+    long MoveToTrash(string sourcePath, string trashBasePath, ILogger logger, DateTime? utcNow = null);
 
     /// <summary>
     /// Moves a single file to the trash folder instead of permanently deleting it.
@@ -24,8 +26,9 @@ public interface ITrashService
     /// <param name="sourceFilePath">The full path of the file to trash.</param>
     /// <param name="trashBasePath">The base path of the trash folder.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="utcNow">Optional fixed UTC timestamp for the trash entry. Defaults to <see cref="DateTime.UtcNow"/>.</param>
     /// <returns>The size in bytes of the trashed file, or 0 if the operation failed.</returns>
-    long MoveFileToTrash(string sourceFilePath, string trashBasePath, ILogger logger);
+    long MoveFileToTrash(string sourceFilePath, string trashBasePath, ILogger logger, DateTime? utcNow = null);
 
     /// <summary>
     /// Purges items from the trash folder that are older than the specified retention period.
@@ -33,8 +36,9 @@ public interface ITrashService
     /// <param name="trashBasePath">The base path of the trash folder.</param>
     /// <param name="retentionDays">The number of days to retain items in the trash.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="utcNow">Optional fixed UTC timestamp for cutoff calculation. Defaults to <see cref="DateTime.UtcNow"/>.</param>
     /// <returns>The total bytes freed and items purged.</returns>
-    (long BytesFreed, int ItemsPurged) PurgeExpiredTrash(string trashBasePath, int retentionDays, ILogger logger);
+    (long BytesFreed, int ItemsPurged) PurgeExpiredTrash(string trashBasePath, int retentionDays, ILogger logger, DateTime? utcNow = null);
 
     /// <summary>
     /// Gets a summary of the current trash contents.

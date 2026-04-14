@@ -13,6 +13,13 @@ public class TrashServiceTests : IDisposable
     private readonly ILogger _loggerMock = TestMockFactory.CreateLogger().Object;
     private readonly TrashService _trashService = new(new PluginLogService());
 
+    /// <summary>
+    /// Fixed reference time used across all tests for deterministic behavior.
+    /// </summary>
+    private static readonly DateTime Now = new DateTime(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc);
+
+    private const string TimestampFormat = "yyyyMMdd-HHmmss";
+
     public void Dispose()
     {
         if (Directory.Exists(_testRoot))
@@ -71,7 +78,7 @@ public class TrashServiceTests : IDisposable
 
         var trashPath = Path.Combine(_testRoot, "trash");
 
-        var result = _trashService.MoveToTrash(sourceDir, trashPath, _loggerMock);
+        var result = _trashService.MoveToTrash(sourceDir, trashPath, _loggerMock, utcNow: Now);
 
         Assert.Equal(1024, result);
         Assert.False(Directory.Exists(sourceDir));
@@ -105,7 +112,7 @@ public class TrashServiceTests : IDisposable
 
         var trashPath = Path.Combine(_testRoot, "trash");
 
-        var result = _trashService.MoveFileToTrash(sourceFile, trashPath, _loggerMock);
+        var result = _trashService.MoveFileToTrash(sourceFile, trashPath, _loggerMock, utcNow: Now);
 
         Assert.Equal(512, result);
         Assert.False(File.Exists(sourceFile));
@@ -124,7 +131,8 @@ public class TrashServiceTests : IDisposable
         var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(
             Path.Combine(_testRoot, "nonexistent_trash"),
             7,
-            _loggerMock);
+            _loggerMock,
+            utcNow: Now);
 
         Assert.Equal(0, bytesFreed);
         Assert.Equal(0, itemsPurged);
@@ -136,12 +144,12 @@ public class TrashServiceTests : IDisposable
         var trashPath = Path.Combine(_testRoot, "trash");
 
         // Create a "fresh" trash item with current timestamp
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        var timestamp = Now.ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var freshDir = Path.Combine(trashPath, $"{timestamp}_RecentMovie");
         Directory.CreateDirectory(freshDir);
         File.WriteAllBytes(Path.Combine(freshDir, "movie.mkv"), new byte[100]);
 
-        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
+        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock, utcNow: Now);
 
         Assert.Equal(0, bytesFreed);
         Assert.Equal(0, itemsPurged);
@@ -152,13 +160,13 @@ public class TrashServiceTests : IDisposable
     {
         var trashPath = Path.Combine(_testRoot, "trash");
 
-        // Create an "expired" trash item with old timestamp
-        var oldTimestamp = DateTime.UtcNow.AddDays(-10).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        // Create an "expired" trash item with old timestamp (10 days before Now)
+        var oldTimestamp = Now.AddDays(-10).ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var oldDir = Path.Combine(trashPath, $"{oldTimestamp}_OldMovie");
         Directory.CreateDirectory(oldDir);
         File.WriteAllBytes(Path.Combine(oldDir, "movie.mkv"), new byte[256]);
 
-        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
+        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock, utcNow: Now);
 
         Assert.Equal(256, bytesFreed);
         Assert.Equal(1, itemsPurged);
@@ -171,11 +179,11 @@ public class TrashServiceTests : IDisposable
         var trashPath = Path.Combine(_testRoot, "trash");
         Directory.CreateDirectory(trashPath);
 
-        var oldTimestamp = DateTime.UtcNow.AddDays(-15).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        var oldTimestamp = Now.AddDays(-15).ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var oldFile = Path.Combine(trashPath, $"{oldTimestamp}_old.srt");
         File.WriteAllBytes(oldFile, new byte[128]);
 
-        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
+        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock, utcNow: Now);
 
         Assert.Equal(128, bytesFreed);
         Assert.Equal(1, itemsPurged);
@@ -189,26 +197,36 @@ public class TrashServiceTests : IDisposable
     {
         var trashPath = Path.Combine(_testRoot, "trash");
 
-        // Create a "just now" item
-        var nowTimestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        var nowDir = Path.Combine(trashPath, $"{nowTimestamp}_JustNowMovie");
-        Directory.CreateDirectory(nowDir);
-        File.WriteAllBytes(Path.Combine(nowDir, "movie.mkv"), new byte[200]);
-
-        // RetentionDays = 0 means cutoff = DateTime.UtcNow, so everything older than "now" is purged
-        // Items created at the same second may or may not be purged depending on timing,
-        // but items even 1 second old should be. Let's use an old item to be deterministic.
-        var oldTimestamp = DateTime.UtcNow.AddSeconds(-2).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        // RetentionDays = 0 means cutoff = Now, so everything with timestamp < Now is purged.
+        // Item 1 second before Now → gets purged.
+        var oldTimestamp = Now.AddSeconds(-1).ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var oldDir = Path.Combine(trashPath, $"{oldTimestamp}_OldMovie");
         Directory.CreateDirectory(oldDir);
         File.WriteAllBytes(Path.Combine(oldDir, "movie.mkv"), new byte[300]);
 
-        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 0, _loggerMock);
+        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 0, _loggerMock, utcNow: Now);
 
-        // At least the old item should be purged
-        Assert.True(itemsPurged >= 1, $"Expected at least 1 purged item, got {itemsPurged}");
-        Assert.True(bytesFreed >= 300, $"Expected at least 300 bytes freed, got {bytesFreed}");
+        Assert.Equal(1, itemsPurged);
+        Assert.Equal(300, bytesFreed);
         Assert.False(Directory.Exists(oldDir));
+    }
+
+    [Fact]
+    public void PurgeExpiredTrash_RetentionDaysZero_ItemAtExactCutoff_NotPurged()
+    {
+        var trashPath = Path.Combine(_testRoot, "trash");
+
+        // Item with timestamp exactly at Now → timestamp is NOT < cutoff (Now) → NOT purged.
+        var exactTimestamp = Now.ToString(TimestampFormat, CultureInfo.InvariantCulture);
+        var exactDir = Path.Combine(trashPath, $"{exactTimestamp}_ExactMovie");
+        Directory.CreateDirectory(exactDir);
+        File.WriteAllBytes(Path.Combine(exactDir, "movie.mkv"), new byte[200]);
+
+        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 0, _loggerMock, utcNow: Now);
+
+        Assert.Equal(0, itemsPurged);
+        Assert.Equal(0, bytesFreed);
+        Assert.True(Directory.Exists(exactDir), "Item at exact cutoff should NOT be purged");
     }
 
     [Fact]
@@ -216,19 +234,19 @@ public class TrashServiceTests : IDisposable
     {
         var trashPath = Path.Combine(_testRoot, "trash");
 
-        // Create an expired item (15 days old)
-        var expiredTimestamp = DateTime.UtcNow.AddDays(-15).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        // Create an expired item (15 days before Now)
+        var expiredTimestamp = Now.AddDays(-15).ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var expiredDir = Path.Combine(trashPath, $"{expiredTimestamp}_ExpiredMovie");
         Directory.CreateDirectory(expiredDir);
         File.WriteAllBytes(Path.Combine(expiredDir, "movie.mkv"), new byte[500]);
 
-        // Create a fresh item (1 day old)
-        var freshTimestamp = DateTime.UtcNow.AddDays(-1).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        // Create a fresh item (1 day before Now)
+        var freshTimestamp = Now.AddDays(-1).ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var freshDir = Path.Combine(trashPath, $"{freshTimestamp}_FreshMovie");
         Directory.CreateDirectory(freshDir);
         File.WriteAllBytes(Path.Combine(freshDir, "movie.mkv"), new byte[400]);
 
-        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
+        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock, utcNow: Now);
 
         Assert.Equal(500, bytesFreed);
         Assert.Equal(1, itemsPurged);
@@ -246,13 +264,13 @@ public class TrashServiceTests : IDisposable
         Directory.CreateDirectory(invalidDir);
         File.WriteAllBytes(Path.Combine(invalidDir, "movie.mkv"), new byte[100]);
 
-        // Create a valid expired item
-        var expiredTimestamp = DateTime.UtcNow.AddDays(-10).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        // Create a valid expired item (10 days before Now)
+        var expiredTimestamp = Now.AddDays(-10).ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var expiredDir = Path.Combine(trashPath, $"{expiredTimestamp}_OldMovie");
         Directory.CreateDirectory(expiredDir);
         File.WriteAllBytes(Path.Combine(expiredDir, "movie.mkv"), new byte[200]);
 
-        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
+        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock, utcNow: Now);
 
         Assert.Equal(200, bytesFreed);
         Assert.Equal(1, itemsPurged);
@@ -266,7 +284,7 @@ public class TrashServiceTests : IDisposable
         var trashPath = Path.Combine(_testRoot, "trash");
         Directory.CreateDirectory(trashPath);
 
-        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
+        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock, utcNow: Now);
 
         Assert.Equal(0, bytesFreed);
         Assert.Equal(0, itemsPurged);
@@ -277,30 +295,30 @@ public class TrashServiceTests : IDisposable
     {
         var trashPath = Path.Combine(_testRoot, "trash");
 
-        // Expired directory (20 days old)
-        var expDirTimestamp = DateTime.UtcNow.AddDays(-20).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        // Expired directory (20 days before Now)
+        var expDirTimestamp = Now.AddDays(-20).ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var expiredDir = Path.Combine(trashPath, $"{expDirTimestamp}_ExpiredMovie");
         Directory.CreateDirectory(expiredDir);
         File.WriteAllBytes(Path.Combine(expiredDir, "movie.mkv"), new byte[1000]);
 
-        // Expired file (20 days old)
-        var expFileTimestamp = DateTime.UtcNow.AddDays(-20).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        // Expired file (20 days before Now)
+        var expFileTimestamp = Now.AddDays(-20).ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var expiredFile = Path.Combine(trashPath, $"{expFileTimestamp}_old.srt");
         Directory.CreateDirectory(trashPath);
         File.WriteAllBytes(expiredFile, new byte[500]);
 
-        // Fresh directory (2 days old)
-        var freshTimestamp = DateTime.UtcNow.AddDays(-2).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        // Fresh directory (2 days before Now)
+        var freshTimestamp = Now.AddDays(-2).ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var freshDir = Path.Combine(trashPath, $"{freshTimestamp}_FreshMovie");
         Directory.CreateDirectory(freshDir);
         File.WriteAllBytes(Path.Combine(freshDir, "movie.mkv"), new byte[300]);
 
-        // Fresh file (2 days old)
-        var freshFileTimestamp = DateTime.UtcNow.AddDays(-2).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        // Fresh file (2 days before Now)
+        var freshFileTimestamp = Now.AddDays(-2).ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var freshFile = Path.Combine(trashPath, $"{freshFileTimestamp}_new.srt");
         File.WriteAllBytes(freshFile, new byte[200]);
 
-        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
+        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock, utcNow: Now);
 
         Assert.Equal(1500, bytesFreed);
         Assert.Equal(2, itemsPurged);
@@ -316,12 +334,12 @@ public class TrashServiceTests : IDisposable
         var trashPath = Path.Combine(_testRoot, "trash");
 
         // Create an item exactly 7 days minus 1 minute old (should NOT be purged with retentionDays=7)
-        var borderTimestamp = DateTime.UtcNow.AddDays(-7).AddMinutes(1).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        var borderTimestamp = Now.AddDays(-7).AddMinutes(1).ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var borderDir = Path.Combine(trashPath, $"{borderTimestamp}_BorderMovie");
         Directory.CreateDirectory(borderDir);
         File.WriteAllBytes(Path.Combine(borderDir, "movie.mkv"), new byte[100]);
 
-        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
+        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock, utcNow: Now);
 
         Assert.Equal(0, bytesFreed);
         Assert.Equal(0, itemsPurged);
@@ -334,12 +352,12 @@ public class TrashServiceTests : IDisposable
         var trashPath = Path.Combine(_testRoot, "trash");
 
         // Create an item 7 days + 1 minute old (should be purged with retentionDays=7)
-        var pastTimestamp = DateTime.UtcNow.AddDays(-7).AddMinutes(-1).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        var pastTimestamp = Now.AddDays(-7).AddMinutes(-1).ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var pastDir = Path.Combine(trashPath, $"{pastTimestamp}_PastMovie");
         Directory.CreateDirectory(pastDir);
         File.WriteAllBytes(Path.Combine(pastDir, "movie.mkv"), new byte[150]);
 
-        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
+        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock, utcNow: Now);
 
         Assert.Equal(150, bytesFreed);
         Assert.Equal(1, itemsPurged);
@@ -356,20 +374,20 @@ public class TrashServiceTests : IDisposable
     {
         var trashPath = Path.Combine(_testRoot, "trash");
 
-        // Create an item that is definitely expired (retentionDays + 1 day old)
-        var expiredTimestamp = DateTime.UtcNow.AddDays(-(retentionDays + 1)).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        // Create an item that is definitely expired (retentionDays + 1 day before Now)
+        var expiredTimestamp = Now.AddDays(-(retentionDays + 1)).ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var expiredDir = Path.Combine(trashPath, $"{expiredTimestamp}_ExpiredItem");
         Directory.CreateDirectory(expiredDir);
         File.WriteAllBytes(Path.Combine(expiredDir, "data.bin"), new byte[100]);
 
-        // Create an item that is definitely fresh (retentionDays - 1 day old, min 0)
+        // Create an item that is definitely fresh (retentionDays - 1 day before Now, min 0)
         var freshAge = Math.Max(retentionDays - 1, 0);
-        var freshTimestamp = DateTime.UtcNow.AddDays(-freshAge).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        var freshTimestamp = Now.AddDays(-freshAge).ToString(TimestampFormat, CultureInfo.InvariantCulture);
         var freshDir = Path.Combine(trashPath, $"{freshTimestamp}_FreshItem");
         Directory.CreateDirectory(freshDir);
         File.WriteAllBytes(Path.Combine(freshDir, "data.bin"), new byte[100]);
 
-        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, retentionDays, _loggerMock);
+        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, retentionDays, _loggerMock, utcNow: Now);
 
         Assert.Equal(1, itemsPurged);
         Assert.Equal(100, bytesFreed);
@@ -387,7 +405,7 @@ public class TrashServiceTests : IDisposable
         var invalidFile = Path.Combine(trashPath, "random-file.txt");
         File.WriteAllBytes(invalidFile, new byte[50]);
 
-        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 0, _loggerMock);
+        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 0, _loggerMock, utcNow: Now);
 
         Assert.Equal(0, bytesFreed);
         Assert.Equal(0, itemsPurged);
@@ -401,13 +419,13 @@ public class TrashServiceTests : IDisposable
 
         for (int i = 0; i < 5; i++)
         {
-            var ts = DateTime.UtcNow.AddDays(-30 - i).ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+            var ts = Now.AddDays(-30 - i).ToString(TimestampFormat, CultureInfo.InvariantCulture);
             var dir = Path.Combine(trashPath, $"{ts}_Movie{i}");
             Directory.CreateDirectory(dir);
             File.WriteAllBytes(Path.Combine(dir, "video.mkv"), new byte[100]);
         }
 
-        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock);
+        var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 7, _loggerMock, utcNow: Now);
 
         Assert.Equal(5, itemsPurged);
         Assert.Equal(500, bytesFreed);

@@ -8,6 +8,7 @@ using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 
+[Collection("ConfigOverride")]
 public class TranslationsControllerTests
 {
     private readonly Mock<ICleanupConfigHelper> _configHelperMock;

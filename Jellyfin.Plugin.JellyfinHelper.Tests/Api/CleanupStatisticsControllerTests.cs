@@ -8,6 +8,7 @@ using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 
+[Collection("ConfigOverride")]
 public class CleanupStatisticsControllerTests
 {
     private readonly CleanupStatisticsController _controller;

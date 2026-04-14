@@ -733,7 +733,7 @@ public class BackupServiceTests
             File.WriteAllText(Path.Combine(tempDir, "jellyfin-helper-growth-timeline.json"), JsonSerializer.Serialize(timeline));
             File.WriteAllText(Path.Combine(tempDir, "jellyfin-helper-growth-baseline.json"), JsonSerializer.Serialize(baseline));
 
-            var logger = TestMockFactory.CreateLogger();
+            var logger = TestMockFactory.CreateLogger<BackupService>();
             var service = new BackupService(tempDir, new PluginLogService(), logger.Object);
 
             var backup = service.CreateBackup();
@@ -759,7 +759,7 @@ public class BackupServiceTests
         Directory.CreateDirectory(tempDir);
         try
         {
-            var logger = TestMockFactory.CreateLogger();
+            var logger = TestMockFactory.CreateLogger<BackupService>();
             var service = new BackupService(tempDir, new PluginLogService(), logger.Object);
 
             var backup = CreateValidBackup();
@@ -796,7 +796,7 @@ public class BackupServiceTests
         Directory.CreateDirectory(tempDir);
         try
         {
-            var logger = TestMockFactory.CreateLogger();
+            var logger = TestMockFactory.CreateLogger<BackupService>();
             var service = new BackupService(tempDir, new PluginLogService(), logger.Object);
 
             var backup = CreateValidBackup();

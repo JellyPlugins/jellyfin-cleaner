@@ -114,7 +114,7 @@ public class BackupService : IBackupService
 
     private readonly string _dataPath;
     private readonly IPluginLogService _pluginLog;
-    private readonly ILogger _logger;
+    private readonly ILogger<BackupService> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BackupService"/> class.
@@ -122,7 +122,7 @@ public class BackupService : IBackupService
     /// <param name="applicationPaths">The application paths.</param>
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The logger.</param>
-    public BackupService(IApplicationPaths applicationPaths, IPluginLogService pluginLog, ILogger logger)
+    public BackupService(IApplicationPaths applicationPaths, IPluginLogService pluginLog, ILogger<BackupService> logger)
     {
         _dataPath = applicationPaths.DataPath;
         _pluginLog = pluginLog;
@@ -135,7 +135,7 @@ public class BackupService : IBackupService
     /// <param name="dataPath">The data path.</param>
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The logger.</param>
-    internal BackupService(string dataPath, IPluginLogService pluginLog, ILogger logger)
+    internal BackupService(string dataPath, IPluginLogService pluginLog, ILogger<BackupService> logger)
     {
         _dataPath = dataPath;
         _pluginLog = pluginLog;

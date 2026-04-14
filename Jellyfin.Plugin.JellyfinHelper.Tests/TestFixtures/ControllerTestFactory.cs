@@ -137,6 +137,23 @@ public static class ControllerTestFactory
     }
 
     /// <summary>
+    /// Resets the <see cref="Plugin.Instance"/> configuration to a fresh default.
+    /// Use this in test classes that depend on default configuration values and might
+    /// be affected by state pollution from other test classes that modify the config.
+    /// </summary>
+    public static void ResetPluginConfiguration()
+    {
+        if (Plugin.Instance == null)
+        {
+            return;
+        }
+
+        var configProperty = typeof(MediaBrowser.Common.Plugins.BasePlugin<PluginConfiguration>).GetProperty("Configuration")
+            ?? throw new InvalidOperationException("Failed to find Configuration property via reflection on BasePlugin<PluginConfiguration>.");
+        configProperty.SetValue(Plugin.Instance, new PluginConfiguration());
+    }
+
+    /// <summary>
     /// Adds a JSON body to a controller's request.
     /// </summary>
     /// <param name="controller">The controller to which the JSON body will be added.</param>

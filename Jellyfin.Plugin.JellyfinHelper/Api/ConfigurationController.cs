@@ -57,6 +57,45 @@ public class ConfigurationController : ControllerBase
     }
 
     /// <summary>
+    /// Updates only the plugin log level without touching any other configuration fields.
+    /// This avoids race conditions when the Logs tab changes the level while Settings may be open.
+    /// </summary>
+    /// <param name="request">The log level update request containing the new level.</param>
+    /// <returns>A status result.</returns>
+    [HttpPut("LogLevel")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult UpdateLogLevel([FromBody] LogLevelUpdateRequest request)
+    {
+        var plugin = Plugin.Instance;
+        if (plugin == null)
+        {
+            return BadRequest(new { message = "Plugin not initialized." });
+        }
+
+        var config = plugin.Configuration;
+        if (config == null)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "Plugin configuration not initialized." });
+        }
+
+        var validLevels = new[] { "DEBUG", "INFO", "WARN", "ERROR" };
+        var level = string.IsNullOrWhiteSpace(request.PluginLogLevel) ? "INFO" : request.PluginLogLevel.Trim().ToUpperInvariant();
+
+        if (System.Array.IndexOf(validLevels, level) < 0)
+        {
+            return BadRequest(new { message = $"Invalid log level '{request.PluginLogLevel}'. Allowed: DEBUG, INFO, WARN, ERROR." });
+        }
+
+        config.PluginLogLevel = level;
+        plugin.SaveConfiguration();
+
+        _pluginLog.LogInfo("API", $"Plugin log level updated to {level}.", _logger);
+
+        return Ok(new { message = "Log level updated.", pluginLogLevel = level });
+    }
+
+    /// <summary>
     /// Updates the plugin configuration. After saving, performs connection tests
     /// against all configured Arr instances and logs warnings for unreachable ones.
     /// The configuration is always saved regardless of connection test results.
