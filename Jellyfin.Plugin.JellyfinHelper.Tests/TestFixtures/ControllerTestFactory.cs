@@ -35,7 +35,7 @@ public static class ControllerTestFactory
         var appPathsMock = TestMockFactory.CreateAppPaths(dataPath: dataPath ?? Path.GetTempPath());
         var memoryCache = cache ?? TestMockFactory.CreateMemoryCache();
         var statisticsServiceMock = TestMockFactory.CreateMediaStatisticsService();
-        var statisticsCacheServiceMock = TestMockFactory.CreateStatisticsCacheService(appPathsMock.Object);
+        var statisticsCacheServiceMock = TestMockFactory.CreateStatisticsCacheService();
 
         var controller = new MediaStatisticsController(
             memoryCache,
@@ -54,11 +54,12 @@ public static class ControllerTestFactory
     public static BackupController CreateBackupController(string? dataPath = null, IPluginLogService? pluginLog = null)
     {
         var appPathsMock = TestMockFactory.CreateAppPaths(dataPath: dataPath ?? Path.GetTempPath());
-        var backupService = new BackupService(appPathsMock.Object, pluginLog ?? new PluginLogService(), new Mock<ILogger<BackupService>>().Object);
+        var log = pluginLog ?? new PluginLogService();
+        var backupService = new BackupService(appPathsMock.Object, log, new Mock<ILogger<BackupService>>().Object);
 
         var controller = new BackupController(
             backupService,
-            pluginLog ?? new PluginLogService(),
+            log,
             new Mock<ILogger<BackupController>>().Object);
         return controller;
     }

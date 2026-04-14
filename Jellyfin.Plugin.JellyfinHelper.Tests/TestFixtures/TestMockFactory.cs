@@ -81,38 +81,12 @@ public static class TestMockFactory
         return mock;
     }
 
-    /// <summary>Creates a new <see cref="Mock{MediaStatisticsService}"/>.</summary>
-    public static Mock<MediaStatisticsService> CreateMediaStatisticsService()
-    {
-        var mock = new Mock<MediaStatisticsService>(
-            CreateLibraryManager().Object,
-            CreateFileSystem().Object,
-            new PluginLogService(),
-            new Mock<ILogger<MediaStatisticsService>>().Object,
-            new Mock<ICleanupConfigHelper>().Object);
-        return mock;
-    }
+    /// <summary>Creates a new <see cref="Mock{IMediaStatisticsService}"/>.</summary>
+    public static Mock<IMediaStatisticsService> CreateMediaStatisticsService() => new();
 
-    /// <summary>Creates a new <see cref="Mock{StatisticsCacheService}"/>.</summary>
-    public static Mock<StatisticsCacheService> CreateStatisticsCacheService(IApplicationPaths appPaths)
-    {
-        var mock = new Mock<StatisticsCacheService>(
-            appPaths,
-            new PluginLogService(),
-            new Mock<ILogger<StatisticsCacheService>>().Object);
-        return mock;
-    }
-    
-    /// <summary>Creates a new <see cref="Mock{GrowthTimelineService}"/>.</summary>
-    public static Mock<GrowthTimelineService> CreateGrowthTimelineService(IApplicationPaths appPaths)
-    {
-        var mock = new Mock<GrowthTimelineService>(
-            CreateLibraryManager().Object,
-            CreateFileSystem().Object,
-            new PluginLogService(),
-            appPaths,
-            new Mock<ILogger<GrowthTimelineService>>().Object,
-            new Mock<ICleanupConfigHelper>().Object);
-        return mock;
-    }
+    /// <summary>Creates a new <see cref="Mock{IStatisticsCacheService}"/>.</summary>
+    public static Mock<IStatisticsCacheService> CreateStatisticsCacheService() => new();
+
+    /// <summary>Creates a new <see cref="Mock{IGrowthTimelineService}"/>.</summary>
+    public static Mock<IGrowthTimelineService> CreateGrowthTimelineService() => new();
 }

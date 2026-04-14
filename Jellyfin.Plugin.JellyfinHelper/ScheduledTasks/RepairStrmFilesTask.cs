@@ -1,5 +1,4 @@
 using System;
-using System.IO.Abstractions;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
@@ -19,7 +18,7 @@ public class RepairStrmFilesTask
     private readonly ILogger<RepairStrmFilesTask> _logger;
     private readonly ILibraryManager _libraryManager;
     private readonly IPluginLogService _pluginLog;
-    private readonly StrmRepairService _strmRepairService;
+    private readonly IStrmRepairService _strmRepairService;
     private readonly ICleanupConfigHelper _configHelper;
 
     /// <summary>
@@ -28,38 +27,13 @@ public class RepairStrmFilesTask
     /// <param name="logger">The logger instance.</param>
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="pluginLog">The plugin log service.</param>
-    /// <param name="fileSystem">The file system abstraction.</param>
-    /// <param name="strmRepairServiceLogger">The logger for the strm repair service.</param>
+    /// <param name="strmRepairService">The strm repair service.</param>
     /// <param name="configHelper">The cleanup configuration helper.</param>
     public RepairStrmFilesTask(
         ILogger<RepairStrmFilesTask> logger,
         ILibraryManager libraryManager,
         IPluginLogService pluginLog,
-        IFileSystem fileSystem,
-        ILogger<StrmRepairService> strmRepairServiceLogger,
-        ICleanupConfigHelper configHelper)
-    {
-        _logger = logger;
-        _libraryManager = libraryManager;
-        _pluginLog = pluginLog;
-        _strmRepairService = new StrmRepairService(fileSystem, pluginLog, strmRepairServiceLogger);
-        _configHelper = configHelper;
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="RepairStrmFilesTask"/> class.
-    /// This constructor is used for testing to inject a mock service.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="libraryManager">The library manager.</param>
-    /// <param name="pluginLog">The plugin log service.</param>
-    /// <param name="strmRepairService">The strm repair service.</param>
-    /// <param name="configHelper">The cleanup configuration helper.</param>
-    internal RepairStrmFilesTask(
-        ILogger<RepairStrmFilesTask> logger,
-        ILibraryManager libraryManager,
-        IPluginLogService pluginLog,
-        StrmRepairService strmRepairService,
+        IStrmRepairService strmRepairService,
         ICleanupConfigHelper configHelper)
     {
         _logger = logger;

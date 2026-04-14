@@ -3,6 +3,7 @@ using Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
+using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
 using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Common.Configuration;
@@ -27,6 +28,7 @@ public class HelperCleanupTaskTests : IDisposable
     private readonly Mock<ICleanupConfigHelper> _configHelperMock;
     private readonly Mock<ICleanupTrackingService> _trackingServiceMock;
     private readonly Mock<ITrashService> _trashServiceMock;
+    private readonly Mock<IStrmRepairService> _strmRepairServiceMock;
     private readonly string _testDataPath;
     private readonly HelperCleanupTask _task;
     private readonly Mock<ILogger<HelperCleanupTask>> _loggerMock;
@@ -60,8 +62,8 @@ public class HelperCleanupTaskTests : IDisposable
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([]);
 
         var statisticsServiceMock = TestMockFactory.CreateMediaStatisticsService();
-        var cacheServiceMock = TestMockFactory.CreateStatisticsCacheService(_applicationPathsMock.Object);
-        var growthServiceMock = TestMockFactory.CreateGrowthTimelineService(_applicationPathsMock.Object);
+        var cacheServiceMock = TestMockFactory.CreateStatisticsCacheService();
+        var growthServiceMock = TestMockFactory.CreateGrowthTimelineService();
 
         // Setup mock-based config helper
         _config = new PluginConfiguration
@@ -89,6 +91,7 @@ public class HelperCleanupTaskTests : IDisposable
 
         _trackingServiceMock = new Mock<ICleanupTrackingService>();
         _trashServiceMock = new Mock<ITrashService>();
+        _strmRepairServiceMock = new Mock<IStrmRepairService>();
 
         _task = new HelperCleanupTask(
             _libraryManagerMock.Object,
@@ -101,7 +104,8 @@ public class HelperCleanupTaskTests : IDisposable
             growthServiceMock.Object,
             _configHelperMock.Object,
             _trackingServiceMock.Object,
-            _trashServiceMock.Object);
+            _trashServiceMock.Object,
+            _strmRepairServiceMock.Object);
     }
 
     public void Dispose()

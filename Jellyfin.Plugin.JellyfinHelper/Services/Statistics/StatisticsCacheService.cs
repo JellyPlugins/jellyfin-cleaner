@@ -11,7 +11,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
 /// <summary>
 /// Caches the latest full scan result to disk for persistence across restarts.
 /// </summary>
-public class StatisticsCacheService
+public class StatisticsCacheService : IStatisticsCacheService
 {
     private const string LatestResultFileName = "jellyfin-helper-statistics-latest.json";
 

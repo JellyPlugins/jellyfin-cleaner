@@ -12,7 +12,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Strm;
 /// <summary>
 /// Service for finding and repairing broken .strm file references.
 /// </summary>
-public class StrmRepairService
+public class StrmRepairService : IStrmRepairService
 {
     private readonly IFileSystem _fileSystem;
     private readonly IPluginLogService _pluginLog;

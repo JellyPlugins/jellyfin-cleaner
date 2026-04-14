@@ -24,7 +24,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Api;
 [Produces(MediaTypeNames.Application.Json)]
 public class ConfigurationController : ControllerBase
 {
-    private readonly ArrIntegrationService _arrService;
+    private readonly IArrIntegrationService _arrService;
     private readonly IPluginLogService _pluginLog;
     private readonly ILogger<ConfigurationController> _logger;
     private readonly ICleanupConfigHelper _configHelper;
@@ -36,7 +36,7 @@ public class ConfigurationController : ControllerBase
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The controller logger.</param>
     /// <param name="configHelper">The cleanup configuration helper.</param>
-    public ConfigurationController(ArrIntegrationService arrService, IPluginLogService pluginLog, ILogger<ConfigurationController> logger, ICleanupConfigHelper configHelper)
+    public ConfigurationController(IArrIntegrationService arrService, IPluginLogService pluginLog, ILogger<ConfigurationController> logger, ICleanupConfigHelper configHelper)
     {
         _arrService = arrService;
         _pluginLog = pluginLog;
@@ -61,6 +61,12 @@ public class ConfigurationController : ControllerBase
     /// against all configured Arr instances and logs warnings for unreachable ones.
     /// The configuration is always saved regardless of connection test results.
     /// </summary>
+    /// <remarks>
+    /// This method accesses <see cref="Plugin.Instance"/> directly because
+    /// <c>BasePlugin&lt;T&gt;.SaveConfiguration()</c> is an instance method on the
+    /// plugin singleton and cannot be abstracted behind <see cref="ICleanupConfigHelper"/>.
+    /// Read-only access uses <c>_configHelper</c> (see <see cref="GetConfiguration"/>).
+    /// </remarks>
     /// <param name="request">The configuration update request.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A status result with optional connection warnings.</returns>

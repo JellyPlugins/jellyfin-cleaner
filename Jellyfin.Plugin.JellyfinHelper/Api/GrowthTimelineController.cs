@@ -18,13 +18,13 @@ namespace Jellyfin.Plugin.JellyfinHelper.Api;
 [Produces(MediaTypeNames.Application.Json)]
 public class GrowthTimelineController : ControllerBase
 {
-    private readonly GrowthTimelineService _growthTimelineService;
+    private readonly IGrowthTimelineService _growthTimelineService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GrowthTimelineController"/> class.
     /// </summary>
     /// <param name="growthTimelineService">The growth timeline service.</param>
-    public GrowthTimelineController(GrowthTimelineService growthTimelineService)
+    public GrowthTimelineController(IGrowthTimelineService growthTimelineService)
     {
         _growthTimelineService = growthTimelineService;
     }

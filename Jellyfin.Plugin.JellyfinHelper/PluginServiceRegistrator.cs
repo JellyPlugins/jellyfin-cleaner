@@ -4,6 +4,7 @@ using Jellyfin.Plugin.JellyfinHelper.Services.Backup;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
+using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
 using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
@@ -28,10 +29,11 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<ICleanupTrackingService, CleanupTrackingService>();
         serviceCollection.AddSingleton<ITrashService, TrashService>();
         serviceCollection.AddSingleton<IPluginLogService, PluginLogService>();
-        serviceCollection.AddSingleton<MediaStatisticsService>();
-        serviceCollection.AddSingleton<StatisticsCacheService>();
-        serviceCollection.AddSingleton<GrowthTimelineService>();
-        serviceCollection.AddSingleton<BackupService>();
-        serviceCollection.AddSingleton<ArrIntegrationService>();
+        serviceCollection.AddSingleton<IMediaStatisticsService, MediaStatisticsService>();
+        serviceCollection.AddSingleton<IStatisticsCacheService, StatisticsCacheService>();
+        serviceCollection.AddSingleton<IGrowthTimelineService, GrowthTimelineService>();
+        serviceCollection.AddSingleton<IBackupService, BackupService>();
+        serviceCollection.AddSingleton<IStrmRepairService, StrmRepairService>();
+        serviceCollection.AddSingleton<IArrIntegrationService, ArrIntegrationService>();
     }
 }

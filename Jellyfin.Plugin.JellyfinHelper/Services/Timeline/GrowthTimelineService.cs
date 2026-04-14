@@ -21,7 +21,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 /// Automatically selects the best granularity (daily/weekly/monthly/quarterly/yearly)
 /// depending on the time span between the oldest file and today.
 /// </summary>
-public class GrowthTimelineService : IDisposable
+public class GrowthTimelineService : IGrowthTimelineService, IDisposable
 {
     private const string TimelineFileName = "jellyfin-helper-growth-timeline.json";
     private const string BaselineFileName = "jellyfin-helper-growth-baseline.json";

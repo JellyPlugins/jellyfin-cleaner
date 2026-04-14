@@ -17,7 +17,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Backup;
 /// Handles export of configuration, historical data, and Arr settings,
 /// and validates imported data to prevent malicious or corrupt payloads.
 /// </summary>
-public class BackupService
+public class BackupService : IBackupService
 {
     /// <summary>
     /// Maximum allowed backup version for import.

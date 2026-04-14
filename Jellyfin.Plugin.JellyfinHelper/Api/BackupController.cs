@@ -24,7 +24,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Api;
 [Produces(MediaTypeNames.Application.Json)]
 public class BackupController : ControllerBase
 {
-    private readonly BackupService _backupService;
+    private readonly IBackupService _backupService;
     private readonly IPluginLogService _pluginLog;
     private readonly ILogger<BackupController> _logger;
 
@@ -35,7 +35,7 @@ public class BackupController : ControllerBase
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The controller logger.</param>
     public BackupController(
-        BackupService backupService,
+        IBackupService backupService,
         IPluginLogService pluginLog,
         ILogger<BackupController> logger)
     {

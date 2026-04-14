@@ -32,8 +32,8 @@ public class MediaStatisticsController : ControllerBase
     // so the rate-limit state must be shared across all instances via a static field.
     private static DateTime _lastScanTime = DateTime.MinValue;
 
-    private readonly MediaStatisticsService _statisticsService;
-    private readonly StatisticsCacheService _cacheService;
+    private readonly IMediaStatisticsService _statisticsService;
+    private readonly IStatisticsCacheService _cacheService;
     private readonly IPluginLogService _pluginLog;
     private readonly IMemoryCache _cache;
     private readonly ILogger<MediaStatisticsController> _logger;
@@ -48,8 +48,8 @@ public class MediaStatisticsController : ControllerBase
     /// <param name="logger">The controller logger.</param>
     public MediaStatisticsController(
         IMemoryCache cache,
-        MediaStatisticsService statisticsService,
-        StatisticsCacheService statisticsCacheService,
+        IMediaStatisticsService statisticsService,
+        IStatisticsCacheService statisticsCacheService,
         IPluginLogService pluginLog,
         ILogger<MediaStatisticsController> logger)
     {

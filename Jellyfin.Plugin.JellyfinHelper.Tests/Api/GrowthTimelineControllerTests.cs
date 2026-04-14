@@ -10,12 +10,11 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 public class GrowthTimelineControllerTests
 {
     private readonly GrowthTimelineController _controller;
-    private readonly Mock<GrowthTimelineService> _serviceMock;
+    private readonly Mock<IGrowthTimelineService> _serviceMock;
 
     public GrowthTimelineControllerTests()
     {
-        var appPaths = TestMockFactory.CreateAppPaths();
-        _serviceMock = TestMockFactory.CreateGrowthTimelineService(appPaths.Object);
+        _serviceMock = TestMockFactory.CreateGrowthTimelineService();
         _controller = new GrowthTimelineController(_serviceMock.Object);
     }
 

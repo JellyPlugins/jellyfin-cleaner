@@ -29,7 +29,7 @@ public class ArrIntegrationController : ControllerBase
 {
     private readonly ILibraryManager _libraryManager;
     private readonly IFileSystem _fileSystem;
-    private readonly ArrIntegrationService _arrService;
+    private readonly IArrIntegrationService _arrService;
     private readonly IPluginLogService _pluginLog;
     private readonly ILogger<ArrIntegrationController> _logger;
     private readonly ICleanupConfigHelper _configHelper;
@@ -46,7 +46,7 @@ public class ArrIntegrationController : ControllerBase
     public ArrIntegrationController(
         ILibraryManager libraryManager,
         IFileSystem fileSystem,
-        ArrIntegrationService arrService,
+        IArrIntegrationService arrService,
         IPluginLogService pluginLog,
         ILogger<ArrIntegrationController> logger,
         ICleanupConfigHelper configHelper)

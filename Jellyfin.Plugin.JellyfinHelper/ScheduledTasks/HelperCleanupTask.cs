@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Abstractions;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
@@ -32,12 +31,13 @@ public class HelperCleanupTask : IScheduledTask
     private readonly IPluginLogService _pluginLog;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<HelperCleanupTask> _logger;
-    private readonly MediaStatisticsService _statisticsService;
-    private readonly StatisticsCacheService _cacheService;
-    private readonly GrowthTimelineService _growthService;
+    private readonly IMediaStatisticsService _statisticsService;
+    private readonly IStatisticsCacheService _cacheService;
+    private readonly IGrowthTimelineService _growthService;
     private readonly ICleanupConfigHelper _configHelper;
     private readonly ICleanupTrackingService _trackingService;
     private readonly ITrashService _trashService;
+    private readonly IStrmRepairService _strmRepairService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HelperCleanupTask"/> class.
@@ -53,18 +53,20 @@ public class HelperCleanupTask : IScheduledTask
     /// <param name="configHelper">The cleanup configuration helper.</param>
     /// <param name="trackingService">The cleanup tracking service.</param>
     /// <param name="trashService">The trash service.</param>
+    /// <param name="strmRepairService">The strm repair service.</param>
     public HelperCleanupTask(
         ILibraryManager libraryManager,
         IFileSystem fileSystem,
         IApplicationPaths applicationPaths,
         IPluginLogService pluginLog,
         ILoggerFactory loggerFactory,
-        MediaStatisticsService statisticsService,
-        StatisticsCacheService cacheService,
-        GrowthTimelineService growthService,
+        IMediaStatisticsService statisticsService,
+        IStatisticsCacheService cacheService,
+        IGrowthTimelineService growthService,
         ICleanupConfigHelper configHelper,
         ICleanupTrackingService trackingService,
-        ITrashService trashService)
+        ITrashService trashService,
+        IStrmRepairService strmRepairService)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
@@ -78,6 +80,7 @@ public class HelperCleanupTask : IScheduledTask
         _configHelper = configHelper;
         _trackingService = trackingService;
         _trashService = trashService;
+        _strmRepairService = strmRepairService;
     }
 
     /// <inheritdoc />
@@ -318,8 +321,7 @@ public class HelperCleanupTask : IScheduledTask
             _loggerFactory.CreateLogger<RepairStrmFilesTask>(),
             _libraryManager,
             _pluginLog,
-            new FileSystem(),
-            _loggerFactory.CreateLogger<StrmRepairService>(),
+            _strmRepairService,
             _configHelper);
         return task.ExecuteAsync(progress, cancellationToken);
     }

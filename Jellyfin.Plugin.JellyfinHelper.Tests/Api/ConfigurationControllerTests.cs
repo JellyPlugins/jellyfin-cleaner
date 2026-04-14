@@ -17,17 +17,14 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 public class ConfigurationControllerTests
 {
     private readonly ConfigurationController _controller;
-    private readonly Mock<ArrIntegrationService> _arrServiceMock;
+    private readonly Mock<IArrIntegrationService> _arrServiceMock;
 
     public ConfigurationControllerTests()
     {
         ControllerTestFactory.InitializePluginInstance();
         var loggerMock = new Mock<ILogger<ConfigurationController>>();
 
-        // Mock ArrIntegrationService (TestConnectionAsync is virtual ? mockable)
-        var httpClientFactoryMock = new Mock<IHttpClientFactory>();
-        var arrLoggerMock = new Mock<ILogger<ArrIntegrationService>>();
-        _arrServiceMock = new Mock<ArrIntegrationService>(httpClientFactoryMock.Object, new PluginLogService(), arrLoggerMock.Object) { CallBase = false };
+        _arrServiceMock = new Mock<IArrIntegrationService>();
 
         // Default: connection tests succeed
         _arrServiceMock

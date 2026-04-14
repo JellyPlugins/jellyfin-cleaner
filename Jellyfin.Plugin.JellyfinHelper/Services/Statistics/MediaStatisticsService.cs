@@ -15,7 +15,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
 /// <summary>
 /// Service that calculates media file statistics per library type.
 /// </summary>
-public partial class MediaStatisticsService
+public partial class MediaStatisticsService : IMediaStatisticsService
 {
     private readonly ILibraryManager _libraryManager;
     private readonly IFileSystem _fileSystem;

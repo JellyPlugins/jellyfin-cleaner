@@ -14,7 +14,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 /// <summary>
 /// Provides integration with Radarr and Sonarr APIs to compare libraries.
 /// </summary>
-public class ArrIntegrationService
+public class ArrIntegrationService : IArrIntegrationService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
