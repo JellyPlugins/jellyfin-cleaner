@@ -27,7 +27,9 @@ public class MediaStatisticsController : ControllerBase
     private static readonly TimeSpan MinScanInterval = TimeSpan.FromSeconds(30);
     private static readonly Lock RateLimitLock = new();
 
-    // Simple in-memory rate limiting (single-instance only; not effective in clustered/multi-pod deployments)
+    // Simple in-memory rate limiting (single-instance only; not effective in clustered/multi-pod deployments).
+    // Static field + lock is intentional: ASP.NET creates a new controller instance per request,
+    // so the rate-limit state must be shared across all instances via a static field.
     private static DateTime _lastScanTime = DateTime.MinValue;
 
     private readonly MediaStatisticsService _statisticsService;

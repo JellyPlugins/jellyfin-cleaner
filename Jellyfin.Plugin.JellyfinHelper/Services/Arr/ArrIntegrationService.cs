@@ -71,6 +71,16 @@ public class ArrIntegrationService
 
             return (true, $"{appName} v{version}");
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw; // Propagate user-initiated cancellation
+        }
+        catch (OperationCanceledException ex)
+        {
+            // HttpClient.Timeout elapsed — not a user cancellation
+            PluginLogService.LogWarning("ArrIntegration", $"Arr connection test timed out for {baseUrl}", ex, _logger);
+            return (false, "Connection timed out.");
+        }
         catch (HttpRequestException ex)
         {
             PluginLogService.LogWarning("ArrIntegration", $"Arr connection test failed for {baseUrl}: {ex.Message}", ex, _logger);

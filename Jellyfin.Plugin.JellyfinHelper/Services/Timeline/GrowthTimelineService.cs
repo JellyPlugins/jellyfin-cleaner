@@ -93,11 +93,17 @@ public class GrowthTimelineService : IDisposable
                 var granularity = DetermineGranularity(earliestExisting, now);
                 var zeroPoints = MergeSnapshotIntoTimeline(
                     existingTimeline.DataPoints.ToList(), now, 0, 0, granularity);
+
+                // Run through the same finalization path as normal scans
+                zeroPoints = TrimLeadingZeros(zeroPoints);
+                zeroPoints = ConsolidateToGranularity(zeroPoints, granularity);
+                zeroPoints = DeduplicateConsecutivePoints(zeroPoints);
+
                 var zeroResult = new GrowthTimelineResult
                 {
                     ComputedAt = now,
                     Granularity = granularity,
-                    EarliestFileDate = earliestExisting,
+                    EarliestFileDate = zeroPoints.Count > 0 ? zeroPoints[0].Date : earliestExisting,
                     FirstScanTimestamp = existingTimeline.FirstScanTimestamp,
                 };
                 foreach (var p in zeroPoints)
