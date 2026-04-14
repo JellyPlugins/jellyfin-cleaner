@@ -7,7 +7,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services;
 /// <summary>
 /// Tests for <see cref="PathValidator"/>.
 /// </summary>
-[Collection("PluginLogService")]
+[Collection("ConfigOverride")]
 public class PathValidatorTests : IDisposable
 {
     /// <summary>

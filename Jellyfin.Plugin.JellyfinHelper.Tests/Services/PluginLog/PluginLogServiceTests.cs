@@ -10,7 +10,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.PluginLog;
 /// All tests use unique source markers (e.g. "__PLT_TestName__") and filter by source
 /// to avoid interference from parallel test classes that also write to the shared static buffer.
 /// </summary>
-[Collection("PluginLogService")]
+[Collection("ConfigOverride")]
 public class PluginLogServiceTests : IDisposable
 {
     /// <summary>

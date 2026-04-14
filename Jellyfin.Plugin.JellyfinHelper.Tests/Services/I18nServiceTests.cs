@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services;
 
-[Collection("PluginLogService")]
+[Collection("ConfigOverride")]
 public class I18NServiceTests : IDisposable
 {
     public I18NServiceTests()
