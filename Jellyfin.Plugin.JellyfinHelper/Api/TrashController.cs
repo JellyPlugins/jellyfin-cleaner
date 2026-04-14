@@ -51,9 +51,8 @@ public class TrashController : ControllerBase
         long totalSize = 0;
         var totalItems = 0;
 
-        foreach (var folder in libraryFolders)
+        foreach (var trashPath in libraryFolders.Select(CleanupConfigHelper.GetTrashPath))
         {
-            var trashPath = CleanupConfigHelper.GetTrashPath(folder);
             var (size, count) = TrashService.GetTrashSummary(trashPath);
             totalSize += size;
             totalItems += count;

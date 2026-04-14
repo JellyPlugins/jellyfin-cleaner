@@ -24,7 +24,8 @@ public class ArrIntegrationControllerTests : IDisposable
 
     public ArrIntegrationControllerTests()
     {
-        _tempPath = Path.Combine(Path.GetTempPath(), "JellyfinHelperArrTests_" + Guid.NewGuid());
+        var tempDirectoryName = "JellyfinHelperArrTests_" + Guid.NewGuid();
+        _tempPath = Path.Combine(Path.GetTempPath(), Path.GetFileName(tempDirectoryName));
         Directory.CreateDirectory(_tempPath);
 
         (_controller, _libraryManagerMock, _fileSystemMock, _httpClientFactoryMock) = ControllerTestFactory.CreateArrIntegrationController();
@@ -46,7 +47,7 @@ public class ArrIntegrationControllerTests : IDisposable
     {
         var request = new ArrTestConnectionRequest { Url = "http://localhost:8989", ApiKey = "valid-api-key" };
         var handlerMock = TestMockFactory.CreateHttpMessageHandler(HttpStatusCode.OK, "{\"version\": \"1.0\"}");
-        var httpClient = new HttpClient(handlerMock.Object);
+        using var httpClient = new HttpClient(handlerMock.Object);
         _httpClientFactoryMock.Setup(f => f.CreateClient("ArrIntegration")).Returns(httpClient);
 
         var result = await _controller.TestArrConnectionAsync(request, CancellationToken.None);
@@ -61,7 +62,7 @@ public class ArrIntegrationControllerTests : IDisposable
     {
         var request = new ArrTestConnectionRequest { Url = "http://localhost:8989", ApiKey = "invalid-api-key" };
         var handlerMock = TestMockFactory.CreateHttpMessageHandler(HttpStatusCode.Unauthorized, "Unauthorized");
-        var httpClient = new HttpClient(handlerMock.Object);
+        using var httpClient = new HttpClient(handlerMock.Object);
         _httpClientFactoryMock.Setup(f => f.CreateClient("ArrIntegration")).Returns(httpClient);
 
         var result = await _controller.TestArrConnectionAsync(request, CancellationToken.None);
@@ -105,7 +106,7 @@ public class ArrIntegrationControllerTests : IDisposable
         _fileSystemMock.Setup(f => f.GetDirectories(It.IsAny<string>(), It.IsAny<bool>())).Returns([dirMock]);
 
         var handlerMock = TestMockFactory.CreateHttpMessageHandler(HttpStatusCode.OK, "[{\"title\": \"Movie1\", \"path\": \"/movies/Movie1\", \"hasFile\": true}]");
-        var httpClient = new HttpClient(handlerMock.Object);
+        using var httpClient = new HttpClient(handlerMock.Object);
         _httpClientFactoryMock.Setup(f => f.CreateClient("ArrIntegration")).Returns(httpClient);
 
         var result = await _controller.CompareRadarrAsync(null, CancellationToken.None);

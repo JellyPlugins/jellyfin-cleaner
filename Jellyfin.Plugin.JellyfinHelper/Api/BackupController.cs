@@ -118,7 +118,17 @@ public class BackupController : ControllerBase
                     leaveOpen: false);
                 json = await reader.ReadToEndAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                PluginLogService.LogError("API", "Failed to read backup request body", ex, _logger);
+                return BadRequest(new { message = "Failed to read the request body." });
+            }
+            catch (ObjectDisposedException ex)
+            {
+                PluginLogService.LogError("API", "Failed to read backup request body", ex, _logger);
+                return BadRequest(new { message = "Failed to read the request body." });
+            }
+            catch (DecoderFallbackException ex)
             {
                 PluginLogService.LogError("API", "Failed to read backup request body", ex, _logger);
                 return BadRequest(new { message = "Failed to read the request body." });
@@ -200,7 +210,7 @@ public class BackupController : ControllerBase
                 },
             });
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             PluginLogService.LogError("API", "Unexpected backup import failure", ex, _logger);
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to import backup." });
