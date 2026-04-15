@@ -341,9 +341,13 @@ Sub-tasks executed in order (each respecting its configured task mode):
 ### Cleanup Tasks
 
 **Empty Media Folder Cleaner:**
+- **Deletes** orphaned media folders that contain non-metadata files (e.g. subtitles, text files) but **no video file** anywhere in their directory tree
+  - *Example:* A movie folder with only `movie.nfo`, `poster.jpg`, and `movie.srt` left after the `.mkv` was deleted → this folder is removed
 - Completely empty folders are **skipped** (often pre-created by Radarr/Sonarr)
 - TV show folders checked as a whole — if any video exists in the tree, the folder is kept
-- Metadata-only folders (`.nfo` + images only) are **skipped**
+- Metadata-only folders (`.nfo` + images only) are **skipped** (likely Radarr/Sonarr wanted-list placeholders)
+- Folders with audio files are **skipped** (music libraries)
+- `[boxset]` / `[collection]` folders are **skipped**
 - `.trickplay` folders handled by the dedicated Trickplay Cleaner
 
 **Orphaned Subtitle Cleaner:**

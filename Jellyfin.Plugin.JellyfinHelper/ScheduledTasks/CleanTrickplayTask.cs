@@ -59,7 +59,16 @@ public class CleanTrickplayTask : BaseLibraryCleanupTask
         try
         {
             // Get all directories recursively
-            var directories = FileSystem.GetDirectories(libraryPath, true).ToList();
+            List<FileSystemMetadata> directories;
+            try
+            {
+                directories = FileSystem.GetDirectories(libraryPath, true).ToList();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                PluginLog.LogWarning(TaskName, $"Could not enumerate subdirectories of: {libraryPath}", ex, Logger);
+                return (deletedCount, bytesFreed);
+            }
 
             // Cache files per parent directory to avoid repeated filesystem calls
             var fileCache = new Dictionary<string, FileSystemMetadata[]>(StringComparer.OrdinalIgnoreCase);
@@ -89,8 +98,16 @@ public class CleanTrickplayTask : BaseLibraryCleanupTask
                 // Check if any media file exists in parent with the same basename (cached)
                 if (!fileCache.TryGetValue(parentPath, out var files))
                 {
-                    files = FileSystem.GetFiles(parentPath).ToArray();
-                    fileCache[parentPath] = files;
+                    try
+                    {
+                        files = FileSystem.GetFiles(parentPath).ToArray();
+                        fileCache[parentPath] = files;
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        PluginLog.LogWarning(TaskName, $"Could not list files in: {parentPath}", ex, Logger);
+                        continue;
+                    }
                 }
 
                 bool mediaExists = files.Any(f =>

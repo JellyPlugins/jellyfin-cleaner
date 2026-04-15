@@ -46,6 +46,9 @@ public class TrashService : ITrashService
             // Ensure trash folder exists
             Directory.CreateDirectory(trashBasePath);
 
+            // Avoid collision if an item with the same name was already trashed in the same second
+            trashItemPath = ResolveCollision(trashItemPath);
+
             // Calculate size before moving
             long size = CalculateDirectorySize(sourcePath);
 
@@ -77,6 +80,9 @@ public class TrashService : ITrashService
             var timestamp = (utcNow ?? DateTime.UtcNow).ToString(TimestampFormat, CultureInfo.InvariantCulture);
             var trashItemName = $"{timestamp}_{fileName}";
             var trashItemPath = Path.Combine(trashBasePath, trashItemName);
+
+            // Avoid collision if an item with the same name was already trashed in the same second
+            trashItemPath = ResolveCollision(trashItemPath);
 
             // Ensure trash folder exists
             Directory.CreateDirectory(trashBasePath);
@@ -312,6 +318,35 @@ public class TrashService : ITrashService
             CultureInfo.InvariantCulture,
             DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
             out timestamp);
+    }
+
+    /// <summary>
+    /// Resolves naming collisions for trash items by appending a numeric suffix (_2, _3, …)
+    /// if the target path already exists as a file or directory.
+    /// </summary>
+    /// <param name="desiredPath">The initially desired trash path.</param>
+    /// <returns>A path that does not yet exist on disk.</returns>
+    private static string ResolveCollision(string desiredPath)
+    {
+        if (!File.Exists(desiredPath) && !Directory.Exists(desiredPath))
+        {
+            return desiredPath;
+        }
+
+        var directory = Path.GetDirectoryName(desiredPath) ?? string.Empty;
+        var name = Path.GetFileName(desiredPath);
+
+        for (int i = 2; i < 1000; i++)
+        {
+            var candidate = Path.Combine(directory, $"{name}_{i}");
+            if (!File.Exists(candidate) && !Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        // Extremely unlikely fallback: append a GUID
+        return Path.Combine(directory, $"{name}_{Guid.NewGuid():N}");
     }
 
     /// <summary>

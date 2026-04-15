@@ -38,7 +38,7 @@ public class TranslationsController : ControllerBase
     [AllowAnonymous] // Intentional: translations are needed before user authentication (e.g. login page)
     public ActionResult<Dictionary<string, string>> GetTranslations([FromQuery] string? lang = null)
     {
-        var languageCode = lang ?? _configHelper.GetConfig().Language;
+        var languageCode = string.IsNullOrWhiteSpace(lang) ? _configHelper.GetConfig().Language : lang;
         var translations = I18nService.GetTranslations(languageCode);
         return Ok(translations);
     }

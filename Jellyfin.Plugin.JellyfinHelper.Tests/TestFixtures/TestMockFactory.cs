@@ -40,7 +40,7 @@ public static class TestMockFactory
         mock.Setup(ap => ap.PluginConfigurationsPath).Returns(configPath ?? "/data/config");
         mock.Setup(ap => ap.PluginsPath).Returns("/data/plugins");
         mock.Setup(ap => ap.LogDirectoryPath).Returns("/data/logs");
-        mock.Setup(ap => ap.ConfigurationDirectoryPath).Returns("/data/config");
+        mock.Setup(ap => ap.ConfigurationDirectoryPath).Returns(configPath ?? "/data/config");
         return mock;
     }
 

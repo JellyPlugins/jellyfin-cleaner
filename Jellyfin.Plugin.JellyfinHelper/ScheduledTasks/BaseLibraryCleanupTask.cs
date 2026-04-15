@@ -141,6 +141,13 @@ public abstract class BaseLibraryCleanupTask
         // Get filtered library locations
         var libraryFolders = ConfigHelper.GetFilteredLibraryLocations(LibraryManager);
 
+        if (libraryFolders.Count == 0)
+        {
+            PluginLog.LogInfo(TaskName, "No library folders configured. Nothing to do.", Logger);
+            progress.Report(100);
+            return Task.CompletedTask;
+        }
+
         int totalDeleted = 0;
         long totalBytesFreed = 0;
 

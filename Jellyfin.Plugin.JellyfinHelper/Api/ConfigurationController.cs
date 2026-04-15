@@ -273,7 +273,15 @@ public class ConfigurationController : ControllerBase
         config.SonarrApiKey = request.SonarrApiKey ?? string.Empty;
 
         config.Language = string.IsNullOrWhiteSpace(request.Language) ? "en" : request.Language;
-        config.PluginLogLevel = string.IsNullOrWhiteSpace(request.PluginLogLevel) ? "INFO" : request.PluginLogLevel;
+
+        // Validate and normalize log level (same rules as UpdateLogLevel endpoint)
+        var validLevels = new[] { "DEBUG", "INFO", "WARN", "ERROR" };
+        var normalizedLevel = string.IsNullOrWhiteSpace(request.PluginLogLevel)
+            ? "INFO"
+            : request.PluginLogLevel.Trim().ToUpperInvariant();
+        config.PluginLogLevel = System.Array.IndexOf(validLevels, normalizedLevel) >= 0
+            ? normalizedLevel
+            : "INFO";
 
         // Update Radarr instances (clear + re-add from request)
         config.RadarrInstances.Clear();

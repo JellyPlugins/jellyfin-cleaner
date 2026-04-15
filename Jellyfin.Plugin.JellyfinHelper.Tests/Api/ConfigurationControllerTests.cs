@@ -227,7 +227,7 @@ public class ConfigurationControllerTests
 
         var result = _controller.UpdateLogLevel(request);
 
-        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.IsType<OkObjectResult>(result);
         Assert.Equal("DEBUG", Plugin.Instance!.Configuration.PluginLogLevel);
     }
 
@@ -238,7 +238,7 @@ public class ConfigurationControllerTests
 
         var result = _controller.UpdateLogLevel(request);
 
-        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.IsType<OkObjectResult>(result);
         Assert.Equal("INFO", Plugin.Instance!.Configuration.PluginLogLevel);
     }
 
@@ -259,7 +259,7 @@ public class ConfigurationControllerTests
 
         var result = _controller.UpdateLogLevel(request);
 
-        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.IsType<OkObjectResult>(result);
         Assert.Equal("WARN", Plugin.Instance!.Configuration.PluginLogLevel);
     }
 

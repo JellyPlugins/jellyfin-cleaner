@@ -219,8 +219,12 @@ public class BackupController : ControllerBase
                 },
             });
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
-            or FormatException or InvalidDataException or JsonException)
+        catch (Exception ex) when (ex is JsonException or FormatException or InvalidDataException)
+        {
+            _pluginLog.LogWarning("API", $"Backup import rejected: malformed data – {ex.Message}", logger: _logger);
+            return BadRequest(new { message = "Invalid backup file. The JSON content could not be parsed." });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _pluginLog.LogError("API", "Unexpected backup import failure", ex, _logger);
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Failed to import backup." });

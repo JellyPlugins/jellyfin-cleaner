@@ -297,7 +297,7 @@ public class CleanEmptyMediaFoldersTaskTests : CleanupTaskTestBase
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
-        VerifyLogContains("Deleted 0 folders", LogLevel.Information);
+        VerifyLogContains("No library folders configured", LogLevel.Information);
     }
 
     [Fact]

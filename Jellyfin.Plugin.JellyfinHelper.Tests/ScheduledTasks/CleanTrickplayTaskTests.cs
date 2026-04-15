@@ -147,7 +147,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
-        VerifyLogContains("Would have deleted 0 folders", LogLevel.Information);
+        VerifyLogContains("No library folders configured", LogLevel.Information);
     }
 
     [Fact]
@@ -200,7 +200,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
-        VerifyLogContains("Error scanning directory", LogLevel.Error);
+        VerifyLogContains("Could not enumerate subdirectories of", LogLevel.Warning);
         VerifyLogContains("[Dry Run] Would delete orphaned trickplay folder", LogLevel.Information);
     }
 
@@ -382,7 +382,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
-        VerifyLogContains("Deleted 0 folders", LogLevel.Information);
+        VerifyLogContains("No library folders configured", LogLevel.Information);
     }
 
     [Fact]
@@ -471,8 +471,8 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
-        // Should log error for first folder
-        VerifyLogContains("Error scanning directory", LogLevel.Error);
+        // Should log warning for first folder (IOException caught gracefully)
+        VerifyLogContains("Could not enumerate subdirectories of", LogLevel.Warning);
         // Should still process second folder
         VerifyLogContains("Deleting orphaned trickplay folder", LogLevel.Information);
     }

@@ -113,7 +113,7 @@ public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
                 // Check the entire tree in a single pass: does it contain any files at all,
                 // any video files, any audio files, or any non-metadata files?
                 // This avoids traversing the tree multiple times.
-                var (hasAnyFiles, hasVideoFiles, hasAudioFiles, hasNonMetadataFiles) = AnalyzeDirectoryRecursive(topDir.FullName);
+                var (hasAnyFiles, hasVideoFiles, hasAudioFiles, hasNonMetadataFiles) = AnalyzeDirectoryRecursive(topDir.FullName, cancellationToken);
 
                 // If the folder tree is completely empty (no files at all), skip it.
                 // Empty folders are often pre-created by tools like Radarr/Sonarr for "wanted" media.
@@ -200,10 +200,14 @@ public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
     /// and whether any non-metadata files exist (files that are not images or NFO/XML).
     /// </summary>
     /// <param name="directoryPath">The directory to analyze.</param>
+    /// <param name="cancellationToken">A token to cancel the recursive scan.</param>
     /// <returns>A tuple indicating whether any files exist, whether any video files exist,
     /// whether any audio files exist, and whether any non-metadata files exist.</returns>
-    private (bool HasAnyFiles, bool HasVideoFiles, bool HasAudioFiles, bool HasNonMetadataFiles) AnalyzeDirectoryRecursive(string directoryPath)
+    private (bool HasAnyFiles, bool HasVideoFiles, bool HasAudioFiles, bool HasNonMetadataFiles) AnalyzeDirectoryRecursive(string directoryPath, CancellationToken cancellationToken)
     {
+        // Allow cancellation to interrupt deep recursion
+        cancellationToken.ThrowIfCancellationRequested();
+
         bool hasAnyFiles = false;
         bool hasAudioFiles = false;
         bool hasNonMetadataFiles = false;
@@ -238,7 +242,7 @@ public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
         var subDirs = FileSystem.GetDirectories(directoryPath, false);
         foreach (var subDir in subDirs)
         {
-            var (subHasAnyFiles, subHasVideoFiles, subHasAudioFiles, subHasNonMetadataFiles) = AnalyzeDirectoryRecursive(subDir.FullName);
+            var (subHasAnyFiles, subHasVideoFiles, subHasAudioFiles, subHasNonMetadataFiles) = AnalyzeDirectoryRecursive(subDir.FullName, cancellationToken);
             hasAnyFiles |= subHasAnyFiles;
             hasAudioFiles |= subHasAudioFiles;
             hasNonMetadataFiles |= subHasNonMetadataFiles;
