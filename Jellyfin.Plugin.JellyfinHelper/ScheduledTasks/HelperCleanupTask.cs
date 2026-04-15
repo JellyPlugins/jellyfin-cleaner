@@ -173,15 +173,21 @@ public class HelperCleanupTask : IScheduledTask
                 foreach (var location in libraryLocations)
                 {
                     var candidatePath = _configHelper.GetTrashPath(location);
-                    var libraryRoot = Path.GetFullPath(location)
-                        .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    var libraryRoot = Path.GetFullPath(location);
                     var trashPath = Path.GetFullPath(candidatePath);
 
                     var pathComparison = OperatingSystem.IsWindows()
                         ? StringComparison.OrdinalIgnoreCase
                         : StringComparison.Ordinal;
+                    var libraryRootWithSeparator = libraryRoot.EndsWith(
+                        Path.DirectorySeparatorChar.ToString(),
+                        pathComparison)
+                        || libraryRoot.EndsWith(Path.AltDirectorySeparatorChar.ToString(), pathComparison)
+                            ? libraryRoot
+                            : libraryRoot + Path.DirectorySeparatorChar;
                     var isUnderLibrary =
-                        trashPath.StartsWith(libraryRoot + Path.DirectorySeparatorChar, pathComparison);
+                        trashPath.Equals(libraryRoot, pathComparison)
+                        || trashPath.StartsWith(libraryRootWithSeparator, pathComparison);
                     if (!isUnderLibrary)
                     {
                         _pluginLog.LogWarning(
