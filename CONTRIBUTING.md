@@ -69,17 +69,18 @@ Jellyfin.Plugin.JellyfinHelper/
 ├── PluginServiceRegistrator.cs  # Dependency injection registration (all singletons)
 ├── MediaExtensions.cs           # Centralized file extension lists (video, audio, subtitle, image)
 ├── Api/
-│   ├── ArrIntegrationController.cs   # Arr comparison & connection test endpoints
-│   ├── ArrTestConnectionRequest.cs   # Request DTO for Arr connection tests
-│   ├── BackupController.cs           # Backup export/import with payload validation
+│   ├── ArrIntegrationController.cs    # Arr comparison & connection test endpoints
+│   ├── ArrTestConnectionRequest.cs    # Request DTO for Arr connection tests
+│   ├── BackupController.cs            # Backup export/import with payload validation
 │   ├── CleanupStatisticsController.cs # Cleanup statistics endpoint
-│   ├── ConfigurationController.cs    # Configuration GET/POST/PUT endpoints
-│   ├── ConfigurationUpdateRequest.cs # Request DTO for config updates
-│   ├── LogLevelUpdateRequest.cs      # Request DTO for log level updates
-│   ├── GrowthTimelineController.cs   # Growth timeline endpoint
+│   ├── ConfigurationController.cs     # Configuration GET/POST/PUT endpoints
+│   ├── ConfigurationRequestValidator.cs # Server-side config validation (numeric ranges, Arr instance URLs & API keys)
+│   ├── ConfigurationUpdateRequest.cs  # Request DTO for config updates
+│   ├── GrowthTimelineController.cs    # Growth timeline endpoint
+│   ├── LogLevelUpdateRequest.cs       # Request DTO for log level updates
 │   ├── LogsController.cs             # Log viewer endpoints
-│   ├── MediaStatisticsController.cs  # Statistics & library scan endpoints (with caching)
-│   ├── TranslationsController.cs     # UI translation endpoint (anonymous access)
+│   ├── MediaStatisticsController.cs   # Statistics & library scan endpoints (with caching)
+│   ├── TranslationsController.cs      # UI translation endpoint (anonymous access)
 │   └── TrashController.cs            # Trash management endpoints
 ├── Configuration/
 │   ├── PluginConfiguration.cs   # Settings model with legacy migration (ConfigVersion)
@@ -104,9 +105,6 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   ├── BackupArrInstance.cs
 │   │   ├── BackupRestoreSummary.cs
 │   │   └── BackupValidationResult.cs
-│   ├── ConfigAccess/                  # Plugin configuration abstraction (DI)
-│   │   ├── IPluginConfigurationService.cs  # Interface for config read/write
-│   │   └── PluginConfigurationService.cs   # Bridges Plugin.Instance to DI consumers
 │   ├── Cleanup/                      # Cleanup config & trash logic
 │   │   ├── ICleanupConfigHelper.cs
 │   │   ├── CleanupConfigHelper.cs    # Library filtering, orphan age, task mode queries
@@ -115,6 +113,9 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   ├── ITrashService.cs
 │   │   ├── TrashService.cs           # Move-to-trash with retention
 │   │   └── TrashItemInfo.cs
+│   ├── ConfigAccess/                 # Plugin configuration abstraction (DI)
+│   │   ├── IPluginConfigurationService.cs  # Interface for config read/write
+│   │   └── PluginConfigurationService.cs   # Bridges Plugin.Instance to DI consumers
 │   ├── PluginLog/                    # Plugin-specific logging
 │   │   ├── IPluginLogService.cs
 │   │   ├── PluginLogService.cs       # In-memory ring buffer (2000 entries)
@@ -150,7 +151,7 @@ Jellyfin.Plugin.JellyfinHelper/
     ├── configPage.template.html # HTML shell (build-time composition)
     ├── configPage.html          # Generated output (do not edit)
     ├── css/                     # Per-tab CSS modules
-    └── js/                      # Per-tab JS modules
+    └── js/                      # Per-tab JS modules + .eslintrc.json
 ```
 
 ### Service Registration
@@ -158,15 +159,16 @@ Jellyfin.Plugin.JellyfinHelper/
 All services are registered as **singletons** in `PluginServiceRegistrator.cs`:
 
 ```csharp
-serviceCollection.AddSingleton<IPluginConfigurationService, PluginConfigurationService>();
 serviceCollection.AddSingleton<ICleanupConfigHelper, CleanupConfigHelper>();
 serviceCollection.AddSingleton<ICleanupTrackingService, CleanupTrackingService>();
 serviceCollection.AddSingleton<ITrashService, TrashService>();
+serviceCollection.AddSingleton<IPluginConfigurationService, PluginConfigurationService>();
 serviceCollection.AddSingleton<IPluginLogService, PluginLogService>();
 serviceCollection.AddSingleton<IMediaStatisticsService, MediaStatisticsService>();
 serviceCollection.AddSingleton<IStatisticsCacheService, StatisticsCacheService>();
 serviceCollection.AddSingleton<IGrowthTimelineService, GrowthTimelineService>();
 serviceCollection.AddSingleton<IBackupService, BackupService>();
+serviceCollection.AddSingleton<IFileSystem, FileSystem>();
 serviceCollection.AddSingleton<IStrmRepairService, StrmRepairService>();
 serviceCollection.AddSingleton<IArrIntegrationService, ArrIntegrationService>();
 ```
@@ -454,7 +456,6 @@ CleanupTaskTestBase (abstract, IDisposable)
   ├── CleanTrickplayTaskTests
   ├── CleanEmptyMediaFoldersTaskTests
   ├── CleanOrphanedSubtitlesTaskTests
-  ├── RepairStrmFilesTaskTests
   └── HelperCleanupTaskTests
 
 ConfigPageTestBase (abstract)
@@ -490,6 +491,7 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
 │   ├── BackupControllerTests.cs
 │   ├── CleanupStatisticsControllerTests.cs
 │   ├── ConfigurationControllerTests.cs
+│   ├── ConfigurationRequestValidatorTests.cs
 │   ├── GrowthTimelineControllerTests.cs
 │   ├── LogsControllerTests.cs
 │   ├── TranslationsControllerTests.cs
@@ -511,19 +513,33 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
 │   ├── CleanTrickplayTaskTests.cs
 │   ├── CleanEmptyMediaFoldersTaskTests.cs
 │   ├── CleanOrphanedSubtitlesTaskTests.cs
-│   ├── HelperCleanupTaskTests.cs
-│   └── RepairStrmFilesTaskTests.cs
+│   └── HelperCleanupTaskTests.cs
 └── Services/               # Service logic tests (use TestMockFactory & TestDataGenerator)
     ├── FileSystemHelperTests.cs
     ├── I18nServiceTests.cs
     ├── PathValidatorTests.cs
-    ├── Arr/                # Arr integration tests
-    ├── Backup/             # Backup & restore tests
-    ├── Cleanup/            # Cleanup & trash tests
-    ├── PluginLog/          # Plugin log tests
-    ├── Statistics/         # Statistics service tests
-    ├── Strm/               # STRM repair tests
-    └── Timeline/           # Growth timeline tests
+    ├── Arr/
+    │   ├── ArrComparisonResultTests.cs
+    │   └── ArrIntegrationServiceTests.cs
+    ├── Backup/
+    │   └── BackupServiceTests.cs
+    ├── Cleanup/
+    │   ├── CleanupConfigHelperTests.cs
+    │   ├── CleanupTrackingServiceTests.cs
+    │   └── TrashServiceTests.cs
+    ├── ConfigAccess/
+    │   └── PluginConfigurationServiceTests.cs
+    ├── PluginLog/
+    │   ├── PluginLogEntryTests.cs
+    │   └── PluginLogServiceTests.cs
+    ├── Statistics/
+    │   ├── MediaStatisticsServiceTests.cs
+    │   └── MediaStatisticsServiceTvShowTests.cs
+    ├── Strm/
+    │   └── StrmRepairServiceTests.cs
+    └── Timeline/
+        ├── GrowthTimelineModelTests.cs
+        └── GrowthTimelineServiceTests.cs
 ```
 
 ---
