@@ -100,7 +100,7 @@ public class ArrIntegrationService : IArrIntegrationService
     /// <param name="apiKey">The Radarr API key.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of movies from Radarr.</returns>
-    public async Task<List<ArrMovie>> GetRadarrMoviesAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default)
+    public async Task<List<ArrMovie>?> GetRadarrMoviesAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(apiKey))
         {
@@ -137,7 +137,7 @@ public class ArrIntegrationService : IArrIntegrationService
         catch (Exception ex) when (ex is HttpRequestException or JsonException or OperationCanceledException)
         {
             _pluginLog.LogError("ArrIntegration", $"Failed to fetch movies from Radarr at {baseUrl}", ex, _logger);
-            return new List<ArrMovie>();
+            return null;
         }
     }
 
@@ -148,7 +148,7 @@ public class ArrIntegrationService : IArrIntegrationService
     /// <param name="apiKey">The Sonarr API key.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of series from Sonarr.</returns>
-    public async Task<List<ArrSeries>> GetSonarrSeriesAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default)
+    public async Task<List<ArrSeries>?> GetSonarrSeriesAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(apiKey))
         {
@@ -186,7 +186,7 @@ public class ArrIntegrationService : IArrIntegrationService
         catch (Exception ex) when (ex is HttpRequestException or JsonException or OperationCanceledException)
         {
             _pluginLog.LogError("ArrIntegration", $"Failed to fetch series from Sonarr at {baseUrl}", ex, _logger);
-            return new List<ArrSeries>();
+            return null;
         }
     }
 

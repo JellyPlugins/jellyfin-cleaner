@@ -283,9 +283,11 @@ public class PluginConfiguration : BasePluginConfiguration
             });
         }
 
-        return RadarrInstances.Count > 3
-            ? RadarrInstances.Take(3).ToList().AsReadOnly()
-            : RadarrInstances.ToList().AsReadOnly();
+        var effective = RadarrInstances
+            .Where(i => !string.IsNullOrWhiteSpace(i.Url) || !string.IsNullOrWhiteSpace(i.ApiKey))
+            .Take(3)
+            .ToList();
+        return effective.AsReadOnly();
     }
 
     /// <summary>
@@ -308,8 +310,10 @@ public class PluginConfiguration : BasePluginConfiguration
             });
         }
 
-        return SonarrInstances.Count > 3
-            ? SonarrInstances.Take(3).ToList().AsReadOnly()
-            : SonarrInstances.ToList().AsReadOnly();
+        var effective = SonarrInstances
+            .Where(i => !string.IsNullOrWhiteSpace(i.Url) || !string.IsNullOrWhiteSpace(i.ApiKey))
+            .Take(3)
+            .ToList();
+        return effective.AsReadOnly();
     }
 }

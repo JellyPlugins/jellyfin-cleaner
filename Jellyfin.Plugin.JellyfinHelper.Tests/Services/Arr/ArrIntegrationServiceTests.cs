@@ -260,6 +260,7 @@ public class ArrIntegrationServiceTests
 
         var movies = await service.GetRadarrMoviesAsync(string.Empty, "apikey");
 
+        Assert.NotNull(movies);
         Assert.Empty(movies);
     }
 
@@ -271,6 +272,7 @@ public class ArrIntegrationServiceTests
 
         var movies = await service.GetRadarrMoviesAsync("http://localhost:7878", string.Empty);
 
+        Assert.NotNull(movies);
         Assert.Empty(movies);
     }
 
@@ -288,6 +290,7 @@ public class ArrIntegrationServiceTests
 
         var movies = await service.GetRadarrMoviesAsync("http://localhost:7878", "testapikey");
 
+        Assert.NotNull(movies);
         Assert.Equal(2, movies.Count);
         Assert.Equal("The Matrix", movies[0].Title);
         Assert.Equal(1999, movies[0].Year);
@@ -297,14 +300,14 @@ public class ArrIntegrationServiceTests
     }
 
     [Fact]
-    public async Task GetRadarrMovies_ServerError_ReturnsEmptyList()
+    public async Task GetRadarrMovies_ServerError_ReturnsNull()
     {
         var handler = CreateMockHandler(HttpStatusCode.InternalServerError, "Error");
         var service = CreateService(handler.Object);
 
         var movies = await service.GetRadarrMoviesAsync("http://localhost:7878", "testapikey");
 
-        Assert.Empty(movies);
+        Assert.Null(movies);
     }
 
     // === GetSonarrSeriesAsync ===
@@ -317,6 +320,7 @@ public class ArrIntegrationServiceTests
 
         var series = await service.GetSonarrSeriesAsync(string.Empty, "apikey");
 
+        Assert.NotNull(series);
         Assert.Empty(series);
     }
 
@@ -334,6 +338,7 @@ public class ArrIntegrationServiceTests
 
         var series = await service.GetSonarrSeriesAsync("http://localhost:8989", "testapikey");
 
+        Assert.NotNull(series);
         Assert.Equal(2, series.Count);
         Assert.Equal("Breaking Bad", series[0].Title);
         Assert.Equal(62, series[0].EpisodeFileCount);
@@ -342,14 +347,14 @@ public class ArrIntegrationServiceTests
     }
 
     [Fact]
-    public async Task GetSonarrSeries_ServerError_ReturnsEmptyList()
+    public async Task GetSonarrSeries_ServerError_ReturnsNull()
     {
         var handler = CreateMockHandler(HttpStatusCode.InternalServerError, "Error");
         var service = CreateService(handler.Object);
 
         var series = await service.GetSonarrSeriesAsync("http://localhost:8989", "testapikey");
 
-        Assert.Empty(series);
+        Assert.Null(series);
     }
 
     // === CompareRadarrWithJellyfin ===

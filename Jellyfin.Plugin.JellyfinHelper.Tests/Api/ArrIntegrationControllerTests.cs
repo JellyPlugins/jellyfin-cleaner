@@ -95,14 +95,15 @@ public class ArrIntegrationControllerTests : IDisposable
         var config = new PluginConfiguration();
         config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://localhost:7878", ApiKey = "key", Name = "Radarr" });
         _configHelperMock.Setup(c => c.GetConfig()).Returns(config);
+        _configHelperMock.Setup(c => c.GetTrashPath(It.IsAny<string>())).Returns(Path.Combine(libPath, ".jellyfin-trash"));
 
         var folders = new List<VirtualFolderInfo>
         {
             new() { Name = "Movies", Locations = [libPath], CollectionType = CollectionTypeOptions.movies }
         };
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns(folders);
-        
-        var dirMock = new FileSystemMetadata { Name = "Movie1", IsDirectory = true };
+
+        var dirMock = new FileSystemMetadata { Name = "Movie1", FullName = movieDir, IsDirectory = true };
         _fileSystemMock.Setup(f => f.GetDirectories(It.IsAny<string>(), It.IsAny<bool>())).Returns([dirMock]);
 
         var handlerMock = TestMockFactory.CreateHttpMessageHandler(HttpStatusCode.OK, "[{\"title\": \"Movie1\", \"path\": \"/movies/Movie1\", \"hasFile\": true}]");
@@ -138,6 +139,7 @@ public class ArrIntegrationControllerTests : IDisposable
         var config = new PluginConfiguration();
         config.SonarrInstances.Add(new ArrInstanceConfig { Url = "http://localhost:8989", ApiKey = "key", Name = "Sonarr" });
         _configHelperMock.Setup(c => c.GetConfig()).Returns(config);
+        _configHelperMock.Setup(c => c.GetTrashPath(It.IsAny<string>())).Returns(Path.Combine(libPath, ".jellyfin-trash"));
 
         var folders = new List<VirtualFolderInfo>
         {
@@ -145,7 +147,7 @@ public class ArrIntegrationControllerTests : IDisposable
         };
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns(folders);
 
-        var dirMock = new FileSystemMetadata { Name = "Show1", IsDirectory = true };
+        var dirMock = new FileSystemMetadata { Name = "Show1", FullName = showDir, IsDirectory = true };
         _fileSystemMock.Setup(f => f.GetDirectories(It.IsAny<string>(), It.IsAny<bool>())).Returns([dirMock]);
 
         var handlerMock = TestMockFactory.CreateHttpMessageHandler(HttpStatusCode.OK, "[{\"title\": \"Show1\", \"path\": \"/tv/Show1\", \"statistics\": {\"episodeFileCount\": 5, \"totalEpisodeCount\": 10}}]");

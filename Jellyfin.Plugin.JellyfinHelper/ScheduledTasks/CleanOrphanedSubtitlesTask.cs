@@ -101,9 +101,12 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
                     continue;
                 }
 
-                // Skip trash directories
-                var trashFolderName = Path.GetFileName(ConfigHelper.GetTrashPath(libraryPath));
-                if (Path.GetFileName(dirPath).Equals(trashFolderName, StringComparison.OrdinalIgnoreCase))
+                // Skip trash directories (compare full path, handles both relative and absolute trash paths)
+                var trashFullPath = ConfigHelper.GetTrashPath(libraryPath);
+                var normalizedDir = dirPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var normalizedTrash = trashFullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (normalizedDir.Equals(normalizedTrash, StringComparison.OrdinalIgnoreCase)
+                    || normalizedDir.StartsWith(normalizedTrash + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }

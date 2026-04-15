@@ -110,7 +110,7 @@ public class ArrIntegrationController : ControllerBase
         var movieFolders = GetJellyfinFolderNames("movies");
 
         var allMovies = new List<ArrMovie>();
-        var validInstanceCount = 0;
+        var failedInstances = new List<string>();
         foreach (var instance in instances)
         {
             if (string.IsNullOrWhiteSpace(instance.Url) || string.IsNullOrWhiteSpace(instance.ApiKey))
@@ -118,14 +118,20 @@ public class ArrIntegrationController : ControllerBase
                 continue;
             }
 
-            validInstanceCount++;
             var movies = await _arrService.GetRadarrMoviesAsync(instance.Url, instance.ApiKey, cancellationToken).ConfigureAwait(false);
-            allMovies.AddRange(movies);
+            if (movies is null)
+            {
+                failedInstances.Add(instance.Name ?? instance.Url);
+            }
+            else
+            {
+                allMovies.AddRange(movies);
+            }
         }
 
-        if (validInstanceCount == 0)
+        if (failedInstances.Count > 0)
         {
-            return BadRequest(new { message = "No Radarr instance has both a URL and API key configured." });
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = $"Failed to fetch data from Radarr instance(s): {string.Join(", ", failedInstances)}" });
         }
 
         var result = ArrIntegrationService.CompareRadarrWithJellyfin(allMovies, movieFolders);
@@ -165,7 +171,7 @@ public class ArrIntegrationController : ControllerBase
         var tvFolders = GetJellyfinFolderNames("tvshows");
 
         var allSeries = new List<ArrSeries>();
-        var validInstanceCount = 0;
+        var failedInstances = new List<string>();
         foreach (var instance in instances)
         {
             if (string.IsNullOrWhiteSpace(instance.Url) || string.IsNullOrWhiteSpace(instance.ApiKey))
@@ -173,14 +179,20 @@ public class ArrIntegrationController : ControllerBase
                 continue;
             }
 
-            validInstanceCount++;
             var series = await _arrService.GetSonarrSeriesAsync(instance.Url, instance.ApiKey, cancellationToken).ConfigureAwait(false);
-            allSeries.AddRange(series);
+            if (series is null)
+            {
+                failedInstances.Add(instance.Name ?? instance.Url);
+            }
+            else
+            {
+                allSeries.AddRange(series);
+            }
         }
 
-        if (validInstanceCount == 0)
+        if (failedInstances.Count > 0)
         {
-            return BadRequest(new { message = "No Sonarr instance has both a URL and API key configured." });
+            return StatusCode(StatusCodes.Status502BadGateway, new { message = $"Failed to fetch data from Sonarr instance(s): {string.Join(", ", failedInstances)}" });
         }
 
         var result = ArrIntegrationService.CompareSonarrWithJellyfin(allSeries, tvFolders);
@@ -199,20 +211,21 @@ public class ArrIntegrationController : ControllerBase
 
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        var config = _configHelper.GetConfig();
-        var trashFolderName = config.TrashFolderPath;
-        var isTrashRelative = !Path.IsPathRooted(trashFolderName);
-
         foreach (var folder in folders)
         {
             foreach (var location in folder.Locations)
             {
+                var trashFullPath = _configHelper.GetTrashPath(location);
+
                 try
                 {
                     var dirs = _fileSystem.GetDirectories(location);
                     foreach (var dir in dirs)
                     {
-                        if (isTrashRelative && string.Equals(dir.Name, trashFolderName, StringComparison.OrdinalIgnoreCase))
+                        // Skip trash directory by comparing the full resolved path
+                        var normalizedDir = dir.FullName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                        var normalizedTrash = trashFullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                        if (string.Equals(normalizedDir, normalizedTrash, StringComparison.OrdinalIgnoreCase))
                         {
                             continue;
                         }

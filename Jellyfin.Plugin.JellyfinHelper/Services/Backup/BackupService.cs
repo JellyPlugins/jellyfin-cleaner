@@ -662,7 +662,9 @@ public class BackupService : IBackupService
 
         // Trash settings
         config.UseTrash = backup.UseTrash;
-        config.TrashFolderPath = backup.TrashFolderPath;
+        config.TrashFolderPath = string.IsNullOrWhiteSpace(backup.TrashFolderPath)
+            ? ".jellyfin-trash"
+            : backup.TrashFolderPath;
         config.TrashRetentionDays = Math.Clamp(backup.TrashRetentionDays, 0, 3650);
 
         // Arr instances

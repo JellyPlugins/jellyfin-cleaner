@@ -29,8 +29,8 @@ public interface IArrIntegrationService
     /// <param name="baseUrl">The Radarr base URL.</param>
     /// <param name="apiKey">The Radarr API key.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A list of movies from Radarr.</returns>
-    Task<List<ArrMovie>> GetRadarrMoviesAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default);
+    /// <returns>A list of movies from Radarr, or null if the fetch failed.</returns>
+    Task<List<ArrMovie>?> GetRadarrMoviesAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all series from Sonarr.
@@ -38,6 +38,6 @@ public interface IArrIntegrationService
     /// <param name="baseUrl">The Sonarr base URL.</param>
     /// <param name="apiKey">The Sonarr API key.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A list of series from Sonarr.</returns>
-    Task<List<ArrSeries>> GetSonarrSeriesAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default);
+    /// <returns>A list of series from Sonarr, or null if the fetch failed.</returns>
+    Task<List<ArrSeries>?> GetSonarrSeriesAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default);
 }
