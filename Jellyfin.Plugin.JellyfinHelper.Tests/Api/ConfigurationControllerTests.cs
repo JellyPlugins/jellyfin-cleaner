@@ -23,6 +23,7 @@ public class ConfigurationControllerTests
     public ConfigurationControllerTests()
     {
         ControllerTestFactory.InitializePluginInstance();
+        ControllerTestFactory.ResetPluginConfiguration();
         var loggerMock = new Mock<ILogger<ConfigurationController>>();
 
         _arrServiceMock = new Mock<IArrIntegrationService>();

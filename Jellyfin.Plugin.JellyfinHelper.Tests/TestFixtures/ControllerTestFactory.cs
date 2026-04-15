@@ -124,7 +124,7 @@ public static class ControllerTestFactory
         Directory.CreateDirectory(tempDir);
         var appPathsMock = TestMockFactory.CreateAppPaths(dataPath: tempDir, configPath: tempDir);
         var xmlSerializerMock = new Mock<IXmlSerializer>();
-        
+
         // Constructor of Plugin sets Plugin.Instance
         var plugin = new Plugin(appPathsMock.Object, xmlSerializerMock.Object);
         

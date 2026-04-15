@@ -159,6 +159,7 @@ public abstract class BaseLibraryCleanupTask
             var folder = libraryFolders[i];
             PluginLog.LogDebug(TaskName, $"Scanning library folder: {folder}", Logger);
             var (deleted, bytesFreed) = ProcessLocation(folder, dryRun, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             totalDeleted += deleted;
             totalBytesFreed += bytesFreed;
             progress.Report((double)(i + 1) / libraryFolders.Count * 100);

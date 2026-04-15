@@ -37,12 +37,14 @@ public static class TestMockFactory
     /// <summary>Creates a new <see cref="Mock{IApplicationPaths}"/> with common paths configured.</summary>
     public static Mock<IApplicationPaths> CreateAppPaths(string? dataPath = null, string? configPath = null)
     {
+        var effectiveDataPath = dataPath ?? "/data";
+        var effectiveConfigPath = configPath ?? Path.Combine(effectiveDataPath, "config");
         var mock = new Mock<IApplicationPaths>();
-        mock.Setup(ap => ap.DataPath).Returns(dataPath ?? "/data");
-        mock.Setup(ap => ap.PluginConfigurationsPath).Returns(configPath ?? "/data/config");
-        mock.Setup(ap => ap.PluginsPath).Returns("/data/plugins");
-        mock.Setup(ap => ap.LogDirectoryPath).Returns("/data/logs");
-        mock.Setup(ap => ap.ConfigurationDirectoryPath).Returns(configPath ?? "/data/config");
+        mock.Setup(ap => ap.DataPath).Returns(effectiveDataPath);
+        mock.Setup(ap => ap.PluginConfigurationsPath).Returns(effectiveConfigPath);
+        mock.Setup(ap => ap.PluginsPath).Returns(Path.Combine(effectiveDataPath, "plugins"));
+        mock.Setup(ap => ap.LogDirectoryPath).Returns(Path.Combine(effectiveDataPath, "logs"));
+        mock.Setup(ap => ap.ConfigurationDirectoryPath).Returns(effectiveConfigPath);
         return mock;
     }
 
@@ -116,6 +118,8 @@ public static class TestMockFactory
         mock.Setup(c => c.IsDryRunStrmRepair()).Returns(CleanupConfigHelper.IsDryRun(cfg.StrmRepairTaskMode));
         mock.Setup(c => c.IsOldEnoughForDeletion(It.IsAny<string>())).Returns(true);
         mock.Setup(c => c.IsFileOldEnoughForDeletion(It.IsAny<string>())).Returns(true);
+        mock.Setup(c => c.GetFilteredLibraryLocations(It.IsAny<ILibraryManager>()))
+            .Returns(new List<string>());
         return mock;
     }
 

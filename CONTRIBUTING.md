@@ -178,7 +178,7 @@ A named `HttpClient` (`"ArrIntegration"`) is configured with a 15-second timeout
 | **Template Method** | `BaseLibraryCleanupTask` | Abstract base class orchestrates the cleanup lifecycle (config → log → iterate → process → summary → record). Concrete subclasses only implement `ProcessLocation()`. |
 | **Interface Segregation** | All services | Every service has a dedicated `I*Service` interface enabling mock-based testing and loose coupling. |
 | **Strategy** | `TaskMode` enum | Each cleanup task can be independently set to `Activate`, `DryRun`, or `Deactivate`. |
-| **Singleton** | DI registration | All plugin services are singletons — shared state (caches, tracking, ring buffer) is thread-safe. |
+| **Singleton Lifetime** | DI registration | All plugin services are registered with singleton lifetime — shared state (caches, tracking, ring buffer) is thread-safe. |
 | **Build-time Composition** | UI pipeline | CSS/JS modules concatenated into a single `configPage.html` at build time (MSBuild target). |
 | **Append-only Snapshots** | `GrowthTimelineService` | Historical timeline data points are immutable; only the current time-bucket is updated. Deletions show as drops at the current point. |
 | **Validation + Sanitization** | `BackupService` | Backup imports go through 3 stages: `Validate()` → `Sanitize()` → `RestoreBackup()`. Includes XSS/injection detection, size limits, path traversal checks. |

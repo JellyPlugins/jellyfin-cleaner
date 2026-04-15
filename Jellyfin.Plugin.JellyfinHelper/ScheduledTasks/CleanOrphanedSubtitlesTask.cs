@@ -88,6 +88,10 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
             // Cache files per directory
             var fileCache = new Dictionary<string, FileSystemMetadata[]>(StringComparer.OrdinalIgnoreCase);
 
+            // Hoist trash path computation out of loop – libraryPath is constant per iteration
+            var trashFullPath = ConfigHelper.GetTrashPath(libraryPath);
+            var normalizedTrash = trashFullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
             foreach (var dirPath in allDirs)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -102,11 +106,10 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
                 }
 
                 // Skip trash directories (compare full path, handles both relative and absolute trash paths)
-                var trashFullPath = ConfigHelper.GetTrashPath(libraryPath);
                 var normalizedDir = dirPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                var normalizedTrash = trashFullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 if (normalizedDir.Equals(normalizedTrash, StringComparison.OrdinalIgnoreCase)
-                    || normalizedDir.StartsWith(normalizedTrash + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    || normalizedDir.StartsWith(normalizedTrash + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                    || normalizedDir.StartsWith(normalizedTrash + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -179,8 +182,7 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
                     }
                     else if (config.UseTrash)
                     {
-                        var trashPath = ConfigHelper.GetTrashPath(libraryPath);
-                        long size = TrashService.MoveFileToTrash(file.FullName, trashPath, Logger);
+                        long size = TrashService.MoveFileToTrash(file.FullName, trashFullPath, Logger);
                         if (size > 0)
                         {
                             bytesFreed += size;

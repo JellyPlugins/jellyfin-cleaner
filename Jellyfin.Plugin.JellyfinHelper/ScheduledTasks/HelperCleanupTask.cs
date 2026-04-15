@@ -219,12 +219,6 @@ public class HelperCleanupTask : IScheduledTask
             var result = _statisticsService.CalculateStatistics();
             _cacheService.SaveLatestResult(result);
             _pluginLog.LogInfo("HelperCleanup", "Post-cleanup statistics scan completed and persisted.", _logger);
-
-            // Recompute growth timeline
-            cancellationToken.ThrowIfCancellationRequested();
-            _pluginLog.LogInfo("HelperCleanup", "Recomputing growth timeline...", _logger);
-            await _growthService.ComputeTimelineAsync(cancellationToken).ConfigureAwait(false);
-            _pluginLog.LogInfo("HelperCleanup", "Growth timeline recomputed and persisted.", _logger);
         }
         catch (OperationCanceledException)
         {
@@ -234,6 +228,24 @@ public class HelperCleanupTask : IScheduledTask
         catch (Exception ex)
         {
             _pluginLog.LogWarning("HelperCleanup", "Failed to run post-cleanup statistics scan.", ex, _logger);
+        }
+
+        // Recompute growth timeline (independent of statistics scan)
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            _pluginLog.LogInfo("HelperCleanup", "Recomputing growth timeline...", _logger);
+            await _growthService.ComputeTimelineAsync(cancellationToken).ConfigureAwait(false);
+            _pluginLog.LogInfo("HelperCleanup", "Growth timeline recomputed and persisted.", _logger);
+        }
+        catch (OperationCanceledException)
+        {
+            _pluginLog.LogWarning("HelperCleanup", "Helper Cleanup was cancelled during growth timeline computation.", logger: _logger);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _pluginLog.LogWarning("HelperCleanup", "Failed to recompute growth timeline.", ex, _logger);
         }
 
         _pluginLog.LogInfo("HelperCleanup", "Helper Cleanup finished.", _logger);
