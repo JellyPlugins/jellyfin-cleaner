@@ -218,7 +218,7 @@ PluginPages/
 │   ├── shared.css            # Common styles (layout, modals, file lists)
 │   ├── Overview.css          # Overview tab (disk usage bars, stat cards)
 │   ├── Codecs.css            # Codec tab (donut charts, file explorer)
-│   ├── Health.css             # Health check (tiles, detail panels)
+│   ├── Health.css            # Health check (tiles, detail panels)
 │   ├── Trends.css            # Trend graph styling
 │   ├── Settings.css          # Settings form layout
 │   ├── ArrIntegration.css    # Arr comparison tables

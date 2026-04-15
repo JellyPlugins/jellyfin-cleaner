@@ -9,9 +9,9 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 
 /// <summary>
-/// Manages a trash/recycle bin for deleted media items instead of permanent deletion.
-/// Items are moved to a timestamped trash folder and can be permanently purged after a retention period.
-/// Registered as a singleton via DI.
+///     Manages a trash/recycle bin for deleted media items instead of permanent deletion.
+///     Items are moved to a timestamped trash folder and can be permanently purged after a retention period.
+///     Registered as a singleton via DI.
 /// </summary>
 public class TrashService : ITrashService
 {
@@ -19,7 +19,7 @@ public class TrashService : ITrashService
     private readonly IPluginLogService _pluginLog;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="TrashService"/> class.
+    ///     Initializes a new instance of the <see cref="TrashService" /> class.
     /// </summary>
     /// <param name="pluginLog">The plugin log service.</param>
     public TrashService(IPluginLogService pluginLog)
@@ -50,7 +50,7 @@ public class TrashService : ITrashService
             trashItemPath = ResolveCollision(trashItemPath);
 
             // Calculate size before moving
-            long size = CalculateDirectorySize(sourcePath);
+            var size = CalculateDirectorySize(sourcePath);
 
             // Move to trash
             Directory.Move(sourcePath, trashItemPath);
@@ -72,7 +72,10 @@ public class TrashService : ITrashService
         {
             if (!File.Exists(sourceFilePath))
             {
-                _pluginLog.LogWarning("Trash", $"Source file does not exist for trash: {sourceFilePath}", logger: logger);
+                _pluginLog.LogWarning(
+                    "Trash",
+                    $"Source file does not exist for trash: {sourceFilePath}",
+                    logger: logger);
                 return 0;
             }
 
@@ -88,12 +91,15 @@ public class TrashService : ITrashService
             Directory.CreateDirectory(trashBasePath);
 
             // Get size before moving
-            long size = new FileInfo(sourceFilePath).Length;
+            var size = new FileInfo(sourceFilePath).Length;
 
             // Move to trash
             File.Move(sourceFilePath, trashItemPath);
 
-            _pluginLog.LogInfo("Trash", $"Moved file to trash: {sourceFilePath} → {trashItemPath} ({size} bytes)", logger);
+            _pluginLog.LogInfo(
+                "Trash",
+                $"Moved file to trash: {sourceFilePath} → {trashItemPath} ({size} bytes)",
+                logger);
             return size;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -104,10 +110,14 @@ public class TrashService : ITrashService
     }
 
     /// <inheritdoc />
-    public (long BytesFreed, int ItemsPurged) PurgeExpiredTrash(string trashBasePath, int retentionDays, ILogger logger, DateTime? utcNow = null)
+    public (long BytesFreed, int ItemsPurged) PurgeExpiredTrash(
+        string trashBasePath,
+        int retentionDays,
+        ILogger logger,
+        DateTime? utcNow = null)
     {
         long totalBytesFreed = 0;
-        int itemsPurged = 0;
+        var itemsPurged = 0;
 
         if (!Directory.Exists(trashBasePath))
         {
@@ -122,20 +132,25 @@ public class TrashService : ITrashService
             foreach (var dir in Directory.GetDirectories(trashBasePath))
             {
                 var dirName = Path.GetFileName(dir);
-                if (TryParseTrashTimestamp(dirName, out var timestamp) && timestamp < cutoff)
+                if (!TryParseTrashTimestamp(dirName, out var timestamp) || timestamp >= cutoff)
                 {
-                    try
-                    {
-                        long size = CalculateDirectorySize(dir);
-                        Directory.Delete(dir, true);
-                        totalBytesFreed += size;
-                        itemsPurged++;
-                        _pluginLog.LogInfo("Trash", $"Purged expired trash directory: {dir} ({size} bytes, created {timestamp})", logger);
-                    }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                    {
-                        _pluginLog.LogError("Trash", $"Failed to purge trash directory: {dir}", ex, logger);
-                    }
+                    continue;
+                }
+
+                try
+                {
+                    var size = CalculateDirectorySize(dir);
+                    Directory.Delete(dir, true);
+                    totalBytesFreed += size;
+                    itemsPurged++;
+                    _pluginLog.LogInfo(
+                        "Trash",
+                        $"Purged expired trash directory: {dir} ({size} bytes, created {timestamp})",
+                        logger);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _pluginLog.LogError("Trash", $"Failed to purge trash directory: {dir}", ex, logger);
                 }
             }
 
@@ -143,20 +158,25 @@ public class TrashService : ITrashService
             foreach (var file in Directory.GetFiles(trashBasePath))
             {
                 var fileName = Path.GetFileName(file);
-                if (TryParseTrashTimestamp(fileName, out var timestamp) && timestamp < cutoff)
+                if (!TryParseTrashTimestamp(fileName, out var timestamp) || timestamp >= cutoff)
                 {
-                    try
-                    {
-                        long size = new FileInfo(file).Length;
-                        File.Delete(file);
-                        totalBytesFreed += size;
-                        itemsPurged++;
-                        _pluginLog.LogInfo("Trash", $"Purged expired trash file: {file} ({size} bytes, created {timestamp})", logger);
-                    }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                    {
-                        _pluginLog.LogError("Trash", $"Failed to purge trash file: {file}", ex, logger);
-                    }
+                    continue;
+                }
+
+                try
+                {
+                    var size = new FileInfo(file).Length;
+                    File.Delete(file);
+                    totalBytesFreed += size;
+                    itemsPurged++;
+                    _pluginLog.LogInfo(
+                        "Trash",
+                        $"Purged expired trash file: {file} ({size} bytes, created {timestamp})",
+                        logger);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _pluginLog.LogError("Trash", $"Failed to purge trash file: {file}", ex, logger);
                 }
             }
         }
@@ -177,13 +197,13 @@ public class TrashService : ITrashService
         }
 
         long totalSize = 0;
-        int itemCount = 0;
+        var itemCount = 0;
 
         try
         {
             var dirs = Directory.GetDirectories(trashBasePath);
             itemCount += dirs.Length;
-            totalSize += dirs.Sum(d => CalculateDirectorySize(d));
+            totalSize += dirs.Sum(CalculateDirectorySize);
 
             var files = Directory.GetFiles(trashBasePath);
             itemCount += files.Length;
@@ -214,7 +234,7 @@ public class TrashService : ITrashService
             {
                 var dirName = Path.GetFileName(dir);
                 var originalName = ExtractOriginalName(dirName);
-                long size = CalculateDirectorySize(dir);
+                var size = CalculateDirectorySize(dir);
 
                 DateTime? trashedAt = null;
                 DateTime? purgesAt = null;
@@ -224,15 +244,16 @@ public class TrashService : ITrashService
                     purgesAt = timestamp.AddDays(retentionDays);
                 }
 
-                items.Add(new TrashItemInfo
-                {
-                    Name = originalName,
-                    FullName = dirName,
-                    Size = size,
-                    IsDirectory = true,
-                    TrashedAt = trashedAt,
-                    PurgesAt = purgesAt,
-                });
+                items.Add(
+                    new TrashItemInfo
+                    {
+                        Name = originalName,
+                        FullName = dirName,
+                        Size = size,
+                        IsDirectory = true,
+                        TrashedAt = trashedAt,
+                        PurgesAt = purgesAt
+                    });
             }
 
             // Files
@@ -240,7 +261,7 @@ public class TrashService : ITrashService
             {
                 var fileName = Path.GetFileName(file);
                 var originalName = ExtractOriginalName(fileName);
-                long size = new FileInfo(file).Length;
+                var size = new FileInfo(file).Length;
 
                 DateTime? trashedAt = null;
                 DateTime? purgesAt = null;
@@ -250,15 +271,16 @@ public class TrashService : ITrashService
                     purgesAt = timestamp.AddDays(retentionDays);
                 }
 
-                items.Add(new TrashItemInfo
-                {
-                    Name = originalName,
-                    FullName = fileName,
-                    Size = size,
-                    IsDirectory = false,
-                    TrashedAt = trashedAt,
-                    PurgesAt = purgesAt,
-                });
+                items.Add(
+                    new TrashItemInfo
+                    {
+                        Name = originalName,
+                        FullName = fileName,
+                        Size = size,
+                        IsDirectory = false,
+                        TrashedAt = trashedAt,
+                        PurgesAt = purgesAt
+                    });
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -273,8 +295,8 @@ public class TrashService : ITrashService
     }
 
     /// <summary>
-    /// Extracts the original name from a timestamped trash item name.
-    /// Format: "yyyyMMdd-HHmmss_originalname" → "originalname".
+    ///     Extracts the original name from a timestamped trash item name.
+    ///     Format: "yyyyMMdd-HHmmss_originalname" → "originalname".
     /// </summary>
     /// <param name="trashItemName">The full trash item name including timestamp prefix.</param>
     /// <returns>The original name, or the full name if no timestamp prefix was found.</returns>
@@ -296,11 +318,14 @@ public class TrashService : ITrashService
     }
 
     /// <summary>
-    /// Tries to parse the timestamp prefix from a trash item name.
-    /// Format: "yyyyMMdd-HHmmss_originalname".
+    ///     Tries to parse the timestamp prefix from a trash item name.
+    ///     Format: "yyyyMMdd-HHmmss_originalname".
     /// </summary>
     /// <param name="name">The trash item name including timestamp prefix.</param>
-    /// <param name="timestamp">When this method returns, contains the parsed timestamp, or <see cref="DateTime.MinValue"/> if parsing failed.</param>
+    /// <param name="timestamp">
+    ///     When this method returns, contains the parsed timestamp, or <see cref="DateTime.MinValue" /> if
+    ///     parsing failed.
+    /// </param>
     /// <returns>True if the timestamp was successfully parsed; otherwise, false.</returns>
     internal static bool TryParseTrashTimestamp(string name, out DateTime timestamp)
     {
@@ -321,8 +346,8 @@ public class TrashService : ITrashService
     }
 
     /// <summary>
-    /// Resolves naming collisions for trash items by appending a numeric suffix (_2, _3, …)
-    /// if the target path already exists as a file or directory.
+    ///     Resolves naming collisions for trash items by appending a numeric suffix (_2, _3, …)
+    ///     if the target path already exists as a file or directory.
     /// </summary>
     /// <param name="desiredPath">The initially desired trash path.</param>
     /// <returns>A path that does not yet exist on disk.</returns>
@@ -336,7 +361,7 @@ public class TrashService : ITrashService
         var directory = Path.GetDirectoryName(desiredPath) ?? string.Empty;
         var name = Path.GetFileName(desiredPath);
 
-        for (int i = 2; i < 1000; i++)
+        for (var i = 2; i < 1000; i++)
         {
             var candidate = Path.Combine(directory, $"{name}_{i}");
             if (!File.Exists(candidate) && !Directory.Exists(candidate))
@@ -350,10 +375,10 @@ public class TrashService : ITrashService
     }
 
     /// <summary>
-    /// Calculates the total size of all files in a directory tree using <see cref="DirectoryInfo"/>.
-    /// This is a self-contained implementation for the trash module which operates outside the
-    /// Jellyfin <c>IFileSystem</c> abstraction. For library paths, prefer
-    /// <see cref="FileSystemHelper.CalculateDirectorySize"/> instead.
+    ///     Calculates the total size of all files in a directory tree using <see cref="DirectoryInfo" />.
+    ///     This is a self-contained implementation for the trash module which operates outside the
+    ///     Jellyfin <c>IFileSystem</c> abstraction. For library paths, prefer
+    ///     <see cref="FileSystemHelper.CalculateDirectorySize" /> instead.
     /// </summary>
     private static long CalculateDirectorySize(string path)
     {

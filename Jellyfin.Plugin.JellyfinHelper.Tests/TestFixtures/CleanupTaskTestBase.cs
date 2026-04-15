@@ -1,11 +1,9 @@
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
-using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 
@@ -83,7 +81,10 @@ public abstract class CleanupTaskTestBase : IDisposable
 
     /// <summary>
     /// Builds a platform-native absolute test path from segments.
-    /// Ensures <see cref="Path.GetDirectoryName"/> returns a value
+    /// Ensures <see>
+    ///     <cref>Path.GetDirectoryName</cref>
+    /// </see>
+    /// returns a value
     /// consistent with the path used in mock setups, regardless of OS.
     /// </summary>
     protected static string TestPath(params string[] segments)

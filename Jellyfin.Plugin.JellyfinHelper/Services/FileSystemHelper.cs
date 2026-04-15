@@ -4,39 +4,34 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using MediaBrowser.Model.IO;
-using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services;
 
 /// <summary>
-/// Provides reusable, robust filesystem operations with proper error handling.
-/// All methods gracefully handle <see cref="IOException"/> and <see cref="UnauthorizedAccessException"/>
-/// by logging a warning and continuing, ensuring that inaccessible directories never crash the caller.
+///     Provides reusable, robust filesystem operations with proper error handling.
+///     All methods gracefully handle <see cref="IOException" /> and <see cref="UnauthorizedAccessException" />
+///     by logging a warning and continuing, ensuring that inaccessible directories never crash the caller.
 /// </summary>
 public static class FileSystemHelper
 {
     /// <summary>
-    /// Calculates the total size of all files in a directory tree.
-    /// Inaccessible directories are logged and skipped.
+    ///     Calculates the total size of all files in a directory tree.
+    ///     Inaccessible directories are logged and skipped.
     /// </summary>
     /// <param name="fileSystem">The Jellyfin file system abstraction.</param>
     /// <param name="directoryPath">The root directory path.</param>
-    /// <param name="logger">The logger for warning on inaccessible paths.</param>
     /// <returns>The total size in bytes.</returns>
-    internal static long CalculateDirectorySize(IFileSystem fileSystem, string directoryPath, ILogger logger)
+    internal static long CalculateDirectorySize(IFileSystem fileSystem, string directoryPath)
     {
         long totalSize = 0;
 
         try
         {
-            var files = fileSystem.GetFiles(directoryPath, false);
+            var files = fileSystem.GetFiles(directoryPath);
             totalSize += files.Sum(f => f.Length);
 
-            var subDirs = fileSystem.GetDirectories(directoryPath, false);
-            foreach (var subDir in subDirs)
-            {
-                totalSize += CalculateDirectorySize(fileSystem, subDir.FullName, logger);
-            }
+            var subDirs = fileSystem.GetDirectories(directoryPath);
+            totalSize += subDirs.Sum(subDir => CalculateDirectorySize(fileSystem, subDir.FullName));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -46,7 +41,7 @@ public static class FileSystemHelper
     }
 
     /// <summary>
-    /// Increments a counter in a dictionary by 1.
+    ///     Increments a counter in a dictionary by 1.
     /// </summary>
     /// <param name="dict">The dictionary to update.</param>
     /// <param name="key">The key to increment.</param>
@@ -63,7 +58,7 @@ public static class FileSystemHelper
     }
 
     /// <summary>
-    /// Accumulates a value in a dictionary.
+    ///     Accumulates a value in a dictionary.
     /// </summary>
     /// <param name="dict">The dictionary to update.</param>
     /// <param name="key">The key to accumulate.</param>
@@ -81,7 +76,7 @@ public static class FileSystemHelper
     }
 
     /// <summary>
-    /// Adds a file path to a dictionary of path collections, creating the collection if needed.
+    ///     Adds a file path to a dictionary of path collections, creating the collection if needed.
     /// </summary>
     /// <param name="dict">The dictionary mapping keys to path collections.</param>
     /// <param name="key">The key (e.g. codec name) to add the path under.</param>
@@ -90,7 +85,7 @@ public static class FileSystemHelper
     {
         if (!dict.TryGetValue(key, out var collection))
         {
-            collection = new Collection<string>();
+            collection = [];
             dict[key] = collection;
         }
 

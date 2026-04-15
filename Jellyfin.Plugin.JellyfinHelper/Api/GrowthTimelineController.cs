@@ -9,8 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace Jellyfin.Plugin.JellyfinHelper.Api;
 
 /// <summary>
-/// API controller for the library growth timeline.
-/// Computes and caches historical growth data based on media file creation dates.
+///     API controller for the library growth timeline.
+///     Computes and caches historical growth data based on media file creation dates.
 /// </summary>
 [ApiController]
 [Authorize(Policy = "RequiresElevation")]
@@ -21,7 +21,7 @@ public class GrowthTimelineController : ControllerBase
     private readonly IGrowthTimelineService _growthTimelineService;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="GrowthTimelineController"/> class.
+    ///     Initializes a new instance of the <see cref="GrowthTimelineController" /> class.
     /// </summary>
     /// <param name="growthTimelineService">The growth timeline service.</param>
     public GrowthTimelineController(IGrowthTimelineService growthTimelineService)
@@ -30,17 +30,19 @@ public class GrowthTimelineController : ControllerBase
     }
 
     /// <summary>
-    /// Gets the library growth timeline based on media file creation dates.
-    /// Returns the cached timeline if available, otherwise computes it.
-    /// The timeline uses automatic granularity (daily/weekly/monthly/quarterly/yearly)
-    /// based on the age of the oldest media file.
+    ///     Gets the library growth timeline based on media file creation dates.
+    ///     Returns the cached timeline if available, otherwise computes it.
+    ///     The timeline uses automatic granularity (daily/weekly/monthly/quarterly/yearly)
+    ///     based on the age of the oldest media file.
     /// </summary>
     /// <param name="forceRefresh">Set to true to force recomputation instead of using cached data.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The growth timeline with cumulative data points.</returns>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<GrowthTimelineResult>> GetGrowthTimelineAsync([FromQuery] bool forceRefresh = false, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<GrowthTimelineResult>> GetGrowthTimelineAsync(
+        [FromQuery] bool forceRefresh = false,
+        CancellationToken cancellationToken = default)
     {
         if (!forceRefresh)
         {

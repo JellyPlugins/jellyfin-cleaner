@@ -37,7 +37,7 @@ public class TranslationsControllerTests
     {
         _configHelperMock.Setup(c => c.GetConfig()).Returns(new PluginConfiguration { Language = "de" });
 
-        var result = _controller.GetTranslations(null);
+        var result = _controller.GetTranslations();
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var translations = Assert.IsType<Dictionary<string, string>>(okResult.Value);

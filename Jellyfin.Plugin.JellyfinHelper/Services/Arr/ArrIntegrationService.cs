@@ -12,23 +12,26 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 
 /// <summary>
-/// Provides integration with Radarr and Sonarr APIs to compare libraries.
+///     Provides integration with Radarr and Sonarr APIs to compare libraries.
 /// </summary>
-public class ArrIntegrationService : IArrIntegrationService
+public sealed class ArrIntegrationService : IArrIntegrationService
 {
     private static readonly JsonSerializerOptions JsonOptions = JsonDefaults.Options;
 
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IPluginLogService _pluginLog;
     private readonly ILogger<ArrIntegrationService> _logger;
+    private readonly IPluginLogService _pluginLog;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ArrIntegrationService"/> class.
+    ///     Initializes a new instance of the <see cref="ArrIntegrationService" /> class.
     /// </summary>
     /// <param name="httpClientFactory">The HTTP client factory for creating named HTTP clients.</param>
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The logger.</param>
-    public ArrIntegrationService(IHttpClientFactory httpClientFactory, IPluginLogService pluginLog, ILogger<ArrIntegrationService> logger)
+    public ArrIntegrationService(
+        IHttpClientFactory httpClientFactory,
+        IPluginLogService pluginLog,
+        ILogger<ArrIntegrationService> logger)
     {
         _httpClientFactory = httpClientFactory;
         _pluginLog = pluginLog;
@@ -36,13 +39,16 @@ public class ArrIntegrationService : IArrIntegrationService
     }
 
     /// <summary>
-    /// Tests connectivity to a Radarr or Sonarr instance by calling its /api/v3/system/status endpoint.
+    ///     Tests connectivity to a Radarr or Sonarr instance by calling its /api/v3/system/status endpoint.
     /// </summary>
     /// <param name="baseUrl">The base URL of the Arr instance.</param>
     /// <param name="apiKey">The API key.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A tuple indicating success and a status message.</returns>
-    public virtual async Task<(bool Success, string Message)> TestConnectionAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default)
+    public async Task<(bool Success, string Message)> TestConnectionAsync(
+        string baseUrl,
+        string apiKey,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
@@ -83,28 +89,39 @@ public class ArrIntegrationService : IArrIntegrationService
         }
         catch (HttpRequestException ex)
         {
-            _pluginLog.LogWarning("ArrIntegration", $"Arr connection test failed for {baseUrl}: {ex.Message}", ex, _logger);
+            _pluginLog.LogWarning(
+                "ArrIntegration",
+                $"Arr connection test failed for {baseUrl}: {ex.Message}",
+                ex,
+                _logger);
             return (false, $"Connection failed: {ex.Message}");
         }
         catch (Exception ex) when (ex is JsonException or UriFormatException)
         {
-            _pluginLog.LogWarning("ArrIntegration", $"Arr connection test failed for {baseUrl}: {ex.Message}", ex, _logger);
+            _pluginLog.LogWarning(
+                "ArrIntegration",
+                $"Arr connection test failed for {baseUrl}: {ex.Message}",
+                ex,
+                _logger);
             return (false, $"Error: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// Gets all movies from Radarr.
+    ///     Gets all movies from Radarr.
     /// </summary>
     /// <param name="baseUrl">The Radarr base URL.</param>
     /// <param name="apiKey">The Radarr API key.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of movies from Radarr.</returns>
-    public async Task<List<ArrMovie>?> GetRadarrMoviesAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default)
+    public async Task<List<ArrMovie>?> GetRadarrMoviesAsync(
+        string baseUrl,
+        string apiKey,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(apiKey))
         {
-            return new List<ArrMovie>();
+            return [];
         }
 
         try
@@ -118,7 +135,8 @@ public class ArrIntegrationService : IArrIntegrationService
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var movies = JsonSerializer.Deserialize<List<RadarrMovieDto>>(json, JsonOptions) ?? new List<RadarrMovieDto>();
+            var movies = JsonSerializer.Deserialize<List<RadarrMovieDto>>(json, JsonOptions) ??
+                         new List<RadarrMovieDto>();
 
             return movies.Select(m => new ArrMovie
             {
@@ -127,7 +145,7 @@ public class ArrIntegrationService : IArrIntegrationService
                 ImdbId = m.ImdbId ?? string.Empty,
                 TmdbId = m.TmdbId,
                 HasFile = m.HasFile,
-                Path = m.Path ?? string.Empty,
+                Path = m.Path ?? string.Empty
             }).ToList();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -142,13 +160,16 @@ public class ArrIntegrationService : IArrIntegrationService
     }
 
     /// <summary>
-    /// Gets all series from Sonarr.
+    ///     Gets all series from Sonarr.
     /// </summary>
     /// <param name="baseUrl">The Sonarr base URL.</param>
     /// <param name="apiKey">The Sonarr API key.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of series from Sonarr.</returns>
-    public async Task<List<ArrSeries>?> GetSonarrSeriesAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default)
+    public async Task<List<ArrSeries>?> GetSonarrSeriesAsync(
+        string baseUrl,
+        string apiKey,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(apiKey))
         {
@@ -166,7 +187,8 @@ public class ArrIntegrationService : IArrIntegrationService
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var series = JsonSerializer.Deserialize<List<SonarrSeriesDto>>(json, JsonOptions) ?? new List<SonarrSeriesDto>();
+            var series = JsonSerializer.Deserialize<List<SonarrSeriesDto>>(json, JsonOptions) ??
+                         new List<SonarrSeriesDto>();
 
             return series.Select(s => new ArrSeries
             {
@@ -176,7 +198,7 @@ public class ArrIntegrationService : IArrIntegrationService
                 TvdbId = s.TvdbId,
                 Path = s.Path ?? string.Empty,
                 EpisodeFileCount = s.Statistics?.EpisodeFileCount ?? 0,
-                TotalEpisodeCount = s.Statistics?.TotalEpisodeCount ?? 0,
+                TotalEpisodeCount = s.Statistics?.TotalEpisodeCount ?? 0
             }).ToList();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -191,7 +213,7 @@ public class ArrIntegrationService : IArrIntegrationService
     }
 
     /// <summary>
-    /// Compares Radarr movies with Jellyfin library folder names.
+    ///     Compares Radarr movies with Jellyfin library folder names.
     /// </summary>
     /// <param name="radarrMovies">Movies from Radarr.</param>
     /// <param name="jellyfinFolderNames">Set of folder names in Jellyfin movie libraries.</param>
@@ -245,7 +267,7 @@ public class ArrIntegrationService : IArrIntegrationService
     }
 
     /// <summary>
-    /// Compares Sonarr series with Jellyfin library folder names.
+    ///     Compares Sonarr series with Jellyfin library folder names.
     /// </summary>
     /// <param name="sonarrSeries">Series from Sonarr.</param>
     /// <param name="jellyfinFolderNames">Set of folder names in Jellyfin TV libraries.</param>
@@ -275,7 +297,8 @@ public class ArrIntegrationService : IArrIntegrationService
             }
             else if (series.EpisodeFileCount > 0)
             {
-                result.InArrOnly.Add($"{series.Title} ({series.Year}) — {series.EpisodeFileCount}/{series.TotalEpisodeCount} episodes on disk");
+                result.InArrOnly.Add(
+                    $"{series.Title} ({series.Year}) — {series.EpisodeFileCount}/{series.TotalEpisodeCount} episodes on disk");
             }
             else
             {
@@ -301,9 +324,9 @@ public class ArrIntegrationService : IArrIntegrationService
 
     private sealed class ArrSystemStatusDto
     {
-        public string? AppName { get; set; }
+        public string? AppName { get; init; }
 
-        public string? Version { get; set; }
+        public string? Version { get; init; }
     }
 
     private sealed class RadarrMovieDto

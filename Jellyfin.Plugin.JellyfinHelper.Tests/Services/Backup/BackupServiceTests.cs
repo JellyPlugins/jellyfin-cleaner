@@ -2,7 +2,6 @@ using System.Text.Json;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Backup;
 using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
-using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using Moq;
@@ -11,8 +10,8 @@ using Xunit;
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Backup;
 
 /// <summary>
-/// Comprehensive tests for the BackupService, covering validation, sanitization,
-/// serialization, and security checks against malicious input.
+///     Comprehensive tests for the BackupService, covering validation, sanitization,
+///     serialization, and security checks against malicious input.
 /// </summary>
 public class BackupServiceTests
 {
@@ -34,10 +33,12 @@ public class BackupServiceTests
             StrmRepairTaskMode = "DryRun",
             UseTrash = true,
             TrashFolderPath = ".jellyfin-trash",
-            TrashRetentionDays = 30,
+            TrashRetentionDays = 30
         };
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "Radarr", Url = "http://localhost:7878", ApiKey = "abc123" });
-        backup.SonarrInstances.Add(new BackupArrInstance { Name = "Sonarr", Url = "http://localhost:8989", ApiKey = "def456" });
+        backup.RadarrInstances.Add(new BackupArrInstance
+            { Name = "Radarr", Url = "http://localhost:7878", ApiKey = "abc123" });
+        backup.SonarrInstances.Add(new BackupArrInstance
+            { Name = "Sonarr", Url = "http://localhost:8989", ApiKey = "def456" });
         return backup;
     }
 
@@ -313,10 +314,14 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.RadarrInstances.Clear();
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "R1", Url = "http://localhost:7878", ApiKey = "key1" });
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "R2", Url = "http://localhost:7879", ApiKey = "key2" });
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "R3", Url = "http://localhost:7880", ApiKey = "key3" });
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "R4", Url = "http://localhost:7881", ApiKey = "key4" });
+        backup.RadarrInstances.Add(
+            new BackupArrInstance { Name = "R1", Url = "http://localhost:7878", ApiKey = "key1" });
+        backup.RadarrInstances.Add(
+            new BackupArrInstance { Name = "R2", Url = "http://localhost:7879", ApiKey = "key2" });
+        backup.RadarrInstances.Add(
+            new BackupArrInstance { Name = "R3", Url = "http://localhost:7880", ApiKey = "key3" });
+        backup.RadarrInstances.Add(
+            new BackupArrInstance { Name = "R4", Url = "http://localhost:7881", ApiKey = "key4" });
         var result = BackupService.Validate(backup);
 
         Assert.False(result.IsValid);
@@ -328,7 +333,8 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.RadarrInstances.Clear();
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "Radarr", Url = "ftp://not-http.com", ApiKey = "key" });
+        backup.RadarrInstances.Add(
+            new BackupArrInstance { Name = "Radarr", Url = "ftp://not-http.com", ApiKey = "key" });
         var result = BackupService.Validate(backup);
 
         Assert.False(result.IsValid);
@@ -351,7 +357,8 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.RadarrInstances.Clear();
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "<script>alert(1)</script>", Url = "http://localhost:7878", ApiKey = "key" });
+        backup.RadarrInstances.Add(new BackupArrInstance
+            { Name = "<script>alert(1)</script>", Url = "http://localhost:7878", ApiKey = "key" });
         var result = BackupService.Validate(backup);
 
         Assert.False(result.IsValid);
@@ -375,15 +382,13 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.GrowthTimeline = new GrowthTimelineResult { Granularity = "monthly" };
-        for (int i = 0; i < BackupService.MaxTimelineDataPoints + 100; i++)
-        {
+        for (var i = 0; i < BackupService.MaxTimelineDataPoints + 100; i++)
             backup.GrowthTimeline.DataPoints.Add(new GrowthTimelinePoint
             {
                 Date = DateTime.UtcNow.AddDays(-i),
                 CumulativeSize = i * 1000,
-                CumulativeFileCount = i,
+                CumulativeFileCount = i
             });
-        }
 
         var result = BackupService.Validate(backup);
 
@@ -399,7 +404,7 @@ public class BackupServiceTests
         backup.GrowthTimeline.DataPoints.Add(new GrowthTimelinePoint
         {
             Date = DateTime.UtcNow,
-            CumulativeSize = -1000,
+            CumulativeSize = -1000
         });
 
         var result = BackupService.Validate(backup);
@@ -431,7 +436,7 @@ public class BackupServiceTests
                 ["<script>alert(1)</script>"] = new BaselineDirectoryEntry
                 {
                     CreatedUtc = DateTime.UtcNow,
-                    Size = 1000,
+                    Size = 1000
                 }
             }
         };
@@ -453,7 +458,7 @@ public class BackupServiceTests
                 [new string('A', 1001)] = new BaselineDirectoryEntry
                 {
                     CreatedUtc = DateTime.UtcNow,
-                    Size = 1000,
+                    Size = 1000
                 }
             }
         };
@@ -548,7 +553,7 @@ public class BackupServiceTests
         {
             Date = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
             CumulativeSize = 123456789,
-            CumulativeFileCount = 42,
+            CumulativeFileCount = 42
         });
         backup.GrowthBaseline = new GrowthTimelineBaseline
         {
@@ -558,7 +563,7 @@ public class BackupServiceTests
                 [@"C:\Media\Movie 1"] = new BaselineDirectoryEntry
                 {
                     CreatedUtc = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
-                    Size = 55555,
+                    Size = 55555
                 }
             }
         };
@@ -652,9 +657,10 @@ public class BackupServiceTests
             IncludedLibraries = new string('A', 5000),
             TrashFolderPath = "../../../etc/shadow",
             OrphanMinAgeDays = -100,
-            TrashRetentionDays = -50,
+            TrashRetentionDays = -50
         };
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "<script>", Url = "ftp://evil.com", ApiKey = "key\0evil" });
+        backup.RadarrInstances.Add(new BackupArrInstance
+            { Name = "<script>", Url = "ftp://evil.com", ApiKey = "key\0evil" });
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "R2", Url = "http://ok.com", ApiKey = "ok" });
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "R3", Url = "http://ok.com", ApiKey = "ok" });
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "R4", Url = "http://ok.com", ApiKey = "ok" });
@@ -663,7 +669,8 @@ public class BackupServiceTests
 
         Assert.False(result.IsValid);
         // Should have multiple errors
-        Assert.True(result.Errors.Count >= 5, $"Expected >= 5 errors, got {result.Errors.Count}: {string.Join("; ", result.Errors)}");
+        Assert.True(result.Errors.Count >= 5,
+            $"Expected >= 5 errors, got {result.Errors.Count}: {string.Join("; ", result.Errors)}");
     }
 
     // ===== Edge cases =====
@@ -674,7 +681,7 @@ public class BackupServiceTests
         var backup = new BackupData
         {
             BackupVersion = 1,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
         };
         var result = BackupService.Validate(backup);
 
@@ -717,7 +724,7 @@ public class BackupServiceTests
             {
                 Date = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
                 CumulativeSize = 1000,
-                CumulativeFileCount = 2,
+                CumulativeFileCount = 2
             });
 
             var baseline = new GrowthTimelineBaseline
@@ -728,19 +735,22 @@ public class BackupServiceTests
                     [@"C:\Media\Movie 1"] = new BaselineDirectoryEntry
                     {
                         CreatedUtc = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
-                        Size = 2000,
+                        Size = 2000
                     }
                 }
             };
 
-            File.WriteAllText(Path.Combine(tempDir, "jellyfin-helper-growth-timeline.json"), JsonSerializer.Serialize(timeline));
-            File.WriteAllText(Path.Combine(tempDir, "jellyfin-helper-growth-baseline.json"), JsonSerializer.Serialize(baseline));
+            File.WriteAllText(Path.Combine(tempDir, "jellyfin-helper-growth-timeline.json"),
+                JsonSerializer.Serialize(timeline));
+            File.WriteAllText(Path.Combine(tempDir, "jellyfin-helper-growth-baseline.json"),
+                JsonSerializer.Serialize(baseline));
 
             var logger = TestMockFactory.CreateLogger<BackupService>();
             var configService = new Mock<IPluginConfigurationService>();
             configService.Setup(c => c.GetConfiguration()).Returns(new PluginConfiguration());
             configService.Setup(c => c.PluginVersion).Returns("1.0.0-test");
-            var service = new BackupService(tempDir, configService.Object, TestMockFactory.CreatePluginLogService(), logger.Object);
+            var service = new BackupService(tempDir, configService.Object, TestMockFactory.CreatePluginLogService(),
+                logger.Object);
 
             var backup = service.CreateBackup();
 
@@ -767,18 +777,19 @@ public class BackupServiceTests
         {
             var logger = TestMockFactory.CreateLogger<BackupService>();
             var configService = new Mock<IPluginConfigurationService>();
-            var service = new BackupService(tempDir, configService.Object, TestMockFactory.CreatePluginLogService(), logger.Object);
+            var service = new BackupService(tempDir, configService.Object, TestMockFactory.CreatePluginLogService(),
+                logger.Object);
 
             var backup = CreateValidBackup();
             backup.GrowthTimeline = new GrowthTimelineResult { Granularity = "monthly" };
             backup.GrowthTimeline.DataPoints.Add(new GrowthTimelinePoint
             {
                 Date = DateTime.UtcNow,
-                CumulativeSize = 1000,
+                CumulativeSize = 1000
             });
             backup.GrowthBaseline = new GrowthTimelineBaseline
             {
-                FirstScanTimestamp = DateTime.UtcNow,
+                FirstScanTimestamp = DateTime.UtcNow
             };
             // RestoreBackup won't restore config (no Plugin.Instance), but should write files
             var summary = service.RestoreBackup(backup);
@@ -805,7 +816,8 @@ public class BackupServiceTests
         {
             var logger = TestMockFactory.CreateLogger<BackupService>();
             var configService = new Mock<IPluginConfigurationService>();
-            var service = new BackupService(tempDir, configService.Object, TestMockFactory.CreatePluginLogService(), logger.Object);
+            var service = new BackupService(tempDir, configService.Object, TestMockFactory.CreatePluginLogService(),
+                logger.Object);
 
             var backup = CreateValidBackup();
             backup.GrowthTimeline = null;

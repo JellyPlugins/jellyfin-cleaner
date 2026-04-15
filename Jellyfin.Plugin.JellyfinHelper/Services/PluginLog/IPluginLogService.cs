@@ -5,13 +5,13 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 
 /// <summary>
-/// Interface for the plugin log service that manages an in-memory ring buffer
-/// for plugin-specific log entries with dual-logging support.
+///     Interface for the plugin log service that manages an in-memory ring buffer
+///     for plugin-specific log entries with dual-logging support.
 /// </summary>
 public interface IPluginLogService
 {
     /// <summary>
-    /// Logs a debug-level message to the plugin buffer and optionally to Jellyfin's logger.
+    ///     Logs a debug-level message to the plugin buffer and optionally to Jellyfin's logger.
     /// </summary>
     /// <param name="source">The source component.</param>
     /// <param name="message">The log message.</param>
@@ -19,7 +19,7 @@ public interface IPluginLogService
     void LogDebug(string source, string message, ILogger? logger = null);
 
     /// <summary>
-    /// Logs an info-level message to the plugin buffer and optionally to Jellyfin's logger.
+    ///     Logs an info-level message to the plugin buffer and optionally to Jellyfin's logger.
     /// </summary>
     /// <param name="source">The source component.</param>
     /// <param name="message">The log message.</param>
@@ -27,7 +27,7 @@ public interface IPluginLogService
     void LogInfo(string source, string message, ILogger? logger = null);
 
     /// <summary>
-    /// Logs a warning-level message to the plugin buffer and optionally to Jellyfin's logger.
+    ///     Logs a warning-level message to the plugin buffer and optionally to Jellyfin's logger.
     /// </summary>
     /// <param name="source">The source component.</param>
     /// <param name="message">The log message.</param>
@@ -36,7 +36,7 @@ public interface IPluginLogService
     void LogWarning(string source, string message, Exception? exception = null, ILogger? logger = null);
 
     /// <summary>
-    /// Logs an error-level message to the plugin buffer and optionally to Jellyfin's logger.
+    ///     Logs an error-level message to the plugin buffer and optionally to Jellyfin's logger.
     /// </summary>
     /// <param name="source">The source component.</param>
     /// <param name="message">The log message.</param>
@@ -45,8 +45,8 @@ public interface IPluginLogService
     void LogError(string source, string message, Exception? exception = null, ILogger? logger = null);
 
     /// <summary>
-    /// Gets all log entries, optionally filtered by minimum level and/or source.
-    /// Entries are returned newest-first.
+    ///     Gets all log entries, optionally filtered by minimum level and/or source.
+    ///     Entries are returned newest-first.
     /// </summary>
     /// <param name="minLevel">Optional minimum level filter (DEBUG, INFO, WARN, ERROR).</param>
     /// <param name="source">Optional source filter (partial match).</param>
@@ -55,18 +55,18 @@ public interface IPluginLogService
     ReadOnlyCollection<PluginLogEntry> GetEntries(string? minLevel = null, string? source = null, int limit = 500);
 
     /// <summary>
-    /// Gets the total number of entries currently stored.
+    ///     Gets the total number of entries currently stored.
     /// </summary>
     /// <returns>The entry count.</returns>
     int GetCount();
 
     /// <summary>
-    /// Clears all log entries.
+    ///     Clears all log entries.
     /// </summary>
     void Clear();
 
     /// <summary>
-    /// Exports all entries (or filtered entries) as a plain-text log string for download.
+    ///     Exports all entries (or filtered entries) as a plain-text log string for download.
     /// </summary>
     /// <param name="minLevel">Optional minimum level filter.</param>
     /// <param name="source">Optional source filter (partial match).</param>

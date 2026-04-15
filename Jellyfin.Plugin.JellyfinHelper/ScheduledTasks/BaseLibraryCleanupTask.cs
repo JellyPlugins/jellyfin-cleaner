@@ -10,14 +10,14 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 
 /// <summary>
-/// Abstract base class for library cleanup tasks that follow a common execution pattern:
-/// load config → log start → iterate library locations → process each location → log summary → record cleanup.
-/// Concrete subclasses only need to implement the location-specific scanning and cleanup logic.
+///     Abstract base class for library cleanup tasks that follow a common execution pattern:
+///     load config → log start → iterate library locations → process each location → log summary → record cleanup.
+///     Concrete subclasses only need to implement the location-specific scanning and cleanup logic.
 /// </summary>
 public abstract class BaseLibraryCleanupTask
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="BaseLibraryCleanupTask"/> class.
+    ///     Initializes a new instance of the <see cref="BaseLibraryCleanupTask" /> class.
     /// </summary>
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="fileSystem">The file system.</param>
@@ -45,68 +45,71 @@ public abstract class BaseLibraryCleanupTask
     }
 
     /// <summary>
-    /// Gets the library manager.
+    ///     Gets the library manager.
     /// </summary>
-    protected ILibraryManager LibraryManager { get; }
+    private ILibraryManager LibraryManager { get; }
 
     /// <summary>
-    /// Gets the file system abstraction.
+    ///     Gets the file system abstraction.
     /// </summary>
     protected IFileSystem FileSystem { get; }
 
     /// <summary>
-    /// Gets the plugin log service.
+    ///     Gets the plugin log service.
     /// </summary>
     protected IPluginLogService PluginLog { get; }
 
     /// <summary>
-    /// Gets the logger instance.
+    ///     Gets the logger instance.
     /// </summary>
     protected ILogger Logger { get; }
 
     /// <summary>
-    /// Gets the cleanup configuration helper.
+    ///     Gets the cleanup configuration helper.
     /// </summary>
     protected ICleanupConfigHelper ConfigHelper { get; }
 
     /// <summary>
-    /// Gets the cleanup tracking service.
+    ///     Gets the cleanup tracking service.
     /// </summary>
-    protected ICleanupTrackingService TrackingService { get; }
+    private ICleanupTrackingService TrackingService { get; }
 
     /// <summary>
-    /// Gets the trash service.
+    ///     Gets the trash service.
     /// </summary>
     protected ITrashService TrashService { get; }
 
     /// <summary>
-    /// Gets the task name used as log prefix (e.g. "TrickplayCleaner", "EmptyFolderCleaner").
+    ///     Gets the task name used as log prefix (e.g. "TrickplayCleaner", "EmptyFolderCleaner").
     /// </summary>
     protected abstract string TaskName { get; }
 
     /// <summary>
-    /// Gets the label for deleted items (e.g. "folders", "files") used in summary messages.
+    ///     Gets the label for deleted items (e.g. "folders", "files") used in summary messages.
     /// </summary>
     protected abstract string ItemLabel { get; }
 
     /// <summary>
-    /// Determines whether this task is currently in dry-run mode.
+    ///     Determines whether this task is currently in dry-run mode.
     /// </summary>
     /// <returns>True if dry-run mode is active; otherwise false.</returns>
     protected abstract bool IsDryRun();
 
     /// <summary>
-    /// Processes a single library location, scanning for orphaned items and deleting/trashing them.
+    ///     Processes a single library location, scanning for orphaned items and deleting/trashing them.
     /// </summary>
     /// <param name="libraryPath">The path to the library location.</param>
     /// <param name="dryRun">Whether this is a dry run (no actual deletions).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A tuple of (items deleted, bytes freed).</returns>
-    protected abstract (int Deleted, long BytesFreed) ProcessLocation(string libraryPath, bool dryRun, CancellationToken cancellationToken);
+    protected abstract (int Deleted, long BytesFreed) ProcessLocation(
+        string libraryPath,
+        bool dryRun,
+        CancellationToken cancellationToken);
 
     /// <summary>
-    /// Executes the cleanup task using the Template Method pattern.
-    /// Orchestrates: config loading, start logging, library iteration, summary logging, and cleanup recording.
+    ///     Executes the cleanup task using the Template Method pattern.
+    ///     Orchestrates: config loading, start logging, library iteration, summary logging, and cleanup recording.
     /// </summary>
     /// <param name="progress">Progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -117,14 +120,10 @@ public abstract class BaseLibraryCleanupTask
         var config = ConfigHelper.GetConfig();
 
         // Log task start
-        if (dryRun)
-        {
-            PluginLog.LogInfo(TaskName, $"Task started (Dry Run). No {ItemLabel} will be deleted.", Logger);
-        }
-        else
-        {
-            PluginLog.LogInfo(TaskName, "Task started.", Logger);
-        }
+        PluginLog.LogInfo(
+            TaskName,
+            dryRun ? $"Task started (Dry Run). No {ItemLabel} will be deleted." : "Task started.",
+            Logger);
 
         // Log orphan age if configured
         if (config.OrphanMinAgeDays > 0)
@@ -135,7 +134,10 @@ public abstract class BaseLibraryCleanupTask
         // Log trash mode if active
         if (config.UseTrash && !dryRun)
         {
-            PluginLog.LogInfo(TaskName, "Trash mode enabled. Items will be moved to trash instead of permanent deletion.", Logger);
+            PluginLog.LogInfo(
+                TaskName,
+                "Trash mode enabled. Items will be moved to trash instead of permanent deletion.",
+                Logger);
         }
 
         // Get filtered library locations
@@ -148,11 +150,11 @@ public abstract class BaseLibraryCleanupTask
             return Task.CompletedTask;
         }
 
-        int totalDeleted = 0;
+        var totalDeleted = 0;
         long totalBytesFreed = 0;
 
         // Iterate over library locations
-        for (int i = 0; i < libraryFolders.Count; i++)
+        for (var i = 0; i < libraryFolders.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -166,14 +168,12 @@ public abstract class BaseLibraryCleanupTask
         }
 
         // Log summary
-        if (dryRun)
-        {
-            PluginLog.LogInfo(TaskName, $"Task finished (Dry Run). Would have deleted {totalDeleted} {ItemLabel}.", Logger);
-        }
-        else
-        {
-            PluginLog.LogInfo(TaskName, $"Task finished. Deleted {totalDeleted} {ItemLabel}, freed {totalBytesFreed} bytes.", Logger);
-        }
+        PluginLog.LogInfo(
+            TaskName,
+            dryRun
+                ? $"Task finished (Dry Run). Would have deleted {totalDeleted} {ItemLabel}."
+                : $"Task finished. Deleted {totalDeleted} {ItemLabel}, freed {totalBytesFreed} bytes.",
+            Logger);
 
         // Record cleanup statistics
         if (!dryRun && totalDeleted > 0)

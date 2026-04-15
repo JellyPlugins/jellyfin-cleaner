@@ -13,13 +13,13 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 
 /// <summary>
-/// A scheduled task to clean up orphaned trickplay folders.
-/// Supports configuration-driven library filtering, orphan age, trash/delete mode, and storage tracking.
+///     A scheduled task to clean up orphaned trickplay folders.
+///     Supports configuration-driven library filtering, orphan age, trash/delete mode, and storage tracking.
 /// </summary>
 public class CleanTrickplayTask : BaseLibraryCleanupTask
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="CleanTrickplayTask"/> class.
+    ///     Initializes a new instance of the <see cref="CleanTrickplayTask" /> class.
     /// </summary>
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="fileSystem">The file system.</param>
@@ -47,12 +47,18 @@ public class CleanTrickplayTask : BaseLibraryCleanupTask
     protected override string ItemLabel => "folders";
 
     /// <inheritdoc />
-    protected override bool IsDryRun() => ConfigHelper.IsDryRunTrickplay();
+    protected override bool IsDryRun()
+    {
+        return ConfigHelper.IsDryRunTrickplay();
+    }
 
     /// <inheritdoc />
-    protected override (int Deleted, long BytesFreed) ProcessLocation(string libraryPath, bool dryRun, CancellationToken cancellationToken)
+    protected override (int Deleted, long BytesFreed) ProcessLocation(
+        string libraryPath,
+        bool dryRun,
+        CancellationToken cancellationToken)
     {
-        int deletedCount = 0;
+        var deletedCount = 0;
         long bytesFreed = 0;
         var config = ConfigHelper.GetConfig();
 
@@ -93,7 +99,7 @@ public class CleanTrickplayTask : BaseLibraryCleanupTask
                     continue;
                 }
 
-                string trickplayBaseName = dir.Name[..^".trickplay".Length];
+                var trickplayBaseName = dir.Name[..^".trickplay".Length];
 
                 // Check if any media file exists in parent with the same basename (cached)
                 if (!fileCache.TryGetValue(parentPath, out var files))
@@ -110,9 +116,10 @@ public class CleanTrickplayTask : BaseLibraryCleanupTask
                     }
                 }
 
-                bool mediaExists = files.Any(f =>
+                var mediaExists = files.Any(f =>
                     MediaExtensions.VideoExtensions.Contains(Path.GetExtension(f.FullName)) &&
-                    Path.GetFileNameWithoutExtension(f.FullName).Equals(trickplayBaseName, StringComparison.OrdinalIgnoreCase));
+                    Path.GetFileNameWithoutExtension(f.FullName)
+                        .Equals(trickplayBaseName, StringComparison.OrdinalIgnoreCase));
 
                 if (mediaExists)
                 {
@@ -122,31 +129,39 @@ public class CleanTrickplayTask : BaseLibraryCleanupTask
                 // Check orphan age
                 if (!ConfigHelper.IsOldEnoughForDeletion(dir.FullName))
                 {
-                    PluginLog.LogDebug(TaskName, $"Skipping too-new orphan (min age {config.OrphanMinAgeDays}d): {dir.FullName}", Logger);
+                    PluginLog.LogDebug(
+                        TaskName,
+                        $"Skipping too-new orphan (min age {config.OrphanMinAgeDays}d): {dir.FullName}",
+                        Logger);
                     continue;
                 }
 
                 if (dryRun)
                 {
-                    PluginLog.LogInfo(TaskName, $"[Dry Run] Would delete orphaned trickplay folder: {dir.FullName}", Logger);
+                    PluginLog.LogInfo(
+                        TaskName,
+                        $"[Dry Run] Would delete orphaned trickplay folder: {dir.FullName}",
+                        Logger);
                     deletedCount++;
                 }
                 else if (config.UseTrash)
                 {
                     var trashPath = ConfigHelper.GetTrashPath(libraryPath);
-                    long size = TrashService.MoveToTrash(dir.FullName, trashPath, Logger);
-                    if (size > 0)
+                    var size = TrashService.MoveToTrash(dir.FullName, trashPath, Logger);
+                    if (size <= 0)
                     {
-                        bytesFreed += size;
-                        deletedCount++;
+                        continue;
                     }
+
+                    bytesFreed += size;
+                    deletedCount++;
                 }
                 else
                 {
                     PluginLog.LogInfo(TaskName, $"Deleting orphaned trickplay folder: {dir.FullName}", Logger);
                     try
                     {
-                        long size = FileSystemHelper.CalculateDirectorySize(FileSystem, dir.FullName, Logger);
+                        var size = FileSystemHelper.CalculateDirectorySize(FileSystem, dir.FullName);
                         Directory.Delete(dir.FullName, true);
                         bytesFreed += size;
                         deletedCount++;

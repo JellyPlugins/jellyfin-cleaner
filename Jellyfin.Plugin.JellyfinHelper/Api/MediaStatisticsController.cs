@@ -12,8 +12,8 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.Api;
 
 /// <summary>
-/// API controller for media statistics.
-/// Provides library scanning and latest cached results.
+///     API controller for media statistics.
+///     Provides library scanning and latest cached results.
 /// </summary>
 [ApiController]
 [Authorize(Policy = "RequiresElevation")]
@@ -31,15 +31,15 @@ public class MediaStatisticsController : ControllerBase
     // Static field + lock is intentional: ASP.NET creates a new controller instance per request,
     // so the rate-limit state must be shared across all instances via a static field.
     private static DateTime _lastScanTime = DateTime.MinValue;
+    private readonly IMemoryCache _cache;
+    private readonly IStatisticsCacheService _cacheService;
+    private readonly ILogger<MediaStatisticsController> _logger;
+    private readonly IPluginLogService _pluginLog;
 
     private readonly IMediaStatisticsService _statisticsService;
-    private readonly IStatisticsCacheService _cacheService;
-    private readonly IPluginLogService _pluginLog;
-    private readonly IMemoryCache _cache;
-    private readonly ILogger<MediaStatisticsController> _logger;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MediaStatisticsController"/> class.
+    ///     Initializes a new instance of the <see cref="MediaStatisticsController" /> class.
     /// </summary>
     /// <param name="cache">The memory cache.</param>
     /// <param name="statisticsService">The media statistics service.</param>
@@ -61,7 +61,7 @@ public class MediaStatisticsController : ControllerBase
     }
 
     /// <summary>
-    /// Gets media statistics for all libraries. Results are cached for 5 minutes.
+    ///     Gets media statistics for all libraries. Results are cached for 5 minutes.
     /// </summary>
     /// <returns>The media statistics.</returns>
     [HttpGet("ScanLibraries")]
@@ -75,7 +75,9 @@ public class MediaStatisticsController : ControllerBase
             if (now - _lastScanTime < MinScanInterval)
             {
                 _pluginLog.LogWarning("API", "Rate limit exceeded for statistics scan", logger: _logger);
-                return StatusCode(StatusCodes.Status429TooManyRequests, new { message = "Please wait before requesting another scan." });
+                return StatusCode(
+                    StatusCodes.Status429TooManyRequests,
+                    new { message = "Please wait before requesting another scan." });
             }
 
             // Set timestamp immediately inside the lock to prevent concurrent requests
@@ -92,8 +94,8 @@ public class MediaStatisticsController : ControllerBase
     }
 
     /// <summary>
-    /// Gets the latest persisted statistics without triggering a new scan.
-    /// Returns the most recent scan result that was saved to disk, surviving server restarts.
+    ///     Gets the latest persisted statistics without triggering a new scan.
+    ///     Returns the most recent scan result that was saved to disk, surviving server restarts.
     /// </summary>
     /// <returns>The latest statistics, or 204 No Content if no scan has been performed yet.</returns>
     [HttpGet("Latest")]

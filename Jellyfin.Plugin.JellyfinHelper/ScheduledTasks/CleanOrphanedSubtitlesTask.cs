@@ -12,28 +12,28 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 
 /// <summary>
-/// A scheduled task to clean up orphaned subtitle files (.srt, .ass, .sub, etc.)
-/// that no longer have a corresponding video file with the same base name.
+///     A scheduled task to clean up orphaned subtitle files (.srt, .ass, .sub, etc.)
+///     that no longer have a corresponding video file with the same base name.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Subtitle files typically follow a naming convention where the base name matches the video file:
-/// <c>Movie Name (2021).mkv</c> → <c>Movie Name (2021).en.srt</c> or <c>Movie Name (2021).srt</c>.
-/// </para>
-/// <para>
-/// This task scans all directories recursively and for each subtitle file, checks whether any video
-/// file with a matching base name exists in the same directory. The matching is flexible:
-/// <c>Movie.en.srt</c> matches <c>Movie.mkv</c> because we strip language suffixes from the subtitle name.
-/// </para>
-/// <para>
-/// Note: Only subtitle files are cleaned. Images like <c>backdrop.jpg</c>, <c>poster.jpg</c> etc.
-/// are NOT touched because they typically don't follow the video-name pattern and serve the entire folder.
-/// </para>
+///     <para>
+///         Subtitle files typically follow a naming convention where the base name matches the video file:
+///         <c>Movie Name (2021).mkv</c> → <c>Movie Name (2021).en.srt</c> or <c>Movie Name (2021).srt</c>.
+///     </para>
+///     <para>
+///         This task scans all directories recursively and for each subtitle file, checks whether any video
+///         file with a matching base name exists in the same directory. The matching is flexible:
+///         <c>Movie.en.srt</c> matches <c>Movie.mkv</c> because we strip language suffixes from the subtitle name.
+///     </para>
+///     <para>
+///         Note: Only subtitle files are cleaned. Images like <c>backdrop.jpg</c>, <c>poster.jpg</c> etc.
+///         are NOT touched because they typically don't follow the video-name pattern and serve the entire folder.
+///     </para>
 /// </remarks>
 public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="CleanOrphanedSubtitlesTask"/> class.
+    ///     Initializes a new instance of the <see cref="CleanOrphanedSubtitlesTask" /> class.
     /// </summary>
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="fileSystem">The file system.</param>
@@ -61,12 +61,18 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
     protected override string ItemLabel => "files";
 
     /// <inheritdoc />
-    protected override bool IsDryRun() => ConfigHelper.IsDryRunOrphanedSubtitles();
+    protected override bool IsDryRun()
+    {
+        return ConfigHelper.IsDryRunOrphanedSubtitles();
+    }
 
     /// <inheritdoc />
-    protected override (int Deleted, long BytesFreed) ProcessLocation(string libraryPath, bool dryRun, CancellationToken cancellationToken)
+    protected override (int Deleted, long BytesFreed) ProcessLocation(
+        string libraryPath,
+        bool dryRun,
+        CancellationToken cancellationToken)
     {
-        int deletedCount = 0;
+        var deletedCount = 0;
         long bytesFreed = 0;
         var config = ConfigHelper.GetConfig();
 
@@ -92,33 +98,23 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
             var trashFullPath = ConfigHelper.GetTrashPath(libraryPath);
             var normalizedTrash = trashFullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
-            foreach (var dirPath in allDirs)
+            foreach (var dirPath in from dirPath in allDirs.TakeWhile(_ => !cancellationToken.IsCancellationRequested)
+                     where !Path.GetFileName(dirPath).EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase)
+                     let normalizedDir = dirPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                     where !normalizedDir.Equals(normalizedTrash, StringComparison.OrdinalIgnoreCase)
+                           && !normalizedDir.StartsWith(
+                               normalizedTrash + Path.DirectorySeparatorChar,
+                               StringComparison.OrdinalIgnoreCase)
+                           && !normalizedDir.StartsWith(
+                               normalizedTrash + Path.AltDirectorySeparatorChar,
+                               StringComparison.OrdinalIgnoreCase)
+                     select dirPath)
             {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-
-                // Skip .trickplay directories
-                if (Path.GetFileName(dirPath).EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                // Skip trash directories (compare full path, handles both relative and absolute trash paths)
-                var normalizedDir = dirPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                if (normalizedDir.Equals(normalizedTrash, StringComparison.OrdinalIgnoreCase)
-                    || normalizedDir.StartsWith(normalizedTrash + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                    || normalizedDir.StartsWith(normalizedTrash + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
                 if (!fileCache.TryGetValue(dirPath, out var files))
                 {
                     try
                     {
-                        files = FileSystem.GetFiles(dirPath, false).ToArray();
+                        files = FileSystem.GetFiles(dirPath).ToArray();
                         fileCache[dirPath] = files;
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -171,30 +167,38 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
                     // Check orphan age
                     if (!ConfigHelper.IsFileOldEnoughForDeletion(file.FullName))
                     {
-                        PluginLog.LogDebug(TaskName, $"Skipping too-new orphaned subtitle (min age {config.OrphanMinAgeDays}d): {file.FullName}", Logger);
+                        PluginLog.LogDebug(
+                            TaskName,
+                            $"Skipping too-new orphaned subtitle (min age {config.OrphanMinAgeDays}d): {file.FullName}",
+                            Logger);
                         continue;
                     }
 
                     if (dryRun)
                     {
-                        PluginLog.LogInfo(TaskName, $"[Dry Run] Would delete orphaned subtitle: {file.FullName}", Logger);
+                        PluginLog.LogInfo(
+                            TaskName,
+                            $"[Dry Run] Would delete orphaned subtitle: {file.FullName}",
+                            Logger);
                         deletedCount++;
                     }
                     else if (config.UseTrash)
                     {
-                        long size = TrashService.MoveFileToTrash(file.FullName, trashFullPath, Logger);
-                        if (size > 0)
+                        var size = TrashService.MoveFileToTrash(file.FullName, trashFullPath, Logger);
+                        if (size <= 0)
                         {
-                            bytesFreed += size;
-                            deletedCount++;
+                            continue;
                         }
+
+                        bytesFreed += size;
+                        deletedCount++;
                     }
                     else
                     {
                         PluginLog.LogInfo(TaskName, $"Deleting orphaned subtitle: {file.FullName}", Logger);
                         try
                         {
-                            long size = file.Length;
+                            var size = file.Length;
                             File.Delete(file.FullName);
                             bytesFreed += size;
                             deletedCount++;
@@ -216,12 +220,12 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
     }
 
     /// <summary>
-    /// Extracts the base name of a subtitle file, stripping language and format suffixes.
-    /// For example:
-    ///   "Movie Name (2021).en.srt" → "Movie Name (2021)"
-    ///   "Movie Name (2021).en.forced.srt" → "Movie Name (2021)"
-    ///   "Movie Name (2021).srt" → "Movie Name (2021)"
-    ///   "Movie Name (2021).de.hi.ass" → "Movie Name (2021)".
+    ///     Extracts the base name of a subtitle file, stripping language and format suffixes.
+    ///     For example:
+    ///     "Movie Name (2021).en.srt" → "Movie Name (2021)"
+    ///     "Movie Name (2021).en.forced.srt" → "Movie Name (2021)"
+    ///     "Movie Name (2021).srt" → "Movie Name (2021)"
+    ///     "Movie Name (2021).de.hi.ass" → "Movie Name (2021)".
     /// </summary>
     /// <param name="filePath">The full path to the subtitle file.</param>
     /// <returns>The base name without language and format suffixes.</returns>
@@ -239,7 +243,7 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
         }
 
         // Strip known language/flag suffixes from the end
-        int endIndex = parts.Length - 1;
+        var endIndex = parts.Length - 1;
         while (endIndex > 0 && IsSubtitleSuffix(parts[endIndex]))
         {
             endIndex--;
@@ -250,8 +254,8 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
     }
 
     /// <summary>
-    /// Determines whether a string segment is a known subtitle suffix (language code or flag).
-    /// Uses explicit allowlists to avoid false positives with non-language segments like "DTS", "HDR", etc.
+    ///     Determines whether a string segment is a known subtitle suffix (language code or flag).
+    ///     Uses explicit allowlists to avoid false positives with non-language segments like "DTS", "HDR", etc.
     /// </summary>
     private static bool IsSubtitleSuffix(string segment)
     {

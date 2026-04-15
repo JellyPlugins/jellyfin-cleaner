@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.Api;
 
 /// <summary>
-/// API controller for the plugin logs.
+///     API controller for the plugin logs.
 /// </summary>
 [ApiController]
 [Authorize(Policy = "RequiresElevation")]
@@ -23,7 +23,7 @@ public class LogsController : ControllerBase
     private readonly IPluginLogService _pluginLog;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="LogsController"/> class.
+    ///     Initializes a new instance of the <see cref="LogsController" /> class.
     /// </summary>
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The controller logger.</param>
@@ -34,7 +34,7 @@ public class LogsController : ControllerBase
     }
 
     /// <summary>
-    /// Gets the plugin-specific log entries from the in-memory ring buffer.
+    ///     Gets the plugin-specific log entries from the in-memory ring buffer.
     /// </summary>
     /// <param name="minLevel">Optional minimum log level filter (DEBUG, INFO, WARN, ERROR).</param>
     /// <param name="source">Optional source component filter (partial match).</param>
@@ -42,7 +42,10 @@ public class LogsController : ControllerBase
     /// <returns>A list of log entries, newest first.</returns>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public ActionResult GetLogs([FromQuery] string? minLevel = null, [FromQuery] string? source = null, [FromQuery] int limit = 500)
+    public ActionResult GetLogs(
+        [FromQuery] string? minLevel = null,
+        [FromQuery] string? source = null,
+        [FromQuery] int limit = 500)
     {
         if (limit < 1)
         {
@@ -55,16 +58,17 @@ public class LogsController : ControllerBase
         }
 
         var entries = _pluginLog.GetEntries(minLevel, source, limit);
-        return Ok(new
-        {
-            TotalBuffered = _pluginLog.GetCount(),
-            Returned = entries.Count,
-            Entries = entries,
-        });
+        return Ok(
+            new
+            {
+                TotalBuffered = _pluginLog.GetCount(),
+                Returned = entries.Count,
+                Entries = entries
+            });
     }
 
     /// <summary>
-    /// Downloads the plugin logs as a plain-text file.
+    ///     Downloads the plugin logs as a plain-text file.
     /// </summary>
     /// <param name="minLevel">Optional minimum log level filter (DEBUG, INFO, WARN, ERROR).</param>
     /// <param name="source">Optional source filter (partial match).</param>
@@ -81,7 +85,7 @@ public class LogsController : ControllerBase
     }
 
     /// <summary>
-    /// Clears all plugin log entries from the in-memory buffer.
+    ///     Clears all plugin log entries from the in-memory buffer.
     /// </summary>
     /// <returns>A status result.</returns>
     [HttpDelete]

@@ -12,39 +12,39 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 
 /// <summary>
-/// A scheduled task to clean up orphaned media folders that contain non-metadata files
-/// but absolutely no video files anywhere in their entire directory tree.
-/// Supports configuration-driven library filtering, orphan age, trash/delete mode, and storage tracking.
+///     A scheduled task to clean up orphaned media folders that contain non-metadata files
+///     but absolutely no video files anywhere in their entire directory tree.
+///     Supports configuration-driven library filtering, orphan age, trash/delete mode, and storage tracking.
 /// </summary>
 /// <remarks>
-/// <para>
-/// This plugin targets a common scenario: when a movie or episode is deleted, only the video file
-/// is removed while the surrounding folder with metadata (.nfo), artwork (.jpg), subtitles (.srt)
-/// etc. remains as an orphaned folder.
-/// </para>
-/// <para>
-/// The scan operates on <strong>top-level folders</strong> (direct children of each library root).
-/// For each top-level folder, the entire directory tree is checked recursively. A folder is only
-/// considered orphaned and eligible for deletion when it contains <strong>non-metadata files</strong>
-/// (e.g. subtitles, text files) but absolutely NO video file anywhere in the tree.
-/// If at least one video file exists anywhere (even in a deeply nested subdirectory), the entire
-/// folder is left untouched — including subfolders that may not contain videos themselves
-/// (e.g. empty Season folders created by Sonarr as "wanted" placeholders).
-/// </para>
-/// <para>
-/// Completely empty folders (containing zero files in the entire tree) are intentionally skipped,
-/// as they are often pre-created by tools like Radarr/Sonarr for upcoming media.
-/// </para>
-/// <para>
-/// Folders that contain <strong>only metadata/artwork files</strong> (images like .jpg/.png and
-/// NFO/XML files) but no video or other files are also skipped, as they are typically placeholders
-/// created by Sonarr/Radarr for wanted media that hasn't been downloaded yet.
-/// </para>
+///     <para>
+///         This plugin targets a common scenario: when a movie or episode is deleted, only the video file
+///         is removed while the surrounding folder with metadata (.nfo), artwork (.jpg), subtitles (.srt)
+///         etc. remains as an orphaned folder.
+///     </para>
+///     <para>
+///         The scan operates on <strong>top-level folders</strong> (direct children of each library root).
+///         For each top-level folder, the entire directory tree is checked recursively. A folder is only
+///         considered orphaned and eligible for deletion when it contains <strong>non-metadata files</strong>
+///         (e.g. subtitles, text files) but absolutely NO video file anywhere in the tree.
+///         If at least one video file exists anywhere (even in a deeply nested subdirectory), the entire
+///         folder is left untouched — including subfolders that may not contain videos themselves
+///         (e.g. empty Season folders created by Sonarr as "wanted" placeholders).
+///     </para>
+///     <para>
+///         Completely empty folders (containing zero files in the entire tree) are intentionally skipped,
+///         as they are often pre-created by tools like Radarr/Sonarr for upcoming media.
+///     </para>
+///     <para>
+///         Folders that contain <strong>only metadata/artwork files</strong> (images like .jpg/.png and
+///         NFO/XML files) but no video or other files are also skipped, as they are typically placeholders
+///         created by Sonarr/Radarr for wanted media that hasn't been downloaded yet.
+///     </para>
 /// </remarks>
 public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="CleanEmptyMediaFoldersTask"/> class.
+    ///     Initializes a new instance of the <see cref="CleanEmptyMediaFoldersTask" /> class.
     /// </summary>
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="fileSystem">The file system.</param>
@@ -72,12 +72,18 @@ public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
     protected override string ItemLabel => "folders";
 
     /// <inheritdoc />
-    protected override bool IsDryRun() => ConfigHelper.IsDryRunEmptyMediaFolders();
+    protected override bool IsDryRun()
+    {
+        return ConfigHelper.IsDryRunEmptyMediaFolders();
+    }
 
     /// <inheritdoc />
-    protected override (int Deleted, long BytesFreed) ProcessLocation(string libraryPath, bool dryRun, CancellationToken cancellationToken)
+    protected override (int Deleted, long BytesFreed) ProcessLocation(
+        string libraryPath,
+        bool dryRun,
+        CancellationToken cancellationToken)
     {
-        int deletedCount = 0;
+        var deletedCount = 0;
         long bytesFreed = 0;
         var config = ConfigHelper.GetConfig();
 
@@ -85,7 +91,7 @@ public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
         {
             // Get only the direct child directories of the library root (top-level media folders).
             // Each top-level folder represents a single movie, show, etc.
-            var topLevelDirs = FileSystem.GetDirectories(libraryPath, false).ToList();
+            var topLevelDirs = FileSystem.GetDirectories(libraryPath).ToList();
 
             foreach (var topDir in topLevelDirs.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
             {
@@ -113,7 +119,8 @@ public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
                 // Check the entire tree in a single pass: does it contain any files at all,
                 // any video files, any audio files, or any non-metadata files?
                 // This avoids traversing the tree multiple times.
-                var (hasAnyFiles, hasVideoFiles, hasAudioFiles, hasNonMetadataFiles) = AnalyzeDirectoryRecursive(topDir.FullName, cancellationToken);
+                var (hasAnyFiles, hasVideoFiles, hasAudioFiles, hasNonMetadataFiles) =
+                    AnalyzeDirectoryRecursive(topDir.FullName, cancellationToken);
 
                 // If the folder tree is completely empty (no files at all), skip it.
                 // Empty folders are often pre-created by tools like Radarr/Sonarr for "wanted" media.
@@ -140,7 +147,10 @@ public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
                 // for upcoming media → skip it.
                 if (!hasNonMetadataFiles)
                 {
-                    PluginLog.LogDebug(TaskName, $"Skipping metadata-only folder (likely a wanted-list placeholder): {topDir.FullName}", Logger);
+                    PluginLog.LogDebug(
+                        TaskName,
+                        $"Skipping metadata-only folder (likely a wanted-list placeholder): {topDir.FullName}",
+                        Logger);
                     continue;
                 }
 
@@ -150,31 +160,39 @@ public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
                 // Check orphan age
                 if (!ConfigHelper.IsOldEnoughForDeletion(topDir.FullName))
                 {
-                    PluginLog.LogDebug(TaskName, $"Skipping too-new orphan (min age {config.OrphanMinAgeDays}d): {topDir.FullName}", Logger);
+                    PluginLog.LogDebug(
+                        TaskName,
+                        $"Skipping too-new orphan (min age {config.OrphanMinAgeDays}d): {topDir.FullName}",
+                        Logger);
                     continue;
                 }
 
                 if (dryRun)
                 {
-                    PluginLog.LogInfo(TaskName, $"[Dry Run] Would delete orphaned media folder: {topDir.FullName}", Logger);
+                    PluginLog.LogInfo(
+                        TaskName,
+                        $"[Dry Run] Would delete orphaned media folder: {topDir.FullName}",
+                        Logger);
                     deletedCount++;
                 }
                 else if (config.UseTrash)
                 {
                     var trashPath = ConfigHelper.GetTrashPath(libraryPath);
-                    long size = TrashService.MoveToTrash(topDir.FullName, trashPath, Logger);
-                    if (size > 0)
+                    var size = TrashService.MoveToTrash(topDir.FullName, trashPath, Logger);
+                    if (size <= 0)
                     {
-                        bytesFreed += size;
-                        deletedCount++;
+                        continue;
                     }
+
+                    bytesFreed += size;
+                    deletedCount++;
                 }
                 else
                 {
                     PluginLog.LogInfo(TaskName, $"Deleting orphaned media folder: {topDir.FullName}", Logger);
                     try
                     {
-                        long size = FileSystemHelper.CalculateDirectorySize(FileSystem, topDir.FullName, Logger);
+                        var size = FileSystemHelper.CalculateDirectorySize(FileSystem, topDir.FullName);
                         Directory.Delete(topDir.FullName, true);
                         bytesFreed += size;
                         deletedCount++;
@@ -195,25 +213,28 @@ public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
     }
 
     /// <summary>
-    /// Analyzes a directory tree in a single recursive pass, determining whether
-    /// any files exist, whether any of them are video files, whether any are audio files,
-    /// and whether any non-metadata files exist (files that are not images or NFO/XML).
+    ///     Analyzes a directory tree in a single recursive pass, determining whether
+    ///     any files exist, whether any of them are video files, whether any are audio files,
+    ///     and whether any non-metadata files exist (files that are not images or NFO/XML).
     /// </summary>
     /// <param name="directoryPath">The directory to analyze.</param>
     /// <param name="cancellationToken">A token to cancel the recursive scan.</param>
-    /// <returns>A tuple indicating whether any files exist, whether any video files exist,
-    /// whether any audio files exist, and whether any non-metadata files exist.</returns>
-    private (bool HasAnyFiles, bool HasVideoFiles, bool HasAudioFiles, bool HasNonMetadataFiles) AnalyzeDirectoryRecursive(string directoryPath, CancellationToken cancellationToken)
+    /// <returns>
+    ///     A tuple indicating whether any files exist, whether any video files exist,
+    ///     whether any audio files exist, and whether any non-metadata files exist.
+    /// </returns>
+    private (bool HasAnyFiles, bool HasVideoFiles, bool HasAudioFiles, bool HasNonMetadataFiles)
+        AnalyzeDirectoryRecursive(string directoryPath, CancellationToken cancellationToken)
     {
         // Allow cancellation to interrupt deep recursion
         cancellationToken.ThrowIfCancellationRequested();
 
-        bool hasAnyFiles = false;
-        bool hasAudioFiles = false;
-        bool hasNonMetadataFiles = false;
+        var hasAnyFiles = false;
+        var hasAudioFiles = false;
+        var hasNonMetadataFiles = false;
 
         // Check files in the directory itself
-        var files = FileSystem.GetFiles(directoryPath, false);
+        var files = FileSystem.GetFiles(directoryPath);
         foreach (var file in files)
         {
             hasAnyFiles = true;
@@ -239,10 +260,11 @@ public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
         }
 
         // Check subdirectories recursively
-        var subDirs = FileSystem.GetDirectories(directoryPath, false);
+        var subDirs = FileSystem.GetDirectories(directoryPath);
         foreach (var subDir in subDirs)
         {
-            var (subHasAnyFiles, subHasVideoFiles, subHasAudioFiles, subHasNonMetadataFiles) = AnalyzeDirectoryRecursive(subDir.FullName, cancellationToken);
+            var (subHasAnyFiles, subHasVideoFiles, subHasAudioFiles, subHasNonMetadataFiles) =
+                AnalyzeDirectoryRecursive(subDir.FullName, cancellationToken);
             hasAnyFiles |= subHasAnyFiles;
             hasAudioFiles |= subHasAudioFiles;
             hasNonMetadataFiles |= subHasNonMetadataFiles;

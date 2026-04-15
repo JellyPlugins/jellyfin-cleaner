@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Jellyfin.Plugin.JellyfinHelper.Api;
 
 /// <summary>
-/// API controller for cleanup statistics.
+///     API controller for cleanup statistics.
 /// </summary>
 [ApiController]
 [Authorize(Policy = "RequiresElevation")]
@@ -18,7 +18,7 @@ public class CleanupStatisticsController : ControllerBase
     private readonly ICleanupTrackingService _trackingService;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="CleanupStatisticsController"/> class.
+    ///     Initializes a new instance of the <see cref="CleanupStatisticsController" /> class.
     /// </summary>
     /// <param name="trackingService">The cleanup tracking service.</param>
     public CleanupStatisticsController(ICleanupTrackingService trackingService)
@@ -27,7 +27,7 @@ public class CleanupStatisticsController : ControllerBase
     }
 
     /// <summary>
-    /// Gets the accumulated cleanup statistics (total bytes freed, items deleted, last cleanup time).
+    ///     Gets the accumulated cleanup statistics (total bytes freed, items deleted, last cleanup time).
     /// </summary>
     /// <returns>The cleanup statistics.</returns>
     [HttpGet]
@@ -35,11 +35,12 @@ public class CleanupStatisticsController : ControllerBase
     public ActionResult GetCleanupStatistics()
     {
         var (totalBytesFreed, totalItemsDeleted, lastCleanupTimestamp) = _trackingService.GetStatistics();
-        return Ok(new
-        {
-            TotalBytesFreed = totalBytesFreed,
-            TotalItemsDeleted = totalItemsDeleted,
-            LastCleanupTimestamp = lastCleanupTimestamp,
-        });
+        return Ok(
+            new
+            {
+                TotalBytesFreed = totalBytesFreed,
+                TotalItemsDeleted = totalItemsDeleted,
+                LastCleanupTimestamp = lastCleanupTimestamp
+            });
     }
 }

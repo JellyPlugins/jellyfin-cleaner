@@ -18,8 +18,8 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.Api;
 
 /// <summary>
-/// API controller for Radarr and Sonarr integration.
-/// Provides connection testing and library comparison.
+///     API controller for Radarr and Sonarr integration.
+///     Provides connection testing and library comparison.
 /// </summary>
 [ApiController]
 [Authorize(Policy = "RequiresElevation")]
@@ -27,15 +27,15 @@ namespace Jellyfin.Plugin.JellyfinHelper.Api;
 [Produces(MediaTypeNames.Application.Json)]
 public class ArrIntegrationController : ControllerBase
 {
-    private readonly ILibraryManager _libraryManager;
-    private readonly IFileSystem _fileSystem;
     private readonly IArrIntegrationService _arrService;
-    private readonly IPluginLogService _pluginLog;
-    private readonly ILogger<ArrIntegrationController> _logger;
     private readonly ICleanupConfigHelper _configHelper;
+    private readonly IFileSystem _fileSystem;
+    private readonly ILibraryManager _libraryManager;
+    private readonly ILogger<ArrIntegrationController> _logger;
+    private readonly IPluginLogService _pluginLog;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ArrIntegrationController"/> class.
+    ///     Initializes a new instance of the <see cref="ArrIntegrationController" /> class.
     /// </summary>
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="fileSystem">The file system.</param>
@@ -60,14 +60,16 @@ public class ArrIntegrationController : ControllerBase
     }
 
     /// <summary>
-    /// Tests the connection to an Arr instance (Radarr or Sonarr) using the provided URL and API key.
+    ///     Tests the connection to an Arr instance (Radarr or Sonarr) using the provided URL and API key.
     /// </summary>
     /// <param name="request">The connection test request containing URL and API key.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A result indicating success or failure with a message.</returns>
     [HttpPost("TestConnection")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult> TestArrConnectionAsync([FromBody] ArrTestConnectionRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult> TestArrConnectionAsync(
+        [FromBody] ArrTestConnectionRequest request,
+        CancellationToken cancellationToken)
     {
         var (success, message) = await _arrService.TestConnectionAsync(
             request.Url ?? string.Empty,
@@ -78,8 +80,8 @@ public class ArrIntegrationController : ControllerBase
     }
 
     /// <summary>
-    /// Compares a single configured Radarr instance (by index) with Jellyfin movie libraries.
-    /// If no index is provided, merges all instances.
+    ///     Compares a single configured Radarr instance (by index) with Jellyfin movie libraries.
+    ///     If no index is provided, merges all instances.
     /// </summary>
     /// <param name="index">Optional zero-based index of the Radarr instance to compare.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -87,7 +89,9 @@ public class ArrIntegrationController : ControllerBase
     [HttpGet("Compare/Radarr")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ArrComparisonResult>> CompareRadarrAsync([FromQuery] int? index, CancellationToken cancellationToken)
+    public async Task<ActionResult<ArrComparisonResult>> CompareRadarrAsync(
+        [FromQuery] int? index,
+        CancellationToken cancellationToken)
     {
         var config = _configHelper.GetConfig();
         var instances = config.GetEffectiveRadarrInstances();
@@ -101,7 +105,8 @@ public class ArrIntegrationController : ControllerBase
         {
             if (index.Value < 0 || index.Value >= instances.Count)
             {
-                return BadRequest(new { message = $"Invalid instance index {index.Value}. Valid range: 0-{instances.Count - 1}." });
+                return BadRequest(
+                    new { message = $"Invalid instance index {index.Value}. Valid range: 0-{instances.Count - 1}." });
             }
 
             instances = [instances[index.Value]];
@@ -118,10 +123,11 @@ public class ArrIntegrationController : ControllerBase
                 continue;
             }
 
-            var movies = await _arrService.GetRadarrMoviesAsync(instance.Url, instance.ApiKey, cancellationToken).ConfigureAwait(false);
+            var movies = await _arrService.GetRadarrMoviesAsync(instance.Url, instance.ApiKey, cancellationToken)
+                .ConfigureAwait(false);
             if (movies is null)
             {
-                failedInstances.Add(instance.Name ?? instance.Url);
+                failedInstances.Add(instance.Name);
             }
             else
             {
@@ -131,7 +137,12 @@ public class ArrIntegrationController : ControllerBase
 
         if (failedInstances.Count > 0)
         {
-            return StatusCode(StatusCodes.Status502BadGateway, new { message = $"Failed to fetch data from Radarr instance(s): {string.Join(", ", failedInstances)}" });
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new
+                {
+                    message = $"Failed to fetch data from Radarr instance(s): {string.Join(", ", failedInstances)}"
+                });
         }
 
         var result = ArrIntegrationService.CompareRadarrWithJellyfin(allMovies, movieFolders);
@@ -139,8 +150,8 @@ public class ArrIntegrationController : ControllerBase
     }
 
     /// <summary>
-    /// Compares a single configured Sonarr instance (by index) with Jellyfin TV libraries.
-    /// If no index is provided, merges all instances.
+    ///     Compares a single configured Sonarr instance (by index) with Jellyfin TV libraries.
+    ///     If no index is provided, merges all instances.
     /// </summary>
     /// <param name="index">Optional zero-based index of the Sonarr instance to compare.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -148,7 +159,9 @@ public class ArrIntegrationController : ControllerBase
     [HttpGet("Compare/Sonarr")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ArrComparisonResult>> CompareSonarrAsync([FromQuery] int? index, CancellationToken cancellationToken)
+    public async Task<ActionResult<ArrComparisonResult>> CompareSonarrAsync(
+        [FromQuery] int? index,
+        CancellationToken cancellationToken)
     {
         var config = _configHelper.GetConfig();
         var instances = config.GetEffectiveSonarrInstances();
@@ -162,7 +175,8 @@ public class ArrIntegrationController : ControllerBase
         {
             if (index.Value < 0 || index.Value >= instances.Count)
             {
-                return BadRequest(new { message = $"Invalid instance index {index.Value}. Valid range: 0-{instances.Count - 1}." });
+                return BadRequest(
+                    new { message = $"Invalid instance index {index.Value}. Valid range: 0-{instances.Count - 1}." });
             }
 
             instances = [instances[index.Value]];
@@ -179,10 +193,11 @@ public class ArrIntegrationController : ControllerBase
                 continue;
             }
 
-            var series = await _arrService.GetSonarrSeriesAsync(instance.Url, instance.ApiKey, cancellationToken).ConfigureAwait(false);
+            var series = await _arrService.GetSonarrSeriesAsync(instance.Url, instance.ApiKey, cancellationToken)
+                .ConfigureAwait(false);
             if (series is null)
             {
-                failedInstances.Add(instance.Name ?? instance.Url);
+                failedInstances.Add(instance.Name);
             }
             else
             {
@@ -192,7 +207,12 @@ public class ArrIntegrationController : ControllerBase
 
         if (failedInstances.Count > 0)
         {
-            return StatusCode(StatusCodes.Status502BadGateway, new { message = $"Failed to fetch data from Sonarr instance(s): {string.Join(", ", failedInstances)}" });
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                new
+                {
+                    message = $"Failed to fetch data from Sonarr instance(s): {string.Join(", ", failedInstances)}"
+                });
         }
 
         var result = ArrIntegrationService.CompareSonarrWithJellyfin(allSeries, tvFolders);
@@ -202,12 +222,15 @@ public class ArrIntegrationController : ControllerBase
     // === Private helpers ===
 
     /// <summary>
-    /// Gets the set of top-level folder names for a given collection type from Jellyfin libraries.
+    ///     Gets the set of top-level folder names for a given collection type from Jellyfin libraries.
     /// </summary>
     private HashSet<string> GetJellyfinFolderNames(string collectionType)
     {
         var folders = _libraryManager.GetVirtualFolders()
-            .Where(f => string.Equals(f.CollectionType?.ToString(), collectionType, StringComparison.OrdinalIgnoreCase));
+            .Where(f => string.Equals(
+                f.CollectionType?.ToString(),
+                collectionType,
+                StringComparison.OrdinalIgnoreCase));
 
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -223,8 +246,12 @@ public class ArrIntegrationController : ControllerBase
                     foreach (var dir in dirs)
                     {
                         // Skip trash directory by comparing the full resolved path
-                        var normalizedDir = dir.FullName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                        var normalizedTrash = trashFullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                        var normalizedDir = dir.FullName.TrimEnd(
+                            Path.DirectorySeparatorChar,
+                            Path.AltDirectorySeparatorChar);
+                        var normalizedTrash = trashFullPath.TrimEnd(
+                            Path.DirectorySeparatorChar,
+                            Path.AltDirectorySeparatorChar);
                         if (string.Equals(normalizedDir, normalizedTrash, StringComparison.OrdinalIgnoreCase))
                         {
                             continue;

@@ -196,10 +196,7 @@ public class GrowthTimelineServiceTests
         Assert.Equal(new DateTime(2025, 1, 13, 0, 0, 0, DateTimeKind.Utc), buckets[0]);
 
         // All buckets should be 7 days apart
-        for (int i = 1; i < buckets.Count; i++)
-        {
-            Assert.Equal(7, (buckets[i] - buckets[i - 1]).TotalDays);
-        }
+        for (var i = 1; i < buckets.Count; i++) Assert.Equal(7, (buckets[i] - buckets[i - 1]).TotalDays);
     }
 
     [Fact]
@@ -223,10 +220,8 @@ public class GrowthTimelineServiceTests
         foreach (var granularity in new[] { "daily", "weekly", "monthly", "quarterly", "yearly" })
         {
             var buckets = GrowthTimelineService.GenerateBucketStarts(earliest, now, granularity);
-            for (int i = 1; i < buckets.Count; i++)
-            {
+            for (var i = 1; i < buckets.Count; i++)
                 Assert.True(buckets[i] > buckets[i - 1], $"Buckets not chronological for {granularity} at index {i}");
-            }
         }
     }
 
@@ -239,10 +234,7 @@ public class GrowthTimelineServiceTests
         foreach (var granularity in new[] { "daily", "weekly", "monthly", "quarterly", "yearly" })
         {
             var buckets = GrowthTimelineService.GenerateBucketStarts(earliest, now, granularity);
-            foreach (var bucket in buckets)
-            {
-                Assert.Equal(DateTimeKind.Utc, bucket.Kind);
-            }
+            foreach (var bucket in buckets) Assert.Equal(DateTimeKind.Utc, bucket.Kind);
         }
     }
 
@@ -298,7 +290,7 @@ public class GrowthTimelineServiceTests
     {
         var entries = new List<GrowthTimelineService.FileEntry>
         {
-            new() { CreatedUtc = new DateTime(2025, 3, 15, 0, 0, 0, DateTimeKind.Utc), Size = 1000 },
+            new() { CreatedUtc = new DateTime(2025, 3, 15, 0, 0, 0, DateTimeKind.Utc), Size = 1000 }
         };
         var earliest = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var now = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -324,15 +316,15 @@ public class GrowthTimelineServiceTests
         {
             new() { CreatedUtc = new DateTime(2025, 1, 10, 0, 0, 0, DateTimeKind.Utc), Size = 500 },
             new() { CreatedUtc = new DateTime(2025, 2, 20, 0, 0, 0, DateTimeKind.Utc), Size = 300 },
-            new() { CreatedUtc = new DateTime(2025, 3, 5, 0, 0, 0, DateTimeKind.Utc), Size = 200 },
+            new() { CreatedUtc = new DateTime(2025, 3, 5, 0, 0, 0, DateTimeKind.Utc), Size = 200 }
         };
         var earliest = new DateTime(2025, 1, 10, 0, 0, 0, DateTimeKind.Utc);
         var now = new DateTime(2025, 4, 1, 0, 0, 0, DateTimeKind.Utc);
 
         var points = GrowthTimelineService.BuildCumulativeTimeline(entries, earliest, now, "monthly");
 
-        Assert.Equal(500L, points[0].CumulativeSize);  // Jan
-        Assert.Equal(800L, points[1].CumulativeSize);  // Feb
+        Assert.Equal(500L, points[0].CumulativeSize); // Jan
+        Assert.Equal(800L, points[1].CumulativeSize); // Feb
         Assert.Equal(1000L, points[2].CumulativeSize); // Mar
         Assert.Equal(1000L, points[3].CumulativeSize); // Apr
     }
@@ -343,7 +335,7 @@ public class GrowthTimelineServiceTests
         var entries = new List<GrowthTimelineService.FileEntry>
         {
             new() { CreatedUtc = new DateTime(2025, 1, 10, 0, 0, 0, DateTimeKind.Utc), Size = 1000 },
-            new() { CreatedUtc = new DateTime(2025, 3, 5, 0, 0, 0, DateTimeKind.Utc), Size = -300 },
+            new() { CreatedUtc = new DateTime(2025, 3, 5, 0, 0, 0, DateTimeKind.Utc), Size = -300 }
         };
         var earliest = new DateTime(2025, 1, 10, 0, 0, 0, DateTimeKind.Utc);
         var now = new DateTime(2025, 4, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -352,7 +344,7 @@ public class GrowthTimelineServiceTests
 
         Assert.Equal(1000L, points[0].CumulativeSize); // Jan
         Assert.Equal(1000L, points[1].CumulativeSize); // Feb
-        Assert.Equal(700L, points[2].CumulativeSize);  // Mar (1000 - 300)
+        Assert.Equal(700L, points[2].CumulativeSize); // Mar (1000 - 300)
     }
 
     // ── BuildIncrementalEntries ────────────────────────────────────────────
@@ -363,17 +355,24 @@ public class GrowthTimelineServiceTests
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        baseline.Directories["/movies/Matrix"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 8_000_000_000,
-            Count = 3,
+            Directories =
+            {
+                ["/movies/Matrix"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 8_000_000_000,
+                    Count = 3
+                }
+            }
         };
 
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = "/movies/Matrix", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), Size = 8_000_000_000, Count = 3 },
+            new()
+            {
+                Path = "/movies/Matrix", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 8_000_000_000, Count = 3
+            }
         };
 
         var now = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -391,17 +390,24 @@ public class GrowthTimelineServiceTests
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        baseline.Directories["/movies/Matrix"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 8_000_000_000,
-            Count = 2,
+            Directories =
+            {
+                ["/movies/Matrix"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 8_000_000_000,
+                    Count = 2
+                }
+            }
         };
 
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = "/movies/Matrix", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), Size = 10_000_000_000, Count = 3 },
+            new()
+            {
+                Path = "/movies/Matrix", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 10_000_000_000, Count = 3
+            }
         };
 
         var now = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -425,17 +431,24 @@ public class GrowthTimelineServiceTests
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        baseline.Directories["/movies/Matrix"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 10_000_000_000,
-            Count = 3,
+            Directories =
+            {
+                ["/movies/Matrix"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 10_000_000_000,
+                    Count = 3
+                }
+            }
         };
 
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = "/movies/Matrix", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), Size = 7_000_000_000, Count = 2 },
+            new()
+            {
+                Path = "/movies/Matrix", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 7_000_000_000, Count = 2
+            }
         };
 
         var now = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -452,19 +465,26 @@ public class GrowthTimelineServiceTests
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        baseline.Directories["/movies/Avatar"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 8_000_000_000,
-            Count = 2,
+            Directories =
+            {
+                ["/movies/Avatar"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 8_000_000_000,
+                    Count = 2
+                }
+            }
         };
 
         var newDirCreated = new DateTime(2025, 3, 15, 0, 0, 0, DateTimeKind.Utc);
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), Size = 8_000_000_000, Count = 2 },
-            new() { Path = "/movies/Batman", CreatedUtc = newDirCreated, Size = 5_000_000_000, Count = 1 },
+            new()
+            {
+                Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 8_000_000_000, Count = 2
+            },
+            new() { Path = "/movies/Batman", CreatedUtc = newDirCreated, Size = 5_000_000_000, Count = 1 }
         };
 
         var now = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -484,24 +504,31 @@ public class GrowthTimelineServiceTests
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        baseline.Directories["/movies/Avatar"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 8_000_000_000,
-            Count = 2,
-        };
-        baseline.Directories["/movies/Batman"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 5_000_000_000,
-            Count = 1,
+            Directories =
+            {
+                ["/movies/Avatar"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 8_000_000_000,
+                    Count = 2
+                },
+                ["/movies/Batman"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 5_000_000_000,
+                    Count = 1
+                }
+            }
         };
 
         // Batman was removed
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), Size = 8_000_000_000, Count = 2 },
+            new()
+            {
+                Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 8_000_000_000, Count = 2
+            }
         };
 
         var now = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -522,26 +549,41 @@ public class GrowthTimelineServiceTests
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        baseline.Directories["/movies/Avatar"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 8_000_000_000,
-            Count = 2,
-        };
-        baseline.Directories["/movies/Batman"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 5_000_000_000,
-            Count = 1,
+            Directories =
+            {
+                ["/movies/Avatar"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 8_000_000_000,
+                    Count = 2
+                },
+                ["/movies/Batman"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 5_000_000_000,
+                    Count = 1
+                }
+            }
         };
 
         // Current: Avatar grew to 10GB, Batman unchanged, Casablanca is new (3GB)
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), Size = 10_000_000_000, Count = 3 },
-            new() { Path = "/movies/Batman", CreatedUtc = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Utc), Size = 5_000_000_000, Count = 1 },
-            new() { Path = "/movies/Casablanca", CreatedUtc = new DateTime(2025, 3, 1, 0, 0, 0, DateTimeKind.Utc), Size = 3_000_000_000, Count = 1 },
+            new()
+            {
+                Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 10_000_000_000, Count = 3
+            },
+            new()
+            {
+                Path = "/movies/Batman", CreatedUtc = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 5_000_000_000, Count = 1
+            },
+            new()
+            {
+                Path = "/movies/Casablanca", CreatedUtc = new DateTime(2025, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 3_000_000_000, Count = 1
+            }
         };
 
         var now = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -562,18 +604,25 @@ public class GrowthTimelineServiceTests
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        baseline.Directories[@"C:\Movies\Matrix"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 8_000_000_000,
-            Count = 3,
+            Directories =
+            {
+                [@"C:\Movies\Matrix"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 8_000_000_000,
+                    Count = 3
+                }
+            }
         };
 
         // Current scan reports the same directory but with different casing
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = @"C:\movies\matrix", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), Size = 8_000_000_000, Count = 3 },
+            new()
+            {
+                Path = @"C:\movies\matrix", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 8_000_000_000, Count = 3
+            }
         };
 
         var now = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -600,18 +649,25 @@ public class GrowthTimelineServiceTests
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        baseline.Directories[@"/movies/Avatar"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 8_000_000_000,
-            Count = 2,
+            Directories =
+            {
+                [@"/movies/Avatar"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 8_000_000_000,
+                    Count = 2
+                }
+            }
         };
 
         // Current scan has same path but different casing
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = @"/movies/avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), Size = 8_000_000_000, Count = 2 },
+            new()
+            {
+                Path = @"/movies/avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 8_000_000_000, Count = 2
+            }
         };
 
         var now = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -630,17 +686,24 @@ public class GrowthTimelineServiceTests
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        baseline.Directories["/movies/Avatar"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 8_000_000_000,
-            Count = 0, // Legacy: no count stored
+            Directories =
+            {
+                ["/movies/Avatar"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 8_000_000_000,
+                    Count = 0 // Legacy: no count stored
+                }
+            }
         };
 
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), Size = 8_000_000_000, Count = 2 },
+            new()
+            {
+                Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 8_000_000_000, Count = 2
+            }
         };
 
         var now = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -659,18 +722,29 @@ public class GrowthTimelineServiceTests
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        baseline.Directories["/movies/Avatar"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 8_000_000_000,
-            Count = 2,
+            Directories =
+            {
+                ["/movies/Avatar"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 8_000_000_000,
+                    Count = 2
+                }
+            }
         };
 
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), Size = 8_000_000_000, Count = 2 },
-            new() { Path = "/movies/Batman", CreatedUtc = new DateTime(2025, 3, 1, 0, 0, 0, DateTimeKind.Utc), Size = 5_000_000_000, Count = 1 },
+            new()
+            {
+                Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 8_000_000_000, Count = 2
+            },
+            new()
+            {
+                Path = "/movies/Batman", CreatedUtc = new DateTime(2025, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 5_000_000_000, Count = 1
+            }
         };
 
         GrowthTimelineService.UpdateBaseline(baseline, currentDirs);
@@ -687,17 +761,24 @@ public class GrowthTimelineServiceTests
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        baseline.Directories["/movies/Avatar"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 8_000_000_000,
-            Count = 2,
+            Directories =
+            {
+                ["/movies/Avatar"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 8_000_000_000,
+                    Count = 2
+                }
+            }
         };
 
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), Size = 10_000_000_000, Count = 3 },
+            new()
+            {
+                Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 10_000_000_000, Count = 3
+            }
         };
 
         GrowthTimelineService.UpdateBaseline(baseline, currentDirs);
@@ -705,7 +786,8 @@ public class GrowthTimelineServiceTests
         Assert.Equal(10_000_000_000L, baseline.Directories["/movies/Avatar"].Size);
         Assert.Equal(3, baseline.Directories["/movies/Avatar"].Count);
         // Creation date should NOT change
-        Assert.Equal(new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), baseline.Directories["/movies/Avatar"].CreatedUtc);
+        Assert.Equal(new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+            baseline.Directories["/movies/Avatar"].CreatedUtc);
     }
 
     [Fact]
@@ -714,24 +796,31 @@ public class GrowthTimelineServiceTests
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        baseline.Directories["/movies/Avatar"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 8_000_000_000,
-            Count = 2,
-        };
-        baseline.Directories["/movies/Batman"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 5_000_000_000,
-            Count = 1,
+            Directories =
+            {
+                ["/movies/Avatar"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 8_000_000_000,
+                    Count = 2
+                },
+                ["/movies/Batman"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 9, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 5_000_000_000,
+                    Count = 1
+                }
+            }
         };
 
         // Batman removed
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), Size = 8_000_000_000, Count = 2 },
+            new()
+            {
+                Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 8_000_000_000, Count = 2
+            }
         };
 
         GrowthTimelineService.UpdateBaseline(baseline, currentDirs);
@@ -746,12 +835,16 @@ public class GrowthTimelineServiceTests
         var originalTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var baseline = new GrowthTimelineBaseline
         {
-            FirstScanTimestamp = originalTimestamp,
+            FirstScanTimestamp = originalTimestamp
         };
 
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), Size = 8_000_000_000, Count = 2 },
+            new()
+            {
+                Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 8_000_000_000, Count = 2
+            }
         };
 
         GrowthTimelineService.UpdateBaseline(baseline, currentDirs);
@@ -769,17 +862,24 @@ public class GrowthTimelineServiceTests
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2024, 12, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        baseline.Directories["/library/Stranger Things"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 8_000_000_000,
-            Count = 5,
+            Directories =
+            {
+                ["/library/Stranger Things"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 8_000_000_000,
+                    Count = 5
+                }
+            }
         };
 
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = "/library/Stranger Things", CreatedUtc = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), Size = 10_000_000_000, Count = 6 },
+            new()
+            {
+                Path = "/library/Stranger Things", CreatedUtc = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 10_000_000_000, Count = 6
+            }
         };
 
         var now = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -810,25 +910,40 @@ public class GrowthTimelineServiceTests
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-        };
-        baseline.Directories["/movies/Avatar"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc),
-            Size = 8_000_000_000,
-            Count = 2,
-        };
-        baseline.Directories["/movies/Batman"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 6, 10, 0, 0, 0, DateTimeKind.Utc),
-            Size = 5_000_000_000,
-            Count = 1,
+            Directories =
+            {
+                ["/movies/Avatar"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 8_000_000_000,
+                    Count = 2
+                },
+                ["/movies/Batman"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 6, 10, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 5_000_000_000,
+                    Count = 1
+                }
+            }
         };
 
         var currentDirs = new List<GrowthTimelineService.DirectoryEntry>
         {
-            new() { Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc), Size = 8_000_000_000, Count = 2 },
-            new() { Path = "/movies/Batman", CreatedUtc = new DateTime(2024, 6, 10, 0, 0, 0, DateTimeKind.Utc), Size = 7_000_000_000, Count = 2 },
-            new() { Path = "/movies/Casablanca", CreatedUtc = new DateTime(2025, 2, 1, 0, 0, 0, DateTimeKind.Utc), Size = 3_000_000_000, Count = 1 },
+            new()
+            {
+                Path = "/movies/Avatar", CreatedUtc = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc),
+                Size = 8_000_000_000, Count = 2
+            },
+            new()
+            {
+                Path = "/movies/Batman", CreatedUtc = new DateTime(2024, 6, 10, 0, 0, 0, DateTimeKind.Utc),
+                Size = 7_000_000_000, Count = 2
+            },
+            new()
+            {
+                Path = "/movies/Casablanca", CreatedUtc = new DateTime(2025, 2, 1, 0, 0, 0, DateTimeKind.Utc),
+                Size = 3_000_000_000, Count = 1
+            }
         };
 
         var now = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -862,9 +977,21 @@ public class GrowthTimelineServiceTests
     {
         var existingPoints = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5_000_000_000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 8_000_000_000, CumulativeFileCount = 15 },
-            new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 10_000_000_000, CumulativeFileCount = 20 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5_000_000_000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 8_000_000_000,
+                CumulativeFileCount = 15
+            },
+            new()
+            {
+                Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 10_000_000_000,
+                CumulativeFileCount = 20
+            }
         };
 
         var now = new DateTime(2024, 4, 15, 0, 0, 0, DateTimeKind.Utc);
@@ -887,8 +1014,16 @@ public class GrowthTimelineServiceTests
         // Existing timeline already has a point for the current bucket
         var existingPoints = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5_000_000_000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 8_000_000_000, CumulativeFileCount = 15 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5_000_000_000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 8_000_000_000,
+                CumulativeFileCount = 15
+            }
         };
 
         // "now" is still in February → should replace the Feb point
@@ -908,8 +1043,16 @@ public class GrowthTimelineServiceTests
         // Scenario: Library had 100GB, then files were deleted
         var existingPoints = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 50_000_000_000, CumulativeFileCount = 100 },
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100_000_000_000, CumulativeFileCount = 200 },
+            new()
+            {
+                Date = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 50_000_000_000,
+                CumulativeFileCount = 100
+            },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100_000_000_000,
+                CumulativeFileCount = 200
+            }
         };
 
         // Files with old creation dates were deleted → current total is smaller
@@ -919,9 +1062,9 @@ public class GrowthTimelineServiceTests
 
         // Historical points preserved, current shows the drop
         Assert.Equal(3, result.Count);
-        Assert.Equal(50_000_000_000L, result[0].CumulativeSize);  // 2023-01 unchanged
+        Assert.Equal(50_000_000_000L, result[0].CumulativeSize); // 2023-01 unchanged
         Assert.Equal(100_000_000_000L, result[1].CumulativeSize); // 2024-01 unchanged (history!)
-        Assert.Equal(80_000_000_000L, result[2].CumulativeSize);  // 2024-06 shows deletion
+        Assert.Equal(80_000_000_000L, result[2].CumulativeSize); // 2024-06 shows deletion
         Assert.Equal(160, result[2].CumulativeFileCount);
     }
 
@@ -945,10 +1088,26 @@ public class GrowthTimelineServiceTests
         // Points were stored with monthly granularity, now we use quarterly
         var existingPoints = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5_000_000_000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 6_000_000_000, CumulativeFileCount = 12 },
-            new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 7_000_000_000, CumulativeFileCount = 14 },
-            new() { Date = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 8_000_000_000, CumulativeFileCount = 16 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5_000_000_000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 6_000_000_000,
+                CumulativeFileCount = 12
+            },
+            new()
+            {
+                Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 7_000_000_000,
+                CumulativeFileCount = 14
+            },
+            new()
+            {
+                Date = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 8_000_000_000,
+                CumulativeFileCount = 16
+            }
         };
 
         // Now is in Q3 2024, using quarterly granularity
@@ -968,8 +1127,16 @@ public class GrowthTimelineServiceTests
         // First scan in March added a point
         var existingPoints = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5_000_000_000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 8_000_000_000, CumulativeFileCount = 15 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5_000_000_000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 8_000_000_000,
+                CumulativeFileCount = 15
+            }
         };
 
         // Second scan still in March → should replace March value
@@ -1034,7 +1201,7 @@ public class GrowthTimelineServiceTests
         {
             new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 0 },
             new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 0 },
-            new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 0 },
+            new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 0 }
         };
         var result = GrowthTimelineService.TrimLeadingZeros(points);
         Assert.Empty(result);
@@ -1047,7 +1214,7 @@ public class GrowthTimelineServiceTests
         {
             new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1000 },
             new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 2000 },
-            new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 3000 },
+            new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 3000 }
         };
         var result = GrowthTimelineService.TrimLeadingZeros(points);
         Assert.Equal(3, result.Count);
@@ -1063,7 +1230,7 @@ public class GrowthTimelineServiceTests
             new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 0 },
             new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 0 },
             new() { Date = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000 },
-            new() { Date = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 8000 },
+            new() { Date = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 8000 }
         };
         var result = GrowthTimelineService.TrimLeadingZeros(points);
 
@@ -1081,7 +1248,7 @@ public class GrowthTimelineServiceTests
         var points = new List<GrowthTimelinePoint>
         {
             new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 0 },
-            new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000 },
+            new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000 }
         };
         var result = GrowthTimelineService.TrimLeadingZeros(points);
         Assert.Equal(2, result.Count);
@@ -1099,20 +1266,20 @@ public class GrowthTimelineServiceTests
             new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 0 },
             new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 8000 },
             new() { Date = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 10000 },
-            new() { Date = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 0 },   // library deleted
+            new() { Date = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 0 }, // library deleted
             new() { Date = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 3000 }, // rebuilt
-            new() { Date = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 7000 },
+            new() { Date = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 7000 }
         };
         var result = GrowthTimelineService.TrimLeadingZeros(points);
 
         // Should trim leading zeros but keep the mid-timeline zero
         Assert.Equal(6, result.Count);
-        Assert.Equal(0L, result[0].CumulativeSize);      // Feb (one zero baseline before Mar)
-        Assert.Equal(8000L, result[1].CumulativeSize);    // Mar
-        Assert.Equal(10000L, result[2].CumulativeSize);   // Apr
-        Assert.Equal(0L, result[3].CumulativeSize);       // May (mid-timeline zero preserved!)
-        Assert.Equal(3000L, result[4].CumulativeSize);    // Jun
-        Assert.Equal(7000L, result[5].CumulativeSize);    // Jul
+        Assert.Equal(0L, result[0].CumulativeSize); // Feb (one zero baseline before Mar)
+        Assert.Equal(8000L, result[1].CumulativeSize); // Mar
+        Assert.Equal(10000L, result[2].CumulativeSize); // Apr
+        Assert.Equal(0L, result[3].CumulativeSize); // May (mid-timeline zero preserved!)
+        Assert.Equal(3000L, result[4].CumulativeSize); // Jun
+        Assert.Equal(7000L, result[5].CumulativeSize); // Jul
     }
 
     [Fact]
@@ -1120,7 +1287,7 @@ public class GrowthTimelineServiceTests
     {
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000 },
+            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000 }
         };
         var result = GrowthTimelineService.TrimLeadingZeros(points);
         Assert.Single(result);
@@ -1142,7 +1309,11 @@ public class GrowthTimelineServiceTests
     {
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1000, CumulativeFileCount = 5 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1000,
+                CumulativeFileCount = 5
+            }
         };
         var result = GrowthTimelineService.DeduplicateConsecutivePoints(points);
         Assert.Single(result);
@@ -1154,8 +1325,16 @@ public class GrowthTimelineServiceTests
     {
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1000, CumulativeFileCount = 5 },
-            new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1000, CumulativeFileCount = 5 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1000,
+                CumulativeFileCount = 5
+            },
+            new()
+            {
+                Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1000,
+                CumulativeFileCount = 5
+            }
         };
         var result = GrowthTimelineService.DeduplicateConsecutivePoints(points);
         Assert.Equal(2, result.Count);
@@ -1166,14 +1345,46 @@ public class GrowthTimelineServiceTests
     {
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 8, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 10 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 8, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 10
+            }
         };
         var result = GrowthTimelineService.DeduplicateConsecutivePoints(points);
 
@@ -1188,10 +1399,26 @@ public class GrowthTimelineServiceTests
     {
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1000, CumulativeFileCount = 1 },
-            new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 2000, CumulativeFileCount = 2 },
-            new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 3000, CumulativeFileCount = 3 },
-            new() { Date = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 4000, CumulativeFileCount = 4 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1000,
+                CumulativeFileCount = 1
+            },
+            new()
+            {
+                Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 2000,
+                CumulativeFileCount = 2
+            },
+            new()
+            {
+                Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 3000,
+                CumulativeFileCount = 3
+            },
+            new()
+            {
+                Date = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 4000,
+                CumulativeFileCount = 4
+            }
         };
         var result = GrowthTimelineService.DeduplicateConsecutivePoints(points);
         Assert.Equal(4, result.Count);
@@ -1202,12 +1429,36 @@ public class GrowthTimelineServiceTests
     {
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1000, CumulativeFileCount = 5 },
-            new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 2000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 2000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 2000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 2000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 3000, CumulativeFileCount = 15 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1000,
+                CumulativeFileCount = 5
+            },
+            new()
+            {
+                Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 2000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 2000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 2000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 2000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 3000,
+                CumulativeFileCount = 15
+            }
         };
         var result = GrowthTimelineService.DeduplicateConsecutivePoints(points);
 
@@ -1222,9 +1473,21 @@ public class GrowthTimelineServiceTests
     {
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 12 },
-            new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 12 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 12
+            },
+            new()
+            {
+                Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 12
+            }
         };
         var result = GrowthTimelineService.DeduplicateConsecutivePoints(points);
 
@@ -1237,10 +1500,26 @@ public class GrowthTimelineServiceTests
     {
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000, CumulativeFileCount = 10 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 5000,
+                CumulativeFileCount = 10
+            }
         };
         var result = GrowthTimelineService.DeduplicateConsecutivePoints(points);
 
@@ -1258,10 +1537,26 @@ public class GrowthTimelineServiceTests
         // Mon 2024-01-01 to Sun 2024-01-07 are one ISO week
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100, CumulativeFileCount = 1 },
-            new() { Date = new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 200, CumulativeFileCount = 2 },
-            new() { Date = new DateTime(2024, 1, 3, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 300, CumulativeFileCount = 3 },
-            new() { Date = new DateTime(2024, 1, 8, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 400, CumulativeFileCount = 4 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100,
+                CumulativeFileCount = 1
+            },
+            new()
+            {
+                Date = new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 200,
+                CumulativeFileCount = 2
+            },
+            new()
+            {
+                Date = new DateTime(2024, 1, 3, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 300,
+                CumulativeFileCount = 3
+            },
+            new()
+            {
+                Date = new DateTime(2024, 1, 8, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 400,
+                CumulativeFileCount = 4
+            }
         };
 
         var result = GrowthTimelineService.ConsolidateToGranularity(points, "weekly");
@@ -1277,10 +1572,26 @@ public class GrowthTimelineServiceTests
     {
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100, CumulativeFileCount = 1 },
-            new() { Date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 500, CumulativeFileCount = 5 },
-            new() { Date = new DateTime(2024, 1, 31, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1000, CumulativeFileCount = 10 },
-            new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1100, CumulativeFileCount = 11 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100,
+                CumulativeFileCount = 1
+            },
+            new()
+            {
+                Date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 500,
+                CumulativeFileCount = 5
+            },
+            new()
+            {
+                Date = new DateTime(2024, 1, 31, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1000,
+                CumulativeFileCount = 10
+            },
+            new()
+            {
+                Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1100,
+                CumulativeFileCount = 11
+            }
         };
 
         var result = GrowthTimelineService.ConsolidateToGranularity(points, "monthly");
@@ -1297,7 +1608,11 @@ public class GrowthTimelineServiceTests
     {
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 6, 15, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 999, CumulativeFileCount = 5 },
+            new()
+            {
+                Date = new DateTime(2024, 6, 15, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 999,
+                CumulativeFileCount = 5
+            }
         };
 
         var result = GrowthTimelineService.ConsolidateToGranularity(points, "yearly");
@@ -1321,12 +1636,36 @@ public class GrowthTimelineServiceTests
     {
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100, CumulativeFileCount = 1 },
-            new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 200, CumulativeFileCount = 2 },
-            new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 300, CumulativeFileCount = 3 },
-            new() { Date = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 400, CumulativeFileCount = 4 },
-            new() { Date = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 500, CumulativeFileCount = 5 },
-            new() { Date = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 600, CumulativeFileCount = 6 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100,
+                CumulativeFileCount = 1
+            },
+            new()
+            {
+                Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 200,
+                CumulativeFileCount = 2
+            },
+            new()
+            {
+                Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 300,
+                CumulativeFileCount = 3
+            },
+            new()
+            {
+                Date = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 400,
+                CumulativeFileCount = 4
+            },
+            new()
+            {
+                Date = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 500,
+                CumulativeFileCount = 5
+            },
+            new()
+            {
+                Date = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 600,
+                CumulativeFileCount = 6
+            }
         };
 
         var result = GrowthTimelineService.ConsolidateToGranularity(points, "quarterly");
@@ -1343,9 +1682,21 @@ public class GrowthTimelineServiceTests
     {
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100, CumulativeFileCount = 1 },
-            new() { Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 200, CumulativeFileCount = 2 },
-            new() { Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 300, CumulativeFileCount = 3 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100,
+                CumulativeFileCount = 1
+            },
+            new()
+            {
+                Date = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 200,
+                CumulativeFileCount = 2
+            },
+            new()
+            {
+                Date = new DateTime(2024, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 300,
+                CumulativeFileCount = 3
+            }
         };
 
         var result = GrowthTimelineService.ConsolidateToGranularity(points, "monthly");
@@ -1361,9 +1712,21 @@ public class GrowthTimelineServiceTests
         // the same way GetBucketStart and AdvanceBucket handle unrecognised values.
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100, CumulativeFileCount = 1 },
-            new() { Date = new DateTime(2024, 1, 28, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 200, CumulativeFileCount = 2 },
-            new() { Date = new DateTime(2024, 2, 10, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 300, CumulativeFileCount = 3 },
+            new()
+            {
+                Date = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100,
+                CumulativeFileCount = 1
+            },
+            new()
+            {
+                Date = new DateTime(2024, 1, 28, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 200,
+                CumulativeFileCount = 2
+            },
+            new()
+            {
+                Date = new DateTime(2024, 2, 10, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 300,
+                CumulativeFileCount = 3
+            }
         };
 
         var result = GrowthTimelineService.ConsolidateToGranularity(points, "biweekly");
@@ -1382,8 +1745,16 @@ public class GrowthTimelineServiceTests
     {
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2024, 3, 10, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 500, CumulativeFileCount = 5 },
-            new() { Date = new DateTime(2024, 3, 20, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 700, CumulativeFileCount = 7 },
+            new()
+            {
+                Date = new DateTime(2024, 3, 10, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 500,
+                CumulativeFileCount = 5
+            },
+            new()
+            {
+                Date = new DateTime(2024, 3, 20, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 700,
+                CumulativeFileCount = 7
+            }
         };
 
         var result = GrowthTimelineService.ConsolidateToGranularity(points, "");
@@ -1408,11 +1779,31 @@ public class GrowthTimelineServiceTests
     {
         var points = new List<GrowthTimelinePoint>
         {
-            new() { Date = new DateTime(2022, 6, 15, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100, CumulativeFileCount = 1 },
-            new() { Date = new DateTime(2022, 12, 31, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 500, CumulativeFileCount = 5 },
-            new() { Date = new DateTime(2023, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 800, CumulativeFileCount = 8 },
-            new() { Date = new DateTime(2023, 9, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1200, CumulativeFileCount = 12 },
-            new() { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1500, CumulativeFileCount = 15 },
+            new()
+            {
+                Date = new DateTime(2022, 6, 15, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100,
+                CumulativeFileCount = 1
+            },
+            new()
+            {
+                Date = new DateTime(2022, 12, 31, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 500,
+                CumulativeFileCount = 5
+            },
+            new()
+            {
+                Date = new DateTime(2023, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 800,
+                CumulativeFileCount = 8
+            },
+            new()
+            {
+                Date = new DateTime(2023, 9, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1200,
+                CumulativeFileCount = 12
+            },
+            new()
+            {
+                Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1500,
+                CumulativeFileCount = 15
+            }
         };
 
         var result = GrowthTimelineService.ConsolidateToGranularity(points, "yearly");

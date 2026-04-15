@@ -19,28 +19,28 @@ using IFileSystem = MediaBrowser.Model.IO.IFileSystem;
 namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 
 /// <summary>
-/// A single master scheduled task that orchestrates all cleanup sub-tasks sequentially.
-/// Each sub-task can be individually configured as Activate, Deactivate, or DryRun
-/// via the plugin settings.
+///     A single master scheduled task that orchestrates all cleanup sub-tasks sequentially.
+///     Each sub-task can be individually configured as Activate, Deactivate, or DryRun
+///     via the plugin settings.
 /// </summary>
 public class HelperCleanupTask : IScheduledTask
 {
-    private readonly ILibraryManager _libraryManager;
-    private readonly IFileSystem _fileSystem;
     private readonly IApplicationPaths _applicationPaths;
-    private readonly IPluginLogService _pluginLog;
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly ILogger<HelperCleanupTask> _logger;
-    private readonly IMediaStatisticsService _statisticsService;
     private readonly IStatisticsCacheService _cacheService;
-    private readonly IGrowthTimelineService _growthService;
     private readonly ICleanupConfigHelper _configHelper;
+    private readonly IFileSystem _fileSystem;
+    private readonly IGrowthTimelineService _growthService;
+    private readonly ILibraryManager _libraryManager;
+    private readonly ILogger<HelperCleanupTask> _logger;
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly IPluginLogService _pluginLog;
+    private readonly IMediaStatisticsService _statisticsService;
+    private readonly IStrmRepairService _strmRepairService;
     private readonly ICleanupTrackingService _trackingService;
     private readonly ITrashService _trashService;
-    private readonly IStrmRepairService _strmRepairService;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="HelperCleanupTask"/> class.
+    ///     Initializes a new instance of the <see cref="HelperCleanupTask" /> class.
     /// </summary>
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="fileSystem">The file system.</param>
@@ -90,7 +90,8 @@ public class HelperCleanupTask : IScheduledTask
     public string Key => "HelperCleanup";
 
     /// <inheritdoc />
-    public string Description => "Runs all configured cleanup and repair tasks sequentially (Trickplay, Empty Folders, Orphaned Subtitles, STRM Repair).";
+    public string Description =>
+        "Runs all configured cleanup and repair tasks sequentially (Trickplay, Empty Folders, Orphaned Subtitles, STRM Repair).";
 
     /// <inheritdoc />
     public string Category => "Jellyfin Helper";
@@ -106,7 +107,7 @@ public class HelperCleanupTask : IScheduledTask
             ("Trickplay Cleanup", config.TrickplayTaskMode, RunTrickplayCleanup),
             ("Empty Media Folder Cleanup", config.EmptyMediaFolderTaskMode, RunEmptyMediaFolderCleanup),
             ("Orphaned Subtitle Cleanup", config.OrphanedSubtitleTaskMode, RunOrphanedSubtitleCleanup),
-            ("STRM File Repair", config.StrmRepairTaskMode, RunStrmRepair),
+            ("STRM File Repair", config.StrmRepairTaskMode, RunStrmRepair)
         };
 
         var totalTasks = subTasks.Length;
@@ -130,7 +131,10 @@ public class HelperCleanupTask : IScheduledTask
             try
             {
                 // Create a sub-progress that maps to our segment of the overall progress
-                var subProgress = new SubProgress(progress, (double)i / totalTasks * 100, (double)(i + 1) / totalTasks * 100);
+                var subProgress = new SubProgress(
+                    progress,
+                    (double)i / totalTasks * 100,
+                    (double)(i + 1) / totalTasks * 100);
                 await execute(subProgress, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -140,7 +144,11 @@ public class HelperCleanupTask : IScheduledTask
             }
             catch (Exception ex)
             {
-                _pluginLog.LogError("HelperCleanup", $"Error executing {name}. Continuing with next task.", ex, _logger);
+                _pluginLog.LogError(
+                    "HelperCleanup",
+                    $"Error executing {name}. Continuing with next task.",
+                    ex,
+                    _logger);
             }
 
             _pluginLog.LogInfo("HelperCleanup", $"Finished {name}.", _logger);
@@ -153,7 +161,10 @@ public class HelperCleanupTask : IScheduledTask
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                _pluginLog.LogInfo("HelperCleanup", $"Running trash purge (retention: {config.TrashRetentionDays} days)...", _logger);
+                _pluginLog.LogInfo(
+                    "HelperCleanup",
+                    $"Running trash purge (retention: {config.TrashRetentionDays} days)...",
+                    _logger);
 
                 var libraryLocations = LibraryPathResolver.GetDistinctLibraryLocations(_libraryManager);
                 long totalBytesFreed = 0;
@@ -163,7 +174,10 @@ public class HelperCleanupTask : IScheduledTask
                 {
                     if (string.IsNullOrWhiteSpace(config.TrashFolderPath))
                     {
-                        _pluginLog.LogWarning("HelperCleanup", $"Trash purge skipped for {location}: trash folder path is empty.", logger: _logger);
+                        _pluginLog.LogWarning(
+                            "HelperCleanup",
+                            $"Trash purge skipped for {location}: trash folder path is empty.",
+                            logger: _logger);
                         continue;
                     }
 
@@ -179,27 +193,34 @@ public class HelperCleanupTask : IScheduledTask
                         trashPath.StartsWith(libraryRoot + Path.DirectorySeparatorChar, pathComparison);
                     if (!isUnderLibrary)
                     {
-                        _pluginLog.LogWarning("HelperCleanup", $"Trash purge skipped for {location}: resolved trash path {trashPath} is outside library root.", logger: _logger);
+                        _pluginLog.LogWarning(
+                            "HelperCleanup",
+                            $"Trash purge skipped for {location}: resolved trash path {trashPath} is outside library root.",
+                            logger: _logger);
                         continue;
                     }
 
-                    var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, config.TrashRetentionDays, _logger);
+                    var (bytesFreed, itemsPurged) = _trashService.PurgeExpiredTrash(
+                        trashPath,
+                        config.TrashRetentionDays,
+                        _logger);
                     totalBytesFreed += bytesFreed;
                     totalItemsPurged += itemsPurged;
                 }
 
-                if (totalItemsPurged > 0)
-                {
-                    _pluginLog.LogInfo("HelperCleanup", $"Trash purge completed: {totalItemsPurged} items removed, {totalBytesFreed} bytes freed.", _logger);
-                }
-                else
-                {
-                    _pluginLog.LogInfo("HelperCleanup", "Trash purge completed: no expired items found.", _logger);
-                }
+                _pluginLog.LogInfo(
+                    "HelperCleanup",
+                    totalItemsPurged > 0
+                        ? $"Trash purge completed: {totalItemsPurged} items removed, {totalBytesFreed} bytes freed."
+                        : "Trash purge completed: no expired items found.",
+                    _logger);
             }
             catch (OperationCanceledException)
             {
-                _pluginLog.LogWarning("HelperCleanup", "Helper Cleanup was cancelled during trash purge.", logger: _logger);
+                _pluginLog.LogWarning(
+                    "HelperCleanup",
+                    "Helper Cleanup was cancelled during trash purge.",
+                    logger: _logger);
                 throw;
             }
             catch (Exception ex)
@@ -222,7 +243,10 @@ public class HelperCleanupTask : IScheduledTask
         }
         catch (OperationCanceledException)
         {
-            _pluginLog.LogWarning("HelperCleanup", "Helper Cleanup was cancelled during post-cleanup statistics scan.", logger: _logger);
+            _pluginLog.LogWarning(
+                "HelperCleanup",
+                "Helper Cleanup was cancelled during post-cleanup statistics scan.",
+                logger: _logger);
             throw;
         }
         catch (Exception ex)
@@ -240,7 +264,10 @@ public class HelperCleanupTask : IScheduledTask
         }
         catch (OperationCanceledException)
         {
-            _pluginLog.LogWarning("HelperCleanup", "Helper Cleanup was cancelled during growth timeline computation.", logger: _logger);
+            _pluginLog.LogWarning(
+                "HelperCleanup",
+                "Helper Cleanup was cancelled during growth timeline computation.",
+                logger: _logger);
             throw;
         }
         catch (Exception ex)
@@ -305,8 +332,8 @@ public class HelperCleanupTask : IScheduledTask
     }
 
     /// <summary>
-    /// Deletes the legacy statistics history file that was replaced by the growth timeline.
-    /// TODO: Remove this method in v1.1.0 once all users have upgraded past v1.0.9.
+    ///     Deletes the legacy statistics history file that was replaced by the growth timeline.
+    ///     TODO: Remove this method in v1.1.0 once all users have upgraded past v1.0.9.
     /// </summary>
     private void CleanupLegacyHistoryFile()
     {
@@ -315,15 +342,21 @@ public class HelperCleanupTask : IScheduledTask
 
         try
         {
-            if (File.Exists(legacyFilePath))
+            if (!File.Exists(legacyFilePath))
             {
-                File.Delete(legacyFilePath);
-                _pluginLog.LogInfo("HelperCleanup", $"Deleted legacy statistics history file: {legacyFilePath}", _logger);
+                return;
             }
+
+            File.Delete(legacyFilePath);
+            _pluginLog.LogInfo("HelperCleanup", $"Deleted legacy statistics history file: {legacyFilePath}", _logger);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _pluginLog.LogWarning("HelperCleanup", $"Could not delete legacy statistics history file: {legacyFilePath}", ex, _logger);
+            _pluginLog.LogWarning(
+                "HelperCleanup",
+                $"Could not delete legacy statistics history file: {legacyFilePath}",
+                ex,
+                _logger);
         }
     }
 
@@ -339,7 +372,7 @@ public class HelperCleanupTask : IScheduledTask
     }
 
     /// <summary>
-    /// Helper class that maps sub-task progress (0-100) to a segment of the overall progress.
+    ///     Helper class that maps sub-task progress (0-100) to a segment of the overall progress.
     /// </summary>
     private sealed class SubProgress(IProgress<double> parent, double start, double end) : IProgress<double>
     {

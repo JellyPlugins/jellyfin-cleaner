@@ -1,21 +1,20 @@
-using System.IO;
 using System.Xml.Serialization;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Xunit;
 
-namespace Jellyfin.Plugin.JellyfinHelper.Tests.Configuration;
+namespace Jellyfin.Plugin.JellyfinHelper.Tests;
 
 /// <summary>
-/// Tests for XML serialization/deserialization of PluginConfiguration,
-/// specifically verifying that multiple Arr instances persist correctly.
+///     Tests for XML serialization/deserialization of PluginConfiguration,
+///     specifically verifying that multiple Arr instances persist correctly.
 /// </summary>
 public class PluginConfigurationSerializationTests
 {
     private static readonly XmlSerializer Serializer = new(typeof(PluginConfiguration));
 
     /// <summary>
-    /// Serializes the configuration to XML and deserializes it back,
-    /// verifying round-trip fidelity.
+    ///     Serializes the configuration to XML and deserializes it back,
+    ///     verifying round-trip fidelity.
     /// </summary>
     private static PluginConfiguration RoundTrip(PluginConfiguration config)
     {
@@ -35,7 +34,7 @@ public class PluginConfigurationSerializationTests
         {
             Name = "Radarr",
             Url = "http://localhost:7878",
-            ApiKey = "key1",
+            ApiKey = "key1"
         });
 
         var restored = RoundTrip(config);
@@ -54,19 +53,19 @@ public class PluginConfigurationSerializationTests
         {
             Name = "Radarr HD",
             Url = "http://localhost:7878",
-            ApiKey = "key1",
+            ApiKey = "key1"
         });
         config.RadarrInstances.Add(new ArrInstanceConfig
         {
             Name = "Radarr 4K",
             Url = "http://localhost:7879",
-            ApiKey = "key2",
+            ApiKey = "key2"
         });
         config.RadarrInstances.Add(new ArrInstanceConfig
         {
             Name = "Radarr Anime",
             Url = "http://localhost:7880",
-            ApiKey = "key3",
+            ApiKey = "key3"
         });
 
         var restored = RoundTrip(config);
@@ -94,13 +93,13 @@ public class PluginConfigurationSerializationTests
         {
             Name = "Sonarr HD",
             Url = "http://localhost:8989",
-            ApiKey = "skey1",
+            ApiKey = "skey1"
         });
         config.SonarrInstances.Add(new ArrInstanceConfig
         {
             Name = "Sonarr Anime",
             Url = "http://localhost:8990",
-            ApiKey = "skey2",
+            ApiKey = "skey2"
         });
 
         var restored = RoundTrip(config);
@@ -124,19 +123,19 @@ public class PluginConfigurationSerializationTests
         {
             Name = "Radarr",
             Url = "http://radarr:7878",
-            ApiKey = "rkey",
+            ApiKey = "rkey"
         });
         config.RadarrInstances.Add(new ArrInstanceConfig
         {
             Name = "Radarr 4K",
             Url = "http://radarr4k:7878",
-            ApiKey = "rkey4k",
+            ApiKey = "rkey4k"
         });
         config.SonarrInstances.Add(new ArrInstanceConfig
         {
             Name = "Sonarr",
             Url = "http://sonarr:8989",
-            ApiKey = "skey",
+            ApiKey = "skey"
         });
 
         var restored = RoundTrip(config);
@@ -172,13 +171,13 @@ public class PluginConfigurationSerializationTests
             Language = "de",
             UseTrash = true,
             TrashFolderPath = "/tmp/trash",
-            TrashRetentionDays = 14,
+            TrashRetentionDays = 14
         };
         config.RadarrInstances.Add(new ArrInstanceConfig
         {
             Name = "Radarr",
             Url = "http://localhost:7878",
-            ApiKey = "testkey",
+            ApiKey = "testkey"
         });
 
         var restored = RoundTrip(config);
@@ -203,13 +202,13 @@ public class PluginConfigurationSerializationTests
         {
             Name = "Radarr",
             Url = "http://localhost:7878",
-            ApiKey = "key1",
+            ApiKey = "key1"
         });
         config.RadarrInstances.Add(new ArrInstanceConfig
         {
             Name = "Radarr 4K",
             Url = "http://localhost:7879",
-            ApiKey = "key2",
+            ApiKey = "key2"
         });
 
         // Round-trip multiple times to ensure no duplication

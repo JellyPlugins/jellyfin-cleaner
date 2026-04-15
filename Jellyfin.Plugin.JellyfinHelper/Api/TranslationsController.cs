@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Jellyfin.Plugin.JellyfinHelper.Api;
 
 /// <summary>
-/// API controller for I18n Translations.
+///     API controller for I18n Translations.
 /// </summary>
 [ApiController]
 [Authorize(Policy = "RequiresElevation")]
@@ -20,7 +20,7 @@ public class TranslationsController : ControllerBase
     private readonly ICleanupConfigHelper _configHelper;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="TranslationsController"/> class.
+    ///     Initializes a new instance of the <see cref="TranslationsController" /> class.
     /// </summary>
     /// <param name="configHelper">The cleanup configuration helper.</param>
     public TranslationsController(ICleanupConfigHelper configHelper)
@@ -29,7 +29,7 @@ public class TranslationsController : ControllerBase
     }
 
     /// <summary>
-    /// Gets the translation strings for the specified language (or the configured language).
+    ///     Gets the translation strings for the specified language (or the configured language).
     /// </summary>
     /// <param name="lang">Optional language code override. If not provided, uses the configured language.</param>
     /// <returns>A dictionary of translation keys to strings.</returns>
@@ -39,7 +39,7 @@ public class TranslationsController : ControllerBase
     public ActionResult<Dictionary<string, string>> GetTranslations([FromQuery] string? lang = null)
     {
         var languageCode = string.IsNullOrWhiteSpace(lang) ? _configHelper.GetConfig().Language : lang.Trim();
-        var translations = I18nService.GetTranslations(languageCode);
+        var translations = I18NService.GetTranslations(languageCode);
         return Ok(translations);
     }
 }

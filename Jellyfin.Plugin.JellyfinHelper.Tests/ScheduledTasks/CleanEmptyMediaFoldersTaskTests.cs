@@ -1,6 +1,5 @@
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
-using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
@@ -13,8 +12,8 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.ScheduledTasks;
 
 public class CleanEmptyMediaFoldersTaskTests : CleanupTaskTestBase
 {
-    private readonly Mock<ILibraryManager> _libraryManagerMock;
     private readonly Mock<IFileSystem> _fileSystemMock;
+    private readonly Mock<ILibraryManager> _libraryManagerMock;
     private readonly Mock<ILogger<CleanEmptyMediaFoldersTask>> _loggerMock;
     private readonly CleanEmptyMediaFoldersTask _task;
 
@@ -37,10 +36,14 @@ public class CleanEmptyMediaFoldersTaskTests : CleanupTaskTestBase
     }
 
     private void VerifyLogContains(string messagePart, LogLevel level)
-        => VerifyLogContains(_loggerMock, messagePart, level);
+    {
+        VerifyLogContains(_loggerMock, messagePart, level);
+    }
 
     private void VerifyLogNeverContains(string messagePart, LogLevel level)
-        => VerifyLogNeverContains(_loggerMock, messagePart, level);
+    {
+        VerifyLogNeverContains(_loggerMock, messagePart, level);
+    }
 
     [Fact]
     public async Task ExecuteInternalAsync_TopLevelFolderWithSubtitlesOnly_DeletesFolder()
@@ -315,10 +318,10 @@ public class CleanEmptyMediaFoldersTaskTests : CleanupTaskTestBase
         SetupSubDirs("/media/movies1/Movie");
 
         var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => _task.ExecuteAsync(new Progress<double>(), cts.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _task.ExecuteAsync(new Progress<double>(), cts.Token));
 
         _fileSystemMock.Verify(f => f.GetDirectories(libraryPath2, false), Times.Never);
     }
@@ -362,7 +365,7 @@ public class CleanEmptyMediaFoldersTaskTests : CleanupTaskTestBase
         SetupTopLevelDirs(libraryPath2);
 
         var reportedValues = new List<double>();
-        var progress = new SynchronousProgress<double>(v => reportedValues.Add(v));
+        var progress = new SynchronousProgress<double>(reportedValues.Add);
 
         await _task.ExecuteAsync(progress, CancellationToken.None);
 
@@ -535,7 +538,8 @@ public class CleanEmptyMediaFoldersTaskTests : CleanupTaskTestBase
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
-        VerifyLogContains("[Dry Run] Would delete orphaned media folder: /media/movies/Orphaned Movie (2019)", LogLevel.Information);
+        VerifyLogContains("[Dry Run] Would delete orphaned media folder: /media/movies/Orphaned Movie (2019)",
+            LogLevel.Information);
         VerifyLogContains("Would have deleted 1 folders", LogLevel.Information);
     }
 
@@ -548,7 +552,8 @@ public class CleanEmptyMediaFoldersTaskTests : CleanupTaskTestBase
         SetupLibrary(libraryPath);
         SetupTopLevelDirs(libraryPath, ("SomeArtist", musicDir));
 
-        SetupFilesWithFullNames(musicDir, "/media/movies/SomeArtist/track01.mp3", "/media/movies/SomeArtist/track02.flac");
+        SetupFilesWithFullNames(musicDir, "/media/movies/SomeArtist/track01.mp3",
+            "/media/movies/SomeArtist/track02.flac");
         SetupSubDirs(musicDir);
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);

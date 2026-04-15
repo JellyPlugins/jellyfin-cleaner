@@ -1,6 +1,4 @@
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Api;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
@@ -15,17 +13,16 @@ using Xunit;
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 
 /// <summary>
-/// Tests for <see cref="ConfigurationController"/>.
-/// All tests use mocked <see cref="IPluginConfigurationService"/> — no
-/// <c>Plugin.Instance</c> singleton is required, which eliminates flaky
-/// behaviour caused by shared static state during parallel test execution.
+///     Tests for <see cref="ConfigurationController" />.
+///     All tests use mocked <see cref="IPluginConfigurationService" /> — no
+///     <c>Plugin.Instance</c> singleton is required, which eliminates flaky
+///     behaviour caused by shared static state during parallel test execution.
 /// </summary>
 public class ConfigurationControllerTests
 {
+    private readonly Mock<IArrIntegrationService> _arrServiceMock;
     private readonly PluginConfiguration _config;
     private readonly Mock<IPluginConfigurationService> _configServiceMock;
-    private readonly Mock<IPluginLogService> _pluginLogMock;
-    private readonly Mock<IArrIntegrationService> _arrServiceMock;
     private readonly ConfigurationController _controller;
 
     public ConfigurationControllerTests()
@@ -36,7 +33,7 @@ public class ConfigurationControllerTests
         _configServiceMock.Setup(s => s.IsInitialized).Returns(true);
         _configServiceMock.Setup(s => s.GetConfiguration()).Returns(_config);
 
-        _pluginLogMock = new Mock<IPluginLogService>();
+        var pluginLogMock = new Mock<IPluginLogService>();
 
         _arrServiceMock = new Mock<IArrIntegrationService>();
         _arrServiceMock
@@ -50,7 +47,7 @@ public class ConfigurationControllerTests
 
         _controller = new ConfigurationController(
             _arrServiceMock.Object,
-            _pluginLogMock.Object,
+            pluginLogMock.Object,
             loggerMock.Object,
             configHelperMock.Object,
             _configServiceMock.Object);
@@ -135,12 +132,12 @@ public class ConfigurationControllerTests
     {
         var request = new ConfigurationUpdateRequest
         {
-            RadarrInstances = new[]
-            {
+            RadarrInstances =
+            [
                 new ArrInstanceConfig { Name = "Radarr-1", Url = "http://r1:7878", ApiKey = "key1" },
                 new ArrInstanceConfig { Name = "Radarr-2", Url = "http://r2:7878", ApiKey = "key2" },
-                new ArrInstanceConfig { Name = "Radarr-3", Url = "http://r3:7878", ApiKey = "key3" },
-            },
+                new ArrInstanceConfig { Name = "Radarr-3", Url = "http://r3:7878", ApiKey = "key3" }
+            ]
         };
 
         var result = await _controller.UpdateConfigurationAsync(request, CancellationToken.None);
@@ -157,17 +154,17 @@ public class ConfigurationControllerTests
         // Simulate POST: save 3 Radarr + 2 Sonarr instances
         var request = new ConfigurationUpdateRequest
         {
-            RadarrInstances = new[]
-            {
+            RadarrInstances =
+            [
                 new ArrInstanceConfig { Name = "R1", Url = "http://r1:7878", ApiKey = "rk1" },
                 new ArrInstanceConfig { Name = "R2", Url = "http://r2:7878", ApiKey = "rk2" },
-                new ArrInstanceConfig { Name = "R3", Url = "http://r3:7878", ApiKey = "rk3" },
-            },
-            SonarrInstances = new[]
-            {
+                new ArrInstanceConfig { Name = "R3", Url = "http://r3:7878", ApiKey = "rk3" }
+            ],
+            SonarrInstances =
+            [
                 new ArrInstanceConfig { Name = "S1", Url = "http://s1:8989", ApiKey = "sk1" },
-                new ArrInstanceConfig { Name = "S2", Url = "http://s2:8989", ApiKey = "sk2" },
-            },
+                new ArrInstanceConfig { Name = "S2", Url = "http://s2:8989", ApiKey = "sk2" }
+            ]
         };
 
         await _controller.UpdateConfigurationAsync(request, CancellationToken.None);
@@ -181,7 +178,7 @@ public class ConfigurationControllerTests
         var jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = null,
-            PropertyNameCaseInsensitive = true,
+            PropertyNameCaseInsensitive = true
         };
 
         var json = JsonSerializer.Serialize(config, jsonOptions);
@@ -190,19 +187,21 @@ public class ConfigurationControllerTests
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
-        Assert.True(root.TryGetProperty("RadarrInstances", out var radarrArr), "JSON must contain RadarrInstances (PascalCase)");
+        Assert.True(root.TryGetProperty("RadarrInstances", out var radarrArr),
+            "JSON must contain RadarrInstances (PascalCase)");
         Assert.Equal(3, radarrArr.GetArrayLength());
         Assert.Equal("R2", radarrArr[1].GetProperty("Name").GetString());
         Assert.Equal("http://r3:7878", radarrArr[2].GetProperty("Url").GetString());
 
-        Assert.True(root.TryGetProperty("SonarrInstances", out var sonarrArr), "JSON must contain SonarrInstances (PascalCase)");
+        Assert.True(root.TryGetProperty("SonarrInstances", out var sonarrArr),
+            "JSON must contain SonarrInstances (PascalCase)");
         Assert.Equal(2, sonarrArr.GetArrayLength());
         Assert.Equal("S1", sonarrArr[0].GetProperty("Name").GetString());
 
         // Also verify it deserializes back correctly (simulating JS → server round-trip)
         var restored = JsonSerializer.Deserialize<PluginConfiguration>(json, jsonOptions);
         Assert.NotNull(restored);
-        Assert.Equal(3, restored!.RadarrInstances.Count);
+        Assert.Equal(3, restored.RadarrInstances.Count);
         Assert.Equal(2, restored.SonarrInstances.Count);
     }
 
@@ -219,11 +218,11 @@ public class ConfigurationControllerTests
 
         var request = new ConfigurationUpdateRequest
         {
-            RadarrInstances = new[]
-            {
+            RadarrInstances =
+            [
                 new ArrInstanceConfig { Name = "OK-Radarr", Url = "http://r1:7878", ApiKey = "key1" },
-                new ArrInstanceConfig { Name = "Bad-Radarr", Url = "http://r2:7878", ApiKey = "key2" },
-            },
+                new ArrInstanceConfig { Name = "Bad-Radarr", Url = "http://r2:7878", ApiKey = "key2" }
+            ]
         };
 
         var result = await _controller.UpdateConfigurationAsync(request, CancellationToken.None);
@@ -310,36 +309,36 @@ public class ConfigurationControllerTests
     public void JsonRoundTrip_ConfigurationUpdateRequest_DeserializesMultipleInstances()
     {
         // Simulate the exact JSON the frontend sends (PascalCase)
-        var frontendJson = """
-        {
-            "IncludedLibraries": "",
-            "ExcludedLibraries": "",
-            "OrphanMinAgeDays": 0,
-            "TrickplayTaskMode": "DryRun",
-            "EmptyMediaFolderTaskMode": "DryRun",
-            "OrphanedSubtitleTaskMode": "DryRun",
-            "StrmRepairTaskMode": "DryRun",
-            "UseTrash": false,
-            "TrashFolderPath": ".jellyfin-trash",
-            "TrashRetentionDays": 30,
-            "Language": "en",
-            "RadarrUrl": "http://r1:7878",
-            "RadarrApiKey": "key1",
-            "SonarrUrl": "",
-            "SonarrApiKey": "",
-            "RadarrInstances": [
-                { "Name": "Radarr-1", "Url": "http://r1:7878", "ApiKey": "key1" },
-                { "Name": "Radarr-2", "Url": "http://r2:7878", "ApiKey": "key2" },
-                { "Name": "Radarr-3", "Url": "http://r3:7878", "ApiKey": "key3" }
-            ],
-            "SonarrInstances": []
-        }
-        """;
+        const string frontendJson = """
+                                    {
+                                        "IncludedLibraries": "",
+                                        "ExcludedLibraries": "",
+                                        "OrphanMinAgeDays": 0,
+                                        "TrickplayTaskMode": "DryRun",
+                                        "EmptyMediaFolderTaskMode": "DryRun",
+                                        "OrphanedSubtitleTaskMode": "DryRun",
+                                        "StrmRepairTaskMode": "DryRun",
+                                        "UseTrash": false,
+                                        "TrashFolderPath": ".jellyfin-trash",
+                                        "TrashRetentionDays": 30,
+                                        "Language": "en",
+                                        "RadarrUrl": "http://r1:7878",
+                                        "RadarrApiKey": "key1",
+                                        "SonarrUrl": "",
+                                        "SonarrApiKey": "",
+                                        "RadarrInstances": [
+                                            { "Name": "Radarr-1", "Url": "http://r1:7878", "ApiKey": "key1" },
+                                            { "Name": "Radarr-2", "Url": "http://r2:7878", "ApiKey": "key2" },
+                                            { "Name": "Radarr-3", "Url": "http://r3:7878", "ApiKey": "key3" }
+                                        ],
+                                        "SonarrInstances": []
+                                    }
+                                    """;
 
         var jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = null,
-            PropertyNameCaseInsensitive = true,
+            PropertyNameCaseInsensitive = true
         };
 
         var request = JsonSerializer.Deserialize<ConfigurationUpdateRequest>(frontendJson, jsonOptions);

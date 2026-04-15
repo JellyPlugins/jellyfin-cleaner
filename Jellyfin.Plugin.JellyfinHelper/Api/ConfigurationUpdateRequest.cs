@@ -4,98 +4,78 @@ using Jellyfin.Plugin.JellyfinHelper.Configuration;
 namespace Jellyfin.Plugin.JellyfinHelper.Api;
 
 /// <summary>
-/// Request DTO for updating the plugin configuration via the API.
-/// Uses arrays for Arr instances to avoid CA2227 while supporting JSON deserialization.
+///     Request DTO for updating the plugin configuration via the API.
+///     Uses arrays for Arr instances to avoid CA2227 while supporting JSON deserialization.
 /// </summary>
 public class ConfigurationUpdateRequest
 {
     /// <summary>
-    /// Gets or sets the library names to include (whitelist). Comma-separated.
+    ///     Gets the library names to include (whitelist). Comma-separated.
     /// </summary>
-    public string IncludedLibraries { get; set; } = string.Empty;
+    public string IncludedLibraries { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the library names to exclude (blacklist). Comma-separated.
+    ///     Gets the library names to exclude (blacklist). Comma-separated.
     /// </summary>
-    public string ExcludedLibraries { get; set; } = string.Empty;
+    public string ExcludedLibraries { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the minimum age in days an orphaned item must have before deletion.
+    ///     Gets the minimum age in days an orphaned item must have before deletion.
     /// </summary>
-    public int OrphanMinAgeDays { get; set; }
+    public int OrphanMinAgeDays { get; init; }
 
     /// <summary>
-    /// Gets or sets the execution mode for the Trickplay Folder Cleaner task.
+    ///     Gets the execution mode for the Trickplay Folder Cleaner task.
     /// </summary>
-    public TaskMode TrickplayTaskMode { get; set; } = TaskMode.DryRun;
+    public TaskMode TrickplayTaskMode { get; init; } = TaskMode.DryRun;
 
     /// <summary>
-    /// Gets or sets the execution mode for the Empty Media Folder Cleaner task.
+    ///     Gets the execution mode for the Empty Media Folder Cleaner task.
     /// </summary>
-    public TaskMode EmptyMediaFolderTaskMode { get; set; } = TaskMode.DryRun;
+    public TaskMode EmptyMediaFolderTaskMode { get; init; } = TaskMode.DryRun;
 
     /// <summary>
-    /// Gets or sets the execution mode for the Orphaned Subtitle Cleaner task.
+    ///     Gets the execution mode for the Orphaned Subtitle Cleaner task.
     /// </summary>
-    public TaskMode OrphanedSubtitleTaskMode { get; set; } = TaskMode.DryRun;
+    public TaskMode OrphanedSubtitleTaskMode { get; init; } = TaskMode.DryRun;
 
     /// <summary>
-    /// Gets or sets the execution mode for the .strm File Repair task.
+    ///     Gets the execution mode for the .strm File Repair task.
     /// </summary>
-    public TaskMode StrmRepairTaskMode { get; set; } = TaskMode.DryRun;
+    public TaskMode StrmRepairTaskMode { get; init; } = TaskMode.DryRun;
 
     /// <summary>
-    /// Gets or sets a value indicating whether to use a trash folder instead of permanently deleting files.
+    ///     Gets a value indicating whether to use a trash folder instead of permanently deleting files.
     /// </summary>
-    public bool UseTrash { get; set; }
+    public bool UseTrash { get; init; }
 
     /// <summary>
-    /// Gets or sets the path to the trash folder.
+    ///     Gets the path to the trash folder.
     /// </summary>
-    public string TrashFolderPath { get; set; } = ".jellyfin-trash";
+    public string TrashFolderPath { get; init; } = ".jellyfin-trash";
 
     /// <summary>
-    /// Gets or sets the number of days to keep items in the trash before permanent deletion.
+    ///     Gets the number of days to keep items in the trash before permanent deletion.
     /// </summary>
-    public int TrashRetentionDays { get; set; } = 30;
+    public int TrashRetentionDays { get; init; } = 30;
 
     /// <summary>
-    /// Gets or sets the legacy Radarr URL (for backwards compatibility).
+    ///     Gets the Radarr instances (max 3).
     /// </summary>
-    public string RadarrUrl { get; set; } = string.Empty;
+    public IReadOnlyList<ArrInstanceConfig> RadarrInstances { get; init; } = [];
 
     /// <summary>
-    /// Gets or sets the legacy Radarr API key (for backwards compatibility).
+    ///     Gets the Sonarr instances (max 3).
     /// </summary>
-    public string RadarrApiKey { get; set; } = string.Empty;
+    public IReadOnlyList<ArrInstanceConfig> SonarrInstances { get; init; } = [];
 
     /// <summary>
-    /// Gets or sets the legacy Sonarr URL (for backwards compatibility).
+    ///     Gets the UI language code.
     /// </summary>
-    public string SonarrUrl { get; set; } = string.Empty;
+    public string Language { get; init; } = "en";
 
     /// <summary>
-    /// Gets or sets the legacy Sonarr API key (for backwards compatibility).
+    ///     Gets the plugin log level (e.g. DEBUG, INFO, WARN, ERROR).
     /// </summary>
-    public string SonarrApiKey { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets the Radarr instances (max 3).
-    /// </summary>
-    public IReadOnlyList<ArrInstanceConfig> RadarrInstances { get; set; } = [];
-
-    /// <summary>
-    /// Gets or sets the Sonarr instances (max 3).
-    /// </summary>
-    public IReadOnlyList<ArrInstanceConfig> SonarrInstances { get; set; } = [];
-
-    /// <summary>
-    /// Gets or sets the UI language code.
-    /// </summary>
-    public string Language { get; set; } = "en";
-
-    /// <summary>
-    /// Gets or sets the plugin log level (e.g. DEBUG, INFO, WARN, ERROR).
-    /// </summary>
-    public string PluginLogLevel { get; set; } = "INFO";
+    public string PluginLogLevel { get; init; } = "INFO";
 }

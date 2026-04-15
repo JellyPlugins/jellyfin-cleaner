@@ -10,19 +10,19 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 
 /// <summary>
-/// Scheduled task that scans for broken .strm files and repairs them
-/// by searching the parent directory for a renamed media file.
+///     Scheduled task that scans for broken .strm files and repairs them
+///     by searching the parent directory for a renamed media file.
 /// </summary>
 public class RepairStrmFilesTask
 {
-    private readonly ILogger<RepairStrmFilesTask> _logger;
+    private readonly ICleanupConfigHelper _configHelper;
     private readonly ILibraryManager _libraryManager;
+    private readonly ILogger<RepairStrmFilesTask> _logger;
     private readonly IPluginLogService _pluginLog;
     private readonly IStrmRepairService _strmRepairService;
-    private readonly ICleanupConfigHelper _configHelper;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="RepairStrmFilesTask"/> class.
+    ///     Initializes a new instance of the <see cref="RepairStrmFilesTask" /> class.
     /// </summary>
     /// <param name="logger">The logger instance.</param>
     /// <param name="libraryManager">The library manager.</param>
@@ -44,7 +44,7 @@ public class RepairStrmFilesTask
     }
 
     /// <summary>
-    /// Executes the .strm file repair task.
+    ///     Executes the .strm file repair task.
     /// </summary>
     /// <param name="progress">Progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -65,7 +65,10 @@ public class RepairStrmFilesTask
             return Task.CompletedTask;
         }
 
-        _pluginLog.LogInfo("StrmRepair", $"Running .strm repair (DryRun: {dryRun}) on {libraryPaths.Count} library paths: {string.Join(", ", libraryPaths)}", _logger);
+        _pluginLog.LogInfo(
+            "StrmRepair",
+            $"Running .strm repair (DryRun: {dryRun}) on {libraryPaths.Count} library paths: {string.Join(", ", libraryPaths)}",
+            _logger);
 
         progress.Report(10);
 
@@ -75,7 +78,10 @@ public class RepairStrmFilesTask
 
         progress.Report(90);
 
-        _pluginLog.LogInfo("StrmRepair", $"Task finished. Valid: {result.ValidCount}, Repaired: {result.RepairedCount}, Broken: {result.BrokenCount}, Ambiguous: {result.AmbiguousCount}, Invalid: {result.InvalidContentCount}", _logger);
+        _pluginLog.LogInfo(
+            "StrmRepair",
+            $"Task finished. Valid: {result.ValidCount}, Repaired: {result.RepairedCount}, Broken: {result.BrokenCount}, Ambiguous: {result.AmbiguousCount}, Invalid: {result.InvalidContentCount}",
+            _logger);
 
         progress.Report(100);
         return Task.CompletedTask;

@@ -4,14 +4,14 @@ using Xunit;
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.PluginLog;
 
 /// <summary>
-/// Unit tests for <see cref="PluginLogEntry"/>.
+///     Unit tests for <see cref="PluginLogEntry" />.
 /// </summary>
 public class PluginLogEntryTests
 {
     // ===== Default Values =====
 
     /// <summary>
-    /// Verifies that a default-constructed entry has empty strings for Level, Source, and Message.
+    ///     Verifies that a default-constructed entry has empty strings for Level, Source, and Message.
     /// </summary>
     [Fact]
     public void DefaultEntry_HasEmptyStringsForRequiredFields()
@@ -24,18 +24,18 @@ public class PluginLogEntryTests
     }
 
     /// <summary>
-    /// Verifies that a default-constructed entry has a default DateTime for Timestamp.
+    ///     Verifies that a default-constructed entry has a default DateTime for Timestamp.
     /// </summary>
     [Fact]
     public void DefaultEntry_HasDefaultTimestamp()
     {
         var entry = new PluginLogEntry();
 
-        Assert.Equal(default(DateTime), entry.Timestamp);
+        Assert.Equal(default, entry.Timestamp);
     }
 
     /// <summary>
-    /// Verifies that Exception defaults to null.
+    ///     Verifies that Exception defaults to null.
     /// </summary>
     [Fact]
     public void DefaultEntry_ExceptionIsNull()
@@ -48,7 +48,7 @@ public class PluginLogEntryTests
     // ===== Property Init =====
 
     /// <summary>
-    /// Verifies that Timestamp can be set via init.
+    ///     Verifies that Timestamp can be set via init.
     /// </summary>
     [Fact]
     public void Timestamp_CanBeSetViaInit()
@@ -60,7 +60,7 @@ public class PluginLogEntryTests
     }
 
     /// <summary>
-    /// Verifies that Level can be set via init.
+    ///     Verifies that Level can be set via init.
     /// </summary>
     [Fact]
     public void Level_CanBeSetViaInit()
@@ -71,7 +71,7 @@ public class PluginLogEntryTests
     }
 
     /// <summary>
-    /// Verifies that Source can be set via init.
+    ///     Verifies that Source can be set via init.
     /// </summary>
     [Fact]
     public void Source_CanBeSetViaInit()
@@ -82,7 +82,7 @@ public class PluginLogEntryTests
     }
 
     /// <summary>
-    /// Verifies that Message can be set via init.
+    ///     Verifies that Message can be set via init.
     /// </summary>
     [Fact]
     public void Message_CanBeSetViaInit()
@@ -93,7 +93,7 @@ public class PluginLogEntryTests
     }
 
     /// <summary>
-    /// Verifies that Exception can be set via init with a string value.
+    ///     Verifies that Exception can be set via init with a string value.
     /// </summary>
     [Fact]
     public void Exception_CanBeSetViaInit()
@@ -104,7 +104,7 @@ public class PluginLogEntryTests
     }
 
     /// <summary>
-    /// Verifies that Exception can be explicitly set to null.
+    ///     Verifies that Exception can be explicitly set to null.
     /// </summary>
     [Fact]
     public void Exception_CanBeSetToNull()
@@ -117,7 +117,7 @@ public class PluginLogEntryTests
     // ===== Full Object Init =====
 
     /// <summary>
-    /// Verifies that all properties can be set together via object initializer.
+    ///     Verifies that all properties can be set together via object initializer.
     /// </summary>
     [Fact]
     public void AllProperties_CanBeSetTogether()
@@ -129,7 +129,7 @@ public class PluginLogEntryTests
             Level = "WARN",
             Source = "API",
             Message = "Rate limit exceeded",
-            Exception = "System.Exception: Too many requests",
+            Exception = "System.Exception: Too many requests"
         };
 
         Assert.Equal(timestamp, entry.Timestamp);
@@ -140,7 +140,7 @@ public class PluginLogEntryTests
     }
 
     /// <summary>
-    /// Verifies that all properties can be set together without an exception.
+    ///     Verifies that all properties can be set together without an exception.
     /// </summary>
     [Fact]
     public void AllProperties_WithoutException_HasNullException()
@@ -150,7 +150,7 @@ public class PluginLogEntryTests
             Timestamp = DateTime.UtcNow,
             Level = "INFO",
             Source = "Backup",
-            Message = "Backup exported successfully",
+            Message = "Backup exported successfully"
         };
 
         Assert.Equal("INFO", entry.Level);
@@ -162,7 +162,7 @@ public class PluginLogEntryTests
     // ===== Level Values =====
 
     /// <summary>
-    /// Verifies that all standard log levels can be assigned.
+    ///     Verifies that all standard log levels can be assigned.
     /// </summary>
     [Theory]
     [InlineData("DEBUG")]
@@ -177,7 +177,7 @@ public class PluginLogEntryTests
     }
 
     /// <summary>
-    /// Verifies that arbitrary level strings are accepted (no validation in the model).
+    ///     Verifies that arbitrary level strings are accepted (no validation in the model).
     /// </summary>
     [Fact]
     public void Level_AcceptsArbitraryStrings()
@@ -190,7 +190,7 @@ public class PluginLogEntryTests
     // ===== Edge Cases =====
 
     /// <summary>
-    /// Verifies that empty string values are valid for all string properties.
+    ///     Verifies that empty string values are valid for all string properties.
     /// </summary>
     [Fact]
     public void EmptyStrings_AreValidForAllStringProperties()
@@ -200,7 +200,7 @@ public class PluginLogEntryTests
             Level = string.Empty,
             Source = string.Empty,
             Message = string.Empty,
-            Exception = string.Empty,
+            Exception = string.Empty
         };
 
         Assert.Equal(string.Empty, entry.Level);
@@ -210,7 +210,7 @@ public class PluginLogEntryTests
     }
 
     /// <summary>
-    /// Verifies that very long strings are accepted without issue.
+    ///     Verifies that very long strings are accepted without issue.
     /// </summary>
     [Fact]
     public void LongStrings_AreAccepted()
@@ -223,7 +223,7 @@ public class PluginLogEntryTests
     }
 
     /// <summary>
-    /// Verifies that Unicode characters are preserved in all string properties.
+    ///     Verifies that Unicode characters are preserved in all string properties.
     /// </summary>
     [Fact]
     public void UnicodeCharacters_ArePreserved()
@@ -232,7 +232,7 @@ public class PluginLogEntryTests
         {
             Source = "日本語テスト",
             Message = "Ünîcödé: 你好世界 🎬",
-            Exception = "Ошибка: файл не найден",
+            Exception = "Ошибка: файл не найден"
         };
 
         Assert.Equal("日本語テスト", entry.Source);
@@ -241,7 +241,7 @@ public class PluginLogEntryTests
     }
 
     /// <summary>
-    /// Verifies that Timestamp preserves DateTimeKind.Utc.
+    ///     Verifies that Timestamp preserves DateTimeKind.Utc.
     /// </summary>
     [Fact]
     public void Timestamp_PreservesUtcKind()
@@ -253,7 +253,7 @@ public class PluginLogEntryTests
     }
 
     /// <summary>
-    /// Verifies that Timestamp preserves DateTimeKind.Local.
+    ///     Verifies that Timestamp preserves DateTimeKind.Local.
     /// </summary>
     [Fact]
     public void Timestamp_PreservesLocalKind()
@@ -265,7 +265,7 @@ public class PluginLogEntryTests
     }
 
     /// <summary>
-    /// Verifies that MinValue DateTime is accepted.
+    ///     Verifies that MinValue DateTime is accepted.
     /// </summary>
     [Fact]
     public void Timestamp_AcceptsMinValue()
@@ -276,7 +276,7 @@ public class PluginLogEntryTests
     }
 
     /// <summary>
-    /// Verifies that MaxValue DateTime is accepted.
+    ///     Verifies that MaxValue DateTime is accepted.
     /// </summary>
     [Fact]
     public void Timestamp_AcceptsMaxValue()

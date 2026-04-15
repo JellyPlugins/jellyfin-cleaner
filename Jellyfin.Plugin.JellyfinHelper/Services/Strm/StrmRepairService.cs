@@ -10,16 +10,16 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Strm;
 
 /// <summary>
-/// Service for finding and repairing broken .strm file references.
+///     Service for finding and repairing broken .strm file references.
 /// </summary>
 public class StrmRepairService : IStrmRepairService
 {
     private readonly IFileSystem _fileSystem;
-    private readonly IPluginLogService _pluginLog;
     private readonly ILogger<StrmRepairService> _logger;
+    private readonly IPluginLogService _pluginLog;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="StrmRepairService"/> class.
+    ///     Initializes a new instance of the <see cref="StrmRepairService" /> class.
     /// </summary>
     /// <param name="fileSystem">The file system abstraction.</param>
     /// <param name="pluginLog">The plugin log service.</param>
@@ -32,14 +32,17 @@ public class StrmRepairService : IStrmRepairService
     }
 
     /// <summary>
-    /// Scans the given library paths for .strm files, validates their target paths,
-    /// and repairs broken references by searching the parent directory for a media file.
+    ///     Scans the given library paths for .strm files, validates their target paths,
+    ///     and repairs broken references by searching the parent directory for a media file.
     /// </summary>
     /// <param name="libraryPaths">The library paths to scan for .strm files.</param>
     /// <param name="dryRun">If true, no files will be modified.</param>
     /// <param name="cancellationToken">Cancellation token to stop the operation.</param>
     /// <returns>The result of the repair operation.</returns>
-    public StrmRepairResult RepairStrmFiles(IEnumerable<string> libraryPaths, bool dryRun, CancellationToken cancellationToken = default)
+    public StrmRepairResult RepairStrmFiles(
+        IEnumerable<string> libraryPaths,
+        bool dryRun,
+        CancellationToken cancellationToken = default)
     {
         var result = new StrmRepairResult();
         var strmFiles = FindStrmFiles(libraryPaths);
@@ -53,13 +56,16 @@ public class StrmRepairService : IStrmRepairService
             result.FileResults.Add(fileResult);
         }
 
-        _pluginLog.LogInfo("StrmRepair", $"STRM repair complete: {result.ValidCount} valid, {result.RepairedCount} repaired, {result.BrokenCount} broken, {result.AmbiguousCount} ambiguous, {result.InvalidContentCount} invalid content", _logger);
+        _pluginLog.LogInfo(
+            "StrmRepair",
+            $"STRM repair complete: {result.ValidCount} valid, {result.RepairedCount} repaired, {result.BrokenCount} broken, {result.AmbiguousCount} ambiguous, {result.InvalidContentCount} invalid content",
+            _logger);
 
         return result;
     }
 
     /// <summary>
-    /// Finds all .strm files in the given library paths using recursive search.
+    ///     Finds all .strm files in the given library paths using recursive search.
     /// </summary>
     /// <param name="libraryPaths">The library paths to search.</param>
     /// <returns>A list of .strm file paths.</returns>
@@ -83,24 +89,21 @@ public class StrmRepairService : IStrmRepairService
     }
 
     /// <summary>
-    /// Recursively finds files with the given extension in the specified directory.
+    ///     Recursively finds files with the given extension in the specified directory.
     /// </summary>
     /// <param name="directory">The directory to search.</param>
     /// <param name="extension">The file extension to filter by.</param>
     /// <returns>A list of matching file paths.</returns>
-    internal List<string> FindFilesRecursive(string directory, string extension)
+    private List<string> FindFilesRecursive(string directory, string extension)
     {
         var result = new List<string>();
 
         try
         {
-            foreach (var file in _fileSystem.Directory.GetFiles(directory))
-            {
-                if (file.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
-                {
-                    result.Add(file);
-                }
-            }
+            result.AddRange(
+                _fileSystem.Directory.GetFiles(directory).Where(file => file.EndsWith(
+                    extension,
+                    StringComparison.OrdinalIgnoreCase)));
 
             foreach (var subDir in _fileSystem.Directory.GetDirectories(directory))
             {
@@ -116,8 +119,8 @@ public class StrmRepairService : IStrmRepairService
     }
 
     /// <summary>
-    /// Processes a single .strm file: reads the target path, validates it,
-    /// and attempts repair if broken.
+    ///     Processes a single .strm file: reads the target path, validates it,
+    ///     and attempts repair if broken.
     /// </summary>
     /// <param name="strmFilePath">The path to the .strm file.</param>
     /// <param name="dryRun">If true, no files will be modified.</param>
@@ -171,19 +174,22 @@ public class StrmRepairService : IStrmRepairService
     }
 
     /// <summary>
-    /// Tries to repair a broken .strm file by searching the parent directory
-    /// of the broken target path for a media file.
+    ///     Tries to repair a broken .strm file by searching the parent directory
+    ///     of the broken target path for a media file.
     /// </summary>
     /// <param name="fileResult">The file result with the broken path info.</param>
     /// <param name="dryRun">If true, no files will be modified.</param>
     /// <returns>The updated file result.</returns>
-    internal StrmFileResult TryRepairStrmFile(StrmFileResult fileResult, bool dryRun)
+    private StrmFileResult TryRepairStrmFile(StrmFileResult fileResult, bool dryRun)
     {
         var parentDir = _fileSystem.Path.GetDirectoryName(fileResult.OriginalTargetPath);
 
         if (string.IsNullOrEmpty(parentDir) || !_fileSystem.Directory.Exists(parentDir))
         {
-            _pluginLog.LogWarning("StrmRepair", $"Parent directory does not exist for broken .strm target: {fileResult.OriginalTargetPath} (parent: {parentDir ?? "null"})", logger: _logger);
+            _pluginLog.LogWarning(
+                "StrmRepair",
+                $"Parent directory does not exist for broken .strm target: {fileResult.OriginalTargetPath} (parent: {parentDir ?? "null"})",
+                logger: _logger);
             fileResult.Status = StrmFileStatus.Broken;
             return fileResult;
         }
@@ -193,7 +199,10 @@ public class StrmRepairService : IStrmRepairService
 
         if (mediaFiles.Count == 0)
         {
-            _pluginLog.LogWarning("StrmRepair", $"No media files found in parent directory {parentDir} for broken .strm: {fileResult.StrmFilePath}", logger: _logger);
+            _pluginLog.LogWarning(
+                "StrmRepair",
+                $"No media files found in parent directory {parentDir} for broken .strm: {fileResult.StrmFilePath}",
+                logger: _logger);
             fileResult.Status = StrmFileStatus.Broken;
             return fileResult;
         }
@@ -207,11 +216,17 @@ public class StrmRepairService : IStrmRepairService
 
             if (dryRun)
             {
-                _pluginLog.LogInfo("StrmRepair", $"[DRY RUN] Would repair .strm file: {fileResult.StrmFilePath} | {fileResult.OriginalTargetPath} -> {newTargetPath}", _logger);
+                _pluginLog.LogInfo(
+                    "StrmRepair",
+                    $"[DRY RUN] Would repair .strm file: {fileResult.StrmFilePath} | {fileResult.OriginalTargetPath} -> {newTargetPath}",
+                    _logger);
             }
             else
             {
-                _pluginLog.LogInfo("StrmRepair", $"Repairing .strm file: {fileResult.StrmFilePath} | {fileResult.OriginalTargetPath} -> {newTargetPath}", _logger);
+                _pluginLog.LogInfo(
+                    "StrmRepair",
+                    $"Repairing .strm file: {fileResult.StrmFilePath} | {fileResult.OriginalTargetPath} -> {newTargetPath}",
+                    _logger);
 
                 try
                 {
@@ -219,7 +234,11 @@ public class StrmRepairService : IStrmRepairService
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    _pluginLog.LogError("StrmRepair", $"Failed to write repaired .strm file {fileResult.StrmFilePath}: {ex.Message}", ex, _logger);
+                    _pluginLog.LogError(
+                        "StrmRepair",
+                        $"Failed to write repaired .strm file {fileResult.StrmFilePath}: {ex.Message}",
+                        ex,
+                        _logger);
                     fileResult.Status = StrmFileStatus.Broken;
                     fileResult.NewTargetPath = null;
                     return fileResult;
@@ -230,13 +249,16 @@ public class StrmRepairService : IStrmRepairService
         }
 
         // Multiple media files found - ambiguous
-        _pluginLog.LogWarning("StrmRepair", $"Multiple media files ({mediaFiles.Count}) found in parent directory {parentDir} for broken .strm: {fileResult.StrmFilePath}. Candidates: {string.Join(", ", mediaFiles.Select(f => _fileSystem.Path.GetFileName(f)))}", logger: _logger);
+        _pluginLog.LogWarning(
+            "StrmRepair",
+            $"Multiple media files ({mediaFiles.Count}) found in parent directory {parentDir} for broken .strm: {fileResult.StrmFilePath}. Candidates: {string.Join(", ", mediaFiles.Select(f => _fileSystem.Path.GetFileName(f)))}",
+            logger: _logger);
         fileResult.Status = StrmFileStatus.Ambiguous;
         return fileResult;
     }
 
     /// <summary>
-    /// Finds all media files (video files) in the given directory (non-recursive).
+    ///     Finds all media files (video files) in the given directory (non-recursive).
     /// </summary>
     /// <param name="directory">The directory to search.</param>
     /// <returns>A list of media file paths.</returns>
@@ -246,14 +268,11 @@ public class StrmRepairService : IStrmRepairService
 
         try
         {
-            foreach (var file in _fileSystem.Directory.GetFiles(directory))
-            {
-                var extension = _fileSystem.Path.GetExtension(file);
-                if (MediaExtensions.VideoExtensions.Contains(extension))
-                {
-                    mediaFiles.Add(file);
-                }
-            }
+            mediaFiles.AddRange(
+                from file in _fileSystem.Directory.GetFiles(directory)
+                let extension = _fileSystem.Path.GetExtension(file)
+                where MediaExtensions.VideoExtensions.Contains(extension)
+                select file);
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or DirectoryNotFoundException)
         {

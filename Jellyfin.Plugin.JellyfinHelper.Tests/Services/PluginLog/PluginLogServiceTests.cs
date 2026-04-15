@@ -1,4 +1,5 @@
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
+using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using Microsoft.Extensions.Logging;
@@ -8,9 +9,9 @@ using Xunit;
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.PluginLog;
 
 /// <summary>
-/// Unit tests for <see cref="PluginLogService"/>.
-/// All tests use unique source markers (e.g. "__PLT_TestName__") and filter by source
-/// to avoid interference from parallel test classes that also write to the shared static buffer.
+///     Unit tests for <see cref="PluginLogService" />.
+///     All tests use unique source markers (e.g. "__PLT_TestName__") and filter by source
+///     to avoid interference from parallel test classes that also write to the shared static buffer.
 /// </summary>
 [Collection("ConfigOverride")]
 public class PluginLogServiceTests : IDisposable
@@ -18,8 +19,8 @@ public class PluginLogServiceTests : IDisposable
     private readonly PluginLogService _sut = TestMockFactory.CreatePluginLogService();
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PluginLogServiceTests"/> class.
-    /// Sets minimum level to DEBUG before each test.
+    ///     Initializes a new instance of the <see cref="PluginLogServiceTests" /> class.
+    ///     Sets minimum level to DEBUG before each test.
     /// </summary>
     public PluginLogServiceTests()
     {
@@ -28,7 +29,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Cleans up after each test by clearing the log buffer and resetting the override.
+    ///     Cleans up after each test by clearing the log buffer and resetting the override.
     /// </summary>
     public void Dispose()
     {
@@ -39,7 +40,7 @@ public class PluginLogServiceTests : IDisposable
     // ===== LogDebug =====
 
     /// <summary>
-    /// Verifies that LogDebug adds an entry with level DEBUG and correct fields.
+    ///     Verifies that LogDebug adds an entry with level DEBUG and correct fields.
     /// </summary>
     [Fact]
     public void LogDebug_AddsDebugEntry_WithCorrectFields()
@@ -56,8 +57,8 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogDebug entries are filtered out by AddEntry when MinLevel is INFO.
-    /// This is the critical test: AddEntry should NOT store DEBUG when config level is INFO.
+    ///     Verifies that LogDebug entries are filtered out by AddEntry when MinLevel is INFO.
+    ///     This is the critical test: AddEntry should NOT store DEBUG when config level is INFO.
     /// </summary>
     [Fact]
     public void LogDebug_NotStored_WhenMinLevelIsInfo()
@@ -72,7 +73,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogDebug entries are filtered out by AddEntry when MinLevel is WARN.
+    ///     Verifies that LogDebug entries are filtered out by AddEntry when MinLevel is WARN.
     /// </summary>
     [Fact]
     public void LogDebug_NotStored_WhenMinLevelIsWarn()
@@ -87,7 +88,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogDebug entries are filtered out by AddEntry when MinLevel is ERROR.
+    ///     Verifies that LogDebug entries are filtered out by AddEntry when MinLevel is ERROR.
     /// </summary>
     [Fact]
     public void LogDebug_NotStored_WhenMinLevelIsError()
@@ -102,7 +103,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogDebug IS stored when MinLevel is DEBUG.
+    ///     Verifies that LogDebug IS stored when MinLevel is DEBUG.
     /// </summary>
     [Fact]
     public void LogDebug_Stored_WhenMinLevelIsDebug()
@@ -118,7 +119,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogDebug forwards to ILogger.LogDebug when logger is provided.
+    ///     Verifies that LogDebug forwards to ILogger.LogDebug when logger is provided.
     /// </summary>
     [Fact]
     public void LogDebug_ForwardsToILogger()
@@ -138,19 +139,19 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogDebug with null logger does not throw.
+    ///     Verifies that LogDebug with null logger does not throw.
     /// </summary>
     [Fact]
     public void LogDebug_NullLogger_DoesNotThrow()
     {
-        var ex = Record.Exception(() => _sut.LogDebug("__PLT__", "No crash", null));
+        var ex = Record.Exception(() => _sut.LogDebug("__PLT__", "No crash"));
         Assert.Null(ex);
     }
 
     // ===== LogInfo =====
 
     /// <summary>
-    /// Verifies that LogInfo adds an entry with level INFO and correct fields.
+    ///     Verifies that LogInfo adds an entry with level INFO and correct fields.
     /// </summary>
     [Fact]
     public void LogInfo_AddsInfoEntry_WithCorrectFields()
@@ -167,7 +168,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogInfo entries are filtered out by AddEntry when MinLevel is WARN.
+    ///     Verifies that LogInfo entries are filtered out by AddEntry when MinLevel is WARN.
     /// </summary>
     [Fact]
     public void LogInfo_NotStored_WhenMinLevelIsWarn()
@@ -182,7 +183,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogInfo entries are filtered out by AddEntry when MinLevel is ERROR.
+    ///     Verifies that LogInfo entries are filtered out by AddEntry when MinLevel is ERROR.
     /// </summary>
     [Fact]
     public void LogInfo_NotStored_WhenMinLevelIsError()
@@ -197,7 +198,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogInfo IS stored when MinLevel is INFO.
+    ///     Verifies that LogInfo IS stored when MinLevel is INFO.
     /// </summary>
     [Fact]
     public void LogInfo_Stored_WhenMinLevelIsInfo()
@@ -213,7 +214,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogInfo IS stored when MinLevel is DEBUG.
+    ///     Verifies that LogInfo IS stored when MinLevel is DEBUG.
     /// </summary>
     [Fact]
     public void LogInfo_Stored_WhenMinLevelIsDebug()
@@ -229,7 +230,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogInfo forwards to ILogger.LogInformation when logger is provided.
+    ///     Verifies that LogInfo forwards to ILogger.LogInformation when logger is provided.
     /// </summary>
     [Fact]
     public void LogInfo_ForwardsToILogger()
@@ -249,19 +250,19 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogInfo with null logger does not throw.
+    ///     Verifies that LogInfo with null logger does not throw.
     /// </summary>
     [Fact]
     public void LogInfo_NullLogger_DoesNotThrow()
     {
-        var ex = Record.Exception(() => _sut.LogInfo("__PLT__", "No crash", null));
+        var ex = Record.Exception(() => _sut.LogInfo("__PLT__", "No crash"));
         Assert.Null(ex);
     }
 
     // ===== LogWarning =====
 
     /// <summary>
-    /// Verifies that LogWarning adds an entry with level WARN.
+    ///     Verifies that LogWarning adds an entry with level WARN.
     /// </summary>
     [Fact]
     public void LogWarning_AddsWarnEntry()
@@ -278,7 +279,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogWarning with exception includes exception details.
+    ///     Verifies that LogWarning with exception includes exception details.
     /// </summary>
     [Fact]
     public void LogWarning_WithException_IncludesExceptionString()
@@ -295,7 +296,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogWarning entries are filtered out when MinLevel is ERROR.
+    ///     Verifies that LogWarning entries are filtered out when MinLevel is ERROR.
     /// </summary>
     [Fact]
     public void LogWarning_NotStored_WhenMinLevelIsError()
@@ -310,7 +311,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogWarning IS stored when MinLevel is WARN.
+    ///     Verifies that LogWarning IS stored when MinLevel is WARN.
     /// </summary>
     [Fact]
     public void LogWarning_Stored_WhenMinLevelIsWarn()
@@ -326,7 +327,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogWarning forwards to ILogger.LogWarning (without exception).
+    ///     Verifies that LogWarning forwards to ILogger.LogWarning (without exception).
     /// </summary>
     [Fact]
     public void LogWarning_ForwardsToILogger_WithoutException()
@@ -346,7 +347,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogWarning forwards to ILogger.LogWarning (with exception).
+    ///     Verifies that LogWarning forwards to ILogger.LogWarning (with exception).
     /// </summary>
     [Fact]
     public void LogWarning_ForwardsToILogger_WithException()
@@ -369,7 +370,7 @@ public class PluginLogServiceTests : IDisposable
     // ===== LogError =====
 
     /// <summary>
-    /// Verifies that LogError adds an entry with level ERROR.
+    ///     Verifies that LogError adds an entry with level ERROR.
     /// </summary>
     [Fact]
     public void LogError_AddsEntry()
@@ -386,7 +387,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogError with exception includes exception details.
+    ///     Verifies that LogError with exception includes exception details.
     /// </summary>
     [Fact]
     public void LogError_WithException_IncludesExceptionString()
@@ -402,7 +403,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogError IS stored even when MinLevel is ERROR (equal level).
+    ///     Verifies that LogError IS stored even when MinLevel is ERROR (equal level).
     /// </summary>
     [Fact]
     public void LogError_Stored_WhenMinLevelIsError()
@@ -418,7 +419,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogError forwards to ILogger.LogError (without exception).
+    ///     Verifies that LogError forwards to ILogger.LogError (without exception).
     /// </summary>
     [Fact]
     public void LogError_ForwardsToILogger_WithoutException()
@@ -438,7 +439,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogError forwards to ILogger.LogError (with exception).
+    ///     Verifies that LogError forwards to ILogger.LogError (with exception).
     /// </summary>
     [Fact]
     public void LogError_ForwardsToILogger_WithException()
@@ -459,19 +460,19 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that LogError with null logger does not throw.
+    ///     Verifies that LogError with null logger does not throw.
     /// </summary>
     [Fact]
     public void LogError_NullLogger_DoesNotThrow()
     {
-        var ex = Record.Exception(() => _sut.LogError("__PLT__", "No crash", null, null));
+        var ex = Record.Exception(() => _sut.LogError("__PLT__", "No crash"));
         Assert.Null(ex);
     }
 
     // ===== AddEntry MinLevel Filtering (cross-level matrix) =====
 
     /// <summary>
-    /// Verifies that only ERROR is stored when configured MinLevel is ERROR.
+    ///     Verifies that only ERROR is stored when configured MinLevel is ERROR.
     /// </summary>
     [Fact]
     public void AddEntry_MinLevelError_OnlyStoresErrors()
@@ -490,7 +491,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that WARN and ERROR are stored when configured MinLevel is WARN.
+    ///     Verifies that WARN and ERROR are stored when configured MinLevel is WARN.
     /// </summary>
     [Fact]
     public void AddEntry_MinLevelWarn_StoresWarnAndError()
@@ -512,7 +513,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that INFO, WARN and ERROR are stored when configured MinLevel is INFO.
+    ///     Verifies that INFO, WARN and ERROR are stored when configured MinLevel is INFO.
     /// </summary>
     [Fact]
     public void AddEntry_MinLevelInfo_StoresInfoWarnError()
@@ -534,7 +535,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that all levels are stored when configured MinLevel is DEBUG.
+    ///     Verifies that all levels are stored when configured MinLevel is DEBUG.
     /// </summary>
     [Fact]
     public void AddEntry_MinLevelDebug_StoresAllLevels()
@@ -552,8 +553,8 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that ILogger dual-logging still happens even when AddEntry filters out the entry.
-    /// The ILogger should always receive the message regardless of plugin buffer level.
+    ///     Verifies that ILogger dual-logging still happens even when AddEntry filters out the entry.
+    ///     The ILogger should always receive the message regardless of plugin buffer level.
     /// </summary>
     [Fact]
     public void LogDebug_StillForwardsToILogger_EvenWhenFilteredFromBuffer()
@@ -580,7 +581,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that ILogger dual-logging still happens for INFO even when filtered from buffer.
+    ///     Verifies that ILogger dual-logging still happens for INFO even when filtered from buffer.
     /// </summary>
     [Fact]
     public void LogInfo_StillForwardsToILogger_EvenWhenFilteredFromBuffer()
@@ -607,7 +608,7 @@ public class PluginLogServiceTests : IDisposable
     // ===== GetConfiguredMinLevel =====
 
     /// <summary>
-    /// Verifies that GetConfiguredMinLevel returns the override when set.
+    ///     Verifies that GetConfiguredMinLevel returns the override when set.
     /// </summary>
     [Fact]
     public void GetConfiguredMinLevel_ReturnsOverride_WhenSet()
@@ -617,7 +618,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that GetConfiguredMinLevel returns INFO as default when no plugin and no override.
+    ///     Verifies that GetConfiguredMinLevel returns INFO as default when no plugin and no override.
     /// </summary>
     [Fact]
     public void GetConfiguredMinLevel_ReturnsInfo_WhenNoOverrideAndNoPlugin()
@@ -632,7 +633,7 @@ public class PluginLogServiceTests : IDisposable
     // ===== GetEntries Filtering =====
 
     /// <summary>
-    /// Verifies that entries are returned newest-first.
+    ///     Verifies that entries are returned newest-first.
     /// </summary>
     [Fact]
     public void GetEntries_ReturnsNewestFirst()
@@ -650,32 +651,26 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that the limit parameter caps the number of returned entries.
+    ///     Verifies that the limit parameter caps the number of returned entries.
     /// </summary>
     [Fact]
     public void GetEntries_RespectsLimit()
     {
         const string src = "__PLT_Limit__";
-        for (int i = 0; i < 10; i++)
-        {
-            _sut.LogError(src, $"Message {i}");
-        }
+        for (var i = 0; i < 10; i++) _sut.LogError(src, $"Message {i}");
 
         var entries = _sut.GetEntries(source: src, limit: 3);
         Assert.Equal(3, entries.Count);
     }
 
     /// <summary>
-    /// Verifies that the limit returns the NEWEST entries (not oldest).
+    ///     Verifies that the limit returns the NEWEST entries (not oldest).
     /// </summary>
     [Fact]
     public void GetEntries_LimitReturnsNewestEntries()
     {
         const string src = "__PLT_LimitNew__";
-        for (int i = 0; i < 5; i++)
-        {
-            _sut.LogError(src, $"Message {i}");
-        }
+        for (var i = 0; i < 5; i++) _sut.LogError(src, $"Message {i}");
 
         var entries = _sut.GetEntries(source: src, limit: 2);
         Assert.Equal(2, entries.Count);
@@ -684,7 +679,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that the source filter works (partial, case-insensitive).
+    ///     Verifies that the source filter works (partial, case-insensitive).
     /// </summary>
     [Fact]
     public void GetEntries_FiltersBySource()
@@ -699,7 +694,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that source filter with no match returns empty.
+    ///     Verifies that source filter with no match returns empty.
     /// </summary>
     [Fact]
     public void GetEntries_SourceFilterNoMatch_ReturnsEmpty()
@@ -711,7 +706,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that the minLevel query filter works on GetEntries.
+    ///     Verifies that the minLevel query filter works on GetEntries.
     /// </summary>
     [Fact]
     public void GetEntries_FiltersByMinLevel()
@@ -720,16 +715,16 @@ public class PluginLogServiceTests : IDisposable
         _sut.LogError(src, "Error");
         _sut.LogWarning(src, "Warning");
 
-        var warnAndAbove = _sut.GetEntries(minLevel: "WARN", source: src);
+        var warnAndAbove = _sut.GetEntries("WARN", src);
         Assert.Equal(2, warnAndAbove.Count);
 
-        var errorOnly = _sut.GetEntries(minLevel: "ERROR", source: src);
+        var errorOnly = _sut.GetEntries("ERROR", src);
         Assert.Single(errorOnly);
         Assert.Equal("ERROR", errorOnly[0].Level);
     }
 
     /// <summary>
-    /// Verifies that DEBUG entries are excluded from GetEntries when minLevel query is INFO.
+    ///     Verifies that DEBUG entries are excluded from GetEntries when minLevel query is INFO.
     /// </summary>
     [Fact]
     public void GetEntries_MinLevelInfo_ExcludesDebug()
@@ -740,13 +735,13 @@ public class PluginLogServiceTests : IDisposable
         _sut.LogWarning(src, "Warn msg");
         _sut.LogError(src, "Error msg");
 
-        var entries = _sut.GetEntries(minLevel: "INFO", source: src);
+        var entries = _sut.GetEntries("INFO", src);
         Assert.Equal(3, entries.Count);
         Assert.DoesNotContain(entries, e => e.Level == "DEBUG");
     }
 
     /// <summary>
-    /// Verifies that combined source and minLevel filters work together.
+    ///     Verifies that combined source and minLevel filters work together.
     /// </summary>
     [Fact]
     public void GetEntries_CombinedFilter_SourceAndLevel()
@@ -755,13 +750,13 @@ public class PluginLogServiceTests : IDisposable
         _sut.LogWarning("__PLT_Cfg__", "Config warning");
         _sut.LogError("__PLT_Trsh__", "Trash error");
 
-        var entries = _sut.GetEntries(minLevel: "WARN", source: "__PLT_Cfg__");
+        var entries = _sut.GetEntries("WARN", "__PLT_Cfg__");
         Assert.Single(entries);
         Assert.Equal("Config warning", entries[0].Message);
     }
 
     /// <summary>
-    /// Verifies that null source returns entries without source filtering.
+    ///     Verifies that null source returns entries without source filtering.
     /// </summary>
     [Fact]
     public void GetEntries_NullSource_DoesNotFilterBySource()
@@ -775,7 +770,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that empty string source returns entries without source filtering.
+    ///     Verifies that empty string source returns entries without source filtering.
     /// </summary>
     [Fact]
     public void GetEntries_EmptySource_DoesNotFilterBySource()
@@ -790,7 +785,7 @@ public class PluginLogServiceTests : IDisposable
     // ===== Clear =====
 
     /// <summary>
-    /// Verifies that Clear removes all entries.
+    ///     Verifies that Clear removes all entries.
     /// </summary>
     [Fact]
     public void Clear_RemovesAllEntries()
@@ -808,7 +803,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that Clear on an empty buffer does not throw.
+    ///     Verifies that Clear on an empty buffer does not throw.
     /// </summary>
     [Fact]
     public void Clear_EmptyBuffer_DoesNotThrow()
@@ -820,30 +815,24 @@ public class PluginLogServiceTests : IDisposable
     // ===== Ring Buffer =====
 
     /// <summary>
-    /// Verifies that the ring buffer respects MaxEntries by not exceeding the maximum count.
+    ///     Verifies that the ring buffer respects MaxEntries by not exceeding the maximum count.
     /// </summary>
     [Fact]
     public void RingBuffer_EvictsOldEntries_WhenMaxExceeded()
     {
-        for (int i = 0; i < PluginLogService.MaxEntries + 100; i++)
-        {
-            _sut.LogError("__PLT_Ring__", $"Message {i}");
-        }
+        for (var i = 0; i < PluginLogService.MaxEntries + 100; i++) _sut.LogError("__PLT_Ring__", $"Message {i}");
 
         Assert.True(_sut.GetCount() <= PluginLogService.MaxEntries);
     }
 
     /// <summary>
-    /// Verifies that oldest entries are evicted and newest are preserved.
+    ///     Verifies that oldest entries are evicted and newest are preserved.
     /// </summary>
     [Fact]
     public void RingBuffer_PreservesNewestEntries()
     {
         const string src = "__PLT_RingNew__";
-        for (int i = 0; i < PluginLogService.MaxEntries + 50; i++)
-        {
-            _sut.LogError(src, $"Message {i}");
-        }
+        for (var i = 0; i < PluginLogService.MaxEntries + 50; i++) _sut.LogError(src, $"Message {i}");
 
         var entries = _sut.GetEntries(source: src, limit: 1);
         Assert.Single(entries);
@@ -853,16 +842,13 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that the oldest entry was evicted by the ring buffer.
+    ///     Verifies that the oldest entry was evicted by the ring buffer.
     /// </summary>
     [Fact]
     public void RingBuffer_EvictsOldestEntry()
     {
         const string src = "__PLT_RingOld__";
-        for (int i = 0; i < PluginLogService.MaxEntries + 50; i++)
-        {
-            _sut.LogError(src, $"Message {i}");
-        }
+        for (var i = 0; i < PluginLogService.MaxEntries + 50; i++) _sut.LogError(src, $"Message {i}");
 
         var allEntries = _sut.GetEntries(source: src, limit: PluginLogService.MaxEntries);
         Assert.DoesNotContain(allEntries, e => e.Message == "Message 0");
@@ -872,7 +858,7 @@ public class PluginLogServiceTests : IDisposable
     // ===== Timestamp =====
 
     /// <summary>
-    /// Verifies that the entry timestamp is set to a recent UTC value.
+    ///     Verifies that the entry timestamp is set to a recent UTC value.
     /// </summary>
     [Fact]
     public void LogEntry_HasUtcTimestamp()
@@ -889,7 +875,7 @@ public class PluginLogServiceTests : IDisposable
     // ===== ExportAsText =====
 
     /// <summary>
-    /// Verifies that ExportAsText produces valid output with correct header and content.
+    ///     Verifies that ExportAsText produces valid output with correct header and content.
     /// </summary>
     [Fact]
     public void ExportAsText_ProducesFormattedOutput()
@@ -909,7 +895,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that ExportAsText with minLevel filter excludes lower levels.
+    ///     Verifies that ExportAsText with minLevel filter excludes lower levels.
     /// </summary>
     [Fact]
     public void ExportAsText_WithMinLevel_FiltersEntries()
@@ -924,7 +910,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that ExportAsText on empty buffer produces header with zero entries.
+    ///     Verifies that ExportAsText on empty buffer produces header with zero entries.
     /// </summary>
     [Fact]
     public void ExportAsText_EmptyBuffer_ProducesHeaderOnly()
@@ -936,7 +922,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that ExportAsText includes exception details.
+    ///     Verifies that ExportAsText includes exception details.
     /// </summary>
     [Fact]
     public void ExportAsText_WithException_IncludesExceptionText()
@@ -951,7 +937,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that ExportAsText exports entries oldest-first (chronological).
+    ///     Verifies that ExportAsText exports entries oldest-first (chronological).
     /// </summary>
     [Fact]
     public void ExportAsText_ExportsOldestFirst()
@@ -961,14 +947,14 @@ public class PluginLogServiceTests : IDisposable
         _sut.LogError(src, "SecondMsg");
 
         var text = _sut.ExportAsText();
-        int firstPos = text.IndexOf("FirstMsg", StringComparison.Ordinal);
-        int secondPos = text.IndexOf("SecondMsg", StringComparison.Ordinal);
+        var firstPos = text.IndexOf("FirstMsg", StringComparison.Ordinal);
+        var secondPos = text.IndexOf("SecondMsg", StringComparison.Ordinal);
 
         Assert.True(firstPos < secondPos, "ExportAsText should output entries oldest-first (chronological)");
     }
 
     /// <summary>
-    /// Verifies that ExportAsText contains the "Exported" timestamp line.
+    ///     Verifies that ExportAsText contains the "Exported" timestamp line.
     /// </summary>
     [Fact]
     public void ExportAsText_ContainsExportedTimestamp()
@@ -981,7 +967,7 @@ public class PluginLogServiceTests : IDisposable
     // ===== GetLevelIndex =====
 
     /// <summary>
-    /// Verifies GetLevelIndex for known and unknown levels.
+    ///     Verifies GetLevelIndex for known and unknown levels.
     /// </summary>
     [Theory]
     [InlineData("DEBUG", 0)]
@@ -1007,7 +993,7 @@ public class PluginLogServiceTests : IDisposable
     // ===== Edge Cases =====
 
     /// <summary>
-    /// Verifies that logging with empty source does not throw.
+    ///     Verifies that logging with empty source does not throw.
     /// </summary>
     [Fact]
     public void LogError_EmptySource_DoesNotThrow()
@@ -1017,7 +1003,7 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that logging with empty message does not throw.
+    ///     Verifies that logging with empty message does not throw.
     /// </summary>
     [Fact]
     public void LogError_EmptyMessage_DoesNotThrow()
@@ -1027,23 +1013,20 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that multiple rapid log calls don't lose entries.
+    ///     Verifies that multiple rapid log calls don't lose entries.
     /// </summary>
     [Fact]
     public void MultipleRapidLogCalls_AllEntriesStored()
     {
         const string src = "__PLT_Rapid__";
-        for (int i = 0; i < 100; i++)
-        {
-            _sut.LogError(src, $"Msg {i}");
-        }
+        for (var i = 0; i < 100; i++) _sut.LogError(src, $"Msg {i}");
 
         var entries = _sut.GetEntries(source: src, limit: 500);
         Assert.Equal(100, entries.Count);
     }
 
     /// <summary>
-    /// Verifies that GetEntries returns a read-only collection (snapshot).
+    ///     Verifies that GetEntries returns a read-only collection (snapshot).
     /// </summary>
     [Fact]
     public void GetEntries_ReturnsReadOnlySnapshot()
@@ -1066,11 +1049,11 @@ public class PluginLogServiceTests : IDisposable
     // ===== Dynamic Log Level Change (mid-flight) =====
 
     /// <summary>
-    /// Verifies that changing the log level at runtime takes effect immediately
-    /// without restart. This simulates a user changing PluginLogLevel in Settings
-    /// and saving — the very next log call should respect the new level.
-    /// GetConfiguredMinLevel() reads plugin.Configuration.PluginLogLevel live
-    /// on every AddEntry call (no caching), so changes are instant.
+    ///     Verifies that changing the log level at runtime takes effect immediately
+    ///     without restart. This simulates a user changing PluginLogLevel in Settings
+    ///     and saving — the very next log call should respect the new level.
+    ///     GetConfiguredMinLevel() reads plugin.Configuration.PluginLogLevel live
+    ///     on every AddEntry call (no caching), so changes are instant.
     /// </summary>
     [Fact]
     public void LogLevel_ChangeMidFlight_TakesEffectImmediately()
@@ -1112,8 +1095,8 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that lowering the log level from ERROR to DEBUG immediately
-    /// allows debug entries to be stored.
+    ///     Verifies that lowering the log level from ERROR to DEBUG immediately
+    ///     allows debug entries to be stored.
     /// </summary>
     [Fact]
     public void LogLevel_LowerFromErrorToDebug_DebugNowStored()
@@ -1134,8 +1117,8 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that raising the log level from DEBUG to ERROR immediately
-    /// prevents debug/info/warn from being stored.
+    ///     Verifies that raising the log level from DEBUG to ERROR immediately
+    ///     prevents debug/info/warn from being stored.
     /// </summary>
     [Fact]
     public void LogLevel_RaiseFromDebugToError_LowerLevelsBlocked()
@@ -1161,9 +1144,9 @@ public class PluginLogServiceTests : IDisposable
     // ===== Constructor Guard & DI Integration =====
 
     /// <summary>
-    /// Verifies that the constructor throws <see cref="ArgumentNullException"/>
-    /// when <c>null</c> is passed for <see cref="IPluginConfigurationService"/>.
-    /// This guards against misconfigured DI containers.
+    ///     Verifies that the constructor throws <see cref="ArgumentNullException" />
+    ///     when <c>null</c> is passed for <see cref="IPluginConfigurationService" />.
+    ///     This guards against misconfigured DI containers.
     /// </summary>
     [Fact]
     public void Constructor_NullConfigService_ThrowsArgumentNullException()
@@ -1172,9 +1155,9 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that <see cref="PluginLogService"/> reads the configured log level
-    /// from <see cref="IPluginConfigurationService"/> when no test override is set.
-    /// This ensures the DI wiring is actually used at runtime.
+    ///     Verifies that <see cref="PluginLogService" /> reads the configured log level
+    ///     from <see cref="IPluginConfigurationService" /> when no test override is set.
+    ///     This ensures the DI wiring is actually used at runtime.
     /// </summary>
     [Fact]
     public void GetConfiguredMinLevel_ReadsFromConfigService_WhenNoOverride()
@@ -1187,9 +1170,9 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that <see cref="TestMockFactory.CreatePluginLogService"/> with a custom
-    /// configuration correctly wires the log level through <see cref="IPluginConfigurationService"/>.
-    /// DEBUG entries should be filtered when config says ERROR.
+    ///     Verifies that <see cref="TestMockFactory.CreatePluginLogService" /> with a custom
+    ///     configuration correctly wires the log level through <see cref="IPluginConfigurationService" />.
+    ///     DEBUG entries should be filtered when config says ERROR.
     /// </summary>
     [Fact]
     public void CreatePluginLogService_WithCustomConfig_RespectsLogLevel()
@@ -1210,8 +1193,8 @@ public class PluginLogServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that <see cref="TestMockFactory.CreatePluginLogService"/> with default config
-    /// uses "INFO" as the default log level (matching <see cref="Configuration.PluginConfiguration"/> default).
+    ///     Verifies that <see cref="TestMockFactory.CreatePluginLogService" /> with default config
+    ///     uses "INFO" as the default log level (matching <see cref="PluginConfiguration" /> default).
     /// </summary>
     [Fact]
     public void CreatePluginLogService_DefaultConfig_UsesInfoLevel()

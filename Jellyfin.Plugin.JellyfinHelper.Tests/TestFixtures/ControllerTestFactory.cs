@@ -11,7 +11,6 @@ using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Serialization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -24,33 +23,10 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 public static class ControllerTestFactory
 {
     /// <summary>
-    /// Creates a <see cref="MediaStatisticsController"/> with all dependencies mocked.
-    /// </summary>
-    /// <param name="dataPath">The data path returned by IApplicationPaths.DataPath.</param>
-    /// <param name="cache">Optional memory cache; a new one is created if null.</param>
-    /// <returns>A tuple of the controller and its memory cache (for pre-populating stats).</returns>
-    public static (MediaStatisticsController Controller, IMemoryCache Cache) CreateMediaStatisticsController(
-        string? dataPath = null,
-        IMemoryCache? cache = null)
-    {
-        var appPathsMock = TestMockFactory.CreateAppPaths(dataPath: dataPath ?? Path.GetTempPath());
-        var memoryCache = cache ?? TestMockFactory.CreateMemoryCache();
-        var statisticsServiceMock = TestMockFactory.CreateMediaStatisticsService();
-        var statisticsCacheServiceMock = TestMockFactory.CreateStatisticsCacheService();
-
-        var controller = new MediaStatisticsController(
-            memoryCache,
-            statisticsServiceMock.Object,
-            statisticsCacheServiceMock.Object,
-            TestMockFactory.CreatePluginLogService(),
-            new Mock<ILogger<MediaStatisticsController>>().Object);
-        return (controller, memoryCache);
-    }
-    
-    /// <summary>
     /// Creates a <see cref="BackupController"/> with all dependencies mocked.
     /// </summary>
     /// <param name="dataPath">The data path returned by IApplicationPaths.DataPath.</param>
+    /// <param name="pluginLog">The plugin log service; a new one is created if null.</param>
     /// <returns>The controller.</returns>
     public static BackupController CreateBackupController(string? dataPath = null, IPluginLogService? pluginLog = null)
     {

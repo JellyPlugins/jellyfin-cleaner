@@ -4,36 +4,37 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 
 /// <summary>
-/// In-memory ring buffer for plugin-specific log entries with dual-logging support.
-/// Thread-safe singleton that captures structured log messages from all plugin components.
-/// When an <see cref="ILogger"/> is provided, messages are forwarded to both the plugin's
-/// in-memory buffer AND Jellyfin's standard logging pipeline.
-/// Respects the configured minimum log level from <see cref="Configuration.PluginConfiguration"/>.
+///     In-memory ring buffer for plugin-specific log entries with dual-logging support.
+///     Thread-safe singleton that captures structured log messages from all plugin components.
+///     When an <see cref="ILogger" /> is provided, messages are forwarded to both the plugin's
+///     in-memory buffer AND Jellyfin's standard logging pipeline.
+///     Respects the configured minimum log level from <see cref="Configuration.PluginConfiguration" />.
 /// </summary>
 public class PluginLogService : IPluginLogService
 {
-    private readonly object _lock = new();
-    private readonly LinkedList<PluginLogEntry> _buffer = new();
-    private readonly IPluginConfigurationService _configService;
-
     /// <summary>
-    /// Maximum number of entries stored in the ring buffer.
+    ///     Maximum number of entries stored in the ring buffer.
     /// </summary>
     internal const int MaxEntries = 2000;
 
     /// <summary>
-    /// Ordered log levels for comparison.
+    ///     Ordered log levels for comparison.
     /// </summary>
-    private static readonly string[] LevelOrder = { "DEBUG", "INFO", "WARN", "ERROR" };
+    private static readonly string[] LevelOrder = ["DEBUG", "INFO", "WARN", "ERROR"];
+
+    private readonly LinkedList<PluginLogEntry> _buffer = [];
+    private readonly IPluginConfigurationService _configService;
+    private readonly Lock _lock = new();
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PluginLogService"/> class.
+    ///     Initializes a new instance of the <see cref="PluginLogService" /> class.
     /// </summary>
     /// <param name="configService">The plugin configuration service.</param>
     public PluginLogService(IPluginConfigurationService configService)
@@ -42,13 +43,13 @@ public class PluginLogService : IPluginLogService
     }
 
     /// <summary>
-    /// Gets or sets an optional override for the minimum log level. Used by unit tests.
-    /// When set to a non-null value, this overrides the plugin configuration.
+    ///     Gets or sets an optional override for the minimum log level. Used by unit tests.
+    ///     When set to a non-null value, this overrides the plugin configuration.
     /// </summary>
     internal string? TestMinLevelOverride { get; set; }
 
     /// <summary>
-    /// Logs a debug-level message to the plugin buffer and optionally to Jellyfin's logger.
+    ///     Logs a debug-level message to the plugin buffer and optionally to Jellyfin's logger.
     /// </summary>
     /// <param name="source">The source component.</param>
     /// <param name="message">The log message.</param>
@@ -60,7 +61,7 @@ public class PluginLogService : IPluginLogService
     }
 
     /// <summary>
-    /// Logs an info-level message to the plugin buffer and optionally to Jellyfin's logger.
+    ///     Logs an info-level message to the plugin buffer and optionally to Jellyfin's logger.
     /// </summary>
     /// <param name="source">The source component.</param>
     /// <param name="message">The log message.</param>
@@ -72,7 +73,7 @@ public class PluginLogService : IPluginLogService
     }
 
     /// <summary>
-    /// Logs a warning-level message to the plugin buffer and optionally to Jellyfin's logger.
+    ///     Logs a warning-level message to the plugin buffer and optionally to Jellyfin's logger.
     /// </summary>
     /// <param name="source">The source component.</param>
     /// <param name="message">The log message.</param>
@@ -93,7 +94,7 @@ public class PluginLogService : IPluginLogService
     }
 
     /// <summary>
-    /// Logs an error-level message to the plugin buffer and optionally to Jellyfin's logger.
+    ///     Logs an error-level message to the plugin buffer and optionally to Jellyfin's logger.
     /// </summary>
     /// <param name="source">The source component.</param>
     /// <param name="message">The log message.</param>
@@ -114,14 +115,17 @@ public class PluginLogService : IPluginLogService
     }
 
     /// <summary>
-    /// Gets all log entries, optionally filtered by minimum level and/or source.
-    /// Entries are returned newest-first.
+    ///     Gets all log entries, optionally filtered by minimum level and/or source.
+    ///     Entries are returned newest-first.
     /// </summary>
     /// <param name="minLevel">Optional minimum level filter (DEBUG, INFO, WARN, ERROR).</param>
     /// <param name="source">Optional source filter (partial match).</param>
     /// <param name="limit">Maximum number of entries to return (default 500).</param>
     /// <returns>A read-only collection of matching log entries, newest first.</returns>
-    public ReadOnlyCollection<PluginLogEntry> GetEntries(string? minLevel = null, string? source = null, int limit = 500)
+    public ReadOnlyCollection<PluginLogEntry> GetEntries(
+        string? minLevel = null,
+        string? source = null,
+        int limit = 500)
     {
         lock (_lock)
         {
@@ -129,13 +133,13 @@ public class PluginLogService : IPluginLogService
 
             if (!string.IsNullOrEmpty(minLevel))
             {
-                int minIndex = GetLevelIndex(minLevel);
+                var minIndex = GetLevelIndex(minLevel);
                 query = query.Where(e => GetLevelIndex(e.Level) >= minIndex);
             }
 
             if (!string.IsNullOrEmpty(source))
             {
-                query = query.Where(e => e.Source?.Contains(source, StringComparison.OrdinalIgnoreCase) == true);
+                query = query.Where(e => e.Source.Contains(source, StringComparison.OrdinalIgnoreCase));
             }
 
             return query.Take(limit).ToList().AsReadOnly();
@@ -143,7 +147,7 @@ public class PluginLogService : IPluginLogService
     }
 
     /// <summary>
-    /// Gets the total number of entries currently stored.
+    ///     Gets the total number of entries currently stored.
     /// </summary>
     /// <returns>The entry count.</returns>
     public int GetCount()
@@ -155,7 +159,7 @@ public class PluginLogService : IPluginLogService
     }
 
     /// <summary>
-    /// Clears all log entries.
+    ///     Clears all log entries.
     /// </summary>
     public void Clear()
     {
@@ -166,7 +170,7 @@ public class PluginLogService : IPluginLogService
     }
 
     /// <summary>
-    /// Exports all entries (or filtered entries) as a plain-text log string for download.
+    ///     Exports all entries (or filtered entries) as a plain-text log string for download.
     /// </summary>
     /// <param name="minLevel">Optional minimum level filter.</param>
     /// <param name="source">Optional source filter (partial match).</param>
@@ -176,7 +180,8 @@ public class PluginLogService : IPluginLogService
         var entries = new List<PluginLogEntry>(GetEntries(minLevel, source, MaxEntries));
         var sb = new StringBuilder();
         sb.AppendLine("=== Jellyfin Helper Plugin Logs ===");
-        sb.AppendLine(string.Create(CultureInfo.InvariantCulture, $"Exported: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC"));
+        sb.AppendLine(
+            string.Create(CultureInfo.InvariantCulture, $"Exported: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC"));
         sb.AppendLine(string.Create(CultureInfo.InvariantCulture, $"Entries: {entries.Count}"));
         sb.AppendLine(new string('=', 60));
         sb.AppendLine();
@@ -202,8 +207,8 @@ public class PluginLogService : IPluginLogService
     }
 
     /// <summary>
-    /// Gets the configured minimum log level from plugin configuration.
-    /// Returns "INFO" if no configuration is available.
+    ///     Gets the configured minimum log level from plugin configuration.
+    ///     Returns "INFO" if no configuration is available.
     /// </summary>
     /// <returns>The minimum log level string.</returns>
     internal string GetConfiguredMinLevel()
@@ -226,13 +231,13 @@ public class PluginLogService : IPluginLogService
     }
 
     /// <summary>
-    /// Gets the numeric index of a log level for comparison.
+    ///     Gets the numeric index of a log level for comparison.
     /// </summary>
     /// <param name="level">The level string.</param>
     /// <returns>The index (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR).</returns>
     internal static int GetLevelIndex(string level)
     {
-        for (int i = 0; i < LevelOrder.Length; i++)
+        for (var i = 0; i < LevelOrder.Length; i++)
         {
             if (string.Equals(LevelOrder[i], level, StringComparison.OrdinalIgnoreCase))
             {
@@ -246,7 +251,7 @@ public class PluginLogService : IPluginLogService
     private void AddEntry(string level, string source, string message, Exception? exception)
     {
         // Check against configured minimum level
-        string minLevel = GetConfiguredMinLevel();
+        var minLevel = GetConfiguredMinLevel();
         if (GetLevelIndex(level) < GetLevelIndex(minLevel))
         {
             return;
@@ -258,7 +263,7 @@ public class PluginLogService : IPluginLogService
             Level = level,
             Source = source,
             Message = message,
-            Exception = exception?.ToString(),
+            Exception = exception?.ToString()
         };
 
         lock (_lock)

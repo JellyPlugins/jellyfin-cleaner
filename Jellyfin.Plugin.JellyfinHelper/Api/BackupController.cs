@@ -15,8 +15,8 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.Api;
 
 /// <summary>
-/// API controller for plugin data backups.
-/// Handles exporting and importing configuration and historical data.
+///     API controller for plugin data backups.
+///     Handles exporting and importing configuration and historical data.
 /// </summary>
 [ApiController]
 [Authorize(Policy = "RequiresElevation")]
@@ -25,11 +25,11 @@ namespace Jellyfin.Plugin.JellyfinHelper.Api;
 public class BackupController : ControllerBase
 {
     private readonly IBackupService _backupService;
-    private readonly IPluginLogService _pluginLog;
     private readonly ILogger<BackupController> _logger;
+    private readonly IPluginLogService _pluginLog;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="BackupController"/> class.
+    ///     Initializes a new instance of the <see cref="BackupController" /> class.
     /// </summary>
     /// <param name="backupService">The backup service.</param>
     /// <param name="pluginLog">The plugin log service.</param>
@@ -45,9 +45,9 @@ public class BackupController : ControllerBase
     }
 
     /// <summary>
-    /// Exports the plugin configuration and historical data as a backup JSON file.
-    /// Includes configuration preferences, Arr integration settings, growth timeline,
-    /// and statistics history. Cleanup statistics are excluded (they reset on fresh installations).
+    ///     Exports the plugin configuration and historical data as a backup JSON file.
+    ///     Includes configuration preferences, Arr integration settings, growth timeline,
+    ///     and statistics history. Cleanup statistics are excluded (they reset on fresh installations).
     /// </summary>
     /// <returns>A JSON file download containing the backup data.</returns>
     [HttpGet("Export")]
@@ -67,10 +67,12 @@ public class BackupController : ControllerBase
                     $"Backup export rejected: payload size {FormatBackupSize(bytes.LongLength)} exceeds limit {FormatBackupSize(BackupService.MaxBackupSizeBytes)} (timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0}).",
                     logger: _logger);
 
-                return BadRequest(new
-                {
-                    message = $"Backup is too large to export ({FormatBackupSize(bytes.LongLength)}). Maximum size is {BackupService.MaxBackupSizeBytes / (1024 * 1024)} MB. Check the plugin logs for details.",
-                });
+                return BadRequest(
+                    new
+                    {
+                        message =
+                            $"Backup is too large to export ({FormatBackupSize(bytes.LongLength)}). Maximum size is {BackupService.MaxBackupSizeBytes / (1024 * 1024)} MB. Check the plugin logs for details."
+                    });
             case >= BackupService.LargeBackupWarningThresholdBytes:
                 _pluginLog.LogWarning(
                     "API",
@@ -80,14 +82,17 @@ public class BackupController : ControllerBase
         }
 
         var timestamp = backup.CreatedAt.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        _pluginLog.LogInfo("API", $"Backup exported ({FormatBackupSize(bytes.LongLength)}, timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0})", _logger);
+        _pluginLog.LogInfo(
+            "API",
+            $"Backup exported ({FormatBackupSize(bytes.LongLength)}, timelinePoints={backup.GrowthTimeline?.DataPoints.Count ?? 0}, baselineDirs={backup.GrowthBaseline?.Directories.Count ?? 0})",
+            _logger);
         return File(bytes, "application/json", $"jellyfin-helper-backup-{timestamp}.json");
     }
 
     /// <summary>
-    /// Imports a backup JSON payload to restore plugin configuration and historical data.
-    /// Performs comprehensive validation to prevent malicious or corrupt data from being imported.
-    /// Accepts the backup JSON directly in the request body (Content-Type: application/json).
+    ///     Imports a backup JSON payload to restore plugin configuration and historical data.
+    ///     Performs comprehensive validation to prevent malicious or corrupt data from being imported.
+    ///     Accepts the backup JSON directly in the request body (Content-Type: application/json).
     /// </summary>
     /// <returns>A result indicating success with validation details and restore summary.</returns>
     [HttpPost("Import")]
@@ -104,10 +109,21 @@ public class BackupController : ControllerBase
             switch (contentLength)
             {
                 case > BackupService.MaxBackupSizeBytes:
-                    _pluginLog.LogWarning("API", $"Backup import rejected: Content-Length too large ({FormatBackupSize(contentLength)}, max {FormatBackupSize(BackupService.MaxBackupSizeBytes)}).", logger: _logger);
-                    return BadRequest(new { message = $"Backup too large ({FormatBackupSize(contentLength)}). Maximum size is {BackupService.MaxBackupSizeBytes / (1024 * 1024)} MB." });
+                    _pluginLog.LogWarning(
+                        "API",
+                        $"Backup import rejected: Content-Length too large ({FormatBackupSize(contentLength)}, max {FormatBackupSize(BackupService.MaxBackupSizeBytes)}).",
+                        logger: _logger);
+                    return BadRequest(
+                        new
+                        {
+                            message =
+                                $"Backup too large ({FormatBackupSize(contentLength)}). Maximum size is {BackupService.MaxBackupSizeBytes / (1024 * 1024)} MB."
+                        });
                 case >= BackupService.LargeBackupWarningThresholdBytes:
-                    _pluginLog.LogWarning("API", $"Large backup import detected: {FormatBackupSize(contentLength)} of {FormatBackupSize(BackupService.MaxBackupSizeBytes)} limit.", logger: _logger);
+                    _pluginLog.LogWarning(
+                        "API",
+                        $"Large backup import detected: {FormatBackupSize(contentLength)} of {FormatBackupSize(BackupService.MaxBackupSizeBytes)} limit.",
+                        logger: _logger);
                     break;
             }
 
@@ -122,7 +138,8 @@ public class BackupController : ControllerBase
                     long totalBytes = 0;
                     int read;
 
-                    while ((read = await Request.Body.ReadAsync(chunk, HttpContext.RequestAborted).ConfigureAwait(false)) > 0)
+                    while ((read = await Request.Body.ReadAsync(chunk, HttpContext.RequestAborted)
+                               .ConfigureAwait(false)) > 0)
                     {
                         totalBytes += read;
                         if (totalBytes > BackupService.MaxBackupSizeBytes)
@@ -131,14 +148,24 @@ public class BackupController : ControllerBase
                                 "API",
                                 $"Backup import rejected: actual body too large (>{FormatBackupSize(totalBytes)}, max {FormatBackupSize(BackupService.MaxBackupSizeBytes)}).",
                                 logger: _logger);
-                            return BadRequest(new { message = $"Backup too large. Maximum size is {BackupService.MaxBackupSizeBytes / (1024 * 1024)} MB." });
+                            return BadRequest(
+                                new
+                                {
+                                    message =
+                                        $"Backup too large. Maximum size is {BackupService.MaxBackupSizeBytes / (1024 * 1024)} MB."
+                                });
                         }
 
-                        await buffer.WriteAsync(chunk.AsMemory(0, read), HttpContext.RequestAborted).ConfigureAwait(false);
+                        await buffer.WriteAsync(chunk.AsMemory(0, read), HttpContext.RequestAborted)
+                            .ConfigureAwait(false);
                     }
 
                     buffer.Position = 0;
-                    using var reader = new StreamReader(buffer, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: false);
+                    using var reader = new StreamReader(
+                        buffer,
+                        Encoding.UTF8,
+                        true,
+                        leaveOpen: false);
                     json = await reader.ReadToEndAsync(HttpContext.RequestAborted).ConfigureAwait(false);
                 }
                 finally
@@ -164,18 +191,27 @@ public class BackupController : ControllerBase
 
             if (jsonLength >= BackupService.LargeBackupWarningThresholdBytes)
             {
-                _pluginLog.LogWarning("API", $"Large backup body detected: {FormatBackupSize(jsonLength)} of {FormatBackupSize(BackupService.MaxBackupSizeBytes)} limit.", logger: _logger);
+                _pluginLog.LogWarning(
+                    "API",
+                    $"Large backup body detected: {FormatBackupSize(jsonLength)} of {FormatBackupSize(BackupService.MaxBackupSizeBytes)} limit.",
+                    logger: _logger);
             }
 
             // Deserialize
             var backup = BackupService.DeserializeBackup(json);
             if (backup == null)
             {
-                _pluginLog.LogWarning("API", $"Backup import rejected: invalid JSON structure (length={json.Length}).", logger: _logger);
+                _pluginLog.LogWarning(
+                    "API",
+                    $"Backup import rejected: invalid JSON structure (length={json.Length}).",
+                    logger: _logger);
                 return BadRequest(new { message = "Invalid backup file. Could not parse JSON structure." });
             }
 
-            _pluginLog.LogInfo("API", $"Backup deserialized: version={backup.BackupVersion}, pluginVersion={backup.PluginVersion}, created={backup.CreatedAt:O}", _logger);
+            _pluginLog.LogInfo(
+                "API",
+                $"Backup deserialized: version={backup.BackupVersion}, pluginVersion={backup.PluginVersion}, created={backup.CreatedAt:O}",
+                _logger);
 
             var validation = BackupService.Validate(backup);
 
@@ -191,13 +227,18 @@ public class BackupController : ControllerBase
 
             if (!validation.IsValid)
             {
-                _pluginLog.LogWarning("API", $"Backup import rejected: {validation.Errors.Count} validation error(s).", logger: _logger);
-                return BadRequest(new
-                {
-                    message = $"Backup validation failed with {validation.Errors.Count} error(s). Check the plugin logs for details.",
-                    errors = validation.Errors,
-                    warnings = validation.Warnings,
-                });
+                _pluginLog.LogWarning(
+                    "API",
+                    $"Backup import rejected: {validation.Errors.Count} validation error(s).",
+                    logger: _logger);
+                return BadRequest(
+                    new
+                    {
+                        message =
+                            $"Backup validation failed with {validation.Errors.Count} error(s). Check the plugin logs for details.",
+                        errors = validation.Errors,
+                        warnings = validation.Warnings
+                    });
             }
 
             BackupService.Sanitize(backup);
@@ -205,19 +246,23 @@ public class BackupController : ControllerBase
             // Restore
             var summary = _backupService.RestoreBackup(backup);
 
-            _pluginLog.LogInfo("API", $"Backup imported successfully. Config={summary.ConfigurationRestored}, Timeline={summary.TimelineRestored}, Baseline={summary.BaselineRestored}", _logger);
+            _pluginLog.LogInfo(
+                "API",
+                $"Backup imported successfully. Config={summary.ConfigurationRestored}, Timeline={summary.TimelineRestored}, Baseline={summary.BaselineRestored}",
+                _logger);
 
-            return Ok(new
-            {
-                message = "Backup imported successfully.",
-                warnings = validation.Warnings,
-                summary = new
+            return Ok(
+                new
                 {
-                    summary.ConfigurationRestored,
-                    summary.TimelineRestored,
-                    summary.BaselineRestored,
-                },
-            });
+                    message = "Backup imported successfully.",
+                    warnings = validation.Warnings,
+                    summary = new
+                    {
+                        summary.ConfigurationRestored,
+                        summary.TimelineRestored,
+                        summary.BaselineRestored
+                    }
+                });
         }
         catch (Exception ex) when (ex is JsonException or FormatException or InvalidDataException)
         {

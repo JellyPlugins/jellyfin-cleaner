@@ -12,10 +12,9 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 
 public class TrashControllerTests : IDisposable
 {
+    private readonly Mock<ICleanupConfigHelper> _configHelperMock;
     private readonly TrashController _controller;
     private readonly Mock<ILibraryManager> _libraryManagerMock;
-    private readonly Mock<ICleanupConfigHelper> _configHelperMock;
-    private readonly Mock<ITrashService> _trashServiceMock;
     private readonly string _tempPath;
 
     public TrashControllerTests()
@@ -23,7 +22,7 @@ public class TrashControllerTests : IDisposable
         _tempPath = Path.Combine(Path.GetTempPath(), "JellyfinHelperTests_" + Guid.NewGuid());
         Directory.CreateDirectory(_tempPath);
 
-        (_controller, _libraryManagerMock, _configHelperMock, _trashServiceMock) = ControllerTestFactory.CreateTrashController();
+        (_controller, _libraryManagerMock, _configHelperMock, _) = ControllerTestFactory.CreateTrashController();
 
         // Default: return empty config
         _configHelperMock.Setup(c => c.GetConfig()).Returns(new PluginConfiguration());
@@ -31,17 +30,17 @@ public class TrashControllerTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_tempPath))
-        {
-            Directory.Delete(_tempPath, true);
-        }
+        if (Directory.Exists(_tempPath)) Directory.Delete(_tempPath, true);
     }
 
     private void SetupLibraries(params string[] paths)
     {
-        var folders = paths.Select(path => new VirtualFolderInfo { Name = Path.GetFileName(path), Locations = [path], CollectionType = CollectionTypeOptions.movies }).ToList();
+        var folders = paths.Select(path => new VirtualFolderInfo
+                { Name = Path.GetFileName(path), Locations = [path], CollectionType = CollectionTypeOptions.movies })
+            .ToList();
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns(folders);
-        _configHelperMock.Setup(c => c.GetFilteredLibraryLocations(It.IsAny<ILibraryManager>())).Returns(paths.ToList());
+        _configHelperMock.Setup(c => c.GetFilteredLibraryLocations(It.IsAny<ILibraryManager>()))
+            .Returns(paths.ToList());
     }
 
     private void SetupConfig(PluginConfiguration config)
@@ -152,7 +151,8 @@ public class TrashControllerTests : IDisposable
         SetupConfig(new PluginConfiguration { TrashFolderPath = trashPath });
 
         // Need to setup filtered library locations so safety check works
-        _configHelperMock.Setup(c => c.GetFilteredLibraryLocations(It.IsAny<ILibraryManager>())).Returns(new List<string>());
+        _configHelperMock.Setup(c => c.GetFilteredLibraryLocations(It.IsAny<ILibraryManager>()))
+            .Returns(new List<string>());
 
         var result = _controller.DeleteTrashFolders();
 

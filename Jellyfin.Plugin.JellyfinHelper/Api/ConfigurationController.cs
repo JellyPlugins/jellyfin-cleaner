@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.Api;
 
 /// <summary>
-/// API controller for settings.
+///     API controller for settings.
 /// </summary>
 [ApiController]
 [Authorize(Policy = "RequiresElevation")]
@@ -26,13 +26,13 @@ namespace Jellyfin.Plugin.JellyfinHelper.Api;
 public class ConfigurationController : ControllerBase
 {
     private readonly IArrIntegrationService _arrService;
-    private readonly IPluginLogService _pluginLog;
-    private readonly ILogger<ConfigurationController> _logger;
     private readonly ICleanupConfigHelper _configHelper;
     private readonly IPluginConfigurationService _configService;
+    private readonly ILogger<ConfigurationController> _logger;
+    private readonly IPluginLogService _pluginLog;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConfigurationController"/> class.
+    ///     Initializes a new instance of the <see cref="ConfigurationController" /> class.
     /// </summary>
     /// <param name="arrService">The Arr integration service for connection testing.</param>
     /// <param name="pluginLog">The plugin log service.</param>
@@ -54,7 +54,7 @@ public class ConfigurationController : ControllerBase
     }
 
     /// <summary>
-    /// Gets the current plugin configuration.
+    ///     Gets the current plugin configuration.
     /// </summary>
     /// <returns>The plugin configuration.</returns>
     [HttpGet]
@@ -66,8 +66,8 @@ public class ConfigurationController : ControllerBase
     }
 
     /// <summary>
-    /// Updates only the plugin log level without touching any other configuration fields.
-    /// This avoids race conditions when the Logs tab changes the level while Settings may be open.
+    ///     Updates only the plugin log level without touching any other configuration fields.
+    ///     This avoids race conditions when the Logs tab changes the level while Settings may be open.
     /// </summary>
     /// <param name="request">The log level update request containing the new level.</param>
     /// <returns>A status result.</returns>
@@ -84,11 +84,14 @@ public class ConfigurationController : ControllerBase
         var config = _configService.GetConfiguration();
 
         var validLevels = new[] { "DEBUG", "INFO", "WARN", "ERROR" };
-        var level = string.IsNullOrWhiteSpace(request.PluginLogLevel) ? "INFO" : request.PluginLogLevel.Trim().ToUpperInvariant();
+        var level = string.IsNullOrWhiteSpace(request.PluginLogLevel)
+            ? "INFO"
+            : request.PluginLogLevel.Trim().ToUpperInvariant();
 
-        if (System.Array.IndexOf(validLevels, level) < 0)
+        if (Array.IndexOf(validLevels, level) < 0)
         {
-            return BadRequest(new { message = $"Invalid log level '{request.PluginLogLevel}'. Allowed: DEBUG, INFO, WARN, ERROR." });
+            return BadRequest(
+                new { message = $"Invalid log level '{request.PluginLogLevel}'. Allowed: DEBUG, INFO, WARN, ERROR." });
         }
 
         config.PluginLogLevel = level;
@@ -100,9 +103,9 @@ public class ConfigurationController : ControllerBase
     }
 
     /// <summary>
-    /// Updates the plugin configuration. After saving, performs connection tests
-    /// against all configured Arr instances and logs warnings for unreachable ones.
-    /// The configuration is always saved regardless of connection test results.
+    ///     Updates the plugin configuration. After saving, performs connection tests
+    ///     against all configured Arr instances and logs warnings for unreachable ones.
+    ///     The configuration is always saved regardless of connection test results.
     /// </summary>
     /// <param name="request">The configuration update request.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -110,7 +113,9 @@ public class ConfigurationController : ControllerBase
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult> UpdateConfigurationAsync([FromBody] ConfigurationUpdateRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult> UpdateConfigurationAsync(
+        [FromBody] ConfigurationUpdateRequest request,
+        CancellationToken cancellationToken)
     {
         if (!_configService.IsInitialized)
         {
@@ -138,51 +143,50 @@ public class ConfigurationController : ControllerBase
     }
 
     /// <summary>
-    /// Tests all configured Arr instance connections and returns warnings for unreachable ones.
-    /// Results are also logged to the PluginLogs so they appear in the log viewer.
+    ///     Tests all configured Arr instance connections and returns warnings for unreachable ones.
+    ///     Results are also logged to the PluginLogs so they appear in the log viewer.
     /// </summary>
     /// <param name="request">The configuration request containing instances to test.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of warning messages for failed connections (empty if all succeeded).</returns>
-    private async Task<List<string>> TestArrConnectionsAsync(ConfigurationUpdateRequest request, CancellationToken cancellationToken)
+    private async Task<List<string>> TestArrConnectionsAsync(
+        ConfigurationUpdateRequest request,
+        CancellationToken cancellationToken)
     {
         var warnings = new List<string>();
 
-        // Use explicit instance lists if provided, otherwise promote legacy single-instance fields
-        var radarrInstances = request.RadarrInstances
-            ?? (string.IsNullOrWhiteSpace(request.RadarrUrl) ? null
-                : new List<ArrInstanceConfig> { new() { Name = "Radarr", Url = request.RadarrUrl, ApiKey = request.RadarrApiKey ?? string.Empty } });
-
-        await TestArrInstanceGroupAsync(radarrInstances, "Radarr", warnings, cancellationToken).ConfigureAwait(false);
+        await TestArrInstanceGroupAsync(request.RadarrInstances, "Radarr", warnings, cancellationToken)
+            .ConfigureAwait(false);
         if (cancellationToken.IsCancellationRequested)
         {
             return warnings;
         }
 
-        var sonarrInstances = request.SonarrInstances
-            ?? (string.IsNullOrWhiteSpace(request.SonarrUrl) ? null
-                : new List<ArrInstanceConfig> { new() { Name = "Sonarr", Url = request.SonarrUrl, ApiKey = request.SonarrApiKey ?? string.Empty } });
-
-        await TestArrInstanceGroupAsync(sonarrInstances, "Sonarr", warnings, cancellationToken).ConfigureAwait(false);
+        await TestArrInstanceGroupAsync(request.SonarrInstances, "Sonarr", warnings, cancellationToken)
+            .ConfigureAwait(false);
 
         return warnings;
     }
 
     /// <summary>
-    /// Tests a group of Arr instances (Radarr or Sonarr) and appends warnings for unreachable ones.
+    ///     Tests a group of Arr instances (Radarr or Sonarr) and appends warnings for unreachable ones.
     /// </summary>
     /// <param name="instances">The instances to test (may be null).</param>
     /// <param name="typeName">The type label (e.g. "Radarr" or "Sonarr").</param>
     /// <param name="warnings">The warnings list to append to.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    private async Task TestArrInstanceGroupAsync(IReadOnlyList<ArrInstanceConfig>? instances, string typeName, List<string> warnings, CancellationToken cancellationToken)
+    private async Task TestArrInstanceGroupAsync(
+        IReadOnlyList<ArrInstanceConfig>? instances,
+        string typeName,
+        List<string> warnings,
+        CancellationToken cancellationToken)
     {
         if (instances is null)
         {
             return;
         }
 
-        for (int i = 0; i < instances.Count; i++)
+        for (var i = 0; i < instances.Count; i++)
         {
             var instance = instances[i];
             if (string.IsNullOrWhiteSpace(instance.Url) || string.IsNullOrWhiteSpace(instance.ApiKey))
@@ -193,7 +197,9 @@ public class ConfigurationController : ControllerBase
             try
             {
                 var (success, message) = await _arrService.TestConnectionAsync(
-                    instance.Url, instance.ApiKey, cancellationToken).ConfigureAwait(false);
+                    instance.Url,
+                    instance.ApiKey,
+                    cancellationToken).ConfigureAwait(false);
 
                 var label = !string.IsNullOrWhiteSpace(instance.Name) ? instance.Name : $"{typeName} #{i + 1}";
 
@@ -223,16 +229,16 @@ public class ConfigurationController : ControllerBase
     }
 
     /// <summary>
-    /// Maps all user-editable fields from the update request onto the existing plugin configuration.
-    /// Preserves accumulated statistics and internal state that are not part of the request.
+    ///     Maps all user-editable fields from the update request onto the existing plugin configuration.
+    ///     Preserves accumulated statistics and internal state that are not part of the request.
     /// </summary>
     /// <param name="request">The incoming configuration update request.</param>
     /// <param name="config">The existing plugin configuration to update.</param>
     private static void ApplyRequestToConfig(ConfigurationUpdateRequest request, PluginConfiguration config)
     {
         // Normalize nullable strings to prevent downstream NREs from explicit JSON null values
-        config.IncludedLibraries = request.IncludedLibraries ?? string.Empty;
-        config.ExcludedLibraries = request.ExcludedLibraries ?? string.Empty;
+        config.IncludedLibraries = request.IncludedLibraries;
+        config.ExcludedLibraries = request.ExcludedLibraries;
         config.OrphanMinAgeDays = request.OrphanMinAgeDays;
 
         config.TrickplayTaskMode = request.TrickplayTaskMode;
@@ -241,13 +247,10 @@ public class ConfigurationController : ControllerBase
         config.StrmRepairTaskMode = request.StrmRepairTaskMode;
 
         config.UseTrash = request.UseTrash;
-        config.TrashFolderPath = string.IsNullOrWhiteSpace(request.TrashFolderPath) ? ".jellyfin-trash" : request.TrashFolderPath;
+        config.TrashFolderPath = string.IsNullOrWhiteSpace(request.TrashFolderPath)
+            ? ".jellyfin-trash"
+            : request.TrashFolderPath;
         config.TrashRetentionDays = request.TrashRetentionDays;
-
-        config.RadarrUrl = request.RadarrUrl ?? string.Empty;
-        config.RadarrApiKey = request.RadarrApiKey ?? string.Empty;
-        config.SonarrUrl = request.SonarrUrl ?? string.Empty;
-        config.SonarrApiKey = request.SonarrApiKey ?? string.Empty;
 
         config.Language = string.IsNullOrWhiteSpace(request.Language) ? "en" : request.Language;
 
@@ -256,28 +259,22 @@ public class ConfigurationController : ControllerBase
         var normalizedLevel = string.IsNullOrWhiteSpace(request.PluginLogLevel)
             ? "INFO"
             : request.PluginLogLevel.Trim().ToUpperInvariant();
-        config.PluginLogLevel = System.Array.IndexOf(validLevels, normalizedLevel) >= 0
+        config.PluginLogLevel = Array.IndexOf(validLevels, normalizedLevel) >= 0
             ? normalizedLevel
             : "INFO";
 
         // Update Radarr instances (clear + re-add from request)
         config.RadarrInstances.Clear();
-        if (request.RadarrInstances is not null)
+        foreach (var instance in request.RadarrInstances)
         {
-            foreach (var instance in request.RadarrInstances)
-            {
-                config.RadarrInstances.Add(instance);
-            }
+            config.RadarrInstances.Add(instance);
         }
 
         // Update Sonarr instances (clear + re-add from request)
         config.SonarrInstances.Clear();
-        if (request.SonarrInstances is not null)
+        foreach (var instance in request.SonarrInstances)
         {
-            foreach (var instance in request.SonarrInstances)
-            {
-                config.SonarrInstances.Add(instance);
-            }
+            config.SonarrInstances.Add(instance);
         }
     }
 }

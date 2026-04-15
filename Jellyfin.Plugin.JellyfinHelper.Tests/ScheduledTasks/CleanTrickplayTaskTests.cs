@@ -1,6 +1,5 @@
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
-using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
@@ -13,8 +12,8 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.ScheduledTasks;
 
 public class CleanTrickplayTaskTests : CleanupTaskTestBase
 {
-    private readonly Mock<ILibraryManager> _libraryManagerMock;
     private readonly Mock<IFileSystem> _fileSystemMock;
+    private readonly Mock<ILibraryManager> _libraryManagerMock;
     private readonly Mock<ILogger<CleanTrickplayTask>> _loggerMock;
     private readonly CleanTrickplayTask _task;
 
@@ -39,10 +38,14 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
     }
 
     private void VerifyLogContains(string messagePart, LogLevel level)
-        => VerifyLogContains(_loggerMock, messagePart, level);
+    {
+        VerifyLogContains(_loggerMock, messagePart, level);
+    }
 
     private void VerifyLogNeverContains(string messagePart, LogLevel level)
-        => VerifyLogNeverContains(_loggerMock, messagePart, level);
+    {
+        VerifyLogNeverContains(_loggerMock, messagePart, level);
+    }
 
     [Fact]
     public async Task ExecuteInternalAsync_OrphanedFolder_DeletesFolder()
@@ -435,10 +438,10 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
 
         // Cancel immediately after first folder
         var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => _task.ExecuteAsync(new Progress<double>(), cts.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _task.ExecuteAsync(new Progress<double>(), cts.Token));
 
         // Second library folder should never be scanned
         _fileSystemMock.Verify(f => f.GetDirectories(libraryPath2, true), Times.Never);
@@ -491,7 +494,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
         _fileSystemMock.Setup(f => f.GetDirectories(libraryPath2, true)).Returns([]);
 
         var reportedValues = new List<double>();
-        var progress = new SynchronousProgress<double>(v => reportedValues.Add(v));
+        var progress = new SynchronousProgress<double>(reportedValues.Add);
 
         await _task.ExecuteAsync(progress, CancellationToken.None);
 

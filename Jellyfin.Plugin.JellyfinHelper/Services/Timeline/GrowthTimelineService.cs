@@ -15,30 +15,30 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 
 /// <summary>
-/// Computes a cumulative growth timeline based on media file creation dates.
-/// Uses a baseline snapshot from the first scan to enable accurate diff-based
-/// growth tracking on subsequent scans.
-/// Automatically selects the best granularity (daily/weekly/monthly/quarterly/yearly)
-/// depending on the time span between the oldest file and today.
+///     Computes a cumulative growth timeline based on media file creation dates.
+///     Uses a baseline snapshot from the first scan to enable accurate diff-based
+///     growth tracking on subsequent scans.
+///     Automatically selects the best granularity (daily/weekly/monthly/quarterly/yearly)
+///     depending on the time span between the oldest file and today.
 /// </summary>
-public class GrowthTimelineService : IGrowthTimelineService, IDisposable
+public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
 {
     private const string TimelineFileName = "jellyfin-helper-growth-timeline.json";
     private const string BaselineFileName = "jellyfin-helper-growth-baseline.json";
 
     private static readonly JsonSerializerOptions JsonOptions = JsonDefaults.Options;
-
-    private readonly ILibraryManager _libraryManager;
-    private readonly IFileSystem _fileSystem;
-    private readonly IPluginLogService _pluginLog;
-    private readonly string _timelineFilePath;
     private readonly string _baselineFilePath;
-    private readonly ILogger<GrowthTimelineService> _logger;
     private readonly ICleanupConfigHelper _configHelper;
     private readonly SemaphoreSlim _fileLock = new(1, 1);
+    private readonly IFileSystem _fileSystem;
+
+    private readonly ILibraryManager _libraryManager;
+    private readonly ILogger<GrowthTimelineService> _logger;
+    private readonly IPluginLogService _pluginLog;
+    private readonly string _timelineFilePath;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="GrowthTimelineService"/> class.
+    ///     Initializes a new instance of the <see cref="GrowthTimelineService" /> class.
     /// </summary>
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="fileSystem">The file system.</param>
@@ -63,19 +63,26 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
         _baselineFilePath = Path.Combine(applicationPaths.DataPath, BaselineFileName);
     }
 
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
     /// <summary>
-    /// Computes the growth timeline by scanning top-level media directories.
-    /// On the first scan, creates a baseline snapshot and builds a historical timeline
-    /// from directory creation dates. On subsequent scans, uses an append-only snapshot
-    /// approach: all previously persisted data points are treated as immutable history,
-    /// and only the current time-bucket is updated with the actual total size/count.
-    /// This ensures that deleting files whose creation dates lie in the past does NOT
-    /// retroactively alter historical data points — the deletion shows up as a drop
-    /// at the current point in time.
+    ///     Computes the growth timeline by scanning top-level media directories.
+    ///     On the first scan, creates a baseline snapshot and builds a historical timeline
+    ///     from directory creation dates. On subsequent scans, uses an append-only snapshot
+    ///     approach: all previously persisted data points are treated as immutable history,
+    ///     and only the current time-bucket is updated with the actual total size/count.
+    ///     This ensures that deleting files whose creation dates lie in the past does NOT
+    ///     retroactively alter historical data points — the deletion shows up as a drop
+    ///     at the current point in time.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The growth timeline result.</returns>
-    public virtual async Task<GrowthTimelineResult> ComputeTimelineAsync(CancellationToken cancellationToken)
+    public async Task<GrowthTimelineResult> ComputeTimelineAsync(CancellationToken cancellationToken)
     {
         _pluginLog.LogInfo("GrowthTimeline", "Starting growth timeline computation...", _logger);
 
@@ -91,39 +98,43 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
             // Persist a 0-snapshot so that the timeline reflects the empty state
             // instead of showing stale data from a previous scan.
             var existingTimeline = await LoadTimelineAsync(cancellationToken).ConfigureAwait(false);
-            if (existingTimeline != null && existingTimeline.DataPoints.Count > 0)
+            if (existingTimeline is not { DataPoints.Count: > 0 })
             {
-                var earliestExisting = existingTimeline.DataPoints[0].Date;
-                var granularity = DetermineGranularity(earliestExisting, now);
-                var zeroPoints = MergeSnapshotIntoTimeline(
-                    existingTimeline.DataPoints.ToList(), now, 0, 0, granularity);
-
-                // Run through the same finalization path as normal scans
-                zeroPoints = TrimLeadingZeros(zeroPoints);
-                zeroPoints = ConsolidateToGranularity(zeroPoints, granularity);
-                zeroPoints = DeduplicateConsecutivePoints(zeroPoints);
-
-                var zeroResult = new GrowthTimelineResult
+                return new GrowthTimelineResult
                 {
                     ComputedAt = now,
-                    Granularity = granularity,
-                    EarliestFileDate = zeroPoints.Count > 0 ? zeroPoints[0].Date : earliestExisting,
-                    FirstScanTimestamp = existingTimeline.FirstScanTimestamp,
+                    Granularity = "monthly"
                 };
-                foreach (var p in zeroPoints)
-                {
-                    zeroResult.DataPoints.Add(p);
-                }
-
-                await SaveTimelineAsync(zeroResult, cancellationToken).ConfigureAwait(false);
-                return zeroResult;
             }
 
-            return new GrowthTimelineResult
+            var earliestExisting = existingTimeline.DataPoints[0].Date;
+            var granularity = DetermineGranularity(earliestExisting, now);
+            var zeroPoints = MergeSnapshotIntoTimeline(
+                existingTimeline.DataPoints.ToList(),
+                now,
+                0,
+                0,
+                granularity);
+
+            // Run through the same finalization path as normal scans
+            zeroPoints = TrimLeadingZeros(zeroPoints);
+            zeroPoints = ConsolidateToGranularity(zeroPoints, granularity);
+            zeroPoints = DeduplicateConsecutivePoints(zeroPoints);
+
+            var zeroResult = new GrowthTimelineResult
             {
                 ComputedAt = now,
-                Granularity = "monthly",
+                Granularity = granularity,
+                EarliestFileDate = zeroPoints.Count > 0 ? zeroPoints[0].Date : earliestExisting,
+                FirstScanTimestamp = existingTimeline.FirstScanTimestamp
             };
+            foreach (var p in zeroPoints)
+            {
+                zeroResult.DataPoints.Add(p);
+            }
+
+            await SaveTimelineAsync(zeroResult, cancellationToken).ConfigureAwait(false);
+            return zeroResult;
         }
 
         _pluginLog.LogInfo("GrowthTimeline", $"Collected {currentDirs.Count} media directories.", _logger);
@@ -134,12 +145,15 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
 
         // Discard legacy baselines that used grouped keys (contain '|' separator).
         // These are incompatible with the per-directory format and would produce incorrect diffs.
-        if (baseline != null && baseline.Directories.Count > 0)
+        if (baseline is { Directories.Count: > 0 })
         {
             var firstKey = baseline.Directories.Keys.First();
             if (firstKey.Contains('|', StringComparison.Ordinal))
             {
-                _pluginLog.LogInfo("GrowthTimeline", $"Discarding legacy grouped baseline ({baseline.Directories.Count} entries). A new per-directory baseline will be created.", _logger);
+                _pluginLog.LogInfo(
+                    "GrowthTimeline",
+                    $"Discarding legacy grouped baseline ({baseline.Directories.Count} entries). A new per-directory baseline will be created.",
+                    _logger);
                 baseline = null;
             }
         }
@@ -149,7 +163,10 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
         if (baseline == null)
         {
             // === FIRST SCAN: Create baseline and build historical timeline ===
-            _pluginLog.LogInfo("GrowthTimeline", $"First scan: creating baseline with {currentDirs.Count} directory entries.", _logger);
+            _pluginLog.LogInfo(
+                "GrowthTimeline",
+                $"First scan: creating baseline with {currentDirs.Count} directory entries.",
+                _logger);
 
             baseline = new GrowthTimelineBaseline { FirstScanTimestamp = now };
             foreach (var dir in currentDirs)
@@ -158,7 +175,7 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
                 {
                     CreatedUtc = dir.CreatedUtc,
                     Size = dir.Size,
-                    Count = dir.Count,
+                    Count = dir.Count
                 };
             }
 
@@ -169,7 +186,7 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
             {
                 CreatedUtc = d.CreatedUtc,
                 Size = d.Size,
-                CountDelta = d.Count,
+                CountDelta = d.Count
             }).ToList();
 
             timelineEntries.Sort((a, b) => a.CreatedUtc.CompareTo(b.CreatedUtc));
@@ -177,7 +194,10 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
             var earliest = timelineEntries.Count > 0 ? timelineEntries[0].CreatedUtc : now;
             var granularity = DetermineGranularity(earliest, now);
 
-            _pluginLog.LogInfo("GrowthTimeline", $"Building initial timeline: {timelineEntries.Count} entries, earliest: {earliest:yyyy-MM-dd}, granularity: {granularity}", _logger);
+            _pluginLog.LogInfo(
+                "GrowthTimeline",
+                $"Building initial timeline: {timelineEntries.Count} entries, earliest: {earliest:yyyy-MM-dd}, granularity: {granularity}",
+                _logger);
 
             dataPoints = BuildCumulativeTimeline(timelineEntries, earliest, now, granularity);
         }
@@ -195,10 +215,13 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
             var currentTotalSize = currentDirs.Sum(d => d.Size);
             var currentTotalCount = currentDirs.Sum(d => d.Count);
 
-            if (existingTimeline != null && existingTimeline.DataPoints.Count > 0)
+            if (existingTimeline is { DataPoints.Count: > 0 })
             {
                 // Append-only: preserve historical points, update current bucket
-                _pluginLog.LogInfo("GrowthTimeline", $"Append-only scan: {existingTimeline.DataPoints.Count} existing points, current total: {currentTotalSize} bytes, {currentTotalCount} items.", _logger);
+                _pluginLog.LogInfo(
+                    "GrowthTimeline",
+                    $"Append-only scan: {existingTimeline.DataPoints.Count} existing points, current total: {currentTotalSize} bytes, {currentTotalCount} items.",
+                    _logger);
 
                 var earliestExisting = existingTimeline.DataPoints[0].Date;
                 var granularity = DetermineGranularity(earliestExisting, now);
@@ -214,7 +237,10 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
             {
                 // No existing timeline (e.g. first incremental scan after migration or data loss).
                 // Fall back to historical reconstruction using baseline + current state.
-                _pluginLog.LogInfo("GrowthTimeline", $"No existing timeline found. Performing historical reconstruction from baseline.", _logger);
+                _pluginLog.LogInfo(
+                    "GrowthTimeline",
+                    "No existing timeline found. Performing historical reconstruction from baseline.",
+                    _logger);
 
                 var timelineEntries = BuildIncrementalEntries(currentDirs, baseline, now);
                 timelineEntries.Sort((a, b) => a.CreatedUtc.CompareTo(b.CreatedUtc));
@@ -257,7 +283,7 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
             {
                 ComputedAt = now,
                 Granularity = "monthly",
-                FirstScanTimestamp = baseline.FirstScanTimestamp,
+                FirstScanTimestamp = baseline.FirstScanTimestamp
             };
         }
 
@@ -267,7 +293,7 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
             EarliestFileDate = dataPoints[0].Date,
             ComputedAt = now,
             TotalFilesScanned = currentDirs.Count,
-            FirstScanTimestamp = baseline.FirstScanTimestamp,
+            FirstScanTimestamp = baseline.FirstScanTimestamp
         };
 
         foreach (var point in dataPoints)
@@ -279,16 +305,19 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
         cancellationToken.ThrowIfCancellationRequested();
         await SaveTimelineAsync(result, cancellationToken).ConfigureAwait(false);
 
-        _pluginLog.LogInfo("GrowthTimeline", $"Growth timeline computed: {dataPoints.Count} data points ({finalGranularity})", _logger);
+        _pluginLog.LogInfo(
+            "GrowthTimeline",
+            $"Growth timeline computed: {dataPoints.Count} data points ({finalGranularity})",
+            _logger);
         return result;
     }
 
     /// <summary>
-    /// Loads the last computed timeline from disk.
+    ///     Loads the last computed timeline from disk.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The cached timeline or null.</returns>
-    public virtual async Task<GrowthTimelineResult?> LoadTimelineAsync(CancellationToken cancellationToken)
+    public async Task<GrowthTimelineResult?> LoadTimelineAsync(CancellationToken cancellationToken)
     {
         await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -307,7 +336,11 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
-            _pluginLog.LogWarning("GrowthTimeline", $"Could not load cached timeline from {_timelineFilePath}", ex, _logger);
+            _pluginLog.LogWarning(
+                "GrowthTimeline",
+                $"Could not load cached timeline from {_timelineFilePath}",
+                ex,
+                _logger);
             return null;
         }
         finally
@@ -317,7 +350,7 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
     }
 
     /// <summary>
-    /// Determines the best granularity based on the time span between the oldest file and now.
+    ///     Determines the best granularity based on the time span between the oldest file and now.
     /// </summary>
     /// <param name="earliest">The earliest file date.</param>
     /// <param name="now">The current date.</param>
@@ -327,31 +360,18 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
         var span = now - earliest;
         var totalDays = span.TotalDays;
 
-        if (totalDays > 5 * 365)
+        return totalDays switch
         {
-            return "yearly";
-        }
-
-        if (totalDays > 2 * 365)
-        {
-            return "quarterly";
-        }
-
-        if (totalDays > 365)
-        {
-            return "monthly";
-        }
-
-        if (totalDays > 90)
-        {
-            return "weekly";
-        }
-
-        return "daily";
+            > 5 * 365 => "yearly",
+            > 2 * 365 => "quarterly",
+            > 365 => "monthly",
+            > 90 => "weekly",
+            _ => "daily"
+        };
     }
 
     /// <summary>
-    /// Generates bucket start dates from earliest to now based on granularity.
+    ///     Generates bucket start dates from earliest to now based on granularity.
     /// </summary>
     /// <param name="earliest">The earliest date to start from.</param>
     /// <param name="now">The current date (upper bound).</param>
@@ -372,11 +392,11 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
     }
 
     /// <summary>
-    /// Builds incremental timeline entries by comparing the current directory state
-    /// against the baseline. Baseline directories contribute their full size at their
-    /// creation date. New directories (created after firstScanTimestamp) also contribute
-    /// their full size at their creation date. Size changes in baseline directories
-    /// contribute only the positive diff at the scan timestamp.
+    ///     Builds incremental timeline entries by comparing the current directory state
+    ///     against the baseline. Baseline directories contribute their full size at their
+    ///     creation date. New directories (created after firstScanTimestamp) also contribute
+    ///     their full size at their creation date. Size changes in baseline directories
+    ///     contribute only the positive diff at the scan timestamp.
     /// </summary>
     /// <param name="currentDirs">The currently scanned directories.</param>
     /// <param name="baseline">The baseline from the first scan.</param>
@@ -387,20 +407,12 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
         GrowthTimelineBaseline baseline,
         DateTime now)
     {
-        var entries = new List<FileEntry>();
+        var entries = (from kvp in baseline.Directories
+                let count = kvp.Value.Count > 0 ? kvp.Value.Count : 1
+                select new FileEntry { CreatedUtc = kvp.Value.CreatedUtc, Size = kvp.Value.Size, CountDelta = count })
+            .ToList();
 
         // 1. Add all baseline entries at their original creation date with their original size
-        foreach (var kvp in baseline.Directories)
-        {
-            // Use Count from the baseline entry; treat 0 as 1 for backwards compatibility
-            var count = kvp.Value.Count > 0 ? kvp.Value.Count : 1;
-            entries.Add(new FileEntry
-            {
-                CreatedUtc = kvp.Value.CreatedUtc,
-                Size = kvp.Value.Size,
-                CountDelta = count,
-            });
-        }
 
         // 2. Process current directories
         foreach (var dir in currentDirs)
@@ -409,27 +421,22 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
             {
                 // Existing directory: check for size change
                 var sizeDiff = dir.Size - baselineEntry.Size;
-                if (sizeDiff > 0)
+                switch (sizeDiff)
                 {
-                    // Directory grew: add the positive diff at the current scan time
-                    // CountDelta = 0 because this is a size adjustment, not a new directory
-                    entries.Add(new FileEntry
-                    {
-                        CreatedUtc = now,
-                        Size = sizeDiff,
-                        CountDelta = 0,
-                    });
-                }
-                else if (sizeDiff < 0)
-                {
+                    case > 0:
                     // Directory shrank: add a negative entry at the current scan time
                     // CountDelta = 0 because this is a size adjustment, not a removal
-                    entries.Add(new FileEntry
-                    {
-                        CreatedUtc = now,
-                        Size = sizeDiff,
-                        CountDelta = 0,
-                    });
+                    case < 0:
+                        // Directory grew: add the positive diff at the current scan time
+                        // CountDelta = 0 because this is a size adjustment, not a new directory
+                        entries.Add(
+                            new FileEntry
+                            {
+                                CreatedUtc = now,
+                                Size = sizeDiff,
+                                CountDelta = 0
+                            });
+                        break;
                 }
 
                 // No change: no entry needed (baseline already covers it)
@@ -441,52 +448,36 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
                 if (dir.CreatedUtc > baseline.FirstScanTimestamp)
                 {
                     // Created after baseline: add full size at creation date
-                    entries.Add(new FileEntry
+                }
+
+                // Created before baseline but wasn't in the baseline
+                // (e.g. a new library location was added). Treat as baseline-era entry.
+                entries.Add(
+                    new FileEntry
                     {
                         CreatedUtc = dir.CreatedUtc,
                         Size = dir.Size,
-                        CountDelta = count,
+                        CountDelta = count
                     });
-                }
-                else
-                {
-                    // Created before baseline but wasn't in the baseline
-                    // (e.g. a new library location was added). Treat as baseline-era entry.
-                    entries.Add(new FileEntry
-                    {
-                        CreatedUtc = dir.CreatedUtc,
-                        Size = dir.Size,
-                        CountDelta = count,
-                    });
-                }
             }
         }
 
         // 3. Handle deleted directories (in baseline but not in current scan)
         var currentPaths = new HashSet<string>(currentDirs.Select(d => d.Path), StringComparer.OrdinalIgnoreCase);
-        foreach (var kvp in baseline.Directories)
-        {
-            if (!currentPaths.Contains(kvp.Key))
-            {
-                // Group was removed: add a negative entry at scan time to reflect the deletion
-                var removedCount = kvp.Value.Count > 0 ? kvp.Value.Count : 1;
-                entries.Add(new FileEntry
-                {
-                    CreatedUtc = now,
-                    Size = -kvp.Value.Size,
-                    CountDelta = -removedCount,
-                });
-            }
-        }
+        entries.AddRange(
+            from kvp in baseline.Directories
+            where !currentPaths.Contains(kvp.Key)
+            let removedCount = kvp.Value.Count > 0 ? kvp.Value.Count : 1
+            select new FileEntry { CreatedUtc = now, Size = -kvp.Value.Size, CountDelta = -removedCount });
 
         return entries;
     }
 
     /// <summary>
-    /// Updates the baseline with the current directory state for subsequent scans.
-    /// New directories are added to the baseline. Existing entries are updated with
-    /// the current size. Removed directories are kept in the baseline (their deletion
-    /// is tracked via negative diff entries).
+    ///     Updates the baseline with the current directory state for subsequent scans.
+    ///     New directories are added to the baseline. Existing entries are updated with
+    ///     the current size. Removed directories are kept in the baseline (their deletion
+    ///     is tracked via negative diff entries).
     /// </summary>
     /// <param name="baseline">The baseline to update.</param>
     /// <param name="currentDirs">The current directory entries.</param>
@@ -511,7 +502,7 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
                 {
                     CreatedUtc = dir.CreatedUtc,
                     Size = dir.Size,
-                    Count = dir.Count,
+                    Count = dir.Count
                 };
             }
         }
@@ -526,10 +517,10 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
     }
 
     /// <summary>
-    /// Collects top-level media directory entries (path, creation date, total size) from all libraries.
-    /// Each top-level subdirectory in a library (e.g. a movie folder or TV show folder)
-    /// becomes one entry using its directory creation date and the total size of all files within.
-    /// Files directly in a library root are also collected as individual entries.
+    ///     Collects top-level media directory entries (path, creation date, total size) from all libraries.
+    ///     Each top-level subdirectory in a library (e.g. a movie folder or TV show folder)
+    ///     becomes one entry using its directory creation date and the total size of all files within.
+    ///     Files directly in a library root are also collected as individual entries.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     private List<DirectoryEntry> CollectDirectoryEntries(CancellationToken cancellationToken)
@@ -575,13 +566,14 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
                     var totalSize = GetDirectorySize(subDir.FullName, trashFolderName, cancellationToken);
                     if (totalSize > 0)
                     {
-                        entries.Add(new DirectoryEntry
-                        {
-                            Path = subDir.FullName,
-                            CreatedUtc = createdUtc,
-                            Size = totalSize,
-                            Count = 1,
-                        });
+                        entries.Add(
+                            new DirectoryEntry
+                            {
+                                Path = subDir.FullName,
+                                CreatedUtc = createdUtc,
+                                Size = totalSize,
+                                Count = 1
+                            });
                     }
                 }
 
@@ -608,13 +600,14 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
                         continue;
                     }
 
-                    entries.Add(new DirectoryEntry
-                    {
-                        Path = file.FullName,
-                        CreatedUtc = createdUtc,
-                        Size = file.Length,
-                        Count = 1,
-                    });
+                    entries.Add(
+                        new DirectoryEntry
+                        {
+                            Path = file.FullName,
+                            CreatedUtc = createdUtc,
+                            Size = file.Length,
+                            Count = 1
+                        });
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -627,7 +620,7 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
     }
 
     /// <summary>
-    /// Calculates the total size of all files within a directory (recursively).
+    ///     Calculates the total size of all files within a directory (recursively).
     /// </summary>
     private long GetDirectorySize(string directoryPath, string? trashFolderName, CancellationToken cancellationToken)
     {
@@ -662,14 +655,17 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _pluginLog.LogDebug("GrowthTimeline", $"Skipping inaccessible directory: {directoryPath}: {ex.Message}", _logger);
+            _pluginLog.LogDebug(
+                "GrowthTimeline",
+                $"Skipping inaccessible directory: {directoryPath}: {ex.Message}",
+                _logger);
         }
 
         return total;
     }
 
     /// <summary>
-    /// Builds cumulative data points from sorted file entries using the specified granularity.
+    ///     Builds cumulative data points from sorted file entries using the specified granularity.
     /// </summary>
     /// <param name="sortedEntries">The file entries sorted by creation date.</param>
     /// <param name="earliest">The earliest date to start from.</param>
@@ -691,11 +687,11 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
             return points;
         }
 
-        int fileIndex = 0;
+        var fileIndex = 0;
         long cumulativeSize = 0;
-        int cumulativeCount = 0;
+        var cumulativeCount = 0;
 
-        for (int b = 0; b < bucketStarts.Count; b++)
+        for (var b = 0; b < bucketStarts.Count; b++)
         {
             var bucketStart = bucketStarts[b];
             var bucketEnd = b + 1 < bucketStarts.Count ? bucketStarts[b + 1] : now.AddDays(1);
@@ -708,24 +704,25 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
                 fileIndex++;
             }
 
-            points.Add(new GrowthTimelinePoint
-            {
-                Date = bucketStart,
-                CumulativeSize = cumulativeSize,
-                CumulativeFileCount = cumulativeCount,
-            });
+            points.Add(
+                new GrowthTimelinePoint
+                {
+                    Date = bucketStart,
+                    CumulativeSize = cumulativeSize,
+                    CumulativeFileCount = cumulativeCount
+                });
         }
 
         return points;
     }
 
     /// <summary>
-    /// Merges a current snapshot into an existing timeline using append-only semantics.
-    /// All existing data points whose bucket date is strictly before the current bucket
-    /// are preserved as immutable history. The current bucket is replaced (or added)
-    /// with the actual current total size and count. This ensures that deletions of
-    /// files with past creation dates do not retroactively alter historical data points;
-    /// instead, the deletion manifests as a size drop at the current point in time.
+    ///     Merges a current snapshot into an existing timeline using append-only semantics.
+    ///     All existing data points whose bucket date is strictly before the current bucket
+    ///     are preserved as immutable history. The current bucket is replaced (or added)
+    ///     with the actual current total size and count. This ensures that deletions of
+    ///     files with past creation dates do not retroactively alter historical data points;
+    ///     instead, the deletion manifests as a size drop at the current point in time.
     /// </summary>
     /// <param name="existingPoints">The previously persisted data points (chronologically sorted).</param>
     /// <param name="now">The current scan timestamp.</param>
@@ -748,18 +745,19 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
             .ToList();
 
         // Add the current snapshot as the latest data point
-        result.Add(new GrowthTimelinePoint
-        {
-            Date = currentBucketStart,
-            CumulativeSize = currentTotalSize,
-            CumulativeFileCount = currentTotalCount,
-        });
+        result.Add(
+            new GrowthTimelinePoint
+            {
+                Date = currentBucketStart,
+                CumulativeSize = currentTotalSize,
+                CumulativeFileCount = currentTotalCount
+            });
 
         return result;
     }
 
     /// <summary>
-    /// Gets the start of the bucket containing the given date.
+    ///     Gets the start of the bucket containing the given date.
     /// </summary>
     /// <param name="date">The date to find the bucket start for.</param>
     /// <param name="granularity">The granularity (daily, weekly, monthly, quarterly, yearly).</param>
@@ -773,12 +771,12 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
             "monthly" => new DateTime(date.Year, date.Month, 1, 0, 0, 0, DateTimeKind.Utc),
             "quarterly" => new DateTime(date.Year, ((date.Month - 1) / 3 * 3) + 1, 1, 0, 0, 0, DateTimeKind.Utc),
             "yearly" => new DateTime(date.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            _ => new DateTime(date.Year, date.Month, 1, 0, 0, 0, DateTimeKind.Utc),
+            _ => new DateTime(date.Year, date.Month, 1, 0, 0, 0, DateTimeKind.Utc)
         };
     }
 
     /// <summary>
-    /// Advances a bucket start to the next bucket.
+    ///     Advances a bucket start to the next bucket.
     /// </summary>
     private static DateTime AdvanceBucket(DateTime current, string granularity)
     {
@@ -789,25 +787,25 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
             "monthly" => current.AddMonths(1),
             "quarterly" => current.AddMonths(3),
             "yearly" => current.AddYears(1),
-            _ => current.AddMonths(1),
+            _ => current.AddMonths(1)
         };
     }
 
     /// <summary>
-    /// Gets the start of the ISO week (Monday) for a given date.
+    ///     Gets the start of the ISO week (Monday) for a given date.
     /// </summary>
     private static DateTime GetStartOfWeek(DateTime date)
     {
-        int diff = ((int)date.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+        var diff = ((int)date.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
         return new DateTime(date.Year, date.Month, date.Day, 0, 0, 0, DateTimeKind.Utc).AddDays(-diff);
     }
 
     /// <summary>
-    /// Loads the baseline from disk.
+    ///     Loads the baseline from disk.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The baseline or null if not found.</returns>
-    internal async Task<GrowthTimelineBaseline?> LoadBaselineAsync(CancellationToken cancellationToken)
+    private async Task<GrowthTimelineBaseline?> LoadBaselineAsync(CancellationToken cancellationToken)
     {
         await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -836,7 +834,7 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
     }
 
     /// <summary>
-    /// Persists the baseline to disk.
+    ///     Persists the baseline to disk.
     /// </summary>
     /// <param name="baseline">The baseline to save.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
@@ -869,7 +867,7 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
     }
 
     /// <summary>
-    /// Persists the timeline result to disk.
+    ///     Persists the timeline result to disk.
     /// </summary>
     /// <param name="result">The timeline result to save.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
@@ -902,10 +900,10 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
     }
 
     /// <summary>
-    /// Removes leading zero-value data points from the timeline, keeping at most one
-    /// zero point immediately before the first non-zero point as a visual baseline start.
-    /// Only trims from the beginning — zero points in the middle or end of the timeline
-    /// (e.g. after a library deletion) are preserved to show the full history.
+    ///     Removes leading zero-value data points from the timeline, keeping at most one
+    ///     zero point immediately before the first non-zero point as a visual baseline start.
+    ///     Only trims from the beginning — zero points in the middle or end of the timeline
+    ///     (e.g. after a library deletion) are preserved to show the full history.
     /// </summary>
     /// <param name="points">The data points to trim.</param>
     /// <returns>A trimmed list with leading zeros removed.</returns>
@@ -917,39 +915,41 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
         }
 
         // Find the index of the first non-zero data point
-        int firstNonZero = -1;
-        for (int i = 0; i < points.Count; i++)
+        var firstNonZero = -1;
+        for (var i = 0; i < points.Count; i++)
         {
-            if (points[i].CumulativeSize > 0 || points[i].CumulativeFileCount > 0)
+            if (points[i].CumulativeSize <= 0 && points[i].CumulativeFileCount <= 0)
             {
-                firstNonZero = i;
-                break;
+                continue;
+            }
+
+            firstNonZero = i;
+            break;
+        }
+
+        switch (firstNonZero)
+        {
+            // All points are zero — return empty (nothing meaningful to show)
+            case < 0:
+                return [];
+            // No leading zeros — return as-is
+            case 0:
+                return points;
+            default:
+            {
+                // Keep one zero point before the first non-zero as the visual "start from zero" baseline
+                var startIndex = firstNonZero - 1;
+                return points.GetRange(startIndex, points.Count - startIndex);
             }
         }
-
-        // All points are zero — return empty (nothing meaningful to show)
-        if (firstNonZero < 0)
-        {
-            return new List<GrowthTimelinePoint>();
-        }
-
-        // No leading zeros — return as-is
-        if (firstNonZero == 0)
-        {
-            return points;
-        }
-
-        // Keep one zero point before the first non-zero as the visual "start from zero" baseline
-        int startIndex = firstNonZero - 1;
-        return points.GetRange(startIndex, points.Count - startIndex);
     }
 
     /// <summary>
-    /// Consolidates data points from a finer granularity into a coarser one.
-    /// When the time span grows and the granularity upgrades (e.g. daily→weekly),
-    /// multiple finer-grained points that fall into the same coarser bucket are merged
-    /// by keeping the last (most recent) point per bucket. This keeps the persisted
-    /// timeline compact and ensures backup/restore works with consolidated data.
+    ///     Consolidates data points from a finer granularity into a coarser one.
+    ///     When the time span grows and the granularity upgrades (e.g. daily→weekly),
+    ///     multiple finer-grained points that fall into the same coarser bucket are merged
+    ///     by keeping the last (most recent) point per bucket. This keeps the persisted
+    ///     timeline compact and ensures backup/restore works with consolidated data.
     /// </summary>
     /// <param name="points">The data points (sorted chronologically).</param>
     /// <param name="targetGranularity">The target granularity to consolidate into.</param>
@@ -975,7 +975,7 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
             {
                 Date = bucketStart,
                 CumulativeSize = point.CumulativeSize,
-                CumulativeFileCount = point.CumulativeFileCount,
+                CumulativeFileCount = point.CumulativeFileCount
             };
         }
 
@@ -984,10 +984,10 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
     }
 
     /// <summary>
-    /// Removes consecutive data points that have identical CumulativeSize and CumulativeFileCount.
-    /// Only the first point of each "plateau" is kept, plus the last point is always preserved
-    /// so the timeline's time span remains correct. The UI is responsible for interpolating
-    /// the missing intermediate buckets when rendering the chart.
+    ///     Removes consecutive data points that have identical CumulativeSize and CumulativeFileCount.
+    ///     Only the first point of each "plateau" is kept, plus the last point is always preserved
+    ///     so the timeline's time span remains correct. The UI is responsible for interpolating
+    ///     the missing intermediate buckets when rendering the chart.
     /// </summary>
     /// <param name="points">The data points (already sorted chronologically).</param>
     /// <returns>A deduplicated list with redundant consecutive points removed.</returns>
@@ -1000,7 +1000,7 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
 
         var result = new List<GrowthTimelinePoint> { points[0] };
 
-        for (int i = 1; i < points.Count - 1; i++)
+        for (var i = 1; i < points.Count - 1; i++)
         {
             var prev = points[i - 1];
             var curr = points[i];
@@ -1014,23 +1014,16 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
         }
 
         // Always keep the last point to preserve the timeline's end date
-        result.Add(points[points.Count - 1]);
+        result.Add(points[^1]);
 
         return result;
     }
 
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
     /// <summary>
-    /// Releases the managed resources used by the <see cref="GrowthTimelineService"/>.
+    ///     Releases the managed resources used by the <see cref="GrowthTimelineService" />.
     /// </summary>
     /// <param name="disposing">true to release managed resources; false for native resources only.</param>
-    protected virtual void Dispose(bool disposing)
+    private void Dispose(bool disposing)
     {
         if (disposing)
         {
@@ -1039,7 +1032,7 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
     }
 
     /// <summary>
-    /// Internal struct for timeline construction — a size contribution at a point in time.
+    ///     Internal struct for timeline construction — a size contribution at a point in time.
     /// </summary>
     internal struct FileEntry
     {
@@ -1049,8 +1042,8 @@ public class GrowthTimelineService : IGrowthTimelineService, IDisposable
     }
 
     /// <summary>
-    /// Internal struct for collecting directory metadata during scanning.
-    /// Includes the path for baseline comparison.
+    ///     Internal struct for collecting directory metadata during scanning.
+    ///     Includes the path for baseline comparison.
     /// </summary>
     internal struct DirectoryEntry
     {
