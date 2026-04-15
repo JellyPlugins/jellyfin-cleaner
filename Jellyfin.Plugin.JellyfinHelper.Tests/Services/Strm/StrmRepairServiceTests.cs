@@ -13,13 +13,13 @@ public class StrmRepairServiceTests
     public StrmRepairServiceTests()
     {
         _fileSystem = new MockFileSystem();
-        _service = new StrmRepairService(_fileSystem, TestMockFactory.CreateLogger<StrmRepairService>().Object);
+        _service = new StrmRepairService(_fileSystem, TestMockFactory.CreatePluginLogService(),
+            TestMockFactory.CreateLogger<StrmRepairService>().Object);
     }
 
     [Fact]
     public void FindStrmFiles_FindsStrmFilesRecursively()
     {
-        // Arrange
         var seriesDir = _fileSystem.Path.GetFullPath("/series");
         var strmFile1 = _fileSystem.Path.GetFullPath("/series/Show1/Specials/movie.strm");
         var strmFile2 = _fileSystem.Path.GetFullPath("/series/Show2/Specials/special.strm");
@@ -29,10 +29,8 @@ public class StrmRepairServiceTests
         _fileSystem.AddFile(videoFile, new MockFileData("video"));
         _fileSystem.AddFile(strmFile2, new MockFileData("target2"));
 
-        // Act
-        var result = _service.FindStrmFiles(new[] { seriesDir });
+        var result = _service.FindStrmFiles([seriesDir]);
 
-        // Assert
         Assert.Equal(2, result.Count);
         Assert.Contains(strmFile1, result);
         Assert.Contains(strmFile2, result);
@@ -41,27 +39,22 @@ public class StrmRepairServiceTests
     [Fact]
     public void FindStrmFiles_SkipsNonExistentLibraryPaths()
     {
-        // Act
-        var result = _service.FindStrmFiles(new[] { _fileSystem.Path.GetFullPath("/nonexistent") });
+        var result = _service.FindStrmFiles([_fileSystem.Path.GetFullPath("/nonexistent")]);
 
-        // Assert
         Assert.Empty(result);
     }
 
     [Fact]
     public void ProcessStrmFile_ValidTarget_ReturnsValid()
     {
-        // Arrange
         var movieFile = _fileSystem.Path.GetFullPath("/movies/Movie1/movie.mkv");
         _fileSystem.AddFile(movieFile, new MockFileData("video"));
 
         var strmFile = _fileSystem.Path.GetFullPath("/series/Show1/Specials/movie.strm");
         _fileSystem.AddFile(strmFile, new MockFileData(movieFile));
 
-        // Act
         var result = _service.ProcessStrmFile(strmFile, true);
 
-        // Assert
         Assert.Equal(StrmFileStatus.Valid, result.Status);
         Assert.Equal(movieFile, result.OriginalTargetPath);
         Assert.Null(result.NewTargetPath);
@@ -70,42 +63,33 @@ public class StrmRepairServiceTests
     [Fact]
     public void ProcessStrmFile_EmptyFile_ReturnsInvalidContent()
     {
-        // Arrange
         var strmFile = _fileSystem.Path.GetFullPath("/series/Show1/Specials/movie.strm");
         _fileSystem.AddFile(strmFile, new MockFileData(""));
 
-        // Act
         var result = _service.ProcessStrmFile(strmFile, true);
 
-        // Assert
         Assert.Equal(StrmFileStatus.InvalidContent, result.Status);
     }
 
     [Fact]
     public void ProcessStrmFile_WhitespaceOnly_ReturnsInvalidContent()
     {
-        // Arrange
         var strmFile = _fileSystem.Path.GetFullPath("/series/Show1/Specials/movie.strm");
         _fileSystem.AddFile(strmFile, new MockFileData("   \n  "));
 
-        // Act
         var result = _service.ProcessStrmFile(strmFile, true);
 
-        // Assert
         Assert.Equal(StrmFileStatus.InvalidContent, result.Status);
     }
 
     [Fact]
     public void ProcessStrmFile_UrlBasedStrm_ReturnsValid()
     {
-        // Arrange
         var strmFile = _fileSystem.Path.GetFullPath("/series/Show1/Specials/stream.strm");
         _fileSystem.AddFile(strmFile, new MockFileData("https://example.com/video.mp4"));
 
-        // Act
         var result = _service.ProcessStrmFile(strmFile, true);
 
-        // Assert
         Assert.Equal(StrmFileStatus.Valid, result.Status);
     }
 
@@ -114,8 +98,8 @@ public class StrmRepairServiceTests
     {
         // Arrange - the .strm points to old-name.mkv but file was renamed to new-name.mkv
         var movieDir = _fileSystem.Path.GetFullPath("/movies/Movie1");
-        var newFile = _fileSystem.Path.Combine(movieDir, "new-name.mkv");
-        var brokenTarget = _fileSystem.Path.Combine(movieDir, "old-name.mkv");
+        var newFile = _fileSystem.Path.Join(movieDir, "new-name.mkv");
+        var brokenTarget = _fileSystem.Path.Join(movieDir, "old-name.mkv");
 
         _fileSystem.AddDirectory(movieDir);
         _fileSystem.AddFile(newFile, new MockFileData("video"));
@@ -126,7 +110,6 @@ public class StrmRepairServiceTests
         // Act (dry run)
         var result = _service.ProcessStrmFile(strmFile, true);
 
-        // Assert
         Assert.Equal(StrmFileStatus.Repaired, result.Status);
         Assert.Equal(brokenTarget, result.OriginalTargetPath);
         Assert.Equal(newFile, result.NewTargetPath);
@@ -137,10 +120,9 @@ public class StrmRepairServiceTests
     [Fact]
     public void ProcessStrmFile_BrokenTarget_ParentDirExists_SingleMediaFile_RepairsActual()
     {
-        // Arrange
         var movieDir = _fileSystem.Path.GetFullPath("/movies/Movie1");
-        var newFile = _fileSystem.Path.Combine(movieDir, "new-name.mkv");
-        var brokenTarget = _fileSystem.Path.Combine(movieDir, "old-name.mkv");
+        var newFile = _fileSystem.Path.Join(movieDir, "new-name.mkv");
+        var brokenTarget = _fileSystem.Path.Join(movieDir, "old-name.mkv");
 
         _fileSystem.AddDirectory(movieDir);
         _fileSystem.AddFile(newFile, new MockFileData("video"));
@@ -151,7 +133,6 @@ public class StrmRepairServiceTests
         // Act (NOT dry run)
         var result = _service.ProcessStrmFile(strmFile, false);
 
-        // Assert
         Assert.Equal(StrmFileStatus.Repaired, result.Status);
         Assert.Equal(newFile, result.NewTargetPath);
         // The file SHOULD be modified
@@ -163,18 +144,16 @@ public class StrmRepairServiceTests
     {
         // Arrange - parent directory exists but has no media files
         var movieDir = _fileSystem.Path.GetFullPath("/movies/Movie1");
-        var brokenTarget = _fileSystem.Path.Combine(movieDir, "old-name.mkv");
+        var brokenTarget = _fileSystem.Path.Join(movieDir, "old-name.mkv");
 
         _fileSystem.AddDirectory(movieDir);
-        _fileSystem.AddFile(_fileSystem.Path.Combine(movieDir, "readme.txt"), new MockFileData("info"));
+        _fileSystem.AddFile(_fileSystem.Path.Join(movieDir, "readme.txt"), new MockFileData("info"));
 
         var strmFile = _fileSystem.Path.GetFullPath("/series/Show1/Specials/movie.strm");
         _fileSystem.AddFile(strmFile, new MockFileData(brokenTarget));
 
-        // Act
         var result = _service.ProcessStrmFile(strmFile, true);
 
-        // Assert
         Assert.Equal(StrmFileStatus.Broken, result.Status);
     }
 
@@ -183,19 +162,17 @@ public class StrmRepairServiceTests
     {
         // Arrange - parent directory has multiple media files
         var movieDir = _fileSystem.Path.GetFullPath("/movies/Movie1");
-        var brokenTarget = _fileSystem.Path.Combine(movieDir, "old-name.mkv");
+        var brokenTarget = _fileSystem.Path.Join(movieDir, "old-name.mkv");
 
         _fileSystem.AddDirectory(movieDir);
-        _fileSystem.AddFile(_fileSystem.Path.Combine(movieDir, "movie-part1.mkv"), new MockFileData("video"));
-        _fileSystem.AddFile(_fileSystem.Path.Combine(movieDir, "movie-part2.mkv"), new MockFileData("video"));
+        _fileSystem.AddFile(_fileSystem.Path.Join(movieDir, "movie-part1.mkv"), new MockFileData("video"));
+        _fileSystem.AddFile(_fileSystem.Path.Join(movieDir, "movie-part2.mkv"), new MockFileData("video"));
 
         var strmFile = _fileSystem.Path.GetFullPath("/series/Show1/Specials/movie.strm");
         _fileSystem.AddFile(strmFile, new MockFileData(brokenTarget));
 
-        // Act
         var result = _service.ProcessStrmFile(strmFile, true);
 
-        // Assert
         Assert.Equal(StrmFileStatus.Ambiguous, result.Status);
     }
 
@@ -207,27 +184,22 @@ public class StrmRepairServiceTests
         var strmFile = _fileSystem.Path.GetFullPath("/series/Show1/Specials/movie.strm");
         _fileSystem.AddFile(strmFile, new MockFileData(brokenTarget));
 
-        // Act
         var result = _service.ProcessStrmFile(strmFile, true);
 
-        // Assert
         Assert.Equal(StrmFileStatus.Broken, result.Status);
     }
 
     [Fact]
     public void ProcessStrmFile_TrimsWhitespaceFromTargetPath()
     {
-        // Arrange
         var movieFile = _fileSystem.Path.GetFullPath("/movies/Movie1/movie.mkv");
         _fileSystem.AddFile(movieFile, new MockFileData("video"));
 
         var strmFile = _fileSystem.Path.GetFullPath("/series/Show1/Specials/movie.strm");
         _fileSystem.AddFile(strmFile, new MockFileData("  " + movieFile + "  \n"));
 
-        // Act
         var result = _service.ProcessStrmFile(strmFile, true);
 
-        // Assert
         Assert.Equal(StrmFileStatus.Valid, result.Status);
         Assert.Equal(movieFile, result.OriginalTargetPath);
     }
@@ -235,18 +207,15 @@ public class StrmRepairServiceTests
     [Fact]
     public void FindMediaFilesInDirectory_FindsOnlyVideoFiles()
     {
-        // Arrange
         var movieDir = _fileSystem.Path.GetFullPath("/movies/Movie1");
         _fileSystem.AddDirectory(movieDir);
-        _fileSystem.AddFile(_fileSystem.Path.Combine(movieDir, "movie.mkv"), new MockFileData("video"));
-        _fileSystem.AddFile(_fileSystem.Path.Combine(movieDir, "subtitle.srt"), new MockFileData("subtitle"));
-        _fileSystem.AddFile(_fileSystem.Path.Combine(movieDir, "poster.jpg"), new MockFileData("image"));
-        _fileSystem.AddFile(_fileSystem.Path.Combine(movieDir, "info.nfo"), new MockFileData("info"));
+        _fileSystem.AddFile(_fileSystem.Path.Join(movieDir, "movie.mkv"), new MockFileData("video"));
+        _fileSystem.AddFile(_fileSystem.Path.Join(movieDir, "subtitle.srt"), new MockFileData("subtitle"));
+        _fileSystem.AddFile(_fileSystem.Path.Join(movieDir, "poster.jpg"), new MockFileData("image"));
+        _fileSystem.AddFile(_fileSystem.Path.Join(movieDir, "info.nfo"), new MockFileData("info"));
 
-        // Act
         var result = _service.FindMediaFilesInDirectory(movieDir);
 
-        // Assert
         Assert.Single(result);
         Assert.EndsWith(".mkv", result[0]);
     }
@@ -254,27 +223,23 @@ public class StrmRepairServiceTests
     [Fact]
     public void FindMediaFilesInDirectory_FindsMultipleVideoExtensions()
     {
-        // Arrange
         var movieDir = _fileSystem.Path.GetFullPath("/movies/Movie1");
         _fileSystem.AddDirectory(movieDir);
-        _fileSystem.AddFile(_fileSystem.Path.Combine(movieDir, "movie.mkv"), new MockFileData("video"));
-        _fileSystem.AddFile(_fileSystem.Path.Combine(movieDir, "movie.mp4"), new MockFileData("video"));
-        _fileSystem.AddFile(_fileSystem.Path.Combine(movieDir, "movie.avi"), new MockFileData("video"));
+        _fileSystem.AddFile(_fileSystem.Path.Join(movieDir, "movie.mkv"), new MockFileData("video"));
+        _fileSystem.AddFile(_fileSystem.Path.Join(movieDir, "movie.mp4"), new MockFileData("video"));
+        _fileSystem.AddFile(_fileSystem.Path.Join(movieDir, "movie.avi"), new MockFileData("video"));
 
-        // Act
         var result = _service.FindMediaFilesInDirectory(movieDir);
 
-        // Assert
         Assert.Equal(3, result.Count);
     }
 
     [Fact]
     public void RepairStrmFiles_FullWorkflow_DryRun()
     {
-        // Arrange
         var movieDir = _fileSystem.Path.GetFullPath("/movies/Movie1");
-        var movieFile = _fileSystem.Path.Combine(movieDir, "new-name.mkv");
-        var brokenTarget = _fileSystem.Path.Combine(movieDir, "old-name.mkv");
+        var movieFile = _fileSystem.Path.Join(movieDir, "new-name.mkv");
+        var brokenTarget = _fileSystem.Path.Join(movieDir, "old-name.mkv");
         var seriesDir = _fileSystem.Path.GetFullPath("/series");
 
         _fileSystem.AddDirectory(movieDir);
@@ -290,10 +255,8 @@ public class StrmRepairServiceTests
         var strmFile2 = _fileSystem.Path.GetFullPath("/series/Show2/Specials/movie.strm");
         _fileSystem.AddFile(strmFile2, new MockFileData(validMovieFile));
 
-        // Act
-        var result = _service.RepairStrmFiles(new[] { seriesDir }, true);
+        var result = _service.RepairStrmFiles([seriesDir], true);
 
-        // Assert
         Assert.Equal(1, result.ValidCount);
         Assert.Equal(1, result.RepairedCount);
         Assert.Equal(0, result.BrokenCount);
@@ -305,10 +268,9 @@ public class StrmRepairServiceTests
     [Fact]
     public void RepairStrmFiles_FullWorkflow_ActualRepair()
     {
-        // Arrange
         var movieDir = _fileSystem.Path.GetFullPath("/movies/Movie1");
-        var movieFile = _fileSystem.Path.Combine(movieDir, "new-name.mkv");
-        var brokenTarget = _fileSystem.Path.Combine(movieDir, "old-name.mkv");
+        var movieFile = _fileSystem.Path.Join(movieDir, "new-name.mkv");
+        var brokenTarget = _fileSystem.Path.Join(movieDir, "old-name.mkv");
         var seriesDir = _fileSystem.Path.GetFullPath("/series");
 
         _fileSystem.AddDirectory(movieDir);
@@ -317,10 +279,8 @@ public class StrmRepairServiceTests
         var strmFile = _fileSystem.Path.GetFullPath("/series/Show1/Specials/movie.strm");
         _fileSystem.AddFile(strmFile, new MockFileData(brokenTarget));
 
-        // Act
-        var result = _service.RepairStrmFiles(new[] { seriesDir }, false);
+        var result = _service.RepairStrmFiles([seriesDir], false);
 
-        // Assert
         Assert.Equal(0, result.ValidCount);
         Assert.Equal(1, result.RepairedCount);
 
@@ -331,7 +291,6 @@ public class StrmRepairServiceTests
     [Fact]
     public void RepairStrmFiles_MultipleLibraryPaths()
     {
-        // Arrange
         var seriesDir1 = _fileSystem.Path.GetFullPath("/series1");
         var seriesDir2 = _fileSystem.Path.GetFullPath("/series2");
         var movieFile = _fileSystem.Path.GetFullPath("/movies/Movie1/movie.mkv");
@@ -344,10 +303,8 @@ public class StrmRepairServiceTests
         var strmFile2 = _fileSystem.Path.GetFullPath("/series2/Show2/Specials/movie.strm");
         _fileSystem.AddFile(strmFile2, new MockFileData(movieFile));
 
-        // Act
-        var result = _service.RepairStrmFiles(new[] { seriesDir1, seriesDir2 }, true);
+        var result = _service.RepairStrmFiles([seriesDir1, seriesDir2], true);
 
-        // Assert
         Assert.Equal(2, result.ValidCount);
         Assert.Equal(2, result.FileResults.Count);
     }

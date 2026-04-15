@@ -1,5 +1,6 @@
 using Jellyfin.Plugin.JellyfinHelper.Services;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
+using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services;
@@ -7,17 +8,18 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services;
 /// <summary>
 /// Tests for <see cref="PathValidator"/>.
 /// </summary>
-[Collection("PluginLogService")]
+[Collection("ConfigOverride")]
 public class PathValidatorTests : IDisposable
 {
+    private readonly PluginLogService _log = TestMockFactory.CreatePluginLogService();
     /// <summary>
     /// Initializes a new instance of the <see cref="PathValidatorTests"/> class.
     /// Clears the plugin log buffer before each test.
     /// </summary>
     public PathValidatorTests()
     {
-        PluginLogService.TestMinLevelOverride = "DEBUG";
-        PluginLogService.Clear();
+        _log.TestMinLevelOverride = "DEBUG";
+        _log.Clear();
     }
 
     /// <summary>
@@ -25,8 +27,8 @@ public class PathValidatorTests : IDisposable
     /// </summary>
     public void Dispose()
     {
-        PluginLogService.Clear();
-        PluginLogService.TestMinLevelOverride = null;
+        _log.Clear();
+        _log.TestMinLevelOverride = null;
     }
 
     // === IsSafePath ===
@@ -66,7 +68,7 @@ public class PathValidatorTests : IDisposable
     {
         // Use a temp directory to ensure the path resolves correctly on this OS
         var baseDir = Path.GetTempPath();
-        var childPath = Path.Combine(baseDir, "subdir", "file.txt");
+        var childPath = Path.Join(baseDir, "subdir", "file.txt");
 
         Assert.True(PathValidator.IsSafePath(childPath, baseDir));
     }
@@ -74,8 +76,8 @@ public class PathValidatorTests : IDisposable
     [Fact]
     public void IsSafePath_PathOutsideBase_ReturnsFalse()
     {
-        var baseDir = Path.Combine(Path.GetTempPath(), "specific-base");
-        var outsidePath = Path.Combine(Path.GetTempPath(), "other-dir", "file.txt");
+        var baseDir = Path.Join(Path.GetTempPath(), "specific-base");
+        var outsidePath = Path.Join(Path.GetTempPath(), "other-dir", "file.txt");
 
         Assert.False(PathValidator.IsSafePath(outsidePath, baseDir));
     }
@@ -133,27 +135,27 @@ public class PathValidatorTests : IDisposable
     [Fact]
     public void IsSafePath_EmptyPath_LogsDebugEntry()
     {
-        PathValidator.IsSafePath(string.Empty, "/base");
+        PathValidator.IsSafePath(string.Empty, "/base", _log);
 
-        var entries = PluginLogService.GetEntries(minLevel: "DEBUG", source: "PathValidator");
+        var entries = _log.GetEntries(minLevel: "DEBUG", source: "PathValidator");
         Assert.Contains(entries, e => e.Message.Contains("empty", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public void IsSafePath_TraversalPath_LogsWarningEntry()
     {
-        PathValidator.IsSafePath("/base/../etc/passwd", "/base");
+        PathValidator.IsSafePath("/base/../etc/passwd", "/base", _log);
 
-        var entries = PluginLogService.GetEntries(minLevel: "WARN", source: "PathValidator");
+        var entries = _log.GetEntries(minLevel: "WARN", source: "PathValidator");
         Assert.Contains(entries, e => e.Message.Contains("traversal", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public void IsSafePath_NullCharPath_LogsWarningEntry()
     {
-        PathValidator.IsSafePath("/base/file\0.txt", "/base");
+        PathValidator.IsSafePath("/base/file\0.txt", "/base", _log);
 
-        var entries = PluginLogService.GetEntries(minLevel: "WARN", source: "PathValidator");
+        var entries = _log.GetEntries(minLevel: "WARN", source: "PathValidator");
         Assert.Contains(entries, e => e.Message.Contains("traversal", StringComparison.OrdinalIgnoreCase));
     }
 }

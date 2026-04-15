@@ -1,4 +1,5 @@
 using Jellyfin.Plugin.JellyfinHelper.Services;
+using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Controller.Library;
@@ -21,7 +22,8 @@ public class MediaStatisticsServiceTests
         _libraryManagerMock = TestMockFactory.CreateLibraryManager();
         _fileSystemMock = TestMockFactory.CreateFileSystem();
         var loggerMock = TestMockFactory.CreateLogger<MediaStatisticsService>();
-        _service = new MediaStatisticsService(_libraryManagerMock.Object, _fileSystemMock.Object, loggerMock.Object);
+        var configHelperMock = TestMockFactory.CreateCleanupConfigHelper();
+        _service = new MediaStatisticsService(_libraryManagerMock.Object, _fileSystemMock.Object, TestMockFactory.CreatePluginLogService(), loggerMock.Object, configHelperMock.Object);
     }
 
     private static string TestPath(params string[] segments)
@@ -1400,63 +1402,6 @@ public class MediaStatisticsServiceTests
         Assert.Equal(22, result.TotalAudioFileCount);
     }
 
-    // ===== StatisticsSnapshot Tests =====
-
-    [Fact]
-    public void StatisticsSnapshot_FromResult_CapturesCorrectValues()
-    {
-        var result = new MediaStatisticsResult();
-        result.ScanTimestamp = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-
-        var lib1 = new LibraryStatistics
-        {
-            LibraryName = "Movies",
-            CollectionType = "movies",
-            VideoSize = 5000,
-            VideoFileCount = 10,
-            SubtitleSize = 100,
-            ImageSize = 200,
-            NfoSize = 50,
-            TrickplaySize = 300,
-        };
-
-        var lib2 = new LibraryStatistics
-        {
-            LibraryName = "Music",
-            CollectionType = "music",
-            AudioSize = 1000,
-            AudioFileCount = 50,
-        };
-
-        result.Libraries.Add(lib1);
-        result.Libraries.Add(lib2);
-        result.Movies.Add(lib1);
-        result.Music.Add(lib2);
-
-        var snapshot = StatisticsSnapshot.FromResult(result);
-
-        Assert.Equal(result.ScanTimestamp, snapshot.Timestamp);
-        Assert.Equal(10, snapshot.TotalVideoFileCount);
-        Assert.Equal(50, snapshot.TotalAudioFileCount);
-        Assert.Equal(5000, snapshot.TotalMovieVideoSize);
-        Assert.Equal(0, snapshot.TotalTvShowVideoSize);
-        Assert.Equal(1000, snapshot.TotalMusicAudioSize);
-        Assert.Equal(300, snapshot.TotalTrickplaySize);
-        Assert.Equal(100, snapshot.TotalSubtitleSize);
-        Assert.Equal(200, snapshot.TotalImageSize);
-        Assert.Equal(50, snapshot.TotalNfoSize);
-        Assert.Equal(5650 + 1000, snapshot.TotalSize);
-        Assert.Equal(2, snapshot.LibrarySizes.Count);
-        Assert.Equal(5650, snapshot.LibrarySizes["Movies"]);
-        Assert.Equal(1000, snapshot.LibrarySizes["Music"]);
-    }
-
-    [Fact]
-    public void StatisticsSnapshot_FromResult_NullThrows()
-    {
-        Assert.Throws<ArgumentNullException>(() => StatisticsSnapshot.FromResult(null!));
-    }
-
     // ===== PathValidator Tests =====
 
     [Theory]
@@ -1868,7 +1813,7 @@ public class MediaStatisticsServiceTests
         };
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([mvFolder]);
 
-        var m4vFile = new FileSystemMetadata
+        var m4VFile = new FileSystemMetadata
         {
             FullName = TestPath("media", "musicvideos", "Artist - Song.m4v"),
             Name = "Artist - Song.m4v",
@@ -1876,7 +1821,7 @@ public class MediaStatisticsServiceTests
             IsDirectory = false
         };
 
-        _fileSystemMock.Setup(f => f.GetFiles(mvPath, false)).Returns([m4vFile]);
+        _fileSystemMock.Setup(f => f.GetFiles(mvPath, false)).Returns([m4VFile]);
         _fileSystemMock.Setup(f => f.GetDirectories(mvPath, false)).Returns([]);
 
         var result = _service.CalculateStatistics();
@@ -1956,16 +1901,16 @@ public class EmbeddedSubtitleDetectionTests
 {
     private readonly Mock<ILibraryManager> _libraryManagerMock;
     private readonly Mock<IFileSystem> _fileSystemMock;
-    private readonly Mock<ILogger<MediaStatisticsService>> _loggerMock;
     private readonly TestableMediaStatisticsService _service;
 
     public EmbeddedSubtitleDetectionTests()
     {
         _libraryManagerMock = new Mock<ILibraryManager>();
         _fileSystemMock = new Mock<IFileSystem>();
-        _loggerMock = new Mock<ILogger<MediaStatisticsService>>();
+        var loggerMock = new Mock<ILogger<MediaStatisticsService>>();
+        var configHelperMock = TestMockFactory.CreateCleanupConfigHelper();
         _service = new TestableMediaStatisticsService(
-            _libraryManagerMock.Object, _fileSystemMock.Object, _loggerMock.Object);
+            _libraryManagerMock.Object, _fileSystemMock.Object, TestMockFactory.CreatePluginLogService(), loggerMock.Object, configHelperMock.Object);
     }
 
     private static string TestPath(params string[] segments)
@@ -2255,17 +2200,15 @@ public class EmbeddedSubtitleDetectionTests
     /// Testable subclass that overrides <see cref="MediaStatisticsService.HasEmbeddedSubtitles"/>
     /// to allow controlling embedded subtitle detection without Jellyfin's runtime infrastructure.
     /// </summary>
-    private sealed class TestableMediaStatisticsService : MediaStatisticsService
+    private sealed class TestableMediaStatisticsService(
+        ILibraryManager libraryManager,
+        IFileSystem fileSystem,
+        Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.IPluginLogService pluginLog,
+        ILogger<MediaStatisticsService> logger,
+        ICleanupConfigHelper configHelper)
+        : MediaStatisticsService(libraryManager, fileSystem, pluginLog, logger, configHelper)
     {
         private readonly Dictionary<string, bool> _embeddedSubtitles = new(StringComparer.OrdinalIgnoreCase);
-
-        public TestableMediaStatisticsService(
-            ILibraryManager libraryManager,
-            IFileSystem fileSystem,
-            ILogger<MediaStatisticsService> logger)
-            : base(libraryManager, fileSystem, logger)
-        {
-        }
 
         public void SetHasEmbeddedSubtitles(string filePath, bool value)
             => _embeddedSubtitles[filePath] = value;

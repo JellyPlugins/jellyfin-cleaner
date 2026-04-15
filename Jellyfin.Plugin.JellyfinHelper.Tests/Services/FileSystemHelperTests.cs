@@ -9,7 +9,7 @@ using Xunit;
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services;
 
 /// <summary>
-/// Tests for <see cref="FileSystemHelper"/>.
+///     Tests for <see cref="FileSystemHelper" />.
 /// </summary>
 public class FileSystemHelperTests
 {
@@ -21,14 +21,10 @@ public class FileSystemHelperTests
     [Fact]
     public void CalculateDirectorySize_EmptyDirectory_ReturnsZero()
     {
-        _fileSystemMock
-            .Setup(fs => fs.GetFiles(It.IsAny<string>(), false))
-            .Returns(Array.Empty<FileSystemMetadata>());
-        _fileSystemMock
-            .Setup(fs => fs.GetDirectories(It.IsAny<string>(), false))
-            .Returns(Array.Empty<FileSystemMetadata>());
+        _fileSystemMock.Setup(fs => fs.GetFiles(It.IsAny<string>(), false)).Returns([]);
+        _fileSystemMock.Setup(fs => fs.GetDirectories(It.IsAny<string>(), false)).Returns([]);
 
-        var result = FileSystemHelper.CalculateDirectorySize(_fileSystemMock.Object, "/test/empty", _loggerMock.Object);
+        var result = FileSystemHelper.CalculateDirectorySize(_fileSystemMock.Object, "/test/empty");
 
         Assert.Equal(0, result);
     }
@@ -40,17 +36,13 @@ public class FileSystemHelperTests
         {
             TestDataGenerator.CreateFile("/test/dir/file1.mkv", 1000),
             TestDataGenerator.CreateFile("/test/dir/file2.srt", 500),
-            TestDataGenerator.CreateFile("/test/dir/file3.nfo", 200),
+            TestDataGenerator.CreateFile("/test/dir/file3.nfo", 200)
         };
 
-        _fileSystemMock
-            .Setup(fs => fs.GetFiles("/test/dir", false))
-            .Returns(files);
-        _fileSystemMock
-            .Setup(fs => fs.GetDirectories("/test/dir", false))
-            .Returns(Array.Empty<FileSystemMetadata>());
+        _fileSystemMock.Setup(fs => fs.GetFiles("/test/dir", false)).Returns(files);
+        _fileSystemMock.Setup(fs => fs.GetDirectories("/test/dir", false)).Returns([]);
 
-        var result = FileSystemHelper.CalculateDirectorySize(_fileSystemMock.Object, "/test/dir", _loggerMock.Object);
+        var result = FileSystemHelper.CalculateDirectorySize(_fileSystemMock.Object, "/test/dir");
 
         Assert.Equal(1700, result);
     }
@@ -63,15 +55,15 @@ public class FileSystemHelperTests
         var subFiles = new[]
         {
             TestDataGenerator.CreateFile("/test/root/sub1/file2.mkv", 2000),
-            TestDataGenerator.CreateFile("/test/root/sub1/file3.srt", 300),
+            TestDataGenerator.CreateFile("/test/root/sub1/file3.srt", 300)
         };
 
         _fileSystemMock.Setup(fs => fs.GetFiles("/test/root", false)).Returns(rootFiles);
         _fileSystemMock.Setup(fs => fs.GetDirectories("/test/root", false)).Returns(subDirs);
         _fileSystemMock.Setup(fs => fs.GetFiles("/test/root/sub1", false)).Returns(subFiles);
-        _fileSystemMock.Setup(fs => fs.GetDirectories("/test/root/sub1", false)).Returns(Array.Empty<FileSystemMetadata>());
+        _fileSystemMock.Setup(fs => fs.GetDirectories("/test/root/sub1", false)).Returns([]);
 
-        var result = FileSystemHelper.CalculateDirectorySize(_fileSystemMock.Object, "/test/root", _loggerMock.Object);
+        var result = FileSystemHelper.CalculateDirectorySize(_fileSystemMock.Object, "/test/root");
 
         Assert.Equal(3300, result);
     }
@@ -80,21 +72,20 @@ public class FileSystemHelperTests
     public void CalculateDirectorySize_DeeplyNested_SumsAllLevels()
     {
         _fileSystemMock.Setup(fs => fs.GetFiles("/root", false))
-            .Returns(new[] { TestDataGenerator.CreateFile("/root/a.mkv", 100) });
+            .Returns([TestDataGenerator.CreateFile("/root/a.mkv", 100)]);
         _fileSystemMock.Setup(fs => fs.GetDirectories("/root", false))
-            .Returns(new[] { TestDataGenerator.CreateDirectory("/root/sub") });
+            .Returns([TestDataGenerator.CreateDirectory("/root/sub")]);
 
         _fileSystemMock.Setup(fs => fs.GetFiles("/root/sub", false))
-            .Returns(new[] { TestDataGenerator.CreateFile("/root/sub/b.mkv", 200) });
+            .Returns([TestDataGenerator.CreateFile("/root/sub/b.mkv", 200)]);
         _fileSystemMock.Setup(fs => fs.GetDirectories("/root/sub", false))
-            .Returns(new[] { TestDataGenerator.CreateDirectory("/root/sub/subsub") });
+            .Returns([TestDataGenerator.CreateDirectory("/root/sub/subsub")]);
 
         _fileSystemMock.Setup(fs => fs.GetFiles("/root/sub/subsub", false))
-            .Returns(new[] { TestDataGenerator.CreateFile("/root/sub/subsub/c.mkv", 300) });
-        _fileSystemMock.Setup(fs => fs.GetDirectories("/root/sub/subsub", false))
-            .Returns(Array.Empty<FileSystemMetadata>());
+            .Returns([TestDataGenerator.CreateFile("/root/sub/subsub/c.mkv", 300)]);
+        _fileSystemMock.Setup(fs => fs.GetDirectories("/root/sub/subsub", false)).Returns([]);
 
-        var result = FileSystemHelper.CalculateDirectorySize(_fileSystemMock.Object, "/root", _loggerMock.Object);
+        var result = FileSystemHelper.CalculateDirectorySize(_fileSystemMock.Object, "/root");
 
         Assert.Equal(600, result);
     }
@@ -111,7 +102,7 @@ public class FileSystemHelperTests
         _fileSystemMock.Setup(fs => fs.GetFiles("/test/root/inaccessible", false))
             .Throws(new IOException("Access denied"));
 
-        var result = FileSystemHelper.CalculateDirectorySize(_fileSystemMock.Object, "/test/root", _loggerMock.Object);
+        var result = FileSystemHelper.CalculateDirectorySize(_fileSystemMock.Object, "/test/root");
 
         Assert.Equal(500, result);
     }
@@ -122,7 +113,8 @@ public class FileSystemHelperTests
         _fileSystemMock.Setup(fs => fs.GetFiles("/test/locked", false))
             .Throws(new UnauthorizedAccessException("No permission"));
 
-        var result = FileSystemHelper.CalculateDirectorySize(_fileSystemMock.Object, "/test/locked", _loggerMock.Object);
+        var result =
+            FileSystemHelper.CalculateDirectorySize(_fileSystemMock.Object, "/test/locked");
 
         Assert.Equal(0, result);
     }
@@ -130,32 +122,27 @@ public class FileSystemHelperTests
     [Fact]
     public void CalculateDirectorySize_MultipleSubDirectories_SumsAll()
     {
-        _fileSystemMock.Setup(fs => fs.GetFiles("/root", false))
-            .Returns(Array.Empty<FileSystemMetadata>());
+        _fileSystemMock.Setup(fs => fs.GetFiles("/root", false)).Returns([]);
         _fileSystemMock.Setup(fs => fs.GetDirectories("/root", false))
-            .Returns(new[]
-            {
+            .Returns([
                 TestDataGenerator.CreateDirectory("/root/a"),
                 TestDataGenerator.CreateDirectory("/root/b"),
-                TestDataGenerator.CreateDirectory("/root/c"),
-            });
+                TestDataGenerator.CreateDirectory("/root/c")
+            ]);
 
         _fileSystemMock.Setup(fs => fs.GetFiles("/root/a", false))
-            .Returns(new[] { TestDataGenerator.CreateFile("/root/a/1.mkv", 100) });
-        _fileSystemMock.Setup(fs => fs.GetDirectories("/root/a", false))
-            .Returns(Array.Empty<FileSystemMetadata>());
+            .Returns([TestDataGenerator.CreateFile("/root/a/1.mkv", 100)]);
+        _fileSystemMock.Setup(fs => fs.GetDirectories("/root/a", false)).Returns([]);
 
         _fileSystemMock.Setup(fs => fs.GetFiles("/root/b", false))
-            .Returns(new[] { TestDataGenerator.CreateFile("/root/b/2.mkv", 200) });
-        _fileSystemMock.Setup(fs => fs.GetDirectories("/root/b", false))
-            .Returns(Array.Empty<FileSystemMetadata>());
+            .Returns([TestDataGenerator.CreateFile("/root/b/2.mkv", 200)]);
+        _fileSystemMock.Setup(fs => fs.GetDirectories("/root/b", false)).Returns([]);
 
         _fileSystemMock.Setup(fs => fs.GetFiles("/root/c", false))
-            .Returns(new[] { TestDataGenerator.CreateFile("/root/c/3.mkv", 300) });
-        _fileSystemMock.Setup(fs => fs.GetDirectories("/root/c", false))
-            .Returns(Array.Empty<FileSystemMetadata>());
+            .Returns([TestDataGenerator.CreateFile("/root/c/3.mkv", 300)]);
+        _fileSystemMock.Setup(fs => fs.GetDirectories("/root/c", false)).Returns([]);
 
-        var result = FileSystemHelper.CalculateDirectorySize(_fileSystemMock.Object, "/root", _loggerMock.Object);
+        var result = FileSystemHelper.CalculateDirectorySize(_fileSystemMock.Object, "/root");
 
         Assert.Equal(600, result);
     }

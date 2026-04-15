@@ -3,115 +3,89 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
-using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
+using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 
 /// <summary>
-/// Helper methods that apply plugin configuration rules to cleanup operations.
-/// Provides library filtering, orphan age checking, trash/delete resolution, and task mode queries.
+///     Helper that applies plugin configuration rules to cleanup operations.
+///     Provides library filtering, orphan age checking, trash/delete resolution, and task mode queries.
+///     Registered as a singleton via DI; reads configuration from <see cref="IPluginConfigurationService" />.
 /// </summary>
-public static class CleanupConfigHelper
+public class CleanupConfigHelper : ICleanupConfigHelper
 {
-    /// <summary>
-    /// Gets or sets a configuration override for testing purposes.
-    /// When set, <see cref="GetConfig"/> returns this instead of the plugin configuration.
-    /// </summary>
-    internal static PluginConfiguration? ConfigOverride { get; set; }
+    private readonly IPluginConfigurationService _configService;
 
     /// <summary>
-    /// Gets the current plugin configuration, or a default configuration if the plugin is not available.
-    /// Automatically triggers migration from legacy booleans to <see cref="TaskMode"/> on first access.
+    ///     Initializes a new instance of the <see cref="CleanupConfigHelper" /> class.
     /// </summary>
-    /// <returns>The plugin configuration.</returns>
-    public static PluginConfiguration GetConfig()
+    /// <param name="configService">The plugin configuration service.</param>
+    public CleanupConfigHelper(IPluginConfigurationService configService)
     {
-        if (ConfigOverride != null)
-        {
-            return ConfigOverride;
-        }
+        _configService = configService;
+    }
 
-        var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+    // ===== Instance members (config access via IPluginConfigurationService) =====
 
-        // One-time migration from legacy booleans to TaskMode
-        if (config.ConfigVersion < 1)
-        {
-            PluginLogService.LogInfo("Config", "Migrating configuration from legacy booleans to TaskMode (ConfigVersion < 1).");
-            config.MigrateFromLegacyBooleans();
-            Plugin.Instance?.SaveConfiguration();
-            PluginLogService.LogInfo("Config", "Configuration migration completed.");
-        }
-
+    /// <inheritdoc />
+    public PluginConfiguration GetConfig()
+    {
+        var config = _configService.GetConfiguration();
         return config;
     }
 
-    // ===== TaskMode queries =====
+    /// <inheritdoc />
+    public TaskMode GetTrickplayTaskMode()
+    {
+        return GetConfig().TrickplayTaskMode;
+    }
 
-    /// <summary>
-    /// Gets the <see cref="TaskMode"/> for the Trickplay Folder Cleaner.
-    /// </summary>
-    /// <returns>The configured task mode.</returns>
-    internal static TaskMode GetTrickplayTaskMode() => GetConfig().TrickplayTaskMode;
+    /// <inheritdoc />
+    public TaskMode GetEmptyMediaFolderTaskMode()
+    {
+        return GetConfig().EmptyMediaFolderTaskMode;
+    }
 
-    /// <summary>
-    /// Gets the <see cref="TaskMode"/> for the Empty Media Folder Cleaner.
-    /// </summary>
-    /// <returns>The configured task mode.</returns>
-    internal static TaskMode GetEmptyMediaFolderTaskMode() => GetConfig().EmptyMediaFolderTaskMode;
+    /// <inheritdoc />
+    public TaskMode GetOrphanedSubtitleTaskMode()
+    {
+        return GetConfig().OrphanedSubtitleTaskMode;
+    }
 
-    /// <summary>
-    /// Gets the <see cref="TaskMode"/> for the Orphaned Subtitle Cleaner.
-    /// </summary>
-    /// <returns>The configured task mode.</returns>
-    internal static TaskMode GetOrphanedSubtitleTaskMode() => GetConfig().OrphanedSubtitleTaskMode;
+    /// <inheritdoc />
+    public TaskMode GetStrmRepairTaskMode()
+    {
+        return GetConfig().StrmRepairTaskMode;
+    }
 
-    /// <summary>
-    /// Gets the <see cref="TaskMode"/> for the .strm File Repair task.
-    /// </summary>
-    /// <returns>The configured task mode.</returns>
-    internal static TaskMode GetStrmRepairTaskMode() => GetConfig().StrmRepairTaskMode;
+    /// <inheritdoc />
+    public bool IsDryRunTrickplay()
+    {
+        return IsDryRun(GetConfig().TrickplayTaskMode);
+    }
 
-    /// <summary>
-    /// Determines whether a task should run in dry-run mode based on its <see cref="TaskMode"/>.
-    /// Returns true for <see cref="TaskMode.DryRun"/>, false for <see cref="TaskMode.Activate"/>.
-    /// Should NOT be called if the task mode is <see cref="TaskMode.Deactivate"/> (check first).
-    /// </summary>
-    /// <param name="mode">The task mode.</param>
-    /// <returns>True if the task should run in dry-run mode.</returns>
-    internal static bool IsDryRun(TaskMode mode) => mode != TaskMode.Activate;
+    /// <inheritdoc />
+    public bool IsDryRunEmptyMediaFolders()
+    {
+        return IsDryRun(GetConfig().EmptyMediaFolderTaskMode);
+    }
 
-    /// <summary>
-    /// Determines whether the Trickplay Folder Cleaner should run in dry-run mode.
-    /// </summary>
-    /// <returns>True if the operation should be a dry run.</returns>
-    internal static bool IsDryRunTrickplay() => IsDryRun(GetConfig().TrickplayTaskMode);
+    /// <inheritdoc />
+    public bool IsDryRunOrphanedSubtitles()
+    {
+        return IsDryRun(GetConfig().OrphanedSubtitleTaskMode);
+    }
 
-    /// <summary>
-    /// Determines whether the Empty Media Folder Cleaner should run in dry-run mode.
-    /// </summary>
-    /// <returns>True if the operation should be a dry run.</returns>
-    internal static bool IsDryRunEmptyMediaFolders() => IsDryRun(GetConfig().EmptyMediaFolderTaskMode);
+    /// <inheritdoc />
+    public bool IsDryRunStrmRepair()
+    {
+        return IsDryRun(GetConfig().StrmRepairTaskMode);
+    }
 
-    /// <summary>
-    /// Determines whether the Orphaned Subtitle Cleaner should run in dry-run mode.
-    /// </summary>
-    /// <returns>True if the operation should be a dry run.</returns>
-    internal static bool IsDryRunOrphanedSubtitles() => IsDryRun(GetConfig().OrphanedSubtitleTaskMode);
-
-    /// <summary>
-    /// Determines whether the .strm File Repair task should run in dry-run mode.
-    /// </summary>
-    /// <returns>True if the operation should be a dry run.</returns>
-    internal static bool IsDryRunStrmRepair() => IsDryRun(GetConfig().StrmRepairTaskMode);
-
-    /// <summary>
-    /// Gets the filtered library locations based on the whitelist/blacklist configuration.
-    /// </summary>
-    /// <param name="libraryManager">The library manager.</param>
-    /// <returns>A filtered, deduplicated list of library root paths.</returns>
-    public static IReadOnlyList<string> GetFilteredLibraryLocations(ILibraryManager libraryManager)
+    /// <inheritdoc />
+    public IReadOnlyList<string> GetFilteredLibraryLocations(ILibraryManager libraryManager)
     {
         ArgumentNullException.ThrowIfNull(libraryManager);
 
@@ -120,8 +94,6 @@ public static class CleanupConfigHelper
 
         var includedSet = ParseCommaSeparated(config.IncludedLibraries);
         var excludedSet = ParseCommaSeparated(config.ExcludedLibraries);
-
-        PluginLogService.LogDebug("Config", $"Library filter: included=[{string.Join(", ", includedSet)}], excluded=[{string.Join(", ", excludedSet)}]");
 
         var filteredFolders = virtualFolders.Where(f =>
         {
@@ -163,17 +135,13 @@ public static class CleanupConfigHelper
         return filteredFolders
             .SelectMany(f => f.Locations)
             .Where(loc => !loc.Contains("/collections", StringComparison.OrdinalIgnoreCase)
-                       && !loc.Contains("\\collections", StringComparison.OrdinalIgnoreCase))
+                          && !loc.Contains("\\collections", StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
-    /// <summary>
-    /// Checks whether a directory is old enough to be considered an orphan based on the configured minimum age.
-    /// </summary>
-    /// <param name="directoryPath">The path to the directory.</param>
-    /// <returns>True if the directory is old enough (or age check is disabled), false if it's too new.</returns>
-    internal static bool IsOldEnoughForDeletion(string directoryPath)
+    /// <inheritdoc />
+    public bool IsOldEnoughForDeletion(string directoryPath)
     {
         var config = GetConfig();
         if (config.OrphanMinAgeDays <= 0)
@@ -195,17 +163,12 @@ public static class CleanupConfigHelper
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // If we can't check, err on the safe side and skip cleanup
-            PluginLogService.LogWarning("Config", $"Could not check directory age for: {directoryPath}", ex);
             return false;
         }
     }
 
-    /// <summary>
-    /// Checks whether a file is old enough to be considered an orphan based on the configured minimum age.
-    /// </summary>
-    /// <param name="filePath">The path to the file.</param>
-    /// <returns>True if the file is old enough (or age check is disabled), false if it's too new.</returns>
-    internal static bool IsFileOldEnoughForDeletion(string filePath)
+    /// <inheritdoc />
+    public bool IsFileOldEnoughForDeletion(string filePath)
     {
         var config = GetConfig();
         if (config.OrphanMinAgeDays <= 0)
@@ -227,18 +190,12 @@ public static class CleanupConfigHelper
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // If we can't check, err on the safe side and skip cleanup
-            PluginLogService.LogWarning("Config", $"Could not check file age for: {filePath}", ex);
             return false;
         }
     }
 
-    /// <summary>
-    /// Gets the resolved trash folder path for a given library root.
-    /// If the configured path is relative, it is resolved relative to the library root.
-    /// </summary>
-    /// <param name="libraryRootPath">The library root path.</param>
-    /// <returns>The full trash folder path.</returns>
-    internal static string GetTrashPath(string libraryRootPath)
+    /// <inheritdoc />
+    public string GetTrashPath(string libraryRootPath)
     {
         var config = GetConfig();
         var trashPath = config.TrashFolderPath;
@@ -253,15 +210,29 @@ public static class CleanupConfigHelper
             return trashPath;
         }
 
-        return Path.Combine(libraryRootPath, trashPath);
+        return Path.Join(libraryRootPath, trashPath);
+    }
+
+    // ===== Pure static helpers (no state, no config access) =====
+
+    /// <summary>
+    ///     Determines whether a task should run in dry-run mode based on its <see cref="TaskMode" />.
+    ///     Returns true for <see cref="TaskMode.DryRun" />, false for <see cref="TaskMode.Activate" />.
+    ///     Should NOT be called if the task mode is <see cref="TaskMode.Deactivate" /> (check first).
+    /// </summary>
+    /// <param name="mode">The task mode.</param>
+    /// <returns>True if the task should run in dry-run mode.</returns>
+    public static bool IsDryRun(TaskMode mode)
+    {
+        return mode != TaskMode.Activate;
     }
 
     /// <summary>
-    /// Parses a comma-separated string into a case-insensitive hash set of trimmed, non-empty values.
+    ///     Parses a comma-separated string into a case-insensitive hash set of trimmed, non-empty values.
     /// </summary>
     /// <param name="value">The comma-separated input string.</param>
     /// <returns>A hash set of parsed values.</returns>
-    internal static HashSet<string> ParseCommaSeparated(string? value)
+    public static HashSet<string> ParseCommaSeparated(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {

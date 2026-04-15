@@ -1,6 +1,5 @@
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
-using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
@@ -13,8 +12,8 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.ScheduledTasks;
 
 public class CleanTrickplayTaskTests : CleanupTaskTestBase
 {
-    private readonly Mock<ILibraryManager> _libraryManagerMock;
     private readonly Mock<IFileSystem> _fileSystemMock;
+    private readonly Mock<ILibraryManager> _libraryManagerMock;
     private readonly Mock<ILogger<CleanTrickplayTask>> _loggerMock;
     private readonly CleanTrickplayTask _task;
 
@@ -23,20 +22,30 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
         _libraryManagerMock = TestMockFactory.CreateLibraryManager();
         _fileSystemMock = TestMockFactory.CreateFileSystem();
         _loggerMock = TestMockFactory.CreateLogger<CleanTrickplayTask>();
-        _task = new CleanTrickplayTask(_libraryManagerMock.Object, _fileSystemMock.Object, _loggerMock.Object);
+        _task = new CleanTrickplayTask(
+            _libraryManagerMock.Object,
+            _fileSystemMock.Object,
+            TestMockFactory.CreatePluginLogService(),
+            _loggerMock.Object,
+            MockConfigHelper.Object,
+            MockTrackingService.Object,
+            MockTrashService.Object);
 
         // Default: DryRun OFF for most existing tests (non-dry-run behavior)
         Config.TrickplayTaskMode = TaskMode.Activate;
         Config.EmptyMediaFolderTaskMode = TaskMode.Activate;
         Config.OrphanedSubtitleTaskMode = TaskMode.Activate;
-        CleanupConfigHelper.ConfigOverride = Config;
     }
 
     private void VerifyLogContains(string messagePart, LogLevel level)
-        => VerifyLogContains(_loggerMock, messagePart, level);
+    {
+        VerifyLogContains(_loggerMock, messagePart, level);
+    }
 
     private void VerifyLogNeverContains(string messagePart, LogLevel level)
-        => VerifyLogNeverContains(_loggerMock, messagePart, level);
+    {
+        VerifyLogNeverContains(_loggerMock, messagePart, level);
+    }
 
     [Fact]
     public async Task ExecuteInternalAsync_OrphanedFolder_DeletesFolder()
@@ -104,7 +113,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
     [Fact]
     public async Task ExecuteInternalAsync_DryRun_LogsWouldDelete()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration { TrickplayTaskMode = TaskMode.DryRun };
+        Config.TrickplayTaskMode = TaskMode.DryRun;
 
         var libraryPath = TestPath("media");
         var trickplayFullName = TestPath("media", "Movie.trickplay");
@@ -135,19 +144,19 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
     [Fact]
     public async Task ExecuteInternalAsync_DryRun_NoLibraryFolders_CompletesWithoutError()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration { TrickplayTaskMode = TaskMode.DryRun };
+        Config.TrickplayTaskMode = TaskMode.DryRun;
 
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([]);
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
-        VerifyLogContains("Would have deleted 0 folders", LogLevel.Information);
+        VerifyLogContains("No library folders configured", LogLevel.Information);
     }
 
     [Fact]
     public async Task ExecuteInternalAsync_DryRun_NoTrickplayFolders_DeletesNothing()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration { TrickplayTaskMode = TaskMode.DryRun };
+        Config.TrickplayTaskMode = TaskMode.DryRun;
 
         var libraryPath = TestPath("media");
         var virtualFolder = new VirtualFolderInfo { Locations = [libraryPath] };
@@ -170,7 +179,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
     [Fact]
     public async Task ExecuteInternalAsync_DryRun_DirectoryScanError_LogsErrorAndContinues()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration { TrickplayTaskMode = TaskMode.DryRun };
+        Config.TrickplayTaskMode = TaskMode.DryRun;
 
         var libraryPath1 = TestPath("media1");
         var libraryPath2 = TestPath("media2");
@@ -194,7 +203,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
-        VerifyLogContains("Error scanning directory", LogLevel.Error);
+        VerifyLogContains("Could not enumerate subdirectories of", LogLevel.Warning);
         VerifyLogContains("[Dry Run] Would delete orphaned trickplay folder", LogLevel.Information);
     }
 
@@ -334,7 +343,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
     [Fact]
     public async Task ExecuteInternalAsync_MultipleOrphanedFolders_DeletesAllAndReportsCount()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration { TrickplayTaskMode = TaskMode.DryRun };
+        Config.TrickplayTaskMode = TaskMode.DryRun;
 
         var libraryPath = TestPath("media");
         var trickplayFullName1 = TestPath("media", "Movie1.trickplay");
@@ -376,7 +385,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
-        VerifyLogContains("Deleted 0 folders", LogLevel.Information);
+        VerifyLogContains("No library folders configured", LogLevel.Information);
     }
 
     [Fact]
@@ -429,9 +438,10 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
 
         // Cancel immediately after first folder
         var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
-        await _task.ExecuteAsync(new Progress<double>(), cts.Token);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _task.ExecuteAsync(new Progress<double>(), cts.Token));
 
         // Second library folder should never be scanned
         _fileSystemMock.Verify(f => f.GetDirectories(libraryPath2, true), Times.Never);
@@ -464,8 +474,8 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
-        // Should log error for first folder
-        VerifyLogContains("Error scanning directory", LogLevel.Error);
+        // Should log warning for first folder (IOException caught gracefully)
+        VerifyLogContains("Could not enumerate subdirectories of", LogLevel.Warning);
         // Should still process second folder
         VerifyLogContains("Deleting orphaned trickplay folder", LogLevel.Information);
     }
@@ -484,7 +494,7 @@ public class CleanTrickplayTaskTests : CleanupTaskTestBase
         _fileSystemMock.Setup(f => f.GetDirectories(libraryPath2, true)).Returns([]);
 
         var reportedValues = new List<double>();
-        var progress = new SynchronousProgress<double>(v => reportedValues.Add(v));
+        var progress = new SynchronousProgress<double>(reportedValues.Add);
 
         await _task.ExecuteAsync(progress, CancellationToken.None);
 

@@ -1,10 +1,9 @@
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
+using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
-using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -13,70 +12,106 @@ using Xunit;
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.ScheduledTasks;
 
 /// <summary>
-/// Tests for <see cref="HelperCleanupTask"/>, the master orchestration task.
+///     Tests for <see cref="HelperCleanupTask" />, the master orchestration task.
 /// </summary>
-[Collection("ConfigOverride")]
 public class HelperCleanupTaskTests : IDisposable
 {
-    private readonly Mock<ILibraryManager> _libraryManagerMock;
-    private readonly Mock<IFileSystem> _fileSystemMock;
-    private readonly Mock<IApplicationPaths> _applicationPathsMock;
-    private readonly Mock<ILoggerFactory> _loggerFactoryMock;
-    private readonly string _testDataPath;
-    private readonly HelperCleanupTask _task;
     private readonly Mock<ILogger<HelperCleanupTask>> _loggerMock;
+    private readonly HelperCleanupTask _task;
+    private readonly string _testDataPath;
+    private PluginConfiguration _config;
 
     public HelperCleanupTaskTests()
     {
-        _libraryManagerMock = TestMockFactory.CreateLibraryManager();
-        _fileSystemMock = TestMockFactory.CreateFileSystem();
-        _applicationPathsMock = TestMockFactory.CreateAppPaths();
-        _testDataPath = Path.Combine(Path.GetTempPath(), "JellyfinHelperTests_Data_" + Guid.NewGuid().ToString("N"));
+        var libraryManagerMock = TestMockFactory.CreateLibraryManager();
+        var fileSystemMock = TestMockFactory.CreateFileSystem();
+        var applicationPathsMock = TestMockFactory.CreateAppPaths();
+        _testDataPath = Path.Join(Path.GetTempPath(), "JellyfinHelperTests_Data_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_testDataPath);
-        _applicationPathsMock.Setup(p => p.DataPath).Returns(_testDataPath);
-        _loggerFactoryMock = new Mock<ILoggerFactory>();
+        applicationPathsMock.Setup(p => p.DataPath).Returns(_testDataPath);
+        var loggerFactoryMock = new Mock<ILoggerFactory>();
         _loggerMock = new Mock<ILogger<HelperCleanupTask>>();
 
         // Setup logger factory to return loggers for all required types
-        _loggerFactoryMock
+        loggerFactoryMock
             .Setup(f => f.CreateLogger(It.IsAny<string>()))
             .Returns((string categoryName) =>
             {
-                if (categoryName.Contains("HelperCleanupTask"))
-                {
-                    return _loggerMock.Object;
-                }
+                if (categoryName.Contains("HelperCleanupTask")) return _loggerMock.Object;
 
                 return new Mock<ILogger>().Object;
             });
 
         // Default: empty libraries so sub-tasks finish quickly
-        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([]);
+        libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([]);
 
-        _task = new HelperCleanupTask(
-            _libraryManagerMock.Object,
-            _fileSystemMock.Object,
-            _applicationPathsMock.Object,
-            _loggerFactoryMock.Object);
+        var statisticsServiceMock = TestMockFactory.CreateMediaStatisticsService();
+        var cacheServiceMock = TestMockFactory.CreateStatisticsCacheService();
+        var growthServiceMock = TestMockFactory.CreateGrowthTimelineService();
 
-        // Default: All tasks activated
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
+        // Setup mock-based config helper
+        _config = new PluginConfiguration
         {
             TrickplayTaskMode = TaskMode.Activate,
             EmptyMediaFolderTaskMode = TaskMode.Activate,
             OrphanedSubtitleTaskMode = TaskMode.Activate,
             StrmRepairTaskMode = TaskMode.Activate
         };
+
+        var configHelperMock = new Mock<ICleanupConfigHelper>();
+        configHelperMock.Setup(c => c.GetConfig()).Returns(() => _config);
+        configHelperMock.Setup(c => c.GetTrickplayTaskMode()).Returns(() => _config.TrickplayTaskMode);
+        configHelperMock.Setup(c => c.GetEmptyMediaFolderTaskMode()).Returns(() => _config.EmptyMediaFolderTaskMode);
+        configHelperMock.Setup(c => c.GetOrphanedSubtitleTaskMode()).Returns(() => _config.OrphanedSubtitleTaskMode);
+        configHelperMock.Setup(c => c.GetStrmRepairTaskMode()).Returns(() => _config.StrmRepairTaskMode);
+        configHelperMock.Setup(c => c.IsDryRunTrickplay()).Returns(() => _config.TrickplayTaskMode == TaskMode.DryRun);
+        configHelperMock.Setup(c => c.IsDryRunEmptyMediaFolders())
+            .Returns(() => _config.EmptyMediaFolderTaskMode == TaskMode.DryRun);
+        configHelperMock.Setup(c => c.IsDryRunOrphanedSubtitles())
+            .Returns(() => _config.OrphanedSubtitleTaskMode == TaskMode.DryRun);
+        configHelperMock.Setup(c => c.IsDryRunStrmRepair())
+            .Returns(() => _config.StrmRepairTaskMode == TaskMode.DryRun);
+        configHelperMock.Setup(c => c.IsOldEnoughForDeletion(It.IsAny<string>())).Returns(true);
+        configHelperMock.Setup(c => c.IsFileOldEnoughForDeletion(It.IsAny<string>())).Returns(true);
+        configHelperMock.Setup(c => c.GetTrashPath(It.IsAny<string>()))
+            .Returns<string>(lib => Path.Join(lib, ".trash"));
+        configHelperMock.Setup(c => c.GetFilteredLibraryLocations(It.IsAny<ILibraryManager>()))
+            .Returns<ILibraryManager>(_ => new List<string>());
+
+        var trackingServiceMock = new Mock<ICleanupTrackingService>();
+        var trashServiceMock = new Mock<ITrashService>();
+        var strmRepairServiceMock = new Mock<IStrmRepairService>();
+
+        _task = new HelperCleanupTask(
+            libraryManagerMock.Object,
+            fileSystemMock.Object,
+            applicationPathsMock.Object,
+            TestMockFactory.CreatePluginLogService(),
+            loggerFactoryMock.Object,
+            statisticsServiceMock.Object,
+            cacheServiceMock.Object,
+            growthServiceMock.Object,
+            configHelperMock.Object,
+            trackingServiceMock.Object,
+            trashServiceMock.Object,
+            strmRepairServiceMock.Object);
     }
 
     public void Dispose()
     {
-        CleanupConfigHelper.ConfigOverride = null;
         if (Directory.Exists(_testDataPath))
-        {
-            try { Directory.Delete(_testDataPath, true); }
-            catch { /* best effort cleanup */ }
-        }
+            try
+            {
+                Directory.Delete(_testDataPath, true);
+            }
+            catch (IOException)
+            {
+                /* best effort cleanup */
+            }
+            catch (UnauthorizedAccessException)
+            {
+                /* best effort cleanup */
+            }
     }
 
     [Fact]
@@ -115,7 +150,7 @@ public class HelperCleanupTaskTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_AllDeactivated_SkipsAllTasks()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
+        _config = new PluginConfiguration
         {
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
@@ -135,7 +170,7 @@ public class HelperCleanupTaskTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_AllActivated_RunsAllTasks()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
+        _config = new PluginConfiguration
         {
             TrickplayTaskMode = TaskMode.Activate,
             EmptyMediaFolderTaskMode = TaskMode.Activate,
@@ -155,7 +190,7 @@ public class HelperCleanupTaskTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_DryRunMode_LogsDryRunLabel()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
+        _config = new PluginConfiguration
         {
             TrickplayTaskMode = TaskMode.DryRun,
             EmptyMediaFolderTaskMode = TaskMode.DryRun,
@@ -174,7 +209,7 @@ public class HelperCleanupTaskTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_MixedModes_HandlesEachCorrectly()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
+        _config = new PluginConfiguration
         {
             TrickplayTaskMode = TaskMode.Activate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
@@ -194,16 +229,16 @@ public class HelperCleanupTaskTests : IDisposable
     public async Task ExecuteAsync_CancellationRequested_StopsProcessing()
     {
         var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(
-            () => _task.ExecuteAsync(new Progress<double>(), cts.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            _task.ExecuteAsync(new Progress<double>(), cts.Token));
     }
 
     [Fact]
     public async Task ExecuteAsync_ProgressReaches100()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
+        _config = new PluginConfiguration
         {
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
@@ -212,7 +247,7 @@ public class HelperCleanupTaskTests : IDisposable
         };
 
         var reportedValues = new List<double>();
-        var progress = new SynchronousProgress<double>(v => reportedValues.Add(v));
+        var progress = new SynchronousProgress<double>(reportedValues.Add);
 
         await _task.ExecuteAsync(progress, CancellationToken.None);
 
@@ -222,7 +257,7 @@ public class HelperCleanupTaskTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_ProgressIsReportedForEachSubTask()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
+        _config = new PluginConfiguration
         {
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
@@ -231,7 +266,7 @@ public class HelperCleanupTaskTests : IDisposable
         };
 
         var reportedValues = new List<double>();
-        var progress = new SynchronousProgress<double>(v => reportedValues.Add(v));
+        var progress = new SynchronousProgress<double>(reportedValues.Add);
 
         await _task.ExecuteAsync(progress, CancellationToken.None);
 
@@ -257,7 +292,7 @@ public class HelperCleanupTaskTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_TrashEnabled_RunsTrashPurge()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
+        _config = new PluginConfiguration
         {
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
@@ -277,7 +312,7 @@ public class HelperCleanupTaskTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_TrashDisabled_SkipsTrashPurge()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
+        _config = new PluginConfiguration
         {
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
@@ -295,7 +330,7 @@ public class HelperCleanupTaskTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_TrashEnabledRetentionZero_RunsTrashPurge()
     {
-        CleanupConfigHelper.ConfigOverride = new PluginConfiguration
+        _config = new PluginConfiguration
         {
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
@@ -309,21 +344,6 @@ public class HelperCleanupTaskTests : IDisposable
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
         VerifyLogContains("Running trash purge (retention: 0 days)", LogLevel.Information);
-    }
-
-    /// <summary>
-    /// A synchronous implementation of IProgress that invokes the callback immediately.
-    /// </summary>
-    private sealed class SynchronousProgress<T> : IProgress<T>
-    {
-        private readonly Action<T> _handler;
-
-        public SynchronousProgress(Action<T> handler)
-        {
-            _handler = handler;
-        }
-
-        public void Report(T value) => _handler(value);
     }
 
     private void VerifyLogContains(string messagePart, LogLevel level)
@@ -348,5 +368,16 @@ public class HelperCleanupTaskTests : IDisposable
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Never);
+    }
+
+    /// <summary>
+    ///     A synchronous implementation of IProgress that invokes the callback immediately.
+    /// </summary>
+    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
+    {
+        public void Report(T value)
+        {
+            handler(value);
+        }
     }
 }

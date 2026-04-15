@@ -13,29 +13,40 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
 
 /// <summary>
-/// Service that calculates media file statistics per library type.
+///     Service that calculates media file statistics per library type.
 /// </summary>
-public partial class MediaStatisticsService
+public partial class MediaStatisticsService : IMediaStatisticsService
 {
-    private readonly ILibraryManager _libraryManager;
+    private readonly ICleanupConfigHelper _configHelper;
     private readonly IFileSystem _fileSystem;
+    private readonly ILibraryManager _libraryManager;
     private readonly ILogger<MediaStatisticsService> _logger;
+    private readonly IPluginLogService _pluginLog;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MediaStatisticsService"/> class.
+    ///     Initializes a new instance of the <see cref="MediaStatisticsService" /> class.
     /// </summary>
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="fileSystem">The file system.</param>
+    /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The logger.</param>
-    public MediaStatisticsService(ILibraryManager libraryManager, IFileSystem fileSystem, ILogger<MediaStatisticsService> logger)
+    /// <param name="configHelper">The cleanup configuration helper.</param>
+    public MediaStatisticsService(
+        ILibraryManager libraryManager,
+        IFileSystem fileSystem,
+        IPluginLogService pluginLog,
+        ILogger<MediaStatisticsService> logger,
+        ICleanupConfigHelper configHelper)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
+        _pluginLog = pluginLog;
         _logger = logger;
+        _configHelper = configHelper;
     }
 
     /// <summary>
-    /// Calculates statistics for all configured libraries.
+    ///     Calculates statistics for all configured libraries.
     /// </summary>
     /// <returns>The aggregated media statistics.</returns>
     public MediaStatisticsResult CalculateStatistics()
@@ -43,7 +54,10 @@ public partial class MediaStatisticsService
         var result = new MediaStatisticsResult();
 
         var virtualFolders = _libraryManager.GetVirtualFolders();
-        PluginLogService.LogInfo("MediaStatistics", $"Starting media statistics scan for {virtualFolders.Count} libraries", _logger);
+        _pluginLog.LogInfo(
+            "MediaStatistics",
+            $"Starting media statistics scan for {virtualFolders.Count} libraries",
+            _logger);
 
         foreach (var vf in virtualFolders)
         {
@@ -69,11 +83,14 @@ public partial class MediaStatisticsService
             foreach (var location in vf.Locations)
             {
                 libraryStats.RootPaths.Add(location);
-                PluginLogService.LogDebug("MediaStatistics", $"Scanning library location: {location} (type: {collectionType})", _logger);
-                AnalyzeDirectoryRecursive(location, libraryStats, location, skipHealthChecks: skipHealth);
+                _pluginLog.LogDebug(
+                    "MediaStatistics",
+                    $"Scanning library location: {location} (type: {collectionType})",
+                    _logger);
+                AnalyzeDirectoryRecursive(location, libraryStats, location, skipHealth);
             }
 
-            PluginLogService.LogDebug(
+            _pluginLog.LogDebug(
                 "MediaStatistics",
                 $"Library '{libraryStats.LibraryName}': {libraryStats.VideoFileCount} videos, {libraryStats.AudioFileCount} audio, " +
                 $"{libraryStats.SubtitleFileCount} subs, {libraryStats.TrickplayFolderCount} trickplay folders",
@@ -99,9 +116,11 @@ public partial class MediaStatisticsService
         }
 
         // Log summary
-        var totalFiles = result.Libraries.Sum(l => l.VideoFileCount + l.AudioFileCount + l.SubtitleFileCount + l.ImageFileCount + l.NfoFileCount + l.OtherFileCount);
+        var totalFiles = result.Libraries.Sum(l =>
+            l.VideoFileCount + l.AudioFileCount + l.SubtitleFileCount + l.ImageFileCount + l.NfoFileCount +
+            l.OtherFileCount);
         var totalSize = result.Libraries.Sum(l => l.TotalSize);
-        PluginLogService.LogInfo(
+        _pluginLog.LogInfo(
             "MediaStatistics",
             $"Scan complete: {result.Libraries.Count} libraries, {totalFiles} files, {totalSize / (1024 * 1024)} MB total, " +
             $"{result.Libraries.Sum(l => l.VideosWithoutSubtitles)} videos without subs, " +
@@ -113,24 +132,28 @@ public partial class MediaStatisticsService
     }
 
     /// <summary>
-    /// Recursively analyzes a directory and accumulates file size statistics.
+    ///     Recursively analyzes a directory and accumulates file size statistics.
     /// </summary>
     /// <param name="directoryPath">The directory to analyze.</param>
     /// <param name="stats">The statistics accumulator.</param>
     /// <param name="libraryRoot">The library root path (used for trash folder resolution).</param>
     /// <param name="skipHealthChecks">When true, skip health check counters (e.g. for boxset/collection libraries).</param>
-    private bool AnalyzeDirectoryRecursive(string directoryPath, LibraryStatistics stats, string? libraryRoot = null, bool skipHealthChecks = false)
+    private bool AnalyzeDirectoryRecursive(
+        string directoryPath,
+        LibraryStatistics stats,
+        string? libraryRoot = null,
+        bool skipHealthChecks = false)
     {
-        bool containsVideo = false;
+        var containsVideo = false;
         try
         {
             var files = _fileSystem.GetFiles(directoryPath).ToList();
 
-            bool hasVideo = false;
-            bool hasSubs = false;
-            bool hasImage = false;
-            bool hasNfo = false;
-            bool hasAnyNonTrickplayFile = false;
+            var hasVideo = false;
+            var hasSubs = false;
+            var hasImage = false;
+            var hasNfo = false;
+            var hasAnyNonTrickplayFile = false;
 
             foreach (var file in files)
             {
@@ -165,12 +188,14 @@ public partial class MediaStatisticsService
 
                     // Audio codec parsing from video filename (e.g. "Movie.DTS.mkv")
                     var audioCodec = ParseAudioCodec(file.Name, ext);
-                    if (!string.Equals(audioCodec, "Unknown", StringComparison.Ordinal))
+                    if (string.Equals(audioCodec, "Unknown", StringComparison.Ordinal))
                     {
-                        FileSystemHelper.IncrementCount(stats.VideoAudioCodecs, audioCodec);
-                        FileSystemHelper.AccumulateValue(stats.VideoAudioCodecSizes, audioCodec, size);
-                        FileSystemHelper.AddPath(stats.VideoAudioCodecPaths, audioCodec, file.FullName);
+                        continue;
                     }
+
+                    FileSystemHelper.IncrementCount(stats.VideoAudioCodecs, audioCodec);
+                    FileSystemHelper.AccumulateValue(stats.VideoAudioCodecSizes, audioCodec, size);
+                    FileSystemHelper.AddPath(stats.VideoAudioCodecPaths, audioCodec, file.FullName);
                 }
                 else if (MediaExtensions.SubtitleExtensions.Contains(ext))
                 {
@@ -210,27 +235,36 @@ public partial class MediaStatisticsService
 
             // Recurse into subdirectories
             var subDirs = _fileSystem.GetDirectories(directoryPath);
-            bool subDirHasVideo = false;
+            var subDirHasVideo = false;
 
-            var config = CleanupConfigHelper.GetConfig();
-            var trashFolderName = config.TrashFolderPath.Trim().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var config = _configHelper.GetConfig();
+            var trashFolderName = config.TrashFolderPath.Trim()
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var fullTrashPath = libraryRoot != null
-                ? Path.GetFullPath(CleanupConfigHelper.GetTrashPath(libraryRoot)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                ? Path.GetFullPath(_configHelper.GetTrashPath(libraryRoot))
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
                 : null;
 
             foreach (var subDir in subDirs)
             {
-                var normalizedSubDirFullName = Path.GetFullPath(subDir.FullName).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var normalizedSubDirFullName = Path.GetFullPath(subDir.FullName)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
-                if (string.Equals(subDir.Name.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), trashFolderName, StringComparison.OrdinalIgnoreCase)
-                    || (fullTrashPath != null && string.Equals(normalizedSubDirFullName, fullTrashPath, StringComparison.OrdinalIgnoreCase)))
+                if (string.Equals(
+                        subDir.Name.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                        trashFolderName,
+                        StringComparison.OrdinalIgnoreCase)
+                    || (fullTrashPath != null && string.Equals(
+                        normalizedSubDirFullName,
+                        fullTrashPath,
+                        StringComparison.OrdinalIgnoreCase)))
                 {
                     continue;
                 }
 
                 if (subDir.Name.EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
                 {
-                    var trickplaySize = FileSystemHelper.CalculateDirectorySize(_fileSystem, subDir.FullName, _logger);
+                    var trickplaySize = FileSystemHelper.CalculateDirectorySize(_fileSystem, subDir.FullName);
                     stats.TrickplaySize += trickplaySize;
                     stats.TrickplayFolderCount++;
                 }
@@ -251,17 +285,14 @@ public partial class MediaStatisticsService
                     var videoFiles = files
                         .Where(f => MediaExtensions.VideoExtensions.Contains(Path.GetExtension(f.FullName)))
                         .ToList();
-                    int videoCount = videoFiles.Count;
+                    var videoCount = videoFiles.Count;
 
                     if (!hasSubs)
                     {
-                        foreach (var vf2 in videoFiles)
+                        foreach (var vf2 in videoFiles.Where(vf2 => !HasEmbeddedSubtitles(vf2.FullName)))
                         {
-                            if (!HasEmbeddedSubtitles(vf2.FullName))
-                            {
-                                stats.VideosWithoutSubtitles++;
-                                stats.VideosWithoutSubtitlesPaths.Add(vf2.FullName);
-                            }
+                            stats.VideosWithoutSubtitles++;
+                            stats.VideosWithoutSubtitlesPaths.Add(vf2.FullName);
                         }
                     }
 
@@ -288,8 +319,8 @@ public partial class MediaStatisticsService
                     // Special case for TV Shows: Don't mark as orphaned if it contains subdirectories with videos
                     // (e.g. "Series 1" folder containing "Season 01")
                     // OR if it is a known TV show container folder (Specials, Season XX)
-                    bool isTvShow = string.Equals(stats.CollectionType, "tvshows", StringComparison.OrdinalIgnoreCase);
-                    bool isTvContainer = false;
+                    var isTvShow = string.Equals(stats.CollectionType, "tvshows", StringComparison.OrdinalIgnoreCase);
+                    var isTvContainer = false;
                     if (isTvShow)
                     {
                         var dirName = Path.GetFileName(directoryPath);
@@ -311,14 +342,14 @@ public partial class MediaStatisticsService
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            PluginLogService.LogWarning("MediaStatistics", $"Could not access directory: {directoryPath}", ex, _logger);
+            _pluginLog.LogWarning("MediaStatistics", $"Could not access directory: {directoryPath}", ex, _logger);
         }
 
         return containsVideo;
     }
 
     /// <summary>
-    /// Parses a resolution tier from a video filename.
+    ///     Parses a resolution tier from a video filename.
     /// </summary>
     /// <param name="fileName">The video filename.</param>
     /// <returns>A resolution label such as "4K", "1080p", "720p", "480p", or "Unknown".</returns>
@@ -353,7 +384,7 @@ public partial class MediaStatisticsService
     }
 
     /// <summary>
-    /// Parses a video codec from a video filename.
+    ///     Parses a video codec from a video filename.
     /// </summary>
     /// <param name="fileName">The video filename.</param>
     /// <returns>A codec label such as "HEVC", "H.264", "AV1", "VP9", "MPEG", or "Unknown".</returns>
@@ -398,7 +429,7 @@ public partial class MediaStatisticsService
     }
 
     /// <summary>
-    /// Parses an audio codec from a filename and its extension.
+    ///     Parses an audio codec from a filename and its extension.
     /// </summary>
     /// <param name="fileName">The audio filename.</param>
     /// <param name="extension">The file extension (with leading dot).</param>
@@ -461,8 +492,8 @@ public partial class MediaStatisticsService
     }
 
     /// <summary>
-    /// Checks whether the given video file has embedded (non-external) subtitle streams
-    /// according to Jellyfin's library metadata.
+    ///     Checks whether the given video file has embedded (non-external) subtitle streams
+    ///     according to Jellyfin's library metadata.
     /// </summary>
     /// <param name="filePath">Full path to the video file.</param>
     /// <returns><c>true</c> when at least one embedded subtitle stream exists.</returns>
@@ -481,7 +512,10 @@ public partial class MediaStatisticsService
         }
         catch (Exception ex)
         {
-            PluginLogService.LogDebug("MediaStatistics", $"Could not check embedded subtitles for: {filePath}. {ex.GetType().Name}: {ex.Message}", _logger);
+            _pluginLog.LogDebug(
+                "MediaStatistics",
+                $"Could not check embedded subtitles for: {filePath}. {ex.GetType().Name}: {ex.Message}",
+                _logger);
             return false;
         }
     }
@@ -540,7 +574,9 @@ public partial class MediaStatisticsService
     [GeneratedRegex(@"(?i)[\.\-_ \[\(](ac[\-_ ]?3|dolby[\-_ ]?digital)[\.\-_ \]\)]", RegexOptions.None)]
     private static partial Regex AudioCodecRegexAc3();
 
-    [GeneratedRegex(@"(?i)[\.\-_ \[\(](eac[\-_ ]?3|ddp|dolby[\-_ ]?digital[\-_ ]?plus|atmos)[\.\-_ \]\)]", RegexOptions.None)]
+    [GeneratedRegex(
+        @"(?i)[\.\-_ \[\(](eac[\-_ ]?3|ddp|dolby[\-_ ]?digital[\-_ ]?plus|atmos)[\.\-_ \]\)]",
+        RegexOptions.None)]
     private static partial Regex AudioCodecRegexEac3();
 
     [GeneratedRegex(@"(?i)[\.\-_ \[\(](truehd|true[\-_ ]?hd)[\.\-_ \]\)]", RegexOptions.None)]

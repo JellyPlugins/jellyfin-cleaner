@@ -12,12 +12,16 @@ public class ArrIntegrationServiceTests
     private static ArrIntegrationService CreateService(HttpMessageHandler handler)
     {
         var httpClient = new HttpClient(handler);
+        var factoryMock = new Mock<IHttpClientFactory>();
+        factoryMock.Setup(f => f.CreateClient("ArrIntegration")).Returns(httpClient);
         var logger = TestMockFactory.CreateLogger<ArrIntegrationService>();
-        return new ArrIntegrationService(httpClient, logger.Object);
+        return new ArrIntegrationService(factoryMock.Object, TestMockFactory.CreatePluginLogService(), logger.Object);
     }
 
     private static Mock<HttpMessageHandler> CreateMockHandler(HttpStatusCode statusCode, string content)
-        => TestMockFactory.CreateHttpMessageHandler(statusCode, content);
+    {
+        return TestMockFactory.CreateHttpMessageHandler(statusCode, content);
+    }
 
     // === TestConnectionAsync ===
 
@@ -51,7 +55,7 @@ public class ArrIntegrationServiceTests
         var handler = CreateMockHandler(HttpStatusCode.OK, "{}");
         var service = CreateService(handler.Object);
 
-        var (success, message) = await service.TestConnectionAsync(null!, "apikey123");
+        var (success, _) = await service.TestConnectionAsync(null!, "apikey123");
 
         Assert.False(success);
     }
@@ -62,7 +66,7 @@ public class ArrIntegrationServiceTests
         var handler = CreateMockHandler(HttpStatusCode.OK, "{}");
         var service = CreateService(handler.Object);
 
-        var (success, message) = await service.TestConnectionAsync("http://localhost:7878", null!);
+        var (success, _) = await service.TestConnectionAsync("http://localhost:7878", null!);
 
         Assert.False(success);
     }
@@ -113,7 +117,7 @@ public class ArrIntegrationServiceTests
         var handler = CreateMockHandler(HttpStatusCode.InternalServerError, "Error");
         var service = CreateService(handler.Object);
 
-        var (success, message) = await service.TestConnectionAsync("http://localhost:7878", "testapikey");
+        var (success, _) = await service.TestConnectionAsync("http://localhost:7878", "testapikey");
 
         Assert.False(success);
     }
@@ -160,9 +164,10 @@ public class ArrIntegrationServiceTests
             .ReturnsAsync(new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(json),
+                Content = new StringContent(json)
             })
             .Verifiable();
+        mockHandler.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
 
         var service = CreateService(mockHandler.Object);
 
@@ -186,9 +191,10 @@ public class ArrIntegrationServiceTests
             .ReturnsAsync(new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(json),
+                Content = new StringContent(json)
             })
             .Verifiable();
+        mockHandler.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
 
         var service = CreateService(mockHandler.Object);
 
@@ -212,9 +218,10 @@ public class ArrIntegrationServiceTests
             .ReturnsAsync(new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(json),
+                Content = new StringContent(json)
             })
             .Verifiable();
+        mockHandler.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
 
         var service = CreateService(mockHandler.Object);
 
@@ -227,7 +234,7 @@ public class ArrIntegrationServiceTests
     public async Task TestConnection_CancellationToken_IsRespected()
     {
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         var mockHandler = new Mock<HttpMessageHandler>(MockBehavior.Strict);
         mockHandler.Protected()
@@ -237,11 +244,12 @@ public class ArrIntegrationServiceTests
                 ItExpr.IsAny<CancellationToken>())
             .ThrowsAsync(new TaskCanceledException("Request was canceled"))
             .Verifiable();
+        mockHandler.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
 
         var service = CreateService(mockHandler.Object);
 
-        await Assert.ThrowsAsync<TaskCanceledException>(
-            () => service.TestConnectionAsync("http://localhost:7878", "testapikey", cts.Token));
+        await Assert.ThrowsAsync<TaskCanceledException>(() =>
+            service.TestConnectionAsync("http://localhost:7878", "testapikey", cts.Token));
     }
 
     // === GetRadarrMoviesAsync ===
@@ -254,6 +262,7 @@ public class ArrIntegrationServiceTests
 
         var movies = await service.GetRadarrMoviesAsync(string.Empty, "apikey");
 
+        Assert.NotNull(movies);
         Assert.Empty(movies);
     }
 
@@ -265,6 +274,7 @@ public class ArrIntegrationServiceTests
 
         var movies = await service.GetRadarrMoviesAsync("http://localhost:7878", string.Empty);
 
+        Assert.NotNull(movies);
         Assert.Empty(movies);
     }
 
@@ -272,16 +282,17 @@ public class ArrIntegrationServiceTests
     public async Task GetRadarrMovies_ValidResponse_ParsesMovies()
     {
         var json = """
-        [
-            {"title":"The Matrix","year":1999,"imdbId":"tt0133093","tmdbId":603,"hasFile":true,"path":"/movies/The Matrix (1999)"},
-            {"title":"Inception","year":2010,"imdbId":"tt1375666","tmdbId":27205,"hasFile":false,"path":"/movies/Inception (2010)"}
-        ]
-        """;
+                   [
+                       {"title":"The Matrix","year":1999,"imdbId":"tt0133093","tmdbId":603,"hasFile":true,"path":"/movies/The Matrix (1999)"},
+                       {"title":"Inception","year":2010,"imdbId":"tt1375666","tmdbId":27205,"hasFile":false,"path":"/movies/Inception (2010)"}
+                   ]
+                   """;
         var handler = CreateMockHandler(HttpStatusCode.OK, json);
         var service = CreateService(handler.Object);
 
         var movies = await service.GetRadarrMoviesAsync("http://localhost:7878", "testapikey");
 
+        Assert.NotNull(movies);
         Assert.Equal(2, movies.Count);
         Assert.Equal("The Matrix", movies[0].Title);
         Assert.Equal(1999, movies[0].Year);
@@ -291,14 +302,14 @@ public class ArrIntegrationServiceTests
     }
 
     [Fact]
-    public async Task GetRadarrMovies_ServerError_ReturnsEmptyList()
+    public async Task GetRadarrMovies_ServerError_ReturnsNull()
     {
         var handler = CreateMockHandler(HttpStatusCode.InternalServerError, "Error");
         var service = CreateService(handler.Object);
 
         var movies = await service.GetRadarrMoviesAsync("http://localhost:7878", "testapikey");
 
-        Assert.Empty(movies);
+        Assert.Null(movies);
     }
 
     // === GetSonarrSeriesAsync ===
@@ -311,6 +322,7 @@ public class ArrIntegrationServiceTests
 
         var series = await service.GetSonarrSeriesAsync(string.Empty, "apikey");
 
+        Assert.NotNull(series);
         Assert.Empty(series);
     }
 
@@ -318,16 +330,17 @@ public class ArrIntegrationServiceTests
     public async Task GetSonarrSeries_ValidResponse_ParsesSeries()
     {
         var json = """
-        [
-            {"title":"Breaking Bad","year":2008,"imdbId":"tt0903747","tvdbId":81189,"path":"/tv/Breaking Bad","statistics":{"episodeFileCount":62,"totalEpisodeCount":62}},
-            {"title":"The Wire","year":2002,"imdbId":"tt0306414","tvdbId":79126,"path":"/tv/The Wire","statistics":{"episodeFileCount":0,"totalEpisodeCount":60}}
-        ]
-        """;
+                   [
+                       {"title":"Breaking Bad","year":2008,"imdbId":"tt0903747","tvdbId":81189,"path":"/tv/Breaking Bad","statistics":{"episodeFileCount":62,"totalEpisodeCount":62}},
+                       {"title":"The Wire","year":2002,"imdbId":"tt0306414","tvdbId":79126,"path":"/tv/The Wire","statistics":{"episodeFileCount":0,"totalEpisodeCount":60}}
+                   ]
+                   """;
         var handler = CreateMockHandler(HttpStatusCode.OK, json);
         var service = CreateService(handler.Object);
 
         var series = await service.GetSonarrSeriesAsync("http://localhost:8989", "testapikey");
 
+        Assert.NotNull(series);
         Assert.Equal(2, series.Count);
         Assert.Equal("Breaking Bad", series[0].Title);
         Assert.Equal(62, series[0].EpisodeFileCount);
@@ -336,14 +349,14 @@ public class ArrIntegrationServiceTests
     }
 
     [Fact]
-    public async Task GetSonarrSeries_ServerError_ReturnsEmptyList()
+    public async Task GetSonarrSeries_ServerError_ReturnsNull()
     {
         var handler = CreateMockHandler(HttpStatusCode.InternalServerError, "Error");
         var service = CreateService(handler.Object);
 
         var series = await service.GetSonarrSeriesAsync("http://localhost:8989", "testapikey");
 
-        Assert.Empty(series);
+        Assert.Null(series);
     }
 
     // === CompareRadarrWithJellyfin ===
@@ -353,7 +366,7 @@ public class ArrIntegrationServiceTests
     {
         var movies = new[]
         {
-            new ArrMovie { Title = "The Matrix", Year = 1999, HasFile = true, Path = "/movies/The Matrix (1999)" },
+            new ArrMovie { Title = "The Matrix", Year = 1999, HasFile = true, Path = "/movies/The Matrix (1999)" }
         };
         var jellyfinFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "The Matrix (1999)" };
 
@@ -370,7 +383,7 @@ public class ArrIntegrationServiceTests
     {
         var movies = new[]
         {
-            new ArrMovie { Title = "Inception", Year = 2010, HasFile = true, Path = "/movies/Inception (2010)" },
+            new ArrMovie { Title = "Inception", Year = 2010, HasFile = true, Path = "/movies/Inception (2010)" }
         };
         var jellyfinFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -386,7 +399,7 @@ public class ArrIntegrationServiceTests
     {
         var movies = new[]
         {
-            new ArrMovie { Title = "Future Movie", Year = 2025, HasFile = false, Path = "/movies/Future Movie (2025)" },
+            new ArrMovie { Title = "Future Movie", Year = 2025, HasFile = false, Path = "/movies/Future Movie (2025)" }
         };
         var jellyfinFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -417,7 +430,11 @@ public class ArrIntegrationServiceTests
     {
         var series = new[]
         {
-            new ArrSeries { Title = "Breaking Bad", Year = 2008, Path = "/tv/Breaking Bad", EpisodeFileCount = 62, TotalEpisodeCount = 62 },
+            new ArrSeries
+            {
+                Title = "Breaking Bad", Year = 2008, Path = "/tv/Breaking Bad", EpisodeFileCount = 62,
+                TotalEpisodeCount = 62
+            }
         };
         var jellyfinFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Breaking Bad" };
 
@@ -432,7 +449,10 @@ public class ArrIntegrationServiceTests
     {
         var series = new[]
         {
-            new ArrSeries { Title = "The Wire", Year = 2002, Path = "/tv/The Wire", EpisodeFileCount = 60, TotalEpisodeCount = 60 },
+            new ArrSeries
+            {
+                Title = "The Wire", Year = 2002, Path = "/tv/The Wire", EpisodeFileCount = 60, TotalEpisodeCount = 60
+            }
         };
         var jellyfinFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -447,7 +467,11 @@ public class ArrIntegrationServiceTests
     {
         var series = new[]
         {
-            new ArrSeries { Title = "Upcoming Show", Year = 2025, Path = "/tv/Upcoming Show", EpisodeFileCount = 0, TotalEpisodeCount = 10 },
+            new ArrSeries
+            {
+                Title = "Upcoming Show", Year = 2025, Path = "/tv/Upcoming Show", EpisodeFileCount = 0,
+                TotalEpisodeCount = 10
+            }
         };
         var jellyfinFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 

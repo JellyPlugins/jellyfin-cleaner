@@ -2,10 +2,10 @@ using System.Text.Json;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Xunit;
 
-namespace Jellyfin.Plugin.JellyfinHelper.Tests.Configuration;
+namespace Jellyfin.Plugin.JellyfinHelper.Tests;
 
 /// <summary>
-/// Tests for the <see cref="TaskMode"/> enum and its JSON serialization behavior.
+///     Tests for the <see cref="TaskMode" /> enum and its JSON serialization behavior.
 /// </summary>
 public class TaskModeTests
 {
@@ -29,7 +29,7 @@ public class TaskModeTests
     public void TaskMode_DefaultValue_IsDeactivate()
     {
         // default(TaskMode) should be Deactivate (value 0)
-        Assert.Equal(TaskMode.Deactivate, default(TaskMode));
+        Assert.Equal(TaskMode.Deactivate, default);
     }
 
     [Theory]

@@ -10,17 +10,19 @@ using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 
-public class MediaStatisticsControllerBackupTests
+public class BackupControllerTests
 {
+    private readonly PluginLogService _log = TestMockFactory.CreatePluginLogService();
+
     [Fact]
     public void ExportBackup_WhenPayloadIsLargeButWithinLimit_ReturnsFileAndLogsWarning()
     {
-        PluginLogService.Clear();
+        _log.Clear();
         var tempDir = CreateTempDir();
         try
         {
             WriteBaselineJsonAtLeast(
-                Path.Combine(tempDir, "jellyfin-helper-growth-baseline.json"),
+                Path.Join(tempDir, "jellyfin-helper-growth-baseline.json"),
                 (int)BackupService.LargeBackupWarningThresholdBytes + (256 * 1024));
 
             var controller = CreateController(tempDir);
@@ -30,12 +32,14 @@ public class MediaStatisticsControllerBackupTests
             var fileResult = Assert.IsType<FileContentResult>(result);
             Assert.Equal("application/json", fileResult.ContentType);
 
-            var logs = PluginLogService.GetEntries(source: "API", limit: 20);
-            Assert.Contains(logs, entry => entry.Level == "WARN" && entry.Message.Contains("Large backup export created", StringComparison.Ordinal));
+            var logs = _log.GetEntries(source: "API", limit: 20);
+            Assert.Contains(logs,
+                entry => entry.Level == "WARN" &&
+                         entry.Message.Contains("Large backup export created", StringComparison.Ordinal));
         }
         finally
         {
-            PluginLogService.Clear();
+            _log.Clear();
             Directory.Delete(tempDir, true);
         }
     }
@@ -43,12 +47,12 @@ public class MediaStatisticsControllerBackupTests
     [Fact]
     public void ExportBackup_WhenPayloadExceedsLimit_ReturnsBadRequestAndLogsWarning()
     {
-        PluginLogService.Clear();
+        _log.Clear();
         var tempDir = CreateTempDir();
         try
         {
             WriteBaselineJsonAtLeast(
-                Path.Combine(tempDir, "jellyfin-helper-growth-baseline.json"),
+                Path.Join(tempDir, "jellyfin-helper-growth-baseline.json"),
                 (int)BackupService.MaxBackupSizeBytes + (256 * 1024));
 
             var controller = CreateController(tempDir);
@@ -57,14 +61,16 @@ public class MediaStatisticsControllerBackupTests
 
             var badRequest = Assert.IsType<BadRequestObjectResult>(result);
             var payloadJson = JsonSerializer.Serialize(badRequest.Value);
-            Assert.Contains("Maximum size is 50 MB", payloadJson, StringComparison.Ordinal);
+            Assert.Contains("Maximum size is 10 MB", payloadJson, StringComparison.Ordinal);
 
-            var logs = PluginLogService.GetEntries(source: "API", limit: 20);
-            Assert.Contains(logs, entry => entry.Level == "WARN" && entry.Message.Contains("Backup export rejected", StringComparison.Ordinal));
+            var logs = _log.GetEntries(source: "API", limit: 20);
+            Assert.Contains(logs,
+                entry => entry.Level == "WARN" &&
+                         entry.Message.Contains("Backup export rejected", StringComparison.Ordinal));
         }
         finally
         {
-            PluginLogService.Clear();
+            _log.Clear();
             Directory.Delete(tempDir, true);
         }
     }
@@ -72,21 +78,22 @@ public class MediaStatisticsControllerBackupTests
     [Fact]
     public async Task ImportBackup_WhenContentLengthExceedsLimit_ReturnsBadRequest()
     {
-        PluginLogService.Clear();
+        _log.Clear();
         var tempDir = CreateTempDir();
         try
         {
-            var controller = CreateControllerWithJsonBody(tempDir, "{}", contentLength: BackupService.MaxBackupSizeBytes + 1);
+            var controller =
+                CreateControllerWithJsonBody(tempDir, "{}", contentLength: BackupService.MaxBackupSizeBytes + 1);
 
             var result = await controller.ImportBackupAsync();
 
             var badRequest = Assert.IsType<BadRequestObjectResult>(result);
             var payloadJson = JsonSerializer.Serialize(badRequest.Value);
-            Assert.Contains("Maximum size is 50 MB", payloadJson, StringComparison.Ordinal);
+            Assert.Contains("Maximum size is 10 MB", payloadJson, StringComparison.Ordinal);
         }
         finally
         {
-            PluginLogService.Clear();
+            _log.Clear();
             Directory.Delete(tempDir, true);
         }
     }
@@ -94,23 +101,26 @@ public class MediaStatisticsControllerBackupTests
     [Fact]
     public async Task ImportBackup_WhenContentLengthIsLargeButWithinLimit_LogsWarning()
     {
-        PluginLogService.Clear();
+        _log.Clear();
         var tempDir = CreateTempDir();
         try
         {
             // Use a minimal valid backup JSON but declare a large Content-Length
-            var controller = CreateControllerWithJsonBody(tempDir, "{}", contentLength: BackupService.LargeBackupWarningThresholdBytes);
+            var controller = CreateControllerWithJsonBody(tempDir, "{}",
+                contentLength: BackupService.LargeBackupWarningThresholdBytes);
 
-            var result = await controller.ImportBackupAsync();
+            await controller.ImportBackupAsync();
 
             // The body is only "{}" so deserialization will produce a default BackupData
             // which passes validation — we just want to verify the warning was logged
-            var logs = PluginLogService.GetEntries(source: "API", limit: 20);
-            Assert.Contains(logs, entry => entry.Level == "WARN" && entry.Message.Contains("Large backup import detected", StringComparison.Ordinal));
+            var logs = _log.GetEntries(source: "API", limit: 20);
+            Assert.Contains(logs,
+                entry => entry.Level == "WARN" &&
+                         entry.Message.Contains("Large backup import detected", StringComparison.Ordinal));
         }
         finally
         {
-            PluginLogService.Clear();
+            _log.Clear();
             Directory.Delete(tempDir, true);
         }
     }
@@ -118,7 +128,7 @@ public class MediaStatisticsControllerBackupTests
     [Fact]
     public async Task ImportBackup_WhenBodyIsEmpty_ReturnsBadRequest()
     {
-        PluginLogService.Clear();
+        _log.Clear();
         var tempDir = CreateTempDir();
         try
         {
@@ -132,7 +142,7 @@ public class MediaStatisticsControllerBackupTests
         }
         finally
         {
-            PluginLogService.Clear();
+            _log.Clear();
             Directory.Delete(tempDir, true);
         }
     }
@@ -140,23 +150,18 @@ public class MediaStatisticsControllerBackupTests
     [Fact]
     public async Task ExportBackup_ThenImportBackup_RoundTripsSuccessfully()
     {
-        PluginLogService.Clear();
+        _log.Clear();
         var tempDir = CreateTempDir();
         try
         {
-            File.WriteAllText(
-                Path.Combine(tempDir, "jellyfin-helper-growth-timeline.json"),
+            await File.WriteAllTextAsync(
+                Path.Join(tempDir, "jellyfin-helper-growth-timeline.json"),
                 "{\"granularity\":\"monthly\",\"dataPoints\":[{\"date\":\"2024-06-01T00:00:00Z\",\"cumulativeSize\":1000,\"cumulativeFileCount\":1}]}",
                 Encoding.UTF8);
 
-            File.WriteAllText(
-                Path.Combine(tempDir, "jellyfin-helper-growth-baseline.json"),
+            await File.WriteAllTextAsync(
+                Path.Join(tempDir, "jellyfin-helper-growth-baseline.json"),
                 "{\"firstScanTimestamp\":\"2024-04-01T00:00:00Z\",\"directories\":{\"/media/movie-1\":{\"createdUtc\":\"2024-04-01T00:00:00Z\",\"size\":2000}}}",
-                Encoding.UTF8);
-
-            File.WriteAllText(
-                Path.Combine(tempDir, "jellyfin-helper-statistics-history.json"),
-                "[{\"timestamp\":\"2024-05-01T00:00:00Z\",\"totalSize\":500}]",
                 Encoding.UTF8);
 
             var exportController = CreateController(tempDir);
@@ -176,20 +181,22 @@ public class MediaStatisticsControllerBackupTests
         }
         finally
         {
-            PluginLogService.Clear();
+            _log.Clear();
             Directory.Delete(tempDir, true);
         }
     }
 
-    private static MediaStatisticsController CreateController(string dataPath)
-        => ControllerTestFactory.CreateController(dataPath: dataPath).Controller;
+    private BackupController CreateController(string dataPath)
+        => ControllerTestFactory.CreateBackupController(dataPath: dataPath, pluginLog: _log);
 
-    private static MediaStatisticsController CreateControllerWithJsonBody(string dataPath, string jsonBody, long? contentLength = null)
-        => ControllerTestFactory.CreateControllerWithJsonBody(dataPath, jsonBody, contentLength);
+    private BackupController CreateControllerWithJsonBody(string dataPath, string jsonBody,
+        long? contentLength = null)
+        => (BackupController)ControllerTestFactory.AddJsonBodyToController(CreateController(dataPath), jsonBody,
+            contentLength);
 
     private static string CreateTempDir()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "jh-backup-api-test-" + Guid.NewGuid().ToString("N"));
+        var tempDir = Path.Join(Path.GetTempPath(), "jh-backup-api-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
         return tempDir;
     }

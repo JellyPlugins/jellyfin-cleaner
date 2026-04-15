@@ -162,7 +162,9 @@ public class LogsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_LogLevelPersistence_SavesViaConfiguration()
     {
-        Assert.Contains("cfg.PluginLogLevel = newLevel", HtmlContent);
+        // Logs.js now uses a dedicated PUT endpoint instead of GET+POST of the entire config
+        Assert.Contains("JellyfinHelper/Configuration/LogLevel", HtmlContent);
+        Assert.Contains("PluginLogLevel", HtmlContent);
     }
 
     // === API endpoints ===

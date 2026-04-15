@@ -1,15 +1,17 @@
 using System.Text.Json;
+using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Backup;
-using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
+using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
 using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
+using Moq;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Backup;
 
 /// <summary>
-/// Comprehensive tests for the BackupService, covering validation, sanitization,
-/// serialization, and security checks against malicious input.
+///     Comprehensive tests for the BackupService, covering validation, sanitization,
+///     serialization, and security checks against malicious input.
 /// </summary>
 public class BackupServiceTests
 {
@@ -31,10 +33,12 @@ public class BackupServiceTests
             StrmRepairTaskMode = "DryRun",
             UseTrash = true,
             TrashFolderPath = ".jellyfin-trash",
-            TrashRetentionDays = 30,
+            TrashRetentionDays = 30
         };
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "Radarr", Url = "http://localhost:7878", ApiKey = "abc123" });
-        backup.SonarrInstances.Add(new BackupArrInstance { Name = "Sonarr", Url = "http://localhost:8989", ApiKey = "def456" });
+        backup.RadarrInstances.Add(new BackupArrInstance
+            { Name = "Radarr", Url = "http://localhost:7878", ApiKey = "abc123" });
+        backup.SonarrInstances.Add(new BackupArrInstance
+            { Name = "Sonarr", Url = "http://localhost:8989", ApiKey = "def456" });
         return backup;
     }
 
@@ -278,7 +282,7 @@ public class BackupServiceTests
     [Theory]
     [InlineData("path|command")]
     [InlineData("path`command`")]
-    [InlineData("$HOME/trash")]
+    [InlineData("$(HOME)/trash")]
     [InlineData("path;rm -rf /")]
     public void Validate_CommandInjectionInTrashPath_ReturnsError(string path)
     {
@@ -310,10 +314,14 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.RadarrInstances.Clear();
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "R1", Url = "http://localhost:7878", ApiKey = "key1" });
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "R2", Url = "http://localhost:7879", ApiKey = "key2" });
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "R3", Url = "http://localhost:7880", ApiKey = "key3" });
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "R4", Url = "http://localhost:7881", ApiKey = "key4" });
+        backup.RadarrInstances.Add(
+            new BackupArrInstance { Name = "R1", Url = "http://localhost:7878", ApiKey = "key1" });
+        backup.RadarrInstances.Add(
+            new BackupArrInstance { Name = "R2", Url = "http://localhost:7879", ApiKey = "key2" });
+        backup.RadarrInstances.Add(
+            new BackupArrInstance { Name = "R3", Url = "http://localhost:7880", ApiKey = "key3" });
+        backup.RadarrInstances.Add(
+            new BackupArrInstance { Name = "R4", Url = "http://localhost:7881", ApiKey = "key4" });
         var result = BackupService.Validate(backup);
 
         Assert.False(result.IsValid);
@@ -325,7 +333,8 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.RadarrInstances.Clear();
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "Radarr", Url = "ftp://not-http.com", ApiKey = "key" });
+        backup.RadarrInstances.Add(
+            new BackupArrInstance { Name = "Radarr", Url = "ftp://not-http.com", ApiKey = "key" });
         var result = BackupService.Validate(backup);
 
         Assert.False(result.IsValid);
@@ -348,7 +357,8 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.RadarrInstances.Clear();
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "<script>alert(1)</script>", Url = "http://localhost:7878", ApiKey = "key" });
+        backup.RadarrInstances.Add(new BackupArrInstance
+            { Name = "<script>alert(1)</script>", Url = "http://localhost:7878", ApiKey = "key" });
         var result = BackupService.Validate(backup);
 
         Assert.False(result.IsValid);
@@ -372,15 +382,13 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.GrowthTimeline = new GrowthTimelineResult { Granularity = "monthly" };
-        for (int i = 0; i < BackupService.MaxTimelineDataPoints + 100; i++)
-        {
+        for (var i = 0; i < BackupService.MaxTimelineDataPoints + 100; i++)
             backup.GrowthTimeline.DataPoints.Add(new GrowthTimelinePoint
             {
                 Date = DateTime.UtcNow.AddDays(-i),
                 CumulativeSize = i * 1000,
-                CumulativeFileCount = i,
+                CumulativeFileCount = i
             });
-        }
 
         var result = BackupService.Validate(backup);
 
@@ -396,7 +404,7 @@ public class BackupServiceTests
         backup.GrowthTimeline.DataPoints.Add(new GrowthTimelinePoint
         {
             Date = DateTime.UtcNow,
-            CumulativeSize = -1000,
+            CumulativeSize = -1000
         });
 
         var result = BackupService.Validate(backup);
@@ -421,11 +429,16 @@ public class BackupServiceTests
     public void Validate_BaselineWithScriptInPath_ReturnsError()
     {
         var backup = CreateValidBackup();
-        backup.GrowthBaseline = new GrowthTimelineBaseline();
-        backup.GrowthBaseline.Directories["<script>alert(1)</script>"] = new BaselineDirectoryEntry
+        backup.GrowthBaseline = new GrowthTimelineBaseline
         {
-            CreatedUtc = DateTime.UtcNow,
-            Size = 1000,
+            Directories =
+            {
+                ["<script>alert(1)</script>"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = DateTime.UtcNow,
+                    Size = 1000
+                }
+            }
         };
 
         var result = BackupService.Validate(backup);
@@ -438,53 +451,22 @@ public class BackupServiceTests
     public void Validate_BaselineWithLongPath_ReturnsError()
     {
         var backup = CreateValidBackup();
-        backup.GrowthBaseline = new GrowthTimelineBaseline();
-        backup.GrowthBaseline.Directories[new string('A', 1001)] = new BaselineDirectoryEntry
+        backup.GrowthBaseline = new GrowthTimelineBaseline
         {
-            CreatedUtc = DateTime.UtcNow,
-            Size = 1000,
+            Directories =
+            {
+                [new string('A', 1001)] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = DateTime.UtcNow,
+                    Size = 1000
+                }
+            }
         };
 
         var result = BackupService.Validate(backup);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("1000 characters"));
-    }
-
-    // ===== Statistics History Validation =====
-
-    [Fact]
-    public void Validate_HistoryWithScriptInLibraryName_ReturnsError()
-    {
-        var backup = CreateValidBackup();
-        var snapshot = new StatisticsSnapshot
-        {
-            Timestamp = DateTime.UtcNow,
-            TotalSize = 1000,
-        };
-        snapshot.LibrarySizes["<script>alert(1)</script>"] = 1000;
-        backup.StatisticsHistory.Add(snapshot);
-
-        var result = BackupService.Validate(backup);
-
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Contains("script injection"));
-    }
-
-    [Fact]
-    public void Validate_HistoryWithNegativeValues_ReturnsWarning()
-    {
-        var backup = CreateValidBackup();
-        backup.StatisticsHistory.Add(new StatisticsSnapshot
-        {
-            Timestamp = DateTime.UtcNow,
-            TotalSize = -100,
-        });
-
-        var result = BackupService.Validate(backup);
-
-        Assert.True(result.IsValid);
-        Assert.Contains(result.Warnings, w => w.Contains("negative"));
     }
 
     // ===== Sanitize =====
@@ -551,24 +533,6 @@ public class BackupServiceTests
     }
 
     [Fact]
-    public void Sanitize_TooManyHistorySnapshots_AreTrimmed()
-    {
-        var backup = CreateValidBackup();
-        for (int i = 0; i < BackupService.MaxHistorySnapshots + 50; i++)
-        {
-            backup.StatisticsHistory.Add(new StatisticsSnapshot
-            {
-                Timestamp = DateTime.UtcNow.AddDays(-i),
-                TotalSize = i * 1000,
-            });
-        }
-
-        BackupService.Sanitize(backup);
-
-        Assert.Equal(BackupService.MaxHistorySnapshots, backup.StatisticsHistory.Count);
-    }
-
-    [Fact]
     public void Sanitize_InvalidLogLevel_DefaultsToInfo()
     {
         var backup = CreateValidBackup();
@@ -589,29 +553,26 @@ public class BackupServiceTests
         {
             Date = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
             CumulativeSize = 123456789,
-            CumulativeFileCount = 42,
+            CumulativeFileCount = 42
         });
         backup.GrowthBaseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
+            Directories =
+            {
+                [@"C:\Media\Movie 1"] = new BaselineDirectoryEntry
+                {
+                    CreatedUtc = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Size = 55555
+                }
+            }
         };
-        backup.GrowthBaseline.Directories[@"C:\Media\Movie 1"] = new BaselineDirectoryEntry
-        {
-            CreatedUtc = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
-            Size = 55555,
-        };
-        backup.StatisticsHistory.Add(new StatisticsSnapshot
-        {
-            Timestamp = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc),
-            TotalSize = 999999,
-            TotalVideoFileCount = 100,
-        });
 
         var json = BackupService.SerializeBackup(backup);
         var restored = BackupService.DeserializeBackup(json);
 
         Assert.NotNull(restored);
-        Assert.Equal(backup.BackupVersion, restored!.BackupVersion);
+        Assert.Equal(backup.BackupVersion, restored.BackupVersion);
         Assert.Equal(backup.Language, restored.Language);
         Assert.Equal(backup.TrickplayTaskMode, restored.TrickplayTaskMode);
         Assert.Equal(backup.UseTrash, restored.UseTrash);
@@ -626,8 +587,6 @@ public class BackupServiceTests
         Assert.Equal(backup.GrowthBaseline.FirstScanTimestamp, restored.GrowthBaseline!.FirstScanTimestamp);
         Assert.Single(restored.GrowthBaseline.Directories);
         Assert.Equal(55555, restored.GrowthBaseline.Directories[@"C:\Media\Movie 1"].Size);
-        Assert.Single(restored.StatisticsHistory);
-        Assert.Equal(999999, restored.StatisticsHistory[0].TotalSize);
     }
 
     [Fact]
@@ -650,7 +609,7 @@ public class BackupServiceTests
     {
         var result = BackupService.DeserializeBackup("{}");
         Assert.NotNull(result);
-        Assert.Equal(1, result!.BackupVersion); // default from class initializer
+        Assert.Equal(1, result.BackupVersion); // default from class initializer
         Assert.Equal("en", result.Language); // default from class
     }
 
@@ -698,9 +657,10 @@ public class BackupServiceTests
             IncludedLibraries = new string('A', 5000),
             TrashFolderPath = "../../../etc/shadow",
             OrphanMinAgeDays = -100,
-            TrashRetentionDays = -50,
+            TrashRetentionDays = -50
         };
-        backup.RadarrInstances.Add(new BackupArrInstance { Name = "<script>", Url = "ftp://evil.com", ApiKey = "key\0evil" });
+        backup.RadarrInstances.Add(new BackupArrInstance
+            { Name = "<script>", Url = "ftp://evil.com", ApiKey = "key\0evil" });
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "R2", Url = "http://ok.com", ApiKey = "ok" });
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "R3", Url = "http://ok.com", ApiKey = "ok" });
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "R4", Url = "http://ok.com", ApiKey = "ok" });
@@ -709,7 +669,8 @@ public class BackupServiceTests
 
         Assert.False(result.IsValid);
         // Should have multiple errors
-        Assert.True(result.Errors.Count >= 5, $"Expected >= 5 errors, got {result.Errors.Count}: {string.Join("; ", result.Errors)}");
+        Assert.True(result.Errors.Count >= 5,
+            $"Expected >= 5 errors, got {result.Errors.Count}: {string.Join("; ", result.Errors)}");
     }
 
     // ===== Edge cases =====
@@ -720,7 +681,7 @@ public class BackupServiceTests
         var backup = new BackupData
         {
             BackupVersion = 1,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
         };
         var result = BackupService.Validate(backup);
 
@@ -754,7 +715,7 @@ public class BackupServiceTests
     [Fact]
     public void CreateBackup_ReadsHistoricalDataFiles()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "jh-backup-test-" + Guid.NewGuid().ToString("N"));
+        var tempDir = Path.Join(Path.GetTempPath(), "jh-backup-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
         try
         {
@@ -763,34 +724,33 @@ public class BackupServiceTests
             {
                 Date = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc),
                 CumulativeSize = 1000,
-                CumulativeFileCount = 2,
+                CumulativeFileCount = 2
             });
 
             var baseline = new GrowthTimelineBaseline
             {
                 FirstScanTimestamp = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
-            };
-            baseline.Directories[@"C:\Media\Movie 1"] = new BaselineDirectoryEntry
-            {
-                CreatedUtc = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
-                Size = 2000,
-            };
-
-            var history = new List<StatisticsSnapshot>
-            {
-                new()
+                Directories =
                 {
-                    Timestamp = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc),
-                    TotalSize = 500,
-                },
+                    [@"C:\Media\Movie 1"] = new BaselineDirectoryEntry
+                    {
+                        CreatedUtc = new DateTime(2024, 4, 1, 0, 0, 0, DateTimeKind.Utc),
+                        Size = 2000
+                    }
+                }
             };
 
-            File.WriteAllText(Path.Combine(tempDir, "jellyfin-helper-growth-timeline.json"), JsonSerializer.Serialize(timeline));
-            File.WriteAllText(Path.Combine(tempDir, "jellyfin-helper-growth-baseline.json"), JsonSerializer.Serialize(baseline));
-            File.WriteAllText(Path.Combine(tempDir, "jellyfin-helper-statistics-history.json"), JsonSerializer.Serialize(history));
+            File.WriteAllText(Path.Join(tempDir, "jellyfin-helper-growth-timeline.json"),
+                JsonSerializer.Serialize(timeline));
+            File.WriteAllText(Path.Join(tempDir, "jellyfin-helper-growth-baseline.json"),
+                JsonSerializer.Serialize(baseline));
 
-            var logger = TestMockFactory.CreateLogger();
-            var service = new BackupService(tempDir, logger.Object);
+            var logger = TestMockFactory.CreateLogger<BackupService>();
+            var configService = new Mock<IPluginConfigurationService>();
+            configService.Setup(c => c.GetConfiguration()).Returns(new PluginConfiguration());
+            configService.Setup(c => c.PluginVersion).Returns("1.0.0-test");
+            var service = new BackupService(tempDir, configService.Object, TestMockFactory.CreatePluginLogService(),
+                logger.Object);
 
             var backup = service.CreateBackup();
 
@@ -801,8 +761,6 @@ public class BackupServiceTests
             Assert.Equal(baseline.FirstScanTimestamp, backup.GrowthBaseline!.FirstScanTimestamp);
             Assert.Single(backup.GrowthBaseline.Directories);
             Assert.Equal(2000, backup.GrowthBaseline.Directories[@"C:\Media\Movie 1"].Size);
-            Assert.Single(backup.StatisticsHistory);
-            Assert.Equal(500, backup.StatisticsHistory[0].TotalSize);
         }
         finally
         {
@@ -813,37 +771,35 @@ public class BackupServiceTests
     [Fact]
     public void RestoreBackup_WritesTimelineFile()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "jh-backup-test-" + Guid.NewGuid().ToString("N"));
+        var tempDir = Path.Join(Path.GetTempPath(), "jh-backup-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
         try
         {
-            var logger = TestMockFactory.CreateLogger();
-            var service = new BackupService(tempDir, logger.Object);
+            var logger = TestMockFactory.CreateLogger<BackupService>();
+            var configService = new Mock<IPluginConfigurationService>();
+            var service = new BackupService(tempDir, configService.Object, TestMockFactory.CreatePluginLogService(),
+                logger.Object);
 
             var backup = CreateValidBackup();
             backup.GrowthTimeline = new GrowthTimelineResult { Granularity = "monthly" };
             backup.GrowthTimeline.DataPoints.Add(new GrowthTimelinePoint
             {
                 Date = DateTime.UtcNow,
-                CumulativeSize = 1000,
+                CumulativeSize = 1000
             });
             backup.GrowthBaseline = new GrowthTimelineBaseline
             {
-                FirstScanTimestamp = DateTime.UtcNow,
+                FirstScanTimestamp = DateTime.UtcNow
             };
-            backup.StatisticsHistory.Add(new StatisticsSnapshot { Timestamp = DateTime.UtcNow, TotalSize = 500 });
-
             // RestoreBackup won't restore config (no Plugin.Instance), but should write files
             var summary = service.RestoreBackup(backup);
 
             Assert.True(summary.TimelineRestored);
             Assert.True(summary.BaselineRestored);
-            Assert.Equal(1, summary.HistorySnapshotsRestored);
 
             // Verify files were written
-            Assert.True(File.Exists(Path.Combine(tempDir, "jellyfin-helper-growth-timeline.json")));
-            Assert.True(File.Exists(Path.Combine(tempDir, "jellyfin-helper-growth-baseline.json")));
-            Assert.True(File.Exists(Path.Combine(tempDir, "jellyfin-helper-statistics-history.json")));
+            Assert.True(File.Exists(Path.Join(tempDir, "jellyfin-helper-growth-timeline.json")));
+            Assert.True(File.Exists(Path.Join(tempDir, "jellyfin-helper-growth-baseline.json")));
         }
         finally
         {
@@ -854,25 +810,24 @@ public class BackupServiceTests
     [Fact]
     public void RestoreBackup_NoHistoricalData_SkipsFiles()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "jh-backup-test-" + Guid.NewGuid().ToString("N"));
+        var tempDir = Path.Join(Path.GetTempPath(), "jh-backup-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
         try
         {
-            var logger = TestMockFactory.CreateLogger();
-            var service = new BackupService(tempDir, logger.Object);
+            var logger = TestMockFactory.CreateLogger<BackupService>();
+            var configService = new Mock<IPluginConfigurationService>();
+            var service = new BackupService(tempDir, configService.Object, TestMockFactory.CreatePluginLogService(),
+                logger.Object);
 
             var backup = CreateValidBackup();
             backup.GrowthTimeline = null;
             backup.GrowthBaseline = null;
-            // StatisticsHistory is already empty by default (Collection), no need to assign
-
             var summary = service.RestoreBackup(backup);
 
             Assert.False(summary.TimelineRestored);
             Assert.False(summary.BaselineRestored);
-            Assert.Equal(0, summary.HistorySnapshotsRestored);
 
-            Assert.False(File.Exists(Path.Combine(tempDir, "jellyfin-helper-growth-timeline.json")));
+            Assert.False(File.Exists(Path.Join(tempDir, "jellyfin-helper-growth-timeline.json")));
         }
         finally
         {

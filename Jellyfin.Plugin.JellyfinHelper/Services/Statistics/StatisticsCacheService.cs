@@ -1,0 +1,107 @@
+using System;
+using System.IO;
+using System.Text.Json;
+using System.Threading;
+using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
+using MediaBrowser.Common.Configuration;
+using Microsoft.Extensions.Logging;
+
+namespace Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
+
+/// <summary>
+///     Caches the latest full scan result to disk for persistence across restarts.
+/// </summary>
+public class StatisticsCacheService : IStatisticsCacheService
+{
+    private const string LatestResultFileName = "jellyfin-helper-statistics-latest.json";
+
+    private static readonly JsonSerializerOptions JsonOptions = JsonDefaults.Options;
+    private readonly Lock _fileLock = new();
+
+    private readonly string _latestResultFilePath;
+    private readonly ILogger<StatisticsCacheService> _logger;
+    private readonly IPluginLogService _pluginLog;
+
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="StatisticsCacheService" /> class.
+    /// </summary>
+    /// <param name="applicationPaths">The application paths.</param>
+    /// <param name="pluginLog">The plugin log service.</param>
+    /// <param name="logger">The logger.</param>
+    public StatisticsCacheService(
+        IApplicationPaths applicationPaths,
+        IPluginLogService pluginLog,
+        ILogger<StatisticsCacheService> logger)
+    {
+        _pluginLog = pluginLog;
+        _logger = logger;
+        _latestResultFilePath = Path.Join(applicationPaths.DataPath, LatestResultFileName);
+    }
+
+    /// <summary>
+    ///     Saves the latest full statistics result to disk for persistence across server restarts.
+    /// </summary>
+    /// <param name="result">The statistics result to persist.</param>
+    public void SaveLatestResult(MediaStatisticsResult result)
+    {
+        lock (_fileLock)
+        {
+            try
+            {
+                var directory = Path.GetDirectoryName(_latestResultFilePath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                var json = JsonSerializer.Serialize(result, JsonOptions);
+                var tempFilePath = _latestResultFilePath + ".tmp";
+                File.WriteAllText(tempFilePath, json);
+                File.Move(tempFilePath, _latestResultFilePath, true);
+
+                _pluginLog.LogDebug(
+                    "StatisticsCache",
+                    $"Saved latest statistics result to {_latestResultFilePath}",
+                    _logger);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _pluginLog.LogWarning(
+                    "StatisticsCache",
+                    $"Could not save latest statistics result to {_latestResultFilePath}",
+                    ex,
+                    _logger);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Loads the latest full statistics result from disk.
+    /// </summary>
+    /// <returns>The last saved statistics result, or null if none exists.</returns>
+    public MediaStatisticsResult? LoadLatestResult()
+    {
+        lock (_fileLock)
+        {
+            try
+            {
+                if (!File.Exists(_latestResultFilePath))
+                {
+                    return null;
+                }
+
+                var json = File.ReadAllText(_latestResultFilePath);
+                return JsonSerializer.Deserialize<MediaStatisticsResult>(json, JsonOptions);
+            }
+            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+            {
+                _pluginLog.LogWarning(
+                    "StatisticsCache",
+                    $"Could not load latest statistics result from {_latestResultFilePath}",
+                    ex,
+                    _logger);
+                return null;
+            }
+        }
+    }
+}

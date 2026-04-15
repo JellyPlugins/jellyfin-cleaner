@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using MediaBrowser.Controller.Library;
@@ -13,154 +12,114 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 
 /// <summary>
-/// A scheduled task to clean up orphaned subtitle files (.srt, .ass, .sub, etc.)
-/// that no longer have a corresponding video file with the same base name.
+///     A scheduled task to clean up orphaned subtitle files (.srt, .ass, .sub, etc.)
+///     that no longer have a corresponding video file with the same base name.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Subtitle files typically follow a naming convention where the base name matches the video file:
-/// <c>Movie Name (2021).mkv</c> → <c>Movie Name (2021).en.srt</c> or <c>Movie Name (2021).srt</c>.
-/// </para>
-/// <para>
-/// This task scans all directories recursively and for each subtitle file, checks whether any video
-/// file with a matching base name exists in the same directory. The matching is flexible:
-/// <c>Movie.en.srt</c> matches <c>Movie.mkv</c> because we strip language suffixes from the subtitle name.
-/// </para>
-/// <para>
-/// Note: Only subtitle files are cleaned. Images like <c>backdrop.jpg</c>, <c>poster.jpg</c> etc.
-/// are NOT touched because they typically don't follow the video-name pattern and serve the entire folder.
-/// </para>
+///     <para>
+///         Subtitle files typically follow a naming convention where the base name matches the video file:
+///         <c>Movie Name (2021).mkv</c> → <c>Movie Name (2021).en.srt</c> or <c>Movie Name (2021).srt</c>.
+///     </para>
+///     <para>
+///         This task scans all directories recursively and for each subtitle file, checks whether any video
+///         file with a matching base name exists in the same directory. The matching is flexible:
+///         <c>Movie.en.srt</c> matches <c>Movie.mkv</c> because we strip language suffixes from the subtitle name.
+///     </para>
+///     <para>
+///         Note: Only subtitle files are cleaned. Images like <c>backdrop.jpg</c>, <c>poster.jpg</c> etc.
+///         are NOT touched because they typically don't follow the video-name pattern and serve the entire folder.
+///     </para>
 /// </remarks>
-public class CleanOrphanedSubtitlesTask
+public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
 {
-    private readonly ILibraryManager _libraryManager;
-    private readonly IFileSystem _fileSystem;
-    private readonly ILogger<CleanOrphanedSubtitlesTask> _logger;
-
     /// <summary>
-    /// Initializes a new instance of the <see cref="CleanOrphanedSubtitlesTask"/> class.
+    ///     Initializes a new instance of the <see cref="CleanOrphanedSubtitlesTask" /> class.
     /// </summary>
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="fileSystem">The file system.</param>
+    /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="logger">The logger.</param>
-    public CleanOrphanedSubtitlesTask(ILibraryManager libraryManager, IFileSystem fileSystem, ILogger<CleanOrphanedSubtitlesTask> logger)
+    /// <param name="configHelper">The cleanup configuration helper.</param>
+    /// <param name="trackingService">The cleanup tracking service.</param>
+    /// <param name="trashService">The trash service.</param>
+    public CleanOrphanedSubtitlesTask(
+        ILibraryManager libraryManager,
+        IFileSystem fileSystem,
+        IPluginLogService pluginLog,
+        ILogger<CleanOrphanedSubtitlesTask> logger,
+        ICleanupConfigHelper configHelper,
+        ICleanupTrackingService trackingService,
+        ITrashService trashService)
+        : base(libraryManager, fileSystem, pluginLog, logger, configHelper, trackingService, trashService)
     {
-        _libraryManager = libraryManager;
-        _fileSystem = fileSystem;
-        _logger = logger;
     }
 
-    /// <summary>
-    /// Executes the orphaned subtitle cleanup.
-    /// </summary>
-    /// <param name="progress">Progress reporter.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A completed task.</returns>
-    public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
+    /// <inheritdoc />
+    protected override string TaskName => "SubtitleCleaner";
+
+    /// <inheritdoc />
+    protected override string ItemLabel => "files";
+
+    /// <inheritdoc />
+    protected override bool IsDryRun()
     {
-        var effectiveDryRun = CleanupConfigHelper.IsDryRunOrphanedSubtitles();
-        var config = CleanupConfigHelper.GetConfig();
-
-        if (effectiveDryRun)
-        {
-            PluginLogService.LogInfo("SubtitleCleaner", "Task started (Dry Run). No files will be deleted.", _logger);
-        }
-        else
-        {
-            PluginLogService.LogInfo("SubtitleCleaner", "Task started.", _logger);
-        }
-
-        var libraryFolders = CleanupConfigHelper.GetFilteredLibraryLocations(_libraryManager);
-
-        int totalDeleted = 0;
-        long totalBytesFreed = 0;
-
-        for (int i = 0; i < libraryFolders.Count; i++)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                break;
-            }
-
-            var folder = libraryFolders[i];
-            PluginLogService.LogDebug("SubtitleCleaner", $"Scanning library folder: {folder}", _logger);
-            var (deleted, bytesFreed) = CleanDirectory(folder, effectiveDryRun, cancellationToken);
-            totalDeleted += deleted;
-            totalBytesFreed += bytesFreed;
-            progress.Report((double)(i + 1) / libraryFolders.Count * 100);
-        }
-
-        if (effectiveDryRun)
-        {
-            PluginLogService.LogInfo("SubtitleCleaner", $"Task finished (Dry Run). Would have deleted {totalDeleted} files.", _logger);
-        }
-        else
-        {
-            PluginLogService.LogInfo("SubtitleCleaner", $"Task finished. Deleted {totalDeleted} files, freed {totalBytesFreed} bytes.", _logger);
-        }
-
-        if (!effectiveDryRun && totalDeleted > 0)
-        {
-            CleanupTrackingService.RecordCleanup(totalBytesFreed, totalDeleted, _logger);
-        }
-
-        return Task.CompletedTask;
+        return ConfigHelper.IsDryRunOrphanedSubtitles();
     }
 
-    private (int Deleted, long BytesFreed) CleanDirectory(string rootPath, bool dryRun, CancellationToken cancellationToken)
+    /// <inheritdoc />
+    protected override (int Deleted, long BytesFreed) ProcessLocation(
+        string libraryPath,
+        bool dryRun,
+        CancellationToken cancellationToken)
     {
-        int deletedCount = 0;
+        var deletedCount = 0;
         long bytesFreed = 0;
-        var config = CleanupConfigHelper.GetConfig();
+        var config = ConfigHelper.GetConfig();
 
         try
         {
             // Process directories: for each directory, check all subtitle files
-            var allDirs = new List<string> { rootPath };
+            var allDirs = new List<string> { libraryPath };
             try
             {
                 allDirs.AddRange(
-                    _fileSystem.GetDirectories(rootPath, true)
+                    FileSystem.GetDirectories(libraryPath, true)
                         .Select(d => d.FullName));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                PluginLogService.LogWarning("SubtitleCleaner", $"Could not enumerate subdirectories of: {rootPath}", ex, _logger);
+                PluginLog.LogWarning(TaskName, $"Could not enumerate subdirectories of: {libraryPath}", ex, Logger);
             }
 
             // Cache files per directory
             var fileCache = new Dictionary<string, FileSystemMetadata[]>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var dirPath in allDirs)
+            // Hoist trash path computation out of loop – libraryPath is constant per iteration
+            var trashFullPath = ConfigHelper.GetTrashPath(libraryPath);
+            var normalizedTrash = trashFullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            foreach (var dirPath in from dirPath in allDirs.TakeWhile(_ => !cancellationToken.IsCancellationRequested)
+                     where !Path.GetFileName(dirPath).EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase)
+                     let normalizedDir = dirPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                     where !normalizedDir.Equals(normalizedTrash, StringComparison.OrdinalIgnoreCase)
+                           && !normalizedDir.StartsWith(
+                               normalizedTrash + Path.DirectorySeparatorChar,
+                               StringComparison.OrdinalIgnoreCase)
+                           && !normalizedDir.StartsWith(
+                               normalizedTrash + Path.AltDirectorySeparatorChar,
+                               StringComparison.OrdinalIgnoreCase)
+                     select dirPath)
             {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    break;
-                }
-
-                // Skip .trickplay directories
-                if (Path.GetFileName(dirPath).EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                // Skip trash directories
-                var trashFolderName = Path.GetFileName(CleanupConfigHelper.GetTrashPath(rootPath));
-                if (Path.GetFileName(dirPath).Equals(trashFolderName, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
                 if (!fileCache.TryGetValue(dirPath, out var files))
                 {
                     try
                     {
-                        files = _fileSystem.GetFiles(dirPath, false).ToArray();
+                        files = FileSystem.GetFiles(dirPath).ToArray();
                         fileCache[dirPath] = files;
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
-                        PluginLogService.LogWarning("SubtitleCleaner", $"Could not list files in: {dirPath}", ex, _logger);
+                        PluginLog.LogWarning(TaskName, $"Could not list files in: {dirPath}", ex, Logger);
                         continue;
                     }
                 }
@@ -206,40 +165,47 @@ public class CleanOrphanedSubtitlesTask
                     }
 
                     // Check orphan age
-                    if (!CleanupConfigHelper.IsFileOldEnoughForDeletion(file.FullName))
+                    if (!ConfigHelper.IsFileOldEnoughForDeletion(file.FullName))
                     {
-                        PluginLogService.LogDebug("SubtitleCleaner", $"Skipping too-new orphaned subtitle (min age {config.OrphanMinAgeDays}d): {file.FullName}", _logger);
+                        PluginLog.LogDebug(
+                            TaskName,
+                            $"Skipping too-new orphaned subtitle (min age {config.OrphanMinAgeDays}d): {file.FullName}",
+                            Logger);
                         continue;
                     }
 
                     if (dryRun)
                     {
-                        PluginLogService.LogInfo("SubtitleCleaner", $"[Dry Run] Would delete orphaned subtitle: {file.FullName}", _logger);
+                        PluginLog.LogInfo(
+                            TaskName,
+                            $"[Dry Run] Would delete orphaned subtitle: {file.FullName}",
+                            Logger);
                         deletedCount++;
                     }
                     else if (config.UseTrash)
                     {
-                        var trashPath = CleanupConfigHelper.GetTrashPath(rootPath);
-                        long size = TrashService.MoveFileToTrash(file.FullName, trashPath, _logger);
-                        if (size > 0)
+                        var size = TrashService.MoveFileToTrash(file.FullName, trashFullPath, Logger);
+                        if (size <= 0)
                         {
-                            bytesFreed += size;
-                            deletedCount++;
+                            continue;
                         }
+
+                        bytesFreed += size;
+                        deletedCount++;
                     }
                     else
                     {
-                        PluginLogService.LogInfo("SubtitleCleaner", $"Deleting orphaned subtitle: {file.FullName}", _logger);
+                        PluginLog.LogInfo(TaskName, $"Deleting orphaned subtitle: {file.FullName}", Logger);
                         try
                         {
-                            long size = file.Length;
+                            var size = file.Length;
                             File.Delete(file.FullName);
                             bytesFreed += size;
                             deletedCount++;
                         }
                         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                         {
-                            PluginLogService.LogError("SubtitleCleaner", $"Failed to delete: {file.FullName}", ex, _logger);
+                            PluginLog.LogError(TaskName, $"Failed to delete: {file.FullName}", ex, Logger);
                         }
                     }
                 }
@@ -247,19 +213,19 @@ public class CleanOrphanedSubtitlesTask
         }
         catch (Exception ex)
         {
-            PluginLogService.LogError("SubtitleCleaner", $"Error scanning directory: {rootPath}", ex, _logger);
+            PluginLog.LogError(TaskName, $"Error scanning directory: {libraryPath}", ex, Logger);
         }
 
         return (deletedCount, bytesFreed);
     }
 
     /// <summary>
-    /// Extracts the base name of a subtitle file, stripping language and format suffixes.
-    /// For example:
-    ///   "Movie Name (2021).en.srt" → "Movie Name (2021)"
-    ///   "Movie Name (2021).en.forced.srt" → "Movie Name (2021)"
-    ///   "Movie Name (2021).srt" → "Movie Name (2021)"
-    ///   "Movie Name (2021).de.hi.ass" → "Movie Name (2021)".
+    ///     Extracts the base name of a subtitle file, stripping language and format suffixes.
+    ///     For example:
+    ///     "Movie Name (2021).en.srt" → "Movie Name (2021)"
+    ///     "Movie Name (2021).en.forced.srt" → "Movie Name (2021)"
+    ///     "Movie Name (2021).srt" → "Movie Name (2021)"
+    ///     "Movie Name (2021).de.hi.ass" → "Movie Name (2021)".
     /// </summary>
     /// <param name="filePath">The full path to the subtitle file.</param>
     /// <returns>The base name without language and format suffixes.</returns>
@@ -277,7 +243,7 @@ public class CleanOrphanedSubtitlesTask
         }
 
         // Strip known language/flag suffixes from the end
-        int endIndex = parts.Length - 1;
+        var endIndex = parts.Length - 1;
         while (endIndex > 0 && IsSubtitleSuffix(parts[endIndex]))
         {
             endIndex--;
@@ -288,8 +254,8 @@ public class CleanOrphanedSubtitlesTask
     }
 
     /// <summary>
-    /// Determines whether a string segment is a known subtitle suffix (language code or flag).
-    /// Uses explicit allowlists to avoid false positives with non-language segments like "DTS", "HDR", etc.
+    ///     Determines whether a string segment is a known subtitle suffix (language code or flag).
+    ///     Uses explicit allowlists to avoid false positives with non-language segments like "DTS", "HDR", etc.
     /// </summary>
     private static bool IsSubtitleSuffix(string segment)
     {
