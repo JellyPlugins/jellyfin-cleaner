@@ -333,6 +333,7 @@ Sub-tasks executed in order (each respecting its configured task mode):
 4. STRM File Repair
 5. Trash Purge (if enabled)
 6. Post-Cleanup Statistics Scan (auto-refreshes and persists stats)
+7. Growth Timeline Recomputation (independent of statistics scan)
 
 ---
 
