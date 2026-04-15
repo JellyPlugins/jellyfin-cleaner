@@ -156,7 +156,7 @@ public class HelperCleanupTask : IScheduledTask
         }
 
         // Purge expired trash items if trash is enabled
-        if (config is { UseTrash: true, TrashRetentionDays: >= 0 })
+        if (config is { UseTrash: true, TrashRetentionDays: > 0 })
         {
             try
             {
