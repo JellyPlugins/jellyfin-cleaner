@@ -20,7 +20,8 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Statistics
             _libraryManagerMock = TestMockFactory.CreateLibraryManager();
             _fileSystemMock = TestMockFactory.CreateFileSystem();
             var loggerMock = TestMockFactory.CreateLogger<MediaStatisticsService>();
-            _service = new MediaStatisticsService(_libraryManagerMock.Object, _fileSystemMock.Object, new Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.PluginLogService(), loggerMock.Object, new CleanupConfigHelper());
+            var configHelperMock = TestMockFactory.CreateCleanupConfigHelper();
+            _service = new MediaStatisticsService(_libraryManagerMock.Object, _fileSystemMock.Object, new Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.PluginLogService(), loggerMock.Object, configHelperMock.Object);
         }
 
         private string TestPath(params string[] segments) => string.Join(Path.DirectorySeparatorChar.ToString(), segments);

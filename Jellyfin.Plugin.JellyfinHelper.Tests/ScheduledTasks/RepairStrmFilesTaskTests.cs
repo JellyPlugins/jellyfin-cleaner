@@ -18,7 +18,7 @@ public class RepairStrmFilesTaskTests
     {
         var fileSystem = new MockFileSystem();
         var pluginLog = new Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.PluginLogService();
-        var configHelper = new CleanupConfigHelper();
+        var configHelperMock = TestMockFactory.CreateCleanupConfigHelper();
         var strmRepairService = new StrmRepairService(
             fileSystem,
             pluginLog,
@@ -28,6 +28,6 @@ public class RepairStrmFilesTaskTests
             new Mock<ILibraryManager>().Object,
             pluginLog,
             strmRepairService,
-            configHelper);
+            configHelperMock.Object);
     }
 }

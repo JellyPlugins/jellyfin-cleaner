@@ -22,8 +22,8 @@ public class MediaStatisticsServiceTests
         _libraryManagerMock = TestMockFactory.CreateLibraryManager();
         _fileSystemMock = TestMockFactory.CreateFileSystem();
         var loggerMock = TestMockFactory.CreateLogger<MediaStatisticsService>();
-        var configHelper = new CleanupConfigHelper();
-        _service = new MediaStatisticsService(_libraryManagerMock.Object, _fileSystemMock.Object, new Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.PluginLogService(), loggerMock.Object, configHelper);
+        var configHelperMock = TestMockFactory.CreateCleanupConfigHelper();
+        _service = new MediaStatisticsService(_libraryManagerMock.Object, _fileSystemMock.Object, new Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.PluginLogService(), loggerMock.Object, configHelperMock.Object);
     }
 
     private static string TestPath(params string[] segments)
@@ -1908,8 +1908,9 @@ public class EmbeddedSubtitleDetectionTests
         _libraryManagerMock = new Mock<ILibraryManager>();
         _fileSystemMock = new Mock<IFileSystem>();
         var loggerMock = new Mock<ILogger<MediaStatisticsService>>();
+        var configHelperMock = TestMockFactory.CreateCleanupConfigHelper();
         _service = new TestableMediaStatisticsService(
-            _libraryManagerMock.Object, _fileSystemMock.Object, new Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.PluginLogService(), loggerMock.Object, new CleanupConfigHelper());
+            _libraryManagerMock.Object, _fileSystemMock.Object, new Jellyfin.Plugin.JellyfinHelper.Services.PluginLog.PluginLogService(), loggerMock.Object, configHelperMock.Object);
     }
 
     private static string TestPath(params string[] segments)

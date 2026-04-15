@@ -1,4 +1,6 @@
+using System.IO;
 using System.Net;
+using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
@@ -80,6 +82,44 @@ public static class TestMockFactory
             .Verifiable();
         return mock;
     }
+
+    // ===== Configuration Mocks =====
+
+    /// <summary>
+    /// Creates a new <see cref="Mock{ICleanupConfigHelper}"/> with sensible defaults.
+    /// Returns a fixed <see cref="PluginConfiguration"/> instead of reading from the global singleton,
+    /// avoiding order-dependent and flaky tests.
+    /// </summary>
+    public static Mock<ICleanupConfigHelper> CreateCleanupConfigHelper(PluginConfiguration? config = null)
+    {
+        var cfg = config ?? new PluginConfiguration();
+        var mock = new Mock<ICleanupConfigHelper>();
+        mock.Setup(c => c.GetConfig()).Returns(cfg);
+        mock.Setup(c => c.GetTrashPath(It.IsAny<string>()))
+            .Returns<string>(path =>
+            {
+                var trashPath = cfg.TrashFolderPath;
+                if (string.IsNullOrWhiteSpace(trashPath))
+                {
+                    trashPath = ".jellyfin-helper-trash";
+                }
+
+                return Path.IsPathRooted(trashPath) ? trashPath : Path.Combine(path, trashPath);
+            });
+        mock.Setup(c => c.GetTrickplayTaskMode()).Returns(cfg.TrickplayTaskMode);
+        mock.Setup(c => c.GetEmptyMediaFolderTaskMode()).Returns(cfg.EmptyMediaFolderTaskMode);
+        mock.Setup(c => c.GetOrphanedSubtitleTaskMode()).Returns(cfg.OrphanedSubtitleTaskMode);
+        mock.Setup(c => c.GetStrmRepairTaskMode()).Returns(cfg.StrmRepairTaskMode);
+        mock.Setup(c => c.IsDryRunTrickplay()).Returns(CleanupConfigHelper.IsDryRun(cfg.TrickplayTaskMode));
+        mock.Setup(c => c.IsDryRunEmptyMediaFolders()).Returns(CleanupConfigHelper.IsDryRun(cfg.EmptyMediaFolderTaskMode));
+        mock.Setup(c => c.IsDryRunOrphanedSubtitles()).Returns(CleanupConfigHelper.IsDryRun(cfg.OrphanedSubtitleTaskMode));
+        mock.Setup(c => c.IsDryRunStrmRepair()).Returns(CleanupConfigHelper.IsDryRun(cfg.StrmRepairTaskMode));
+        mock.Setup(c => c.IsOldEnoughForDeletion(It.IsAny<string>())).Returns(true);
+        mock.Setup(c => c.IsFileOldEnoughForDeletion(It.IsAny<string>())).Returns(true);
+        return mock;
+    }
+
+    // ===== Service Mocks =====
 
     /// <summary>Creates a new <see cref="Mock{IMediaStatisticsService}"/>.</summary>
     public static Mock<IMediaStatisticsService> CreateMediaStatisticsService() => new();

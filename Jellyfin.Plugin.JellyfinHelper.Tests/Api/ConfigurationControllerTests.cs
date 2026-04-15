@@ -32,8 +32,7 @@ public class ConfigurationControllerTests
             .Setup(s => s.TestConnectionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((true, "OK"));
 
-        var configHelper = new CleanupConfigHelper();
-        _controller = new ConfigurationController(_arrServiceMock.Object, new PluginLogService(), loggerMock.Object, configHelper);
+        _controller = new ConfigurationController(_arrServiceMock.Object, new PluginLogService(), loggerMock.Object, new CleanupConfigHelper());
     }
 
     [Fact]
