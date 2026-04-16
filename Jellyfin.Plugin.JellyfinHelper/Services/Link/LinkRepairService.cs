@@ -209,7 +209,10 @@ public class LinkRepairService : ILinkRepairService
 
         // Skip URL-based targets only for handlers that legitimately support them (e.g. .strm files).
         // Symlink targets are always filesystem paths — a "://" in a symlink target is not a URL.
-        if (handler.SupportsUrlTargets && targetPath.Contains("://", StringComparison.OrdinalIgnoreCase))
+        // file:// URIs are excluded because they reference local files and must be validated like paths.
+        if (handler.SupportsUrlTargets
+            && Uri.TryCreate(targetPath, UriKind.Absolute, out var uri)
+            && uri.Scheme != Uri.UriSchemeFile)
         {
             _pluginLog.LogDebug("LinkRepair", $"Skipping URL-based link file: {linkFilePath}", _logger);
             fileResult.OriginalTargetPath = targetPath;

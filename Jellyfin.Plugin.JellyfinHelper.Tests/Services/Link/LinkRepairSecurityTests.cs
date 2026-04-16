@@ -130,8 +130,7 @@ public class LinkRepairSecurityTests
     [InlineData("http://malicious-server.com/payload.exe")]
     [InlineData("https://evil.com/redirect")]
     [InlineData("ftp://attacker.com/data")]
-    [InlineData("file:///etc/passwd")]
-    public void ProcessLinkFile_Strm_UrlScheme_TreatedAsValid(string urlContent)
+    public void ProcessLinkFile_Strm_StreamingUrlScheme_TreatedAsValid(string urlContent)
     {
         var linkFile = _fileSystem.Path.GetFullPath("/series/Show1/episode.strm");
         _fileSystem.AddFile(linkFile, new MockFileData(urlContent));
@@ -139,6 +138,19 @@ public class LinkRepairSecurityTests
         var result = _service.ProcessLinkFile(linkFile, _strmHandler, true);
 
         Assert.Equal(LinkFileStatus.Valid, result.Status);
+    }
+
+    [Fact]
+    [Trait("Category", "Security")]
+    public void ProcessLinkFile_Strm_FileScheme_TreatedAsBroken()
+    {
+        var linkFile = _fileSystem.Path.GetFullPath("/series/Show1/episode.strm");
+        _fileSystem.AddFile(linkFile, new MockFileData("file:///etc/passwd"));
+
+        var result = _service.ProcessLinkFile(linkFile, _strmHandler, true);
+
+        // file:// URIs reference local files and must NOT bypass validation
+        Assert.Equal(LinkFileStatus.Broken, result.Status);
     }
 
     // ===== Symlink: URL-like targets =====

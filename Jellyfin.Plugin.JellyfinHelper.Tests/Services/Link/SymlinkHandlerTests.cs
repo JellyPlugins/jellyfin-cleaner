@@ -93,7 +93,7 @@ public class SymlinkHandlerTests
     }
 
     [Fact]
-    public void WriteTarget_CallsDeleteBeforeCreate()
+    public void WriteTarget_CallsDeleteAndCreateOnce()
     {
         _handler.WriteTarget("/link", "/target");
 

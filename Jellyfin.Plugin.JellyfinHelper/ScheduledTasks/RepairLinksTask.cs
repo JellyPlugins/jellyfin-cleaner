@@ -67,7 +67,7 @@ public class RepairLinksTask
 
         _pluginLog.LogInfo(
             "LinkRepair",
-            $"Running link repair (DryRun: {dryRun}) on {libraryPaths.Count} library paths: {string.Join(", ", libraryPaths)}",
+            $"Running link repair (DryRun: {dryRun}) on {libraryPaths.Count} library paths",
             _logger);
 
         progress.Report(10);

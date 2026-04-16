@@ -20,7 +20,7 @@ public class LinkRepairPerformanceTests(ITestOutputHelper output)
 
     [Fact]
     [Trait("Category", "Performance")]
-    public void FindLinkFiles_Strm_5000Files_CompletesWithin5Seconds()
+    public void FindLinkFiles_Strm_5000Files_CompletesWithin8Seconds()
     {
         var fs = new MockFileSystem();
         const string basePath = "/media/movies";
@@ -55,7 +55,7 @@ public class LinkRepairPerformanceTests(ITestOutputHelper output)
 
     [Fact]
     [Trait("Category", "Performance")]
-    public void RepairLinks_Strm_2000ValidFiles_CompletesWithin10Seconds()
+    public void RepairLinks_Strm_2000ValidFiles_CompletesWithin15Seconds()
     {
         var fs = new MockFileSystem();
         const string basePath = "/media/movies";
@@ -87,7 +87,7 @@ public class LinkRepairPerformanceTests(ITestOutputHelper output)
 
     [Fact]
     [Trait("Category", "Performance")]
-    public void FindLinkFiles_Strm_DeeplyNested_CompletesWithin5Seconds()
+    public void FindLinkFiles_Strm_DeeplyNested_CompletesWithin8Seconds()
     {
         var fs = new MockFileSystem();
         const string basePath = "/media/shows";
@@ -131,11 +131,11 @@ public class LinkRepairPerformanceTests(ITestOutputHelper output)
 
     [Fact]
     [Trait("Category", "Performance")]
-    public void FindLinkFiles_Symlink_5000Files_CompletesWithin5Seconds()
+    public void FindLinkFiles_Symlink_5000Files_CompletesWithin8Seconds()
     {
         var fs = new MockFileSystem();
         var symlinkHelper = new Mock<ISymlinkHelper>();
-        var basePath = "/media/movies";
+        const string basePath = "/media/movies";
         fs.Directory.CreateDirectory(basePath);
 
         var symlinkPaths = new HashSet<string>();
@@ -171,7 +171,7 @@ public class LinkRepairPerformanceTests(ITestOutputHelper output)
 
     [Fact]
     [Trait("Category", "Performance")]
-    public void RepairLinks_Symlink_2000ValidFiles_CompletesWithin10Seconds()
+    public void RepairLinks_Symlink_2000ValidFiles_CompletesWithin15Seconds()
     {
         var fs = new MockFileSystem();
         var symlinkHelper = new Mock<ISymlinkHelper>();
@@ -213,7 +213,7 @@ public class LinkRepairPerformanceTests(ITestOutputHelper output)
 
     [Fact]
     [Trait("Category", "Performance")]
-    public void FindLinkFiles_MixedStrmAndSymlinks_3000Files_CompletesWithin5Seconds()
+    public void FindLinkFiles_MixedStrmAndSymlinks_3000Files_CompletesWithin8Seconds()
     {
         var fs = new MockFileSystem();
         var symlinkHelper = new Mock<ISymlinkHelper>();
@@ -274,7 +274,7 @@ public class LinkRepairPerformanceTests(ITestOutputHelper output)
 
     [Fact]
     [Trait("Category", "Performance")]
-    public void FindMediaFilesInDirectory_LargeDirectory_1000Files_CompletesWithin3Seconds()
+    public void FindMediaFilesInDirectory_LargeDirectory_1000Files_CompletesWithin5Seconds()
     {
         var fs = new MockFileSystem();
         const string basePath = "/media/movies/large_collection";

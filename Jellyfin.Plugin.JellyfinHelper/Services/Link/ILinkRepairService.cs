@@ -5,12 +5,12 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Link;
 
 /// <summary>
 ///     Interface for the service that finds and repairs broken link references
-///     (both link files and symbolic links).
+///     (.strm files and symbolic links).
 /// </summary>
 public interface ILinkRepairService
 {
     /// <summary>
-///     Scans the given library paths for link files (link files and symlinks), validates their target paths,
+    ///     Scans the given library paths for links (.strm files and symlinks), validates their target paths,
     ///     and repairs broken references by searching the parent directory for a media file.
     /// </summary>
     /// <param name="libraryPaths">The library paths to scan for link files.</param>
