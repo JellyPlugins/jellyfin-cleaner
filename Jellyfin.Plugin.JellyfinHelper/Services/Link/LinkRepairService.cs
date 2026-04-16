@@ -180,11 +180,19 @@ public class LinkRepairService : ILinkRepairService
         }
 
         fileResult.OriginalTargetPath = targetPath;
+        var normalizedTargetPath = _fileSystem.Path.IsPathRooted(targetPath)
+            ? _fileSystem.Path.GetFullPath(targetPath)
+            : _fileSystem.Path.GetFullPath(
+                _fileSystem.Path.Combine(
+                    _fileSystem.Path.GetDirectoryName(linkFilePath) ?? string.Empty,
+                    targetPath));
+
+        fileResult.OriginalTargetPath = normalizedTargetPath;
 
         // Check if the target path is still valid
-        if (_fileSystem.File.Exists(targetPath))
+        if (_fileSystem.File.Exists(normalizedTargetPath))
         {
-            _pluginLog.LogDebug("LinkRepair", $"Valid link file: {linkFilePath} -> {targetPath}", _logger);
+            _pluginLog.LogDebug("LinkRepair", $"Valid link file: {linkFilePath} -> {normalizedTargetPath}", _logger);
             fileResult.Status = LinkFileStatus.Valid;
             return fileResult;
         }
