@@ -63,7 +63,9 @@ public class SeerrController : ControllerBase
 
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var timeout = TimeSpan.FromSeconds(10);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(HttpContext.RequestAborted);
+            cts.CancelAfter(timeout);
             var (success, message) = await _seerrService.TestConnectionAsync(request.Url, request.ApiKey, cts.Token)
                 .ConfigureAwait(false);
 
@@ -81,9 +83,9 @@ public class SeerrController : ControllerBase
         catch (HttpRequestException ex)
         {
             _pluginLog.LogWarning("API", $"Seerr connection test failed: {ex.Message}", ex, _logger);
-            return Ok(new { success = false, message = $"Connection failed: {ex.Message}" });
+            return Ok(new { success = false, message = "Connection failed. Please verify URL and API Key and try again." });
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException) when (!HttpContext.RequestAborted.IsCancellationRequested)
         {
             _pluginLog.LogWarning("API", "Seerr connection test timed out after 10 seconds.", logger: _logger);
             return Ok(new { success = false, message = "Connection timed out after 10 seconds." });
