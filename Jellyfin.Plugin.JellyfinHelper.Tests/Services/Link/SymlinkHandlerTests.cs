@@ -100,4 +100,52 @@ public class SymlinkHandlerTests
         _symlinkHelper.Verify(h => h.DeleteSymlink("/link"), Times.Once);
         _symlinkHelper.Verify(h => h.CreateSymlink("/link", "/target"), Times.Once);
     }
+
+    // ===== WriteTarget rollback behavior =====
+
+    [Fact]
+    public void WriteTarget_WhenCreateFails_RestoresPreviousTarget()
+    {
+        _symlinkHelper.Setup(h => h.GetSymlinkTarget("/series/episode.mkv"))
+            .Returns("/movies/old-movie.mkv");
+        _symlinkHelper.Setup(h => h.CreateSymlink("/series/episode.mkv", "/movies/new-movie.mkv"))
+            .Throws(new IOException("Permission denied"));
+
+        Assert.Throws<IOException>(() =>
+            _handler.WriteTarget("/series/episode.mkv", "/movies/new-movie.mkv"));
+
+        _symlinkHelper.Verify(
+            h => h.CreateSymlink("/series/episode.mkv", "/movies/old-movie.mkv"), Times.Once);
+    }
+
+    [Fact]
+    public void WriteTarget_WhenCreateFails_NoPreviousTarget_DoesNotAttemptRollback()
+    {
+        _symlinkHelper.Setup(h => h.GetSymlinkTarget("/series/episode.mkv"))
+            .Returns((string?)null);
+        _symlinkHelper.Setup(h => h.CreateSymlink("/series/episode.mkv", "/movies/new-movie.mkv"))
+            .Throws(new IOException("Permission denied"));
+
+        Assert.Throws<IOException>(() =>
+            _handler.WriteTarget("/series/episode.mkv", "/movies/new-movie.mkv"));
+
+        // CreateSymlink should only have been called once (the failed attempt), not a second time for rollback
+        _symlinkHelper.Verify(
+            h => h.CreateSymlink(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+    }
+
+    [Fact]
+    public void WriteTarget_WhenCreateFails_RethrowsOriginalException()
+    {
+        var originalException = new IOException("Disk full");
+        _symlinkHelper.Setup(h => h.GetSymlinkTarget("/link"))
+            .Returns("/old-target");
+        _symlinkHelper.Setup(h => h.CreateSymlink("/link", "/new-target"))
+            .Throws(originalException);
+
+        var thrown = Assert.Throws<IOException>(() =>
+            _handler.WriteTarget("/link", "/new-target"));
+
+        Assert.Same(originalException, thrown);
+    }
 }
