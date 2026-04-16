@@ -125,7 +125,7 @@ public static class TimelineAggregator
         }
 
         // 3. Handle deleted directories (in baseline but not in current scan)
-        var currentPaths = new HashSet<string>(currentDirs.Select(d => d.Path), StringComparer.OrdinalIgnoreCase);
+        var currentPaths = new HashSet<string>(currentDirs.Select(d => d.Path), baseline.Directories.Comparer);
         entries.AddRange(
             from kvp in baseline.Directories
             where !currentPaths.Contains(kvp.Key)
@@ -138,14 +138,14 @@ public static class TimelineAggregator
     /// <summary>
     ///     Updates the baseline with the current directory state for subsequent scans.
     ///     New directories are added to the baseline. Existing entries are updated with
-    ///     the current size. Removed directories are kept in the baseline (their deletion
-    ///     is tracked via negative diff entries).
+    ///     the current size. Removed directories are deleted from the baseline so they
+    ///     do not generate spurious negative diffs on future scans.
     /// </summary>
     /// <param name="baseline">The baseline to update.</param>
     /// <param name="currentDirs">The current directory entries.</param>
     internal static void UpdateBaseline(GrowthTimelineBaseline baseline, List<GrowthTimelineService.DirectoryEntry> currentDirs)
     {
-        var currentPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var currentPaths = new HashSet<string>(baseline.Directories.Comparer);
 
         foreach (var dir in currentDirs)
         {

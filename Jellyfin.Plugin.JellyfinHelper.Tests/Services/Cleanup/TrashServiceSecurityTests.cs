@@ -131,7 +131,7 @@ public class TrashServiceSecurityTests : IDisposable
         {
             Directory.CreateDirectory(maliciousDir);
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException or UnauthorizedAccessException)
         {
             // If the OS rejects the path, that's fine
             return;
@@ -158,7 +158,7 @@ public class TrashServiceSecurityTests : IDisposable
             var maliciousFile = Path.Join(trashPath, "20260101-120000_evil\0payload.txt");
             File.WriteAllBytes(maliciousFile, new byte[10]);
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or IOException or UnauthorizedAccessException)
         {
             // OS correctly rejects null bytes in filenames — this is expected
         }

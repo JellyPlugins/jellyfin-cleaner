@@ -109,12 +109,11 @@ public class StrmRepairService : IStrmRepairService
     {
         try
         {
-            foreach (var file in _fileSystem.Directory.EnumerateFiles(directory))
+            foreach (var file in _fileSystem.Directory
+                         .EnumerateFiles(directory)
+                         .Where(file => file.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
             {
-                if (file.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
-                {
-                    result.Add(file);
-                }
+                result.Add(file);
             }
 
             foreach (var subDir in _fileSystem.Directory.EnumerateDirectories(directory))
@@ -158,7 +157,8 @@ public class StrmRepairService : IStrmRepairService
             return fileResult;
         }
 
-        // Skip URL-based .strm files (e.g. http://, https://, rtsp://)
+        // Skip URL-based .strm files (e.g. http://, https://, rtsp://, file://)
+        // Note: Any scheme containing "://" is accepted — STRM files intentionally support all URL schemes.
         if (targetPath.Contains("://", StringComparison.OrdinalIgnoreCase))
         {
             _pluginLog.LogDebug("StrmRepair", $"Skipping URL-based .strm file: {strmFilePath}", _logger);

@@ -100,7 +100,9 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   └── ArrSeries.cs
 │   ├── Backup/                       # Configuration backup & restore
 │   │   ├── IBackupService.cs
-│   │   ├── BackupService.cs          # Create, validate, sanitize, restore
+│   │   ├── BackupService.cs          # Create & restore orchestration
+│   │   ├── BackupValidator.cs        # Static validation (security, ranges, structure)
+│   │   ├── BackupSanitizer.cs        # Static sanitization (clamping, defaults)
 │   │   ├── BackupData.cs             # Backup payload model
 │   │   ├── BackupArrInstance.cs
 │   │   ├── BackupRestoreSummary.cs
@@ -136,6 +138,7 @@ Jellyfin.Plugin.JellyfinHelper/
 │   └── Timeline/                     # Growth timeline computation
 │       ├── IGrowthTimelineService.cs
 │       ├── GrowthTimelineService.cs  # Baseline diff + append-only snapshots
+│       ├── TimelineAggregator.cs     # Static aggregation logic (bucketing, granularity)
 │       ├── GrowthTimelineResult.cs
 │       ├── GrowthTimelinePoint.cs
 │       ├── GrowthTimelineBaseline.cs
@@ -188,7 +191,8 @@ A named `HttpClient` (`"ArrIntegration"`) is configured with a 15-second timeout
 | **Configuration Abstraction** | `IPluginConfigurationService` | Decouples all services from the static `Plugin.Instance` singleton. Services receive configuration via DI, enabling isolated unit tests without shared mutable state. |
 | **Build-time Composition** | UI pipeline | CSS/JS modules concatenated into a single `configPage.html` at build time (MSBuild target). |
 | **Append-only Snapshots** | `GrowthTimelineService` | Historical timeline data points are immutable; only the current time-bucket is updated. Deletions show as drops at the current point. |
-| **Validation + Sanitization** | `BackupService` | Backup imports go through 3 stages: `Validate()` → `Sanitize()` → `RestoreBackup()`. Includes XSS/injection detection, size limits, path traversal checks. |
+| **Validation + Sanitization** | `BackupValidator` + `BackupSanitizer` | Backup imports go through 3 stages: `BackupValidator.Validate()` → `BackupSanitizer.Sanitize()` → `BackupService.RestoreBackup()`. Includes XSS/injection detection, size limits, path traversal checks. |
+| **Static Helper Extraction** | `TimelineAggregator`, `BackupValidator`, `BackupSanitizer` | Pure, stateless logic extracted into static classes for testability and separation of concerns. No I/O, no dependencies — only operate on data passed in. |
 | **Ring Buffer** | `PluginLogService` | Fixed-capacity in-memory log (2000 entries) with auto-eviction of oldest entries. |
 | **Centralized Serialization** | `JsonDefaults` | Shared `JsonSerializerOptions` (camelCase, enum-as-string) used across all API controllers and backup service for consistent JSON handling. |
 

@@ -25,11 +25,12 @@ public class BackupServicePerformanceTests(ITestOutputHelper output)
         sw.Stop();
 
         // Assert
-        output.WriteLine($"Sanitize: 6,000 timeline points â†’ {backup.GrowthTimeline?.DataPoints.Count} in {sw.ElapsedMilliseconds}ms");
+        output.WriteLine($"Sanitize: 6,000 timeline points \u2192 {backup.GrowthTimeline?.DataPoints.Count} in {sw.ElapsedMilliseconds}ms");
         Assert.True(sw.ElapsedMilliseconds < 500, $"Took {sw.ElapsedMilliseconds}ms, expected < 500ms");
-        Assert.NotNull(backup.GrowthTimeline);
-        Assert.True(backup.GrowthTimeline.DataPoints.Count <= 5000,
-            $"Expected â‰¤ 5000 data points after sanitize, got {backup.GrowthTimeline.DataPoints.Count}");
+        var growthTimeline = backup.GrowthTimeline;
+        Assert.NotNull(growthTimeline);
+        Assert.True(growthTimeline.DataPoints.Count <= 5000,
+            $"Expected \u2264 5000 data points after sanitize, got {growthTimeline.DataPoints.Count}");
     }
 
     [Fact]
@@ -45,10 +46,11 @@ public class BackupServicePerformanceTests(ITestOutputHelper output)
         sw.Stop();
 
         // Assert: 5,000 < 50,000 limit, so no trimming expected - all directories preserved
-        output.WriteLine($"Sanitize: 5,000 baseline dirs â†’ {backup.GrowthBaseline?.Directories.Count} in {sw.ElapsedMilliseconds}ms");
+        output.WriteLine($"Sanitize: 5,000 baseline dirs \u2192 {backup.GrowthBaseline?.Directories.Count} in {sw.ElapsedMilliseconds}ms");
         Assert.True(sw.ElapsedMilliseconds < 500, $"Took {sw.ElapsedMilliseconds}ms, expected < 500ms");
-        Assert.NotNull(backup.GrowthBaseline);
-        Assert.Equal(5_000, backup.GrowthBaseline.Directories.Count);
+        var growthBaseline = backup.GrowthBaseline;
+        Assert.NotNull(growthBaseline);
+        Assert.Equal(5_000, growthBaseline.Directories.Count);
     }
 
     [Fact]
@@ -116,11 +118,12 @@ public class BackupServicePerformanceTests(ITestOutputHelper output)
         sw.Stop();
 
         // Assert
-        output.WriteLine($"Sanitize: 55,000 baseline dirs â†’ {backup.GrowthBaseline?.Directories.Count} in {sw.ElapsedMilliseconds}ms");
+        output.WriteLine($"Sanitize: 55,000 baseline dirs \u2192 {backup.GrowthBaseline?.Directories.Count} in {sw.ElapsedMilliseconds}ms");
         Assert.True(sw.ElapsedMilliseconds < 2000, $"Took {sw.ElapsedMilliseconds}ms, expected < 2000ms");
-        Assert.NotNull(backup.GrowthBaseline);
-        Assert.True(backup.GrowthBaseline.Directories.Count <= 50_000,
-            $"Expected â‰¤ 50,000 baseline dirs after sanitize, got {backup.GrowthBaseline.Directories.Count}");
+        var growthBaseline = backup.GrowthBaseline;
+        Assert.NotNull(growthBaseline);
+        Assert.True(growthBaseline.Directories.Count <= 50_000,
+            $"Expected \u2264 50,000 baseline dirs after sanitize, got {growthBaseline.Directories.Count}");
     }
 
     [Fact]
@@ -136,10 +139,11 @@ public class BackupServicePerformanceTests(ITestOutputHelper output)
         sw.Stop();
 
         // Assert
-        output.WriteLine($"Sanitize: 5,000 timeline points (at limit) â†’ {backup.GrowthTimeline?.DataPoints.Count} in {sw.ElapsedMilliseconds}ms");
+        output.WriteLine($"Sanitize: 5,000 timeline points (at limit) \u2192 {backup.GrowthTimeline?.DataPoints.Count} in {sw.ElapsedMilliseconds}ms");
         Assert.True(sw.ElapsedMilliseconds < 200, $"Took {sw.ElapsedMilliseconds}ms, expected < 200ms");
-        Assert.NotNull(backup.GrowthTimeline);
-        Assert.Equal(5_000, backup.GrowthTimeline.DataPoints.Count);
+        var growthTimeline = backup.GrowthTimeline;
+        Assert.NotNull(growthTimeline);
+        Assert.Equal(5_000, growthTimeline.DataPoints.Count);
     }
 
     private static BackupData CreateLargeBackup(int timelinePoints, int baselineDirs, int arrInstances)

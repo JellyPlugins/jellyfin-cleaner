@@ -216,16 +216,20 @@ public class StrmRepairSecurityTests
     [Trait("Category", "Security")]
     public void ProcessStrmFile_DryRunMode_DoesNotModifyFiles()
     {
+        // Arrange: a repairable scenario — broken target but a single media file in the same directory
         var strmFile = _fileSystem.Path.GetFullPath("/series/Show1/episode.strm");
-        _fileSystem.AddFile(strmFile, new MockFileData("/nonexistent/target.mkv"));
+        var originalTarget = "/series/Show1/old_target.mkv";
+        var newMediaFile = _fileSystem.Path.GetFullPath("/series/Show1/actual_episode.mkv");
+        _fileSystem.AddFile(strmFile, new MockFileData(originalTarget));
+        _fileSystem.AddFile(newMediaFile, new MockFileData("video content"));
 
-        // Process in dry-run mode
+        // Act: process in dry-run mode
         var result = _service.ProcessStrmFile(strmFile, true);
 
-        Assert.Equal(StrmFileStatus.Broken, result.Status);
+        // Assert: service reports it *would* repair, but the file content must remain unchanged
+        Assert.Equal(StrmFileStatus.Repaired, result.Status);
 
-        // Verify the STRM file was not modified
         var content = _fileSystem.File.ReadAllText(strmFile);
-        Assert.Equal("/nonexistent/target.mkv", content);
+        Assert.Equal(originalTarget, content);
     }
 }

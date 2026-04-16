@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Backup;
 
@@ -53,15 +52,14 @@ public static class BackupSanitizer
         SanitizeArrInstances(backup.RadarrInstances);
         SanitizeArrInstances(backup.SonarrInstances);
 
-        // Timeline data points limit — keep only the newest MaxTimelineDataPoints entries (O(n))
+        // Timeline data points limit — keep only the newest MaxTimelineDataPoints entries
         if (backup.GrowthTimeline is { DataPoints.Count: > BackupValidator.MaxTimelineDataPoints })
         {
-            var excess = backup.GrowthTimeline.DataPoints.Count - BackupValidator.MaxTimelineDataPoints;
-            var kept = new List<GrowthTimelinePoint>(BackupValidator.MaxTimelineDataPoints);
-            for (var i = excess; i < backup.GrowthTimeline.DataPoints.Count; i++)
-            {
-                kept.Add(backup.GrowthTimeline.DataPoints[i]);
-            }
+            var kept = backup.GrowthTimeline.DataPoints
+                .OrderByDescending(p => p.Date)
+                .Take(BackupValidator.MaxTimelineDataPoints)
+                .OrderBy(p => p.Date)
+                .ToList();
 
             backup.GrowthTimeline.DataPoints.Clear();
             foreach (var point in kept)
