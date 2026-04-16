@@ -61,6 +61,7 @@ Then restart Jellyfin to load the plugin.
 
 ## 🏗️ Architecture Overview
 
+
 ### Project Structure
 
 ```text
@@ -100,7 +101,9 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   └── ArrSeries.cs
 │   ├── Backup/                       # Configuration backup & restore
 │   │   ├── IBackupService.cs
-│   │   ├── BackupService.cs          # Create, validate, sanitize, restore
+│   │   ├── BackupService.cs          # Create & restore orchestration
+│   │   ├── BackupValidator.cs        # Static validation (security, ranges, structure)
+│   │   ├── BackupSanitizer.cs        # Static sanitization (clamping, defaults)
 │   │   ├── BackupData.cs             # Backup payload model
 │   │   ├── BackupArrInstance.cs
 │   │   ├── BackupRestoreSummary.cs
@@ -136,6 +139,7 @@ Jellyfin.Plugin.JellyfinHelper/
 │   └── Timeline/                     # Growth timeline computation
 │       ├── IGrowthTimelineService.cs
 │       ├── GrowthTimelineService.cs  # Baseline diff + append-only snapshots
+│       ├── TimelineAggregator.cs     # Static aggregation logic (bucketing, granularity)
 │       ├── GrowthTimelineResult.cs
 │       ├── GrowthTimelinePoint.cs
 │       ├── GrowthTimelineBaseline.cs
@@ -188,7 +192,8 @@ A named `HttpClient` (`"ArrIntegration"`) is configured with a 15-second timeout
 | **Configuration Abstraction** | `IPluginConfigurationService` | Decouples all services from the static `Plugin.Instance` singleton. Services receive configuration via DI, enabling isolated unit tests without shared mutable state. |
 | **Build-time Composition** | UI pipeline | CSS/JS modules concatenated into a single `configPage.html` at build time (MSBuild target). |
 | **Append-only Snapshots** | `GrowthTimelineService` | Historical timeline data points are immutable; only the current time-bucket is updated. Deletions show as drops at the current point. |
-| **Validation + Sanitization** | `BackupService` | Backup imports go through 3 stages: `Validate()` → `Sanitize()` → `RestoreBackup()`. Includes XSS/injection detection, size limits, path traversal checks. |
+| **Validation + Sanitization** | `BackupValidator` + `BackupSanitizer` | Backup imports go through 3 stages: `BackupValidator.Validate()` → `BackupSanitizer.Sanitize()` → `BackupService.RestoreBackup()`. Includes XSS/injection detection, size limits, path traversal checks. |
+| **Static Helper Extraction** | `TimelineAggregator`, `BackupValidator`, `BackupSanitizer` | Pure, stateless logic extracted into static classes for testability and separation of concerns. No I/O, no dependencies — only operate on data passed in. |
 | **Ring Buffer** | `PluginLogService` | Fixed-capacity in-memory log (2000 entries) with auto-eviction of oldest entries. |
 | **Centralized Serialization** | `JsonDefaults` | Shared `JsonSerializerOptions` (camelCase, enum-as-string) used across all API controllers and backup service for consistent JSON handling. |
 
@@ -255,9 +260,14 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/JellyfinHelper/Statistics` | GET | Full library scan (cached 5 min; `?forceRefresh=true` bypasses) |
-| `/JellyfinHelper/Statistics/Latest` | GET | Latest persisted scan result (no new scan) |
-| `/JellyfinHelper/Statistics/GrowthTimeline` | GET | Cumulative growth timeline with bucketing (`?granularity=daily\|weekly\|monthly\|quarterly\|yearly`) |
+| `/JellyfinHelper/MediaStatistics/ScanLibraries` | GET | Full library scan (cached 5 min; `?forceRefresh=true` bypasses) |
+| `/JellyfinHelper/MediaStatistics/Latest` | GET | Latest persisted scan result (no new scan) |
+
+### Growth Timeline
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/JellyfinHelper/GrowthTimeline` | GET | Cumulative growth timeline with bucketing (`?granularity=daily\|weekly\|monthly\|quarterly\|yearly`) |
 
 ### Configuration
 
@@ -266,14 +276,13 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 | `/JellyfinHelper/Configuration` | GET | Current plugin configuration |
 | `/JellyfinHelper/Configuration` | POST | Update plugin configuration |
 | `/JellyfinHelper/Configuration/LogLevel` | PUT | Update only the plugin log level (avoids race conditions with Settings tab) |
-| `/JellyfinHelper/Libraries` | GET | Available library names |
 | `/JellyfinHelper/Translations` | GET | UI translations for specified language (anonymous) |
 
 ### Cleanup
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/JellyfinHelper/Cleanup/Statistics` | GET | Accumulated cleanup statistics |
+| `/JellyfinHelper/CleanupStatistics` | GET | Accumulated cleanup statistics |
 | `/JellyfinHelper/Trash/Summary` | GET | Trash folder summary across libraries |
 | `/JellyfinHelper/Trash/Contents` | GET | Detailed trash contents (name, size, dates) |
 | `/JellyfinHelper/Trash/Folders` | GET | List existing trash folder paths |
@@ -283,9 +292,9 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/JellyfinHelper/Arr/TestConnection` | POST | Test Radarr/Sonarr connection |
-| `/JellyfinHelper/Arr/Radarr/Compare` | GET | Compare movies (`?index=N` for specific instance) |
-| `/JellyfinHelper/Arr/Sonarr/Compare` | GET | Compare TV shows (`?index=N` for specific instance) |
+| `/JellyfinHelper/ArrIntegration/TestConnection` | POST | Test Radarr/Sonarr connection |
+| `/JellyfinHelper/ArrIntegration/Compare/Radarr` | GET | Compare movies (`?index=N` for specific instance) |
+| `/JellyfinHelper/ArrIntegration/Compare/Sonarr` | GET | Compare TV shows (`?index=N` for specific instance) |
 
 ### Logs
 
@@ -430,11 +439,18 @@ The project includes a **comprehensive automated test suite** covering:
 - UI structure (HTML element presence, tab structure)
 - Plugin logging (ring buffer, level filtering)
 - Serialization roundtrips
+- Performance tests — Stopwatch-based timing assertions for critical operations (sanitize, validate, large data sets)
+- Security tests — Path traversal, null-byte injection, XSS payloads, command injection, collision handling
+
+Tests use `[Trait("Category", "...")]` for selective filtering:
 
 ```bash
-dotnet test                           # Run all tests
-dotnet test --filter "FullyQualifiedName~Services"  # Run service tests only
-dotnet test --filter "FullyQualifiedName~Api"       # Run API tests only
+dotnet test                                          # Run all tests
+dotnet test --filter "FullyQualifiedName~Services"   # Run service tests only
+dotnet test --filter "FullyQualifiedName~Api"        # Run API tests only
+dotnet test --filter "Category=Performance"           # Run performance tests only
+dotnet test --filter "Category=Security"              # Run security tests only
+dotnet test --filter "Category!=Performance"          # Exclude performance tests
 ```
 
 ### Test Architecture — Fixtures & Factories
@@ -522,11 +538,14 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
     │   ├── ArrComparisonResultTests.cs
     │   └── ArrIntegrationServiceTests.cs
     ├── Backup/
-    │   └── BackupServiceTests.cs
+    │   ├── BackupServiceTests.cs
+    │   └── BackupServicePerformanceTests.cs    # [Trait("Category", "Performance")]
     ├── Cleanup/
     │   ├── CleanupConfigHelperTests.cs
     │   ├── CleanupTrackingServiceTests.cs
-    │   └── TrashServiceTests.cs
+    │   ├── TrashServiceTests.cs
+    │   ├── TrashServiceSecurityTests.cs        # [Trait("Category", "Security")]
+    │   └── TrashControllerSecurityTests.cs     # [Trait("Category", "Security")]
     ├── ConfigAccess/
     │   └── PluginConfigurationServiceTests.cs
     ├── PluginLog/
@@ -536,10 +555,13 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
     │   ├── MediaStatisticsServiceTests.cs
     │   └── MediaStatisticsServiceTvShowTests.cs
     ├── Strm/
-    │   └── StrmRepairServiceTests.cs
+    │   ├── StrmRepairServiceTests.cs
+    │   ├── StrmRepairPerformanceTests.cs       # [Trait("Category", "Performance")]
+    │   └── StrmRepairSecurityTests.cs          # [Trait("Category", "Security")]
     └── Timeline/
         ├── GrowthTimelineModelTests.cs
-        └── GrowthTimelineServiceTests.cs
+        ├── GrowthTimelineServiceTests.cs
+        └── GrowthTimelinePerformanceTests.cs   # [Trait("Category", "Performance")]
 ```
 
 ---

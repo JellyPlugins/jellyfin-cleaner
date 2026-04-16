@@ -97,25 +97,34 @@ public class StrmRepairService : IStrmRepairService
     private List<string> FindFilesRecursive(string directory, string extension)
     {
         var result = new List<string>();
+        FindFilesRecursiveCore(directory, extension, result);
+        return result;
+    }
 
+    /// <summary>
+    ///     Core recursive implementation that collects matching files into a shared list,
+    ///     avoiding temporary list allocations per recursion level.
+    /// </summary>
+    private void FindFilesRecursiveCore(string directory, string extension, List<string> result)
+    {
         try
         {
-            result.AddRange(
-                _fileSystem.Directory.GetFiles(directory).Where(file => file.EndsWith(
-                    extension,
-                    StringComparison.OrdinalIgnoreCase)));
-
-            foreach (var subDir in _fileSystem.Directory.GetDirectories(directory))
+            foreach (var file in _fileSystem.Directory
+                         .EnumerateFiles(directory)
+                         .Where(file => file.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
             {
-                result.AddRange(FindFilesRecursive(subDir, extension));
+                result.Add(file);
+            }
+
+            foreach (var subDir in _fileSystem.Directory.EnumerateDirectories(directory))
+            {
+                FindFilesRecursiveCore(subDir, extension, result);
             }
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or DirectoryNotFoundException)
         {
             _pluginLog.LogWarning("StrmRepair", $"Cannot access directory: {directory} - {ex.Message}", ex, _logger);
         }
-
-        return result;
     }
 
     /// <summary>
@@ -148,7 +157,8 @@ public class StrmRepairService : IStrmRepairService
             return fileResult;
         }
 
-        // Skip URL-based .strm files (e.g. http://, https://, rtsp://)
+        // Skip URL-based .strm files (e.g. http://, https://, rtsp://, file://)
+        // Note: Any scheme containing "://" is accepted — STRM files intentionally support all URL schemes.
         if (targetPath.Contains("://", StringComparison.OrdinalIgnoreCase))
         {
             _pluginLog.LogDebug("StrmRepair", $"Skipping URL-based .strm file: {strmFilePath}", _logger);
@@ -269,7 +279,7 @@ public class StrmRepairService : IStrmRepairService
         try
         {
             mediaFiles.AddRange(
-                from file in _fileSystem.Directory.GetFiles(directory)
+                from file in _fileSystem.Directory.EnumerateFiles(directory)
                 let extension = _fileSystem.Path.GetExtension(file)
                 where MediaExtensions.VideoExtensions.Contains(extension)
                 select file);

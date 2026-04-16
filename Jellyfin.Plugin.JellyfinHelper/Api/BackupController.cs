@@ -213,7 +213,11 @@ public class BackupController : ControllerBase
                 $"Backup deserialized: version={backup.BackupVersion}, pluginVersion={backup.PluginVersion}, created={backup.CreatedAt:O}",
                 _logger);
 
-            var validation = BackupService.Validate(backup);
+            // Sanitize before validation so recoverable issues (e.g. oversized strings,
+            // out-of-range numbers) are repaired before the hard-error checks run.
+            BackupSanitizer.Sanitize(backup);
+
+            var validation = BackupValidator.Validate(backup);
 
             foreach (var error in validation.Errors)
             {
@@ -240,8 +244,6 @@ public class BackupController : ControllerBase
                         warnings = validation.Warnings
                     });
             }
-
-            BackupService.Sanitize(backup);
 
             // Restore
             var summary = _backupService.RestoreBackup(backup);

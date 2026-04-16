@@ -125,6 +125,47 @@
       OutputFile="$(MSBuildProjectDirectory)\PluginPages\configPage.html" />
   </Target>
 
+  <!-- Sync CSS, JS, and i18n files to docs/ for GitHub Pages demo -->
+  <Target Name="SyncDocsAssets" AfterTargets="ComposeConfigPageHtml">
+    <PropertyGroup>
+      <DocsRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\docs'))</DocsRoot>
+    </PropertyGroup>
+
+    <!-- Collect source files -->
+    <ItemGroup>
+      <DocsCssSource Include="$(MSBuildProjectDirectory)\PluginPages\css\*.css" />
+      <DocsJsSource Include="$(MSBuildProjectDirectory)\PluginPages\js\*.js" />
+      <DocsI18nSource Include="$(MSBuildProjectDirectory)\i18n\*.json" />
+    </ItemGroup>
+
+    <!-- Clean target directories to mirror source (remove stale/renamed assets) -->
+    <RemoveDir Directories="$(DocsRoot)\css" Condition="Exists('$(DocsRoot)\css')" />
+    <RemoveDir Directories="$(DocsRoot)\js" Condition="Exists('$(DocsRoot)\js')" />
+    <RemoveDir Directories="$(DocsRoot)\i18n" Condition="Exists('$(DocsRoot)\i18n')" />
+
+    <!-- Recreate target directories -->
+    <MakeDir Directories="$(DocsRoot)\css" />
+    <MakeDir Directories="$(DocsRoot)\js" />
+    <MakeDir Directories="$(DocsRoot)\i18n" />
+
+    <!-- Copy CSS files -->
+    <Copy SourceFiles="@(DocsCssSource)"
+          DestinationFolder="$(DocsRoot)\css"
+          SkipUnchangedFiles="true" />
+
+    <!-- Copy JS files -->
+    <Copy SourceFiles="@(DocsJsSource)"
+          DestinationFolder="$(DocsRoot)\js"
+          SkipUnchangedFiles="true" />
+
+    <!-- Copy i18n files -->
+    <Copy SourceFiles="@(DocsI18nSource)"
+          DestinationFolder="$(DocsRoot)\i18n"
+          SkipUnchangedFiles="true" />
+
+    <Message Importance="High" Text="Synced CSS, JS, and i18n files to docs/ for GitHub Pages demo" />
+  </Target>
+
   <ItemGroup>
     <!-- i18n language files as embedded resources -->
     <EmbeddedResource Include="i18n\*.json" />

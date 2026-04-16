@@ -138,6 +138,26 @@ public class TrendsHtmlTests : ConfigPageTestBase
         Assert.Contains("T('trendFiles'", HtmlContent);
         Assert.Contains("T('trendEarliest'", HtmlContent);
         Assert.Contains("T('trendError'", HtmlContent);
+        Assert.Contains("T('trendNow'", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_TrendChart_ContainsDiffPanel()
+    {
+        // The trend chart should include a diff panel for hover comparison
+        Assert.Contains("trend-diff-panel", HtmlContent);
+        Assert.Contains("trend-diff-content", HtmlContent);
+        Assert.Contains("trend-diff-dates", HtmlContent);
+        Assert.Contains("trend-diff-size", HtmlContent);
+        Assert.Contains("trend-diff-files", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_TrendChart_ContainsDiffPanelInteraction()
+    {
+        // The interaction handler should update and hide the diff panel
+        Assert.Contains("function updateDiffPanel", HtmlContent);
+        Assert.Contains("function hideDiffPanel", HtmlContent);
     }
 
     [Fact]
