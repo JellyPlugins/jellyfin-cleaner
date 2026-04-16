@@ -278,6 +278,12 @@ public static class BackupValidator
             var instance = instances[i];
             var prefix = $"{fieldName}[{i}]";
 
+            if (instance == null)
+            {
+                result.Errors.Add($"{prefix} is null.");
+                continue;
+            }
+
             ValidateStringField(result, instance.Name, $"{prefix}.Name", MaxInstanceNameLength);
             ValidateStringField(result, instance.Url, $"{prefix}.Url", MaxUrlLength);
             ValidateStringField(result, instance.ApiKey, $"{prefix}.ApiKey", MaxApiKeyLength);
