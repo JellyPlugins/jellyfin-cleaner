@@ -39,23 +39,21 @@ jobs:
 
     - name: Check for vulnerable packages
       run: |
+        set -euo pipefail
         echo "## Dependency Vulnerability Scan" >> $GITHUB_STEP_SUMMARY
-        dotnet list package --vulnerable --include-transitive --format json > vuln-report.json 2>&1 || true
+        dotnet list package --vulnerable --include-transitive --format json > vuln-report.json
         cat vuln-report.json
-        # Parse JSON output to detect vulnerabilities (SDK-independent)
+        # Parse JSON output to detect vulnerabilities (SDK-independent, fail-closed)
         VULN_COUNT=$(python3 -c "
         import json, sys
-        try:
-            data = json.load(open('vuln-report.json'))
-            count = sum(
-                len(pkg.get('vulnerabilities', []))
-                for proj in data.get('projects', [])
-                for fw in proj.get('frameworks', [])
-                for pkg in fw.get('topLevelPackages', []) + fw.get('transitivePackages', [])
-            )
-            print(count)
-        except Exception:
-            print(0)
+        data = json.load(open('vuln-report.json'))
+        count = sum(
+            len(pkg.get('vulnerabilities') or [])
+            for proj in data.get('projects', [])
+            for fw in proj.get('frameworks', [])
+            for pkg in (fw.get('topLevelPackages') or []) + (fw.get('transitivePackages') or [])
+        )
+        print(count)
         ")
         if [ "$VULN_COUNT" -gt 0 ]; then
           echo "::error::Vulnerable NuGet packages detected! Release blocked. ($VULN_COUNT vulnerabilities)"

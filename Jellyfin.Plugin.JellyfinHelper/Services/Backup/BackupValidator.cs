@@ -353,21 +353,23 @@ public static class BackupValidator
                 $"GrowthBaseline has {baseline.Directories.Count} directories (max {MaxBaselineDirectories}). Will be trimmed.");
         }
 
-        // Check for suspiciously large sizes
+        // Check for suspiciously large sizes and security issues
+        var warnedNegativeSize = false;
+        var warnedNegativeCount = false;
         foreach (var kvp in baseline.Directories)
         {
-            if (kvp.Value.Size < 0)
+            if (!warnedNegativeSize && kvp.Value.Size < 0)
             {
                 result.Warnings.Add(
                     $"Baseline directory '{TruncateForLog(kvp.Key)}' has negative size ({kvp.Value.Size}).");
-                break; // Only warn once
+                warnedNegativeSize = true;
             }
 
-            if (kvp.Value.Count < 0)
+            if (!warnedNegativeCount && kvp.Value.Count < 0)
             {
                 result.Warnings.Add(
                     $"Baseline directory '{TruncateForLog(kvp.Key)}' has negative count ({kvp.Value.Count}).");
-                break; // Only warn once
+                warnedNegativeCount = true;
             }
 
             if (kvp.Key.Length > 1000)
