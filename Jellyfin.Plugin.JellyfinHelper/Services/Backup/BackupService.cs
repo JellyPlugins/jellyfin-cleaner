@@ -251,7 +251,7 @@ public class BackupService : IBackupService
         config.Language = BackupValidator.ValidLanguages.Contains(backup.Language) ? backup.Language : "en";
         config.IncludedLibraries = backup.IncludedLibraries;
         config.ExcludedLibraries = backup.ExcludedLibraries;
-        config.OrphanMinAgeDays = Math.Clamp(backup.OrphanMinAgeDays, 0, 3650);
+        config.OrphanMinAgeDays = Math.Clamp(backup.OrphanMinAgeDays, 0, BackupValidator.MaxRetentionDays);
         config.PluginLogLevel = BackupValidator.ValidLogLevels.Contains(backup.PluginLogLevel) ? backup.PluginLogLevel : "INFO";
 
         // Task modes
@@ -265,7 +265,7 @@ public class BackupService : IBackupService
         config.TrashFolderPath = string.IsNullOrWhiteSpace(backup.TrashFolderPath)
             ? ".jellyfin-trash"
             : backup.TrashFolderPath;
-        config.TrashRetentionDays = Math.Clamp(backup.TrashRetentionDays, 0, 3650);
+        config.TrashRetentionDays = Math.Clamp(backup.TrashRetentionDays, 0, BackupValidator.MaxRetentionDays);
 
         // Arr instances
         config.RadarrInstances.Clear();

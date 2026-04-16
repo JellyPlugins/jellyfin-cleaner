@@ -138,10 +138,15 @@
       <DocsI18nSource Include="$(MSBuildProjectDirectory)\i18n\*.json" />
     </ItemGroup>
 
-    <!-- Ensure target directories exist -->
-    <MakeDir Directories="$(DocsRoot)\css" Condition="!Exists('$(DocsRoot)\css')" />
-    <MakeDir Directories="$(DocsRoot)\js" Condition="!Exists('$(DocsRoot)\js')" />
-    <MakeDir Directories="$(DocsRoot)\i18n" Condition="!Exists('$(DocsRoot)\i18n')" />
+    <!-- Clean target directories to mirror source (remove stale/renamed assets) -->
+    <RemoveDir Directories="$(DocsRoot)\css" Condition="Exists('$(DocsRoot)\css')" />
+    <RemoveDir Directories="$(DocsRoot)\js" Condition="Exists('$(DocsRoot)\js')" />
+    <RemoveDir Directories="$(DocsRoot)\i18n" Condition="Exists('$(DocsRoot)\i18n')" />
+
+    <!-- Recreate target directories -->
+    <MakeDir Directories="$(DocsRoot)\css" />
+    <MakeDir Directories="$(DocsRoot)\js" />
+    <MakeDir Directories="$(DocsRoot)\i18n" />
 
     <!-- Copy CSS files -->
     <Copy SourceFiles="@(DocsCssSource)"

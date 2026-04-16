@@ -40,8 +40,8 @@ public static class BackupSanitizer
         backup.StrmRepairTaskMode = SanitizeTaskMode(backup.StrmRepairTaskMode);
 
         // Numeric clamping
-        backup.OrphanMinAgeDays = Math.Clamp(backup.OrphanMinAgeDays, 0, 3650);
-        backup.TrashRetentionDays = Math.Clamp(backup.TrashRetentionDays, 0, 3650);
+        backup.OrphanMinAgeDays = Math.Clamp(backup.OrphanMinAgeDays, 0, BackupValidator.MaxRetentionDays);
+        backup.TrashRetentionDays = Math.Clamp(backup.TrashRetentionDays, 0, BackupValidator.MaxRetentionDays);
 
         // String truncation
         backup.IncludedLibraries = TruncateString(backup.IncludedLibraries, BackupValidator.MaxStringLength);

@@ -34,6 +34,11 @@ public static class BackupValidator
     internal const int MaxArrInstances = 3;
 
     /// <summary>
+    ///     Maximum retention or minimum age in days (≈ 10 years).
+    /// </summary>
+    internal const int MaxRetentionDays = 3650;
+
+    /// <summary>
     ///     Maximum string length for general text fields (library names, paths, etc.).
     /// </summary>
     internal const int MaxStringLength = 1000;
@@ -153,14 +158,14 @@ public static class BackupValidator
         }
 
         // Numeric range validation
-        if (backup.OrphanMinAgeDays < 0 || backup.OrphanMinAgeDays > 3650)
+        if (backup.OrphanMinAgeDays < 0 || backup.OrphanMinAgeDays > MaxRetentionDays)
         {
-            result.Errors.Add($"OrphanMinAgeDays out of range: {backup.OrphanMinAgeDays}. Must be 0–3650.");
+            result.Errors.Add($"OrphanMinAgeDays out of range: {backup.OrphanMinAgeDays}. Must be 0–{MaxRetentionDays}.");
         }
 
-        if (backup.TrashRetentionDays < 0 || backup.TrashRetentionDays > 3650)
+        if (backup.TrashRetentionDays < 0 || backup.TrashRetentionDays > MaxRetentionDays)
         {
-            result.Errors.Add($"TrashRetentionDays out of range: {backup.TrashRetentionDays}. Must be 0–3650.");
+            result.Errors.Add($"TrashRetentionDays out of range: {backup.TrashRetentionDays}. Must be 0–{MaxRetentionDays}.");
         }
 
         // Path traversal check for trash folder
