@@ -38,7 +38,7 @@ jobs:
     - name: Check for vulnerable packages
       run: |
         echo "## Dependency Vulnerability Scan" >> $GITHUB_STEP_SUMMARY
-        OUTPUT=$(dotnet list package --vulnerable 2>&1)
+        OUTPUT=$(dotnet list package --vulnerable --include-transitive 2>&1)
         echo "$OUTPUT"
         if echo "$OUTPUT" | grep -qi "has the following vulnerable packages"; then
           echo "::error::Vulnerable NuGet packages detected! Release blocked."

@@ -213,7 +213,7 @@ public class BackupController : ControllerBase
                 $"Backup deserialized: version={backup.BackupVersion}, pluginVersion={backup.PluginVersion}, created={backup.CreatedAt:O}",
                 _logger);
 
-            var validation = BackupService.Validate(backup);
+            var validation = BackupValidator.Validate(backup);
 
             foreach (var error in validation.Errors)
             {
@@ -241,7 +241,7 @@ public class BackupController : ControllerBase
                     });
             }
 
-            BackupService.Sanitize(backup);
+            BackupSanitizer.Sanitize(backup);
 
             // Restore
             var summary = _backupService.RestoreBackup(backup);

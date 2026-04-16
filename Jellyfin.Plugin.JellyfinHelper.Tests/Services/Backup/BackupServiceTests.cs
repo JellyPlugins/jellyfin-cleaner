@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Backup;
 using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
@@ -48,7 +48,7 @@ public class BackupServiceTests
     public void Validate_ValidBackup_ReturnsNoErrors()
     {
         var backup = CreateValidBackup();
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.True(result.IsValid);
         Assert.Empty(result.Errors);
@@ -57,7 +57,7 @@ public class BackupServiceTests
     [Fact]
     public void Validate_NullBackup_ReturnsError()
     {
-        var result = BackupService.Validate(null);
+        var result = BackupValidator.Validate(null);
 
         Assert.False(result.IsValid);
         Assert.Single(result.Errors);
@@ -71,7 +71,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.BackupVersion = 99;
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("version"));
@@ -82,7 +82,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.BackupVersion = 0;
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
     }
@@ -94,7 +94,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.CreatedAt = new DateTime(2019, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.True(result.IsValid); // Warning, not error
         Assert.Contains(result.Warnings, w => w.Contains("old"));
@@ -105,7 +105,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.CreatedAt = DateTime.UtcNow.AddDays(5);
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.True(result.IsValid);
         Assert.Contains(result.Warnings, w => w.Contains("future"));
@@ -118,7 +118,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.Language = "xx";
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.True(result.IsValid);
         Assert.Contains(result.Warnings, w => w.Contains("language") || w.Contains("Language"));
@@ -136,7 +136,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.Language = lang;
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.True(result.IsValid);
         Assert.DoesNotContain(result.Warnings, w => w.Contains("language") || w.Contains("Language"));
@@ -152,7 +152,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.TrickplayTaskMode = mode;
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.True(result.IsValid); // Warning, not error
         Assert.Contains(result.Warnings, w => w.Contains("task mode") || w.Contains("TrickplayTaskMode"));
@@ -169,7 +169,7 @@ public class BackupServiceTests
         backup.EmptyMediaFolderTaskMode = mode;
         backup.OrphanedSubtitleTaskMode = mode;
         backup.StrmRepairTaskMode = mode;
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.True(result.IsValid);
         Assert.Empty(result.Warnings);
@@ -182,7 +182,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.OrphanMinAgeDays = -1;
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("OrphanMinAgeDays"));
@@ -193,7 +193,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.OrphanMinAgeDays = 9999;
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
     }
@@ -203,7 +203,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.TrashRetentionDays = -5;
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("TrashRetentionDays"));
@@ -221,7 +221,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.Language = malicious;
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("script injection") || e.Contains("Language"));
@@ -234,7 +234,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.IncludedLibraries = malicious;
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
     }
@@ -248,7 +248,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.TrashFolderPath = malicious;
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
     }
@@ -260,7 +260,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.IncludedLibraries = "Movies\0EvilPayload";
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("null bytes"));
@@ -273,7 +273,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.TrashFolderPath = "../../../etc/passwd";
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("traversal"));
@@ -288,7 +288,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.TrashFolderPath = path;
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("dangerous characters") || e.Contains("TrashFolderPath"));
@@ -300,8 +300,8 @@ public class BackupServiceTests
     public void Validate_ExcessiveStringLength_ReturnsError()
     {
         var backup = CreateValidBackup();
-        backup.IncludedLibraries = new string('A', BackupService.MaxStringLength + 1);
-        var result = BackupService.Validate(backup);
+        backup.IncludedLibraries = new string('A', BackupValidator.MaxStringLength + 1);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("maximum length"));
@@ -322,7 +322,7 @@ public class BackupServiceTests
             new BackupArrInstance { Name = "R3", Url = "http://localhost:7880", ApiKey = "key3" });
         backup.RadarrInstances.Add(
             new BackupArrInstance { Name = "R4", Url = "http://localhost:7881", ApiKey = "key4" });
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("too many"));
@@ -335,7 +335,7 @@ public class BackupServiceTests
         backup.RadarrInstances.Clear();
         backup.RadarrInstances.Add(
             new BackupArrInstance { Name = "Radarr", Url = "ftp://not-http.com", ApiKey = "key" });
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("URL"));
@@ -347,7 +347,7 @@ public class BackupServiceTests
         var backup = CreateValidBackup();
         backup.RadarrInstances.Clear();
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "Radarr", Url = "not-a-url-at-all", ApiKey = "key" });
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
     }
@@ -359,7 +359,7 @@ public class BackupServiceTests
         backup.RadarrInstances.Clear();
         backup.RadarrInstances.Add(new BackupArrInstance
             { Name = "<script>alert(1)</script>", Url = "http://localhost:7878", ApiKey = "key" });
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
     }
@@ -370,7 +370,7 @@ public class BackupServiceTests
         var backup = CreateValidBackup();
         backup.RadarrInstances.Clear();
         backup.SonarrInstances.Clear();
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.True(result.IsValid);
     }
@@ -382,7 +382,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.GrowthTimeline = new GrowthTimelineResult { Granularity = "monthly" };
-        for (var i = 0; i < BackupService.MaxTimelineDataPoints + 100; i++)
+        for (var i = 0; i < BackupValidator.MaxTimelineDataPoints + 100; i++)
             backup.GrowthTimeline.DataPoints.Add(new GrowthTimelinePoint
             {
                 Date = DateTime.UtcNow.AddDays(-i),
@@ -390,7 +390,7 @@ public class BackupServiceTests
                 CumulativeFileCount = i
             });
 
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.True(result.IsValid);
         Assert.Contains(result.Warnings, w => w.Contains("trimmed") || w.Contains("data points"));
@@ -407,7 +407,7 @@ public class BackupServiceTests
             CumulativeSize = -1000
         });
 
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.True(result.IsValid);
         Assert.Contains(result.Warnings, w => w.Contains("negative"));
@@ -418,7 +418,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.GrowthTimeline = null;
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.True(result.IsValid);
     }
@@ -441,7 +441,7 @@ public class BackupServiceTests
             }
         };
 
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("script injection"));
@@ -463,7 +463,7 @@ public class BackupServiceTests
             }
         };
 
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.Contains("1000 characters"));
@@ -476,7 +476,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.Language = "invalid";
-        BackupService.Sanitize(backup);
+        BackupSanitizer.Sanitize(backup);
 
         Assert.Equal("en", backup.Language);
     }
@@ -488,7 +488,7 @@ public class BackupServiceTests
         backup.TrickplayTaskMode = "InvalidMode";
         backup.EmptyMediaFolderTaskMode = "";
         backup.OrphanedSubtitleTaskMode = null!;
-        BackupService.Sanitize(backup);
+        BackupSanitizer.Sanitize(backup);
 
         Assert.Equal("DryRun", backup.TrickplayTaskMode);
         Assert.Equal("DryRun", backup.EmptyMediaFolderTaskMode);
@@ -501,7 +501,7 @@ public class BackupServiceTests
         var backup = CreateValidBackup();
         backup.OrphanMinAgeDays = -10;
         backup.TrashRetentionDays = 99999;
-        BackupService.Sanitize(backup);
+        BackupSanitizer.Sanitize(backup);
 
         Assert.Equal(0, backup.OrphanMinAgeDays);
         Assert.Equal(3650, backup.TrashRetentionDays);
@@ -512,9 +512,9 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.IncludedLibraries = new string('A', 2000);
-        BackupService.Sanitize(backup);
+        BackupSanitizer.Sanitize(backup);
 
-        Assert.Equal(BackupService.MaxStringLength, backup.IncludedLibraries.Length);
+        Assert.Equal(BackupValidator.MaxStringLength, backup.IncludedLibraries.Length);
     }
 
     [Fact]
@@ -527,9 +527,9 @@ public class BackupServiceTests
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "R3", Url = "http://localhost:3", ApiKey = "k3" });
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "R4", Url = "http://localhost:4", ApiKey = "k4" });
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "R5", Url = "http://localhost:5", ApiKey = "k5" });
-        BackupService.Sanitize(backup);
+        BackupSanitizer.Sanitize(backup);
 
-        Assert.Equal(BackupService.MaxArrInstances, backup.RadarrInstances.Count);
+        Assert.Equal(BackupValidator.MaxArrInstances, backup.RadarrInstances.Count);
     }
 
     [Fact]
@@ -537,7 +537,7 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.PluginLogLevel = "TRACE";
-        BackupService.Sanitize(backup);
+        BackupSanitizer.Sanitize(backup);
 
         Assert.Equal("INFO", backup.PluginLogLevel);
     }
@@ -632,7 +632,7 @@ public class BackupServiceTests
     [InlineData("", false)]
     public void ContainsScriptInjection_DetectsCorrectly(string input, bool expected)
     {
-        Assert.Equal(expected, BackupService.ContainsScriptInjection(input));
+        Assert.Equal(expected, BackupValidator.ContainsScriptInjection(input));
     }
 
     // ===== Security: ContainsNullBytes helper =====
@@ -640,9 +640,9 @@ public class BackupServiceTests
     [Fact]
     public void ContainsNullBytes_DetectsNullByte()
     {
-        Assert.True(BackupService.ContainsNullBytes("hello\0world"));
-        Assert.False(BackupService.ContainsNullBytes("hello world"));
-        Assert.False(BackupService.ContainsNullBytes(""));
+        Assert.True(BackupValidator.ContainsNullBytes("hello\0world"));
+        Assert.False(BackupValidator.ContainsNullBytes("hello world"));
+        Assert.False(BackupValidator.ContainsNullBytes(""));
     }
 
     // ===== Full validation pipeline: malicious backup =====
@@ -665,7 +665,7 @@ public class BackupServiceTests
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "R3", Url = "http://ok.com", ApiKey = "ok" });
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "R4", Url = "http://ok.com", ApiKey = "ok" });
 
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
         // Should have multiple errors
@@ -683,7 +683,7 @@ public class BackupServiceTests
             BackupVersion = 1,
             CreatedAt = DateTime.UtcNow
         };
-        var result = BackupService.Validate(backup);
+        var result = BackupValidator.Validate(backup);
 
         Assert.True(result.IsValid);
     }
@@ -693,10 +693,10 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.OrphanMinAgeDays = 0;
-        Assert.True(BackupService.Validate(backup).IsValid);
+        Assert.True(BackupValidator.Validate(backup).IsValid);
 
         backup.OrphanMinAgeDays = 3650;
-        Assert.True(BackupService.Validate(backup).IsValid);
+        Assert.True(BackupValidator.Validate(backup).IsValid);
     }
 
     [Fact]
@@ -704,10 +704,10 @@ public class BackupServiceTests
     {
         var backup = CreateValidBackup();
         backup.TrashRetentionDays = 0;
-        Assert.True(BackupService.Validate(backup).IsValid);
+        Assert.True(BackupValidator.Validate(backup).IsValid);
 
         backup.TrashRetentionDays = 3650;
-        Assert.True(BackupService.Validate(backup).IsValid);
+        Assert.True(BackupValidator.Validate(backup).IsValid);
     }
 
     // ===== File I/O: RestoreBackup with data path =====
