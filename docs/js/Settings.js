@@ -100,10 +100,10 @@
             var radarrCount = radarrInstances.length;
             var radarrCountText = formatInstanceCount(radarrCount);
             h += '<div class="arr-collapsible' + (radarrCount === 0 ? ' arr-expanded' : '') + '" id="arrCollapsibleRadarr">';
-            h += '<div class="arr-collapsible-header" onclick="this.parentElement.classList.toggle(\'arr-expanded\')">';
+            h += '<button type="button" class="arr-collapsible-header" aria-expanded="' + (radarrCount === 0 ? 'true' : 'false') + '" onclick="var p=this.parentElement;p.classList.toggle(\'arr-expanded\');this.setAttribute(\'aria-expanded\',p.classList.contains(\'arr-expanded\'))">';
             h += '<span><span class="arr-chevron">▶</span><span class="arr-section-label">🎬 ' + T('radarrInstances', 'Radarr Instances') + '</span><span class="arr-instance-count" id="arrCountRadarr">' + (radarrCountText ? '(' + radarrCountText + ')' : '') + '</span></span>';
             h += '<span class="help-text" style="margin:0;">' + T('clickToExpand', 'click to expand') + '</span>';
-            h += '</div>';
+            h += '</button>';
             h += '<div class="arr-collapsible-body">';
             h += renderArrInstances('Radarr', radarrInstances);
             h += '</div></div>';
@@ -115,10 +115,10 @@
             var sonarrCount = sonarrInstances.length;
             var sonarrCountText = formatInstanceCount(sonarrCount);
             h += '<div class="arr-collapsible' + (sonarrCount === 0 ? ' arr-expanded' : '') + '" id="arrCollapsibleSonarr">';
-            h += '<div class="arr-collapsible-header" onclick="this.parentElement.classList.toggle(\'arr-expanded\')">';
+            h += '<button type="button" class="arr-collapsible-header" aria-expanded="' + (sonarrCount === 0 ? 'true' : 'false') + '" onclick="var p=this.parentElement;p.classList.toggle(\'arr-expanded\');this.setAttribute(\'aria-expanded\',p.classList.contains(\'arr-expanded\'))">';
             h += '<span><span class="arr-chevron">▶</span><span class="arr-section-label">📺 ' + T('sonarrInstances', 'Sonarr Instances') + '</span><span class="arr-instance-count" id="arrCountSonarr">' + (sonarrCountText ? '(' + sonarrCountText + ')' : '') + '</span></span>';
             h += '<span class="help-text" style="margin:0;">' + T('clickToExpand', 'click to expand') + '</span>';
-            h += '</div>';
+            h += '</button>';
             h += '<div class="arr-collapsible-body">';
             h += renderArrInstances('Sonarr', sonarrInstances);
             h += '</div></div>';

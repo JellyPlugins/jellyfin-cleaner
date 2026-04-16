@@ -17,6 +17,19 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Link;
 /// </summary>
 public class LinkRepairService : ILinkRepairService
 {
+    /// <summary>
+    ///     Maximum number of directories to visit during recursive scanning.
+    ///     Acts as a safety valve against unresolved symlink loops or extremely deep trees.
+    /// </summary>
+    internal const int MaxVisitedDirectories = 50_000;
+
+    /// <summary>
+    ///     Path comparer appropriate for the current OS.
+    ///     Case-insensitive on Windows/macOS, case-sensitive on Linux.
+    /// </summary>
+    internal static readonly StringComparer PathComparer =
+        OperatingSystem.IsLinux() ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+
     private readonly IFileSystem _fileSystem;
     private readonly IReadOnlyList<ILinkHandler> _handlers;
     private readonly ILogger<LinkRepairService> _logger;
@@ -86,7 +99,7 @@ public class LinkRepairService : ILinkRepairService
         CancellationToken cancellationToken = default)
     {
         var linkFiles = new List<(string FilePath, ILinkHandler Handler)>();
-        var visitedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var visitedDirectories = new HashSet<string>(PathComparer);
 
         foreach (var libraryPath in libraryPaths)
         {
@@ -113,10 +126,20 @@ public class LinkRepairService : ILinkRepairService
         CancellationToken cancellationToken,
         HashSet<string>? visited = null)
     {
-        visited ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        visited ??= new HashSet<string>(PathComparer);
         var normalized = _fileSystem.Path.GetFullPath(directory);
         if (!visited.Add(normalized))
         {
+            return;
+        }
+
+        // Guard against excessively deep directory trees (e.g. unresolved symlink loops)
+        if (visited.Count > MaxVisitedDirectories)
+        {
+            _pluginLog.LogWarning(
+                "LinkRepair",
+                $"Visited directory limit ({MaxVisitedDirectories}) reached — aborting deeper traversal at: {directory}",
+                logger: _logger);
             return;
         }
 
@@ -184,9 +207,9 @@ public class LinkRepairService : ILinkRepairService
             return fileResult;
         }
 
-        // Skip URL-based link files (e.g. http://, https://, rtsp://, file://)
-        // Note: Any scheme containing "://" is accepted — link files intentionally support all URL schemes.
-        if (targetPath.Contains("://", StringComparison.OrdinalIgnoreCase))
+        // Skip URL-based targets only for handlers that legitimately support them (e.g. .strm files).
+        // Symlink targets are always filesystem paths — a "://" in a symlink target is not a URL.
+        if (handler.SupportsUrlTargets && targetPath.Contains("://", StringComparison.OrdinalIgnoreCase))
         {
             _pluginLog.LogDebug("LinkRepair", $"Skipping URL-based link file: {linkFilePath}", _logger);
             fileResult.OriginalTargetPath = targetPath;

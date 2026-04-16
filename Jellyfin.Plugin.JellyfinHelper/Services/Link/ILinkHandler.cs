@@ -9,6 +9,13 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Link;
 public interface ILinkHandler
 {
     /// <summary>
+    ///     Gets a value indicating whether this link type can legitimately
+    ///     contain URL targets (e.g. <c>http://</c>). When true, URL-based
+    ///     targets are treated as valid and skipped during repair.
+    /// </summary>
+    bool SupportsUrlTargets { get; }
+
+    /// <summary>
     ///     Determines whether this handler can process the given file path.
     ///     Implementations should be fast (e.g. extension check) where possible.
     /// </summary>

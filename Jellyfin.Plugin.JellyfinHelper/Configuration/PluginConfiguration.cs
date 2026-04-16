@@ -58,9 +58,7 @@ public class PluginConfiguration : BasePluginConfiguration
     // ===== Config version for migration =====
 
     /// <summary>
-    ///     Gets or sets the configuration version. Used to detect and apply one-time migrations
-    ///     from legacy boolean properties to the new <see cref="TaskMode" /> properties.
-    ///     0 = pre-TaskMode (needs migration), 1 = TaskMode migrated.
+    ///     Gets or sets the configuration version for migration tracking.
     /// </summary>
     public int ConfigVersion { get; set; }
 

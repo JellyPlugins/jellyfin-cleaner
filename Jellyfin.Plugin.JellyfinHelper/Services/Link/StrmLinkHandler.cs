@@ -24,6 +24,9 @@ public class StrmLinkHandler : ILinkHandler
     }
 
     /// <inheritdoc />
+    public bool SupportsUrlTargets => true;
+
+    /// <inheritdoc />
     public bool CanHandle(string filePath)
     {
         return filePath.EndsWith(MediaExtensions.StrmExtension, StringComparison.OrdinalIgnoreCase);

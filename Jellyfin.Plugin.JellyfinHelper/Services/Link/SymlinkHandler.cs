@@ -22,6 +22,9 @@ public class SymlinkHandler : ILinkHandler
     }
 
     /// <inheritdoc />
+    public bool SupportsUrlTargets => false;
+
+    /// <inheritdoc />
     public bool CanHandle(string filePath)
     {
         return _symlinkHelper.IsSymlink(filePath);

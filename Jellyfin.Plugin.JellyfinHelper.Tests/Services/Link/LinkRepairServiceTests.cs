@@ -80,6 +80,7 @@ public class LinkRepairServiceTests
 
         Assert.Single(result);
         Assert.Same(_symlinkHandler, result[0].Handler);
+        _symlinkHelper.Verify(h => h.IsSymlink(symlinkFile), Times.Once);
     }
 
     [Fact]
@@ -301,6 +302,18 @@ public class LinkRepairServiceTests
     }
 
     [Fact]
+    public void ProcessLinkFile_Symlink_BrokenTarget_ParentDirDoesNotExist_ReturnsBroken()
+    {
+        var brokenTarget = _fileSystem.Path.GetFullPath("/movies/DeletedMovie/movie.mkv");
+        var symlinkFile = _fileSystem.Path.GetFullPath("/series/Show1/episode.mkv");
+        _symlinkHelper.Setup(h => h.GetSymlinkTarget(symlinkFile)).Returns(brokenTarget);
+
+        var result = _service.ProcessLinkFile(symlinkFile, _symlinkHandler, true);
+
+        Assert.Equal(LinkFileStatus.Broken, result.Status);
+    }
+
+    [Fact]
     public void ProcessLinkFile_BrokenTarget_NoMediaFiles_ReturnsBroken()
     {
         var movieDir = _fileSystem.Path.GetFullPath("/movies/Movie1");
@@ -313,6 +326,23 @@ public class LinkRepairServiceTests
         _fileSystem.AddFile(linkFile, new MockFileData(brokenTarget));
 
         var result = _service.ProcessLinkFile(linkFile, _strmHandler, true);
+
+        Assert.Equal(LinkFileStatus.Broken, result.Status);
+    }
+
+    [Fact]
+    public void ProcessLinkFile_Symlink_BrokenTarget_NoMediaFiles_ReturnsBroken()
+    {
+        var movieDir = _fileSystem.Path.GetFullPath("/movies/Movie1");
+        var brokenTarget = _fileSystem.Path.Join(movieDir, "old-name.mkv");
+
+        _fileSystem.AddDirectory(movieDir);
+        _fileSystem.AddFile(_fileSystem.Path.Join(movieDir, "readme.txt"), new MockFileData("info"));
+
+        var symlinkFile = _fileSystem.Path.GetFullPath("/series/Show1/episode.mkv");
+        _symlinkHelper.Setup(h => h.GetSymlinkTarget(symlinkFile)).Returns(brokenTarget);
+
+        var result = _service.ProcessLinkFile(symlinkFile, _symlinkHandler, true);
 
         Assert.Equal(LinkFileStatus.Broken, result.Status);
     }
@@ -333,6 +363,41 @@ public class LinkRepairServiceTests
         var result = _service.ProcessLinkFile(linkFile, _strmHandler, true);
 
         Assert.Equal(LinkFileStatus.Ambiguous, result.Status);
+    }
+
+    [Fact]
+    public void ProcessLinkFile_Symlink_BrokenTarget_MultipleMediaFiles_ReturnsAmbiguous()
+    {
+        var movieDir = _fileSystem.Path.GetFullPath("/movies/Movie1");
+        var brokenTarget = _fileSystem.Path.Join(movieDir, "old-name.mkv");
+
+        _fileSystem.AddDirectory(movieDir);
+        _fileSystem.AddFile(_fileSystem.Path.Join(movieDir, "part1.mkv"), new MockFileData("video"));
+        _fileSystem.AddFile(_fileSystem.Path.Join(movieDir, "part2.mkv"), new MockFileData("video"));
+
+        var symlinkFile = _fileSystem.Path.GetFullPath("/series/Show1/episode.mkv");
+        _symlinkHelper.Setup(h => h.GetSymlinkTarget(symlinkFile)).Returns(brokenTarget);
+
+        var result = _service.ProcessLinkFile(symlinkFile, _symlinkHandler, true);
+
+        Assert.Equal(LinkFileStatus.Ambiguous, result.Status);
+    }
+
+    // ===== URL bypass: only for handlers that support URLs =====
+
+    [Fact]
+    public void ProcessLinkFile_Symlink_UrlLikeTarget_IsNotSkippedAsUrl()
+    {
+        // A symlink whose target happens to contain "://" should NOT be treated as a URL.
+        // Only handlers with SupportsUrlTargets == true (e.g. StrmLinkHandler) skip URL targets.
+        var symlinkFile = _fileSystem.Path.GetFullPath("/series/Show1/episode.mkv");
+        _symlinkHelper.Setup(h => h.GetSymlinkTarget(symlinkFile)).Returns("https://example.com/video.mp4");
+
+        var result = _service.ProcessLinkFile(symlinkFile, _symlinkHandler, true);
+
+        // The target is not a valid file path, so normalisation or file-exists check will fail.
+        // The key assertion: it must NOT return Valid (which would mean the URL was silently skipped).
+        Assert.NotEqual(LinkFileStatus.Valid, result.Status);
     }
 
     [Fact]

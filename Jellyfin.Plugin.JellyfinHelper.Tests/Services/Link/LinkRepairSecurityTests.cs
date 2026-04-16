@@ -147,14 +147,16 @@ public class LinkRepairSecurityTests
     [Trait("Category", "Security")]
     [InlineData("http://malicious-server.com/payload.exe")]
     [InlineData("https://evil.com/redirect")]
-    public void ProcessLinkFile_Symlink_UrlTarget_TreatedAsValid(string urlTarget)
+    public void ProcessLinkFile_Symlink_UrlTarget_TreatedAsTargetMissing(string urlTarget)
     {
         var symlinkFile = _fileSystem.Path.GetFullPath("/series/Show1/episode.mkv");
         _symlinkHelper.Setup(h => h.GetSymlinkTarget(symlinkFile)).Returns(urlTarget);
 
         var result = _service.ProcessLinkFile(symlinkFile, _symlinkHandler, true);
 
-        Assert.Equal(LinkFileStatus.Valid, result.Status);
+        // Symlinks do not support URL targets (SupportsUrlTargets = false),
+        // so a URL target is treated as a broken link (path does not exist).
+        Assert.Equal(LinkFileStatus.Broken, result.Status);
     }
 
     // ===== .strm: Empty / Whitespace =====
