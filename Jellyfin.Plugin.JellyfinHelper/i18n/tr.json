@@ -83,6 +83,7 @@
   "settingsTaskTitle": "Görev ayarları",
   "settingsTrashTitle": "Çöp kutusu ayarları",
   "settingsArrTitle": "Arr Stack ayarları",
+  "clickToExpand": "genişletmek için tıklayın",
   "includedLibraries": "Dahil edilen kütüphaneler (beyaz liste, virgülle ayrılmış)",
   "includedLibrariesHelp": "Tüm kütüphaneleri dahil etmek için boş bırakın.",
   "excludedLibraries": "Hariç tutulan kütüphaneler (kara liste, virgülle ayrılmış)",

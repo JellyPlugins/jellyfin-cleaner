@@ -94,20 +94,32 @@
 
             // --- Radarr Instances ---
             h += '<div class="section-title">' + T('settingsArrTitle', 'Arr stack settings') + '</div>';
-            h += '<div class="section-sub-title">🎬 ' + T('radarrInstances', 'Radarr Instances') + ' <span class="help-text">(max ' + MAX_ARR_INSTANCES + ')</span></div>';
             var radarrInstances = cfg.RadarrInstances && cfg.RadarrInstances.length > 0
                 ? cfg.RadarrInstances
                 : (cfg.RadarrUrl ? [{ Name: 'Radarr', Url: cfg.RadarrUrl, ApiKey: cfg.RadarrApiKey }] : []);
+            var radarrCount = radarrInstances.length;
+            h += '<div class="arr-collapsible' + (radarrCount === 0 ? ' arr-expanded' : '') + '" id="arrCollapsibleRadarr">';
+            h += '<div class="arr-collapsible-header" onclick="this.parentElement.classList.toggle(\'arr-expanded\')">';
+            h += '<span><span class="arr-chevron">▶</span><span class="arr-section-label">🎬 ' + T('radarrInstances', 'Radarr Instances') + '</span><span class="arr-instance-count" id="arrCountRadarr">(' + radarrCount + '/' + MAX_ARR_INSTANCES + ')</span></span>';
+            h += '<span class="help-text" style="margin:0;">' + T('clickToExpand', 'click to expand') + '</span>';
+            h += '</div>';
+            h += '<div class="arr-collapsible-body">';
             h += renderArrInstances('Radarr', radarrInstances);
+            h += '</div></div>';
 
-            h += '<div class="section-divider"></div>';
-            
             // --- Sonarr Instances ---
-            h += '<div class="section-sub-title">📺 ' + T('sonarrInstances', 'Sonarr Instances') + ' <span class="help-text">(max ' + MAX_ARR_INSTANCES + ')</span></div>';
             var sonarrInstances = cfg.SonarrInstances && cfg.SonarrInstances.length > 0
                 ? cfg.SonarrInstances
                 : (cfg.SonarrUrl ? [{ Name: 'Sonarr', Url: cfg.SonarrUrl, ApiKey: cfg.SonarrApiKey }] : []);
+            var sonarrCount = sonarrInstances.length;
+            h += '<div class="arr-collapsible' + (sonarrCount === 0 ? ' arr-expanded' : '') + '" id="arrCollapsibleSonarr">';
+            h += '<div class="arr-collapsible-header" onclick="this.parentElement.classList.toggle(\'arr-expanded\')">';
+            h += '<span><span class="arr-chevron">▶</span><span class="arr-section-label">📺 ' + T('sonarrInstances', 'Sonarr Instances') + '</span><span class="arr-instance-count" id="arrCountSonarr">(' + sonarrCount + '/' + MAX_ARR_INSTANCES + ')</span></span>';
+            h += '<span class="help-text" style="margin:0;">' + T('clickToExpand', 'click to expand') + '</span>';
+            h += '</div>';
+            h += '<div class="arr-collapsible-body">';
             h += renderArrInstances('Sonarr', sonarrInstances);
+            h += '</div></div>';
 
             h += '<div style="margin-top:2em;"><button class="refresh-btn" id="btnSaveSettings">' + T('saveSettings', 'Save Settings') + '</button></div>';
             h += '<div id="settingsMsg" style="margin-top:0.5em;"></div>';
