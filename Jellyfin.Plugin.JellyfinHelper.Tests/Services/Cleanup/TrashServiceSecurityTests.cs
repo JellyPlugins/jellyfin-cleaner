@@ -134,22 +134,13 @@ public class TrashServiceSecurityTests : IDisposable
         var trashPath = Path.Join(_testRoot, "trash");
         Directory.CreateDirectory(trashPath);
 
-        // Create a legitimate-looking but maliciously named directory in trash
-        // The PurgeExpiredTrash method parses timestamps from directory names,
-        // so a name without a valid timestamp will be skipped
-        // Use platform-agnostic separators so this actually tests path traversal on Linux too
-        var maliciousDir = Path.Join(trashPath, "..", "..", "etc");
-
-        // This should NOT be created outside trash due to OS path resolution
-        try
-        {
-            Directory.CreateDirectory(maliciousDir);
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException or UnauthorizedAccessException)
-        {
-            // If the OS rejects the path, that's fine
-            return;
-        }
+        // Create a directory inside trash with a name that looks like a path traversal attempt.
+        // We keep it inside the trash folder (no actual ".." resolution) so the test stays
+        // isolated within _testRoot and doesn't create directories outside the test sandbox.
+        // PurgeExpiredTrash parses timestamps from directory names — this name has none,
+        // so it should be safely skipped.
+        var maliciousDir = Path.Join(trashPath, "..__..__etc");
+        Directory.CreateDirectory(maliciousDir);
 
         var now = new DateTime(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc);
         var (_, itemsPurged) = _trashService.PurgeExpiredTrash(trashPath, 0, _loggerMock, now);
