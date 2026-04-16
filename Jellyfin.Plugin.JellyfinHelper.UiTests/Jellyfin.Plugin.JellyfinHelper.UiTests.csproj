@@ -1,0 +1,72 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="coverlet.collector" Version="6.0.4"/>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.0"/>
+        <PackageReference Include="NUnit" Version="4.3.2"/>
+        <PackageReference Include="NUnit.Analyzers" Version="4.7.0"/>
+        <PackageReference Include="NUnit3TestAdapter" Version="5.0.0"/>
+        <PackageReference Include="Microsoft.Playwright.NUnit" Version="1.50.0"/>
+        <PackageReference Include="Testcontainers" Version="4.3.0"/>
+        <PackageReference Include="Microsoft.Playwright" Version="1.50.0"/>
+        <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.0"/>
+        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Jellyfin.Plugin.JellyfinHelper\Jellyfin.Plugin.JellyfinHelper.csproj"/>
+    </ItemGroup>
+
+    <Target Name="InstallPlaywrightBrowsers" AfterTargets="Build">
+        <Message Importance="High" Text="Installing Playwright Chromium browser..."/>
+        <Exec Command="powershell -ExecutionPolicy Bypass -File .\bin\Debug\net9.0\playwright.ps1 install chromium" WorkingDirectory="$(ProjectDir)"/>
+    </Target>
+
+    <Target Name="PublishPlugin" AfterTargets="Build">
+        <Message Importance="High" Text="Publishing Jellyfin.Plugin.JellyfinHelper project..."/>
+        <MSBuild Projects="..\Jellyfin.Plugin.JellyfinHelper\Jellyfin.Plugin.JellyfinHelper.csproj" Targets="Publish"/>
+    </Target>
+
+    <Target Name="CopyPluginToUiTests" AfterTargets="PublishPlugin">
+        <PropertyGroup>
+            <SourcePluginDir>..\Jellyfin.Plugin.JellyfinHelper\bin\$(Configuration)\net9.0\publish</SourcePluginDir>
+            <DestinationPluginDir>JellyfinServer\config\plugins\JellyfinHelper</DestinationPluginDir>
+        </PropertyGroup>
+
+        <Message Importance="High" Text="Copying published plugin files and dependencies to UI tests config..."/>
+
+        <ItemGroup>
+            <SourcePluginFiles Include="$(SourcePluginDir)\*.dll"/>
+            <SourcePluginFiles Include="$(SourcePluginDir)\*.png"/>
+            <FilesToDelete Include="JellyfinServer\config\plugins\configurations\Jellyfin.Plugin.JellyfinHelper.xml"/>
+            <FilesToDelete Include="JellyfinServer\config\log\*.log"/>
+        </ItemGroup>
+
+        <RemoveDir Directories="$(DestinationPluginDir)"/>
+        <Delete Files="@(FilesToDelete)"/>
+        <MakeDir Directories="$(DestinationPluginDir)"/>
+
+        <Copy SourceFiles="@(SourcePluginFiles)" DestinationFolder="$(DestinationPluginDir)"/>
+    </Target>
+
+    <ItemGroup>
+        <Using Include="NUnit.Framework"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="JellyfinServer\media\movies (anime)\"/>
+        <Folder Include="JellyfinServer\media\movies\"/>
+        <Folder Include="JellyfinServer\media\series (anime)\"/>
+        <Folder Include="JellyfinServer\media\series\"/>
+        <Folder Include="UiTests\Screenshots\"/>
+    </ItemGroup>
+
+</Project>

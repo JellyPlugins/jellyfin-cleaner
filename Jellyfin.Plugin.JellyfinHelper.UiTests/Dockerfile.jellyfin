@@ -1,0 +1,8 @@
+﻿# Use jellyfin official image
+FROM jellyfin/jellyfin:10.11.0
+
+# Create plugin directory if not exists
+RUN mkdir -p /config/plugins/JellyfinHelper
+
+# We will mount or copy the built dll into this folder during the test run
+# For a static Dockerfile, we could COPY ./bin/Debug/net9.0/Jellyfin.Plugin.JellyfinHelper.dll /config/plugins/JellyfinHelper/

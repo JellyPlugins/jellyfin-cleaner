@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PluginConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <IncludedLibraries />
+  <ExcludedLibraries />
+  <OrphanMinAgeDays>0</OrphanMinAgeDays>
+  <TrickplayTaskMode>DryRun</TrickplayTaskMode>
+  <EmptyMediaFolderTaskMode>DryRun</EmptyMediaFolderTaskMode>
+  <OrphanedSubtitleTaskMode>DryRun</OrphanedSubtitleTaskMode>
+  <StrmRepairTaskMode>DryRun</StrmRepairTaskMode>
+  <ConfigVersion>0</ConfigVersion>
+  <UseTrash>false</UseTrash>
+  <TrashFolderPath>.jellyfin-trash</TrashFolderPath>
+  <TrashRetentionDays>30</TrashRetentionDays>
+  <RadarrInstances />
+  <SonarrInstances />
+  <Language>en</Language>
+  <PluginLogLevel>INFO</PluginLogLevel>
+  <TotalBytesFreed>0</TotalBytesFreed>
+  <TotalItemsDeleted>0</TotalItemsDeleted>
+  <LastCleanupTimestamp>0001-01-01T00:00:00</LastCleanupTimestamp>
+</PluginConfiguration>
