@@ -642,10 +642,12 @@ public class GrowthTimelineServiceTests
     }
 
     [Fact]
-    public void BuildIncrementalEntries_DeletedDirectory_CaseInsensitiveDetection()
+    public void BuildIncrementalEntries_DeletedDirectory_CaseHandlingMatchesOs()
     {
-        // Verify that the deleted-directory detection (which uses its own HashSet
-        // with OrdinalIgnoreCase) correctly matches paths with different casing.
+        // The deleted-directory detection uses the same comparer as the baseline
+        // dictionary (OrdinalIgnoreCase on Windows, Ordinal on Linux).
+        // On Windows, "/movies/Avatar" and "/movies/avatar" are the same path.
+        // On Linux, they are two distinct paths — a case change IS a delete + create.
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
@@ -673,10 +675,19 @@ public class GrowthTimelineServiceTests
         var now = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
         var entries = TimelineAggregator.BuildIncrementalEntries(currentDirs, baseline, now);
 
-        // The currentPaths HashSet uses OrdinalIgnoreCase, so "/movies/Avatar" should
-        // be found as present (not deleted) regardless of the "/movies/avatar" casing.
         var negativeEntries = entries.Where(e => e.Size < 0).ToList();
-        Assert.Empty(negativeEntries);
+
+        if (OperatingSystem.IsWindows())
+        {
+            // Case-insensitive FS: "/movies/avatar" matches "/movies/Avatar" → no deletion
+            Assert.Empty(negativeEntries);
+        }
+        else
+        {
+            // Case-sensitive FS: "/movies/avatar" ≠ "/movies/Avatar" → deletion detected
+            Assert.Single(negativeEntries);
+            Assert.Equal(-8_000_000_000L, negativeEntries[0].Size);
+        }
     }
 
     [Fact]
