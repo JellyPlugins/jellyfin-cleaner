@@ -55,6 +55,28 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public TaskMode LinkRepairTaskMode { get; set; } = TaskMode.DryRun;
 
+    /// <summary>
+    ///     Gets or sets the execution mode for the Seerr Cleanup task.
+    ///     Default is <see cref="TaskMode.Deactivate" /> because this task interacts with an external service.
+    /// </summary>
+    public TaskMode SeerrCleanupTaskMode { get; set; } = TaskMode.Deactivate;
+
+    /// <summary>
+    ///     Gets or sets the maximum age in days for Seerr requests before they are cleaned up.
+    ///     Default is 365 days (1 year).
+    /// </summary>
+    public int SeerrCleanupAgeDays { get; set; } = 365;
+
+    /// <summary>
+    ///     Gets or sets the base URL of the Jellyseerr/Overseerr/Seerr instance.
+    /// </summary>
+    public string SeerrUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Gets or sets the API key for the Jellyseerr/Overseerr/Seerr instance.
+    /// </summary>
+    public string SeerrApiKey { get; set; } = string.Empty;
+
     // ===== Config version for migration =====
 
     /// <summary>

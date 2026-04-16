@@ -134,7 +134,12 @@ public class I18NServiceTests : IDisposable
             "backupFileTooLarge", "backupInvalidJson",
             "backupImportConfirmTitle", "backupImportConfirmMsg", "backupImportConfirmFile", "backupImportConfirmWarn",
             "backupImportConfirmOk",
-            "backupConfigRestored", "backupTimelineRestored", "backupBaselineRestored", "backupWarnings"
+            "backupConfigRestored", "backupTimelineRestored", "backupBaselineRestored", "backupWarnings",
+            // Seerr keys
+            "seerrCleanup", "seerrNotConfigured", "settingsSeerrTitle", "settingsSeerrHelp",
+            "seerrInstance", "seerrUrl", "seerrApiKey",
+            "seerrCleanupAgeDays", "seerrCleanupAgeDaysHelp", "seerrFillFields",
+            "connectionFailed"
         };
 
         foreach (var key in expectedKeys)

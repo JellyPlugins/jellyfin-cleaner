@@ -2,6 +2,7 @@ using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.Link;
+using Jellyfin.Plugin.JellyfinHelper.Services.Seerr;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Tasks;
@@ -79,6 +80,7 @@ public class HelperCleanupTaskTests : IDisposable
         var trackingServiceMock = new Mock<ICleanupTrackingService>();
         var trashServiceMock = new Mock<ITrashService>();
         var linkRepairServiceMock = new Mock<ILinkRepairService>();
+        var seerrServiceMock = new Mock<ISeerrIntegrationService>();
 
         _task = new HelperCleanupTask(
             libraryManagerMock.Object,
@@ -91,7 +93,8 @@ public class HelperCleanupTaskTests : IDisposable
             configHelperMock.Object,
             trackingServiceMock.Object,
             trashServiceMock.Object,
-            linkRepairServiceMock.Object);
+            linkRepairServiceMock.Object,
+            seerrServiceMock.Object);
     }
 
     public void Dispose()
@@ -156,7 +159,8 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            LinkRepairTaskMode = TaskMode.Deactivate
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate
         };
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
@@ -165,6 +169,7 @@ public class HelperCleanupTaskTests : IDisposable
         VerifyLogContains("Skipping Empty Media Folder Cleanup (deactivated in settings)", LogLevel.Information);
         VerifyLogContains("Skipping Orphaned Subtitle Cleanup (deactivated in settings)", LogLevel.Information);
         VerifyLogContains("Skipping Link Repair (deactivated in settings)", LogLevel.Information);
+        VerifyLogContains("Skipping Seerr Cleanup (deactivated in settings)", LogLevel.Information);
         VerifyLogContains("Helper Cleanup finished", LogLevel.Information);
     }
 
@@ -176,7 +181,10 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Activate,
             EmptyMediaFolderTaskMode = TaskMode.Activate,
             OrphanedSubtitleTaskMode = TaskMode.Activate,
-            LinkRepairTaskMode = TaskMode.Activate
+            LinkRepairTaskMode = TaskMode.Activate,
+            SeerrCleanupTaskMode = TaskMode.Activate,
+            SeerrUrl = "http://localhost:5055",
+            SeerrApiKey = "test-key"
         };
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
@@ -185,6 +193,7 @@ public class HelperCleanupTaskTests : IDisposable
         VerifyLogContains("Starting Empty Media Folder Cleanup (Active)", LogLevel.Information);
         VerifyLogContains("Starting Orphaned Subtitle Cleanup (Active)", LogLevel.Information);
         VerifyLogContains("Starting Link Repair (Active)", LogLevel.Information);
+        VerifyLogContains("Starting Seerr Cleanup (Active)", LogLevel.Information);
         VerifyLogContains("Helper Cleanup finished", LogLevel.Information);
     }
 
@@ -196,7 +205,10 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.DryRun,
             EmptyMediaFolderTaskMode = TaskMode.DryRun,
             OrphanedSubtitleTaskMode = TaskMode.DryRun,
-            LinkRepairTaskMode = TaskMode.DryRun
+            LinkRepairTaskMode = TaskMode.DryRun,
+            SeerrCleanupTaskMode = TaskMode.DryRun,
+            SeerrUrl = "http://localhost:5055",
+            SeerrApiKey = "test-key"
         };
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
@@ -205,6 +217,7 @@ public class HelperCleanupTaskTests : IDisposable
         VerifyLogContains("Starting Empty Media Folder Cleanup (Dry Run)", LogLevel.Information);
         VerifyLogContains("Starting Orphaned Subtitle Cleanup (Dry Run)", LogLevel.Information);
         VerifyLogContains("Starting Link Repair (Dry Run)", LogLevel.Information);
+        VerifyLogContains("Starting Seerr cleanup (Dry Run)", LogLevel.Information);
     }
 
     [Fact]
@@ -271,12 +284,13 @@ public class HelperCleanupTaskTests : IDisposable
 
         await _task.ExecuteAsync(progress, CancellationToken.None);
 
-        // 4 sub-tasks → progress at 25, 50, 75, 100
-        Assert.Equal(4, reportedValues.Count);
-        Assert.Equal(25.0, reportedValues[0]);
-        Assert.Equal(50.0, reportedValues[1]);
-        Assert.Equal(75.0, reportedValues[2]);
-        Assert.Equal(100.0, reportedValues[3]);
+        // 5 sub-tasks → progress at 20, 40, 60, 80, 100
+        Assert.Equal(5, reportedValues.Count);
+        Assert.Equal(20.0, reportedValues[0]);
+        Assert.Equal(40.0, reportedValues[1]);
+        Assert.Equal(60.0, reportedValues[2]);
+        Assert.Equal(80.0, reportedValues[3]);
+        Assert.Equal(100.0, reportedValues[4]);
     }
 
     [Fact]
@@ -326,6 +340,108 @@ public class HelperCleanupTaskTests : IDisposable
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
         VerifyLogNeverContains("Running trash purge", LogLevel.Information);
+    }
+
+    // ===== Seerr-specific tests =====
+
+    [Fact]
+    public async Task ExecuteAsync_SeerrActivated_NotConfigured_LogsSkipped()
+    {
+        _config = new PluginConfiguration
+        {
+            TrickplayTaskMode = TaskMode.Deactivate,
+            EmptyMediaFolderTaskMode = TaskMode.Deactivate,
+            OrphanedSubtitleTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Activate,
+            SeerrUrl = "",
+            SeerrApiKey = ""
+        };
+
+        await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
+
+        VerifyLogContains("Seerr not configured", LogLevel.Information);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_SeerrActivated_OnlyUrlSet_LogsSkipped()
+    {
+        _config = new PluginConfiguration
+        {
+            TrickplayTaskMode = TaskMode.Deactivate,
+            EmptyMediaFolderTaskMode = TaskMode.Deactivate,
+            OrphanedSubtitleTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Activate,
+            SeerrUrl = "http://localhost:5055",
+            SeerrApiKey = ""
+        };
+
+        await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
+
+        VerifyLogContains("Seerr not configured", LogLevel.Information);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_SeerrDryRun_Configured_LogsDryRunMode()
+    {
+        _config = new PluginConfiguration
+        {
+            TrickplayTaskMode = TaskMode.Deactivate,
+            EmptyMediaFolderTaskMode = TaskMode.Deactivate,
+            OrphanedSubtitleTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.DryRun,
+            SeerrUrl = "http://localhost:5055",
+            SeerrApiKey = "test-key",
+            SeerrCleanupAgeDays = 180
+        };
+
+        await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
+
+        VerifyLogContains("Starting Seerr cleanup (Dry Run)", LogLevel.Information);
+        VerifyLogContains("Max age: 180 days", LogLevel.Information);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_SeerrDeactivated_SkipsEvenIfConfigured()
+    {
+        _config = new PluginConfiguration
+        {
+            TrickplayTaskMode = TaskMode.Deactivate,
+            EmptyMediaFolderTaskMode = TaskMode.Deactivate,
+            OrphanedSubtitleTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate,
+            SeerrUrl = "http://localhost:5055",
+            SeerrApiKey = "test-key"
+        };
+
+        await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
+
+        VerifyLogContains("Skipping Seerr Cleanup (deactivated in settings)", LogLevel.Information);
+        VerifyLogNeverContains("Starting Seerr cleanup", LogLevel.Information);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_SeerrActivated_LogsFinishedSummary()
+    {
+        _config = new PluginConfiguration
+        {
+            TrickplayTaskMode = TaskMode.Deactivate,
+            EmptyMediaFolderTaskMode = TaskMode.Deactivate,
+            OrphanedSubtitleTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Activate,
+            SeerrUrl = "http://localhost:5055",
+            SeerrApiKey = "test-key",
+            SeerrCleanupAgeDays = 365
+        };
+
+        await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
+
+        VerifyLogContains("Starting Seerr cleanup (Active)", LogLevel.Information);
+        VerifyLogContains("Finished", LogLevel.Information);
     }
 
     [Fact]

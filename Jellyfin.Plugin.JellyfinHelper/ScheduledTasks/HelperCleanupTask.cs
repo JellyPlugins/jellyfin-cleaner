@@ -8,6 +8,7 @@ using Jellyfin.Plugin.JellyfinHelper.Services;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.Link;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
+using Jellyfin.Plugin.JellyfinHelper.Services.Seerr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
 using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 using MediaBrowser.Controller.Library;
@@ -34,6 +35,7 @@ public class HelperCleanupTask : IScheduledTask
     private readonly IPluginLogService _pluginLog;
     private readonly IMediaStatisticsService _statisticsService;
     private readonly ILinkRepairService _linkRepairService;
+    private readonly ISeerrIntegrationService _seerrService;
     private readonly ICleanupTrackingService _trackingService;
     private readonly ITrashService _trashService;
 
@@ -51,6 +53,7 @@ public class HelperCleanupTask : IScheduledTask
     /// <param name="trackingService">The cleanup tracking service.</param>
     /// <param name="trashService">The trash service.</param>
     /// <param name="linkRepairService">The link repair service.</param>
+    /// <param name="seerrService">The Seerr integration service.</param>
     public HelperCleanupTask(
         ILibraryManager libraryManager,
         IFileSystem fileSystem,
@@ -62,7 +65,8 @@ public class HelperCleanupTask : IScheduledTask
         ICleanupConfigHelper configHelper,
         ICleanupTrackingService trackingService,
         ITrashService trashService,
-        ILinkRepairService linkRepairService)
+        ILinkRepairService linkRepairService,
+        ISeerrIntegrationService seerrService)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
@@ -76,6 +80,7 @@ public class HelperCleanupTask : IScheduledTask
         _trackingService = trackingService;
         _trashService = trashService;
         _linkRepairService = linkRepairService;
+        _seerrService = seerrService;
     }
 
     /// <inheritdoc />
@@ -86,7 +91,7 @@ public class HelperCleanupTask : IScheduledTask
 
     /// <inheritdoc />
     public string Description =>
-        "Runs all configured cleanup and repair tasks sequentially (Trickplay, Empty Folders, Orphaned Subtitles, Link Repair).";
+        "Runs all configured cleanup and repair tasks sequentially (Trickplay, Empty Folders, Orphaned Subtitles, Link Repair, Seerr Cleanup).";
 
     /// <inheritdoc />
     public string Category => "Jellyfin Helper";
@@ -102,7 +107,8 @@ public class HelperCleanupTask : IScheduledTask
             ("Trickplay Cleanup", config.TrickplayTaskMode, RunTrickplayCleanup),
             ("Empty Media Folder Cleanup", config.EmptyMediaFolderTaskMode, RunEmptyMediaFolderCleanup),
             ("Orphaned Subtitle Cleanup", config.OrphanedSubtitleTaskMode, RunOrphanedSubtitleCleanup),
-            ("Link Repair", config.LinkRepairTaskMode, RunLinkRepair)
+            ("Link Repair", config.LinkRepairTaskMode, RunLinkRepair),
+            ("Seerr Cleanup", config.SeerrCleanupTaskMode, RunSeerrCleanup)
         };
 
         var totalTasks = subTasks.Length;
@@ -312,6 +318,42 @@ public class HelperCleanupTask : IScheduledTask
             _trackingService,
             _trashService);
         return task.ExecuteAsync(progress, cancellationToken);
+    }
+
+    private async Task RunSeerrCleanup(IProgress<double> progress, CancellationToken cancellationToken)
+    {
+        var config = _configHelper.GetConfig();
+
+        // Check if Seerr is configured
+        if (string.IsNullOrWhiteSpace(config.SeerrUrl) || string.IsNullOrWhiteSpace(config.SeerrApiKey))
+        {
+            _pluginLog.LogInfo("SeerrCleanup", "Seerr not configured. Skipping.", _logger);
+            progress.Report(100);
+            return;
+        }
+
+        var dryRun = config.SeerrCleanupTaskMode == TaskMode.DryRun;
+        var modeLabel = dryRun ? "Dry Run" : "Active";
+
+        _pluginLog.LogInfo(
+            "SeerrCleanup",
+            $"Starting Seerr cleanup ({modeLabel}). Max age: {config.SeerrCleanupAgeDays} days.",
+            _logger);
+
+        var result = await _seerrService.CleanupExpiredRequestsAsync(
+            config.SeerrUrl,
+            config.SeerrApiKey,
+            config.SeerrCleanupAgeDays,
+            dryRun,
+            cancellationToken).ConfigureAwait(false);
+
+        // Log summary with Mode/Hits/Founds/Actions pattern
+        _pluginLog.LogInfo(
+            "SeerrCleanup",
+            $"Finished. Mode: {modeLabel} | Checked: {result.TotalChecked} | Expired: {result.ExpiredFound} | Deleted: {result.Deleted} | Failed: {result.Failed}",
+            _logger);
+
+        progress.Report(100);
     }
 
     private Task RunLinkRepair(IProgress<double> progress, CancellationToken cancellationToken)

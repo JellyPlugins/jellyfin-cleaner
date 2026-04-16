@@ -140,6 +140,9 @@ public static class BackupValidator
         ValidateStringField(result, backup.EmptyMediaFolderTaskMode, "EmptyMediaFolderTaskMode", MaxStringLength);
         ValidateStringField(result, backup.OrphanedSubtitleTaskMode, "OrphanedSubtitleTaskMode", MaxStringLength);
         ValidateStringField(result, backup.LinkRepairTaskMode, "LinkRepairTaskMode", MaxStringLength);
+        ValidateStringField(result, backup.SeerrCleanupTaskMode, "SeerrCleanupTaskMode", MaxStringLength);
+        ValidateStringField(result, backup.SeerrUrl, "SeerrUrl", MaxUrlLength);
+        ValidateStringField(result, backup.SeerrApiKey, "SeerrApiKey", MaxApiKeyLength);
 
         // Enum validation
         if (!string.IsNullOrEmpty(backup.Language) && !ValidLanguages.Contains(backup.Language))
@@ -151,6 +154,7 @@ public static class BackupValidator
         ValidateTaskMode(result, backup.EmptyMediaFolderTaskMode, "EmptyMediaFolderTaskMode");
         ValidateTaskMode(result, backup.OrphanedSubtitleTaskMode, "OrphanedSubtitleTaskMode");
         ValidateTaskMode(result, backup.LinkRepairTaskMode, "LinkRepairTaskMode");
+        ValidateTaskMode(result, backup.SeerrCleanupTaskMode, "SeerrCleanupTaskMode");
 
         if (!string.IsNullOrEmpty(backup.PluginLogLevel) && !ValidLogLevels.Contains(backup.PluginLogLevel))
         {
@@ -166,6 +170,11 @@ public static class BackupValidator
         if (backup.TrashRetentionDays < 0 || backup.TrashRetentionDays > MaxRetentionDays)
         {
             result.Errors.Add($"TrashRetentionDays out of range: {backup.TrashRetentionDays}. Must be 0–{MaxRetentionDays}.");
+        }
+
+        if (backup.SeerrCleanupAgeDays < 1 || backup.SeerrCleanupAgeDays > MaxRetentionDays)
+        {
+            result.Errors.Add($"SeerrCleanupAgeDays out of range: {backup.SeerrCleanupAgeDays}. Must be 1–{MaxRetentionDays}.");
         }
 
         // Path traversal check for trash folder

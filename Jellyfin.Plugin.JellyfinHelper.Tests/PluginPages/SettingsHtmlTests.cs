@@ -254,4 +254,104 @@ public class SettingsHtmlTests : ConfigPageTestBase
             Assert.Contains(key, HtmlContent);
         }
     }
+
+    // ===== Seerr settings UI tests =====
+
+    [Fact]
+    public void Html_ContainsSeerrSection()
+    {
+        Assert.Contains("settingsSeerrTitle", HtmlContent);
+        Assert.Contains("settingsSeerrHelp", HtmlContent);
+    }
+
+    [Theory]
+    [InlineData("cfgSeerrUrl")]
+    [InlineData("cfgSeerrApiKey")]
+    [InlineData("cfgSeerrAgeDays")]
+    [InlineData("cfgSeerrMode")]
+    public void Html_ContainsSeerrFormElement(string elementId)
+    {
+        Assert.Contains(elementId, HtmlContent);
+    }
+
+    [Fact]
+    public void Html_ContainsSeerrTestConnectionButton()
+    {
+        Assert.Contains("btnTestSeerr", HtmlContent);
+        Assert.Contains("seerrTestResult", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SavesSeerrUrlInPayload()
+    {
+        Assert.Contains("SeerrUrl:", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SavesSeerrApiKeyInPayload()
+    {
+        Assert.Contains("SeerrApiKey:", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SavesSeerrCleanupAgeDaysInPayload()
+    {
+        Assert.Contains("SeerrCleanupAgeDays:", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SeerrNotConfiguredWarningShown()
+    {
+        Assert.Contains("seerrNotConfigured", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SeerrCollapsibleSection()
+    {
+        Assert.Contains("arrCollapsibleSeerr", HtmlContent);
+        Assert.Contains("arrCountSeerr", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SeerrFillFieldsValidation()
+    {
+        Assert.Contains("seerrFillFields", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SeerrHasAllI18nKeys()
+    {
+        var expectedKeys = new[]
+        {
+            "seerrCleanup", "seerrNotConfigured", "settingsSeerrTitle", "settingsSeerrHelp",
+            "seerrInstance", "seerrUrl", "seerrApiKey",
+            "seerrCleanupAgeDays", "seerrCleanupAgeDaysHelp", "seerrFillFields"
+        };
+
+        foreach (var key in expectedKeys)
+        {
+            Assert.Contains(key, HtmlContent);
+        }
+    }
+
+    [Fact]
+    public void Html_SavesSeerrCleanupTaskModeWithFallback()
+    {
+        // Seerr uses a conditional pattern: cfgSeerrMode ? ...value : 'Deactivate'
+        Assert.Contains("SeerrCleanupTaskMode:", HtmlContent);
+        Assert.Contains("cfgSeerrMode", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SeerrTestCallsCorrectEndpoint()
+    {
+        Assert.Contains("JellyfinHelper/Seerr/Test", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SeerrDisabledWhenNotConfigured()
+    {
+        Assert.Contains("seerr-task-mode-wrapper", HtmlContent);
+        Assert.Contains("seerr-age-wrapper", HtmlContent);
+    }
 }

@@ -189,5 +189,20 @@
   "backupConfigRestored": "Configurações",
   "backupTimelineRestored": "Tendência de crescimento",
   "backupBaselineRestored": "Linha de base",
-  "backupWarnings": "aviso(s)"
+  "backupWarnings": "aviso(s)",
+  "seerrCleanup": "Limpeza Seerr",
+  "seerrNotConfigured": "Configure o Seerr abaixo para ativar esta tarefa.",
+  "settingsSeerrTitle": "Configurações do Seerr",
+  "settingsSeerrHelp": "Conecte-se ao Jellyseerr, Overseerr ou Seerr para limpar automaticamente pedidos antigos.",
+  "seerrInstance": "Instância Seerr",
+  "seerrUrl": "URL do Seerr",
+  "seerrApiKey": "Chave API do Seerr",
+  "seerrCleanupAgeDays": "Idade máxima do pedido (dias)",
+  "seerrCleanupAgeDaysHelp": "Pedidos mais antigos serão eliminados. Padrão: 365 dias.",
+  "seerrFillFields": "Por favor, preencha primeiro a URL e a chave API.",
+  "connectionFailed": "Falha na conexão.",
+  "unsavedChangesTitle": "Alterações não salvas",
+  "unsavedChangesMsg": "Você tem alterações não salvas. O que deseja fazer?",
+  "discardChanges": "Descartar alterações",
+  "saveAndContinue": "Salvar e continuar"
 }

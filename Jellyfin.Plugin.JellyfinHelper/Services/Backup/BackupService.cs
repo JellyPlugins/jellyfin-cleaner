@@ -103,6 +103,12 @@ public class BackupService : IBackupService
             EmptyMediaFolderTaskMode = config.EmptyMediaFolderTaskMode.ToString(),
             OrphanedSubtitleTaskMode = config.OrphanedSubtitleTaskMode.ToString(),
             LinkRepairTaskMode = config.LinkRepairTaskMode.ToString(),
+            SeerrCleanupTaskMode = config.SeerrCleanupTaskMode.ToString(),
+
+            // Seerr settings
+            SeerrUrl = config.SeerrUrl,
+            SeerrApiKey = config.SeerrApiKey,
+            SeerrCleanupAgeDays = config.SeerrCleanupAgeDays,
 
             // Trash settings
             UseTrash = config.UseTrash,
@@ -259,6 +265,12 @@ public class BackupService : IBackupService
         config.EmptyMediaFolderTaskMode = ParseTaskMode(backup.EmptyMediaFolderTaskMode);
         config.OrphanedSubtitleTaskMode = ParseTaskMode(backup.OrphanedSubtitleTaskMode);
         config.LinkRepairTaskMode = ParseTaskMode(backup.LinkRepairTaskMode);
+        config.SeerrCleanupTaskMode = ParseTaskMode(backup.SeerrCleanupTaskMode);
+
+        // Seerr settings
+        config.SeerrUrl = BackupSanitizer.TruncateString(backup.SeerrUrl ?? string.Empty, BackupValidator.MaxUrlLength);
+        config.SeerrApiKey = BackupSanitizer.TruncateString(backup.SeerrApiKey ?? string.Empty, BackupValidator.MaxApiKeyLength);
+        config.SeerrCleanupAgeDays = Math.Clamp(backup.SeerrCleanupAgeDays, 1, BackupValidator.MaxRetentionDays);
 
         // Trash settings
         config.UseTrash = backup.UseTrash;

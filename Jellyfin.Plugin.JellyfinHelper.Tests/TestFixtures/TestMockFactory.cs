@@ -108,10 +108,10 @@ public static class TestMockFactory
 
                 return Path.IsPathRooted(trashPath) ? trashPath : Path.Join(path, trashPath);
             });
-        mock.Setup(c => c.GetTrickplayTaskMode()).Returns(cfg.TrickplayTaskMode);
-        mock.Setup(c => c.GetEmptyMediaFolderTaskMode()).Returns(cfg.EmptyMediaFolderTaskMode);
-        mock.Setup(c => c.GetOrphanedSubtitleTaskMode()).Returns(cfg.OrphanedSubtitleTaskMode);
-        mock.Setup(c => c.GetLinkRepairTaskMode()).Returns(cfg.LinkRepairTaskMode);
+        mock.Setup(c => c.GetTrickplayTaskMode()).Returns(() => cfg.TrickplayTaskMode);
+        mock.Setup(c => c.GetEmptyMediaFolderTaskMode()).Returns(() => cfg.EmptyMediaFolderTaskMode);
+        mock.Setup(c => c.GetOrphanedSubtitleTaskMode()).Returns(() => cfg.OrphanedSubtitleTaskMode);
+        mock.Setup(c => c.GetLinkRepairTaskMode()).Returns(() => cfg.LinkRepairTaskMode);
         mock.Setup(c => c.IsDryRunTrickplay()).Returns(() => CleanupConfigHelper.IsDryRun(cfg.TrickplayTaskMode));
         mock.Setup(c => c.IsDryRunEmptyMediaFolders()).Returns(() => CleanupConfigHelper.IsDryRun(cfg.EmptyMediaFolderTaskMode));
         mock.Setup(c => c.IsDryRunOrphanedSubtitles()).Returns(() => CleanupConfigHelper.IsDryRun(cfg.OrphanedSubtitleTaskMode));

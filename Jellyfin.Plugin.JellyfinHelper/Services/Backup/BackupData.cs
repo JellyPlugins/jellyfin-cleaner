@@ -109,6 +109,32 @@ public class BackupData
     [JsonPropertyName("trashRetentionDays")]
     public int TrashRetentionDays { get; set; } = 30;
 
+    // === Seerr Settings ===
+
+    /// <summary>
+    ///     Gets or sets the Seerr Cleanup task mode.
+    /// </summary>
+    [JsonPropertyName("seerrCleanupTaskMode")]
+    public string SeerrCleanupTaskMode { get; set; } = "Deactivate";
+
+    /// <summary>
+    ///     Gets or sets the Seerr instance URL.
+    /// </summary>
+    [JsonPropertyName("seerrUrl")]
+    public string SeerrUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Gets or sets the Seerr API key.
+    /// </summary>
+    [JsonPropertyName("seerrApiKey")]
+    public string SeerrApiKey { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Gets or sets the Seerr cleanup age threshold in days.
+    /// </summary>
+    [JsonPropertyName("seerrCleanupAgeDays")]
+    public int SeerrCleanupAgeDays { get; set; } = 365;
+
     // === Arr Integration ===
 
     /// <summary>

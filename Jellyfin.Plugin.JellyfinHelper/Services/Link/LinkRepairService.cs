@@ -21,13 +21,13 @@ public class LinkRepairService : ILinkRepairService
     ///     Maximum number of directories to visit during recursive scanning.
     ///     Acts as a safety valve against unresolved symlink loops or extremely deep trees.
     /// </summary>
-    internal const int MaxVisitedDirectories = 50_000;
+    private const int MaxVisitedDirectories = 50_000;
 
     /// <summary>
     ///     Path comparer appropriate for the current OS.
     ///     Case-insensitive on Windows/macOS, case-sensitive on Linux.
     /// </summary>
-    internal static readonly StringComparer PathComparer =
+    private static readonly StringComparer PathComparer =
         OperatingSystem.IsLinux() ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
 
     private readonly IFileSystem _fileSystem;
@@ -317,7 +317,7 @@ public class LinkRepairService : ILinkRepairService
                     {
                         handler.WriteTarget(fileResult.LinkFilePath, newTargetPath);
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
                     {
                         _pluginLog.LogError(
                             "LinkRepair",

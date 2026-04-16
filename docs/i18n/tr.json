@@ -189,5 +189,20 @@
   "backupConfigRestored": "Ayarlar",
   "backupTimelineRestored": "Büyüme trendi",
   "backupBaselineRestored": "Temel",
-    "backupWarnings": "Uyarılar"
+  "backupWarnings": "Uyarılar",
+  "seerrCleanup": "Seerr Temizliği",
+  "seerrNotConfigured": "Bu görevi etkinleştirmek için aşağıdan Seerr'i yapılandırın.",
+  "settingsSeerrTitle": "Seerr Ayarları",
+  "settingsSeerrHelp": "Eski medya isteklerini otomatik olarak temizlemek için Jellyseerr, Overseerr veya Seerr'e bağlanın.",
+  "seerrInstance": "Seerr Örneği",
+  "seerrUrl": "Seerr URL'si",
+  "seerrApiKey": "Seerr API Anahtarı",
+  "seerrCleanupAgeDays": "Maks. istek yaşı (gün)",
+  "seerrCleanupAgeDaysHelp": "Bundan eski istekler silinecektir. Varsayılan: 365 gün.",
+  "seerrFillFields": "Lütfen önce URL ve API Anahtarını doldurun.",
+  "connectionFailed": "Bağlantı başarısız.",
+  "unsavedChangesTitle": "Kaydedilmemiş Değişiklikler",
+  "unsavedChangesMsg": "Kaydedilmemiş ayar değişiklikleriniz var. Ne yapmak istersiniz?",
+  "discardChanges": "Değişiklikleri At",
+  "saveAndContinue": "Kaydet ve Devam Et"
 }

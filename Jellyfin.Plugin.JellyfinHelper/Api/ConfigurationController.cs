@@ -9,6 +9,7 @@ using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
+using Jellyfin.Plugin.JellyfinHelper.Services.Seerr;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -30,6 +31,7 @@ public class ConfigurationController : ControllerBase
     private readonly IPluginConfigurationService _configService;
     private readonly ILogger<ConfigurationController> _logger;
     private readonly IPluginLogService _pluginLog;
+    private readonly ISeerrIntegrationService _seerrService;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="ConfigurationController" /> class.
@@ -39,18 +41,21 @@ public class ConfigurationController : ControllerBase
     /// <param name="logger">The controller logger.</param>
     /// <param name="configHelper">The cleanup configuration helper.</param>
     /// <param name="configService">The plugin configuration service for read/write access.</param>
+    /// <param name="seerrService">The Seerr integration service for connection testing.</param>
     public ConfigurationController(
         IArrIntegrationService arrService,
         IPluginLogService pluginLog,
         ILogger<ConfigurationController> logger,
         ICleanupConfigHelper configHelper,
-        IPluginConfigurationService configService)
+        IPluginConfigurationService configService,
+        ISeerrIntegrationService seerrService)
     {
         _arrService = arrService;
         _pluginLog = pluginLog;
         _logger = logger;
         _configHelper = configHelper;
         _configService = configService;
+        _seerrService = seerrService;
     }
 
     /// <summary>
@@ -136,20 +141,20 @@ public class ConfigurationController : ControllerBase
 
         _pluginLog.LogInfo("API", "Plugin configuration updated.", _logger);
 
-        // After saving, test all configured Arr instance connections and log warnings
-        var warnings = await TestArrConnectionsAsync(request, cancellationToken).ConfigureAwait(false);
+        // After saving, test all configured instance connections and log warnings
+        var warnings = await TestAllConnectionsAsync(request, cancellationToken).ConfigureAwait(false);
 
         return Ok(new { message = "Configuration saved.", warnings });
     }
 
     /// <summary>
-    ///     Tests all configured Arr instance connections and returns warnings for unreachable ones.
+    ///     Tests all configured instance connections (Arr + Seerr) and returns warnings for unreachable ones.
     ///     Results are also logged to the PluginLogs so they appear in the log viewer.
     /// </summary>
     /// <param name="request">The configuration request containing instances to test.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of warning messages for failed connections (empty if all succeeded).</returns>
-    private async Task<List<string>> TestArrConnectionsAsync(
+    private async Task<List<string>> TestAllConnectionsAsync(
         ConfigurationUpdateRequest request,
         CancellationToken cancellationToken)
     {
@@ -164,8 +169,61 @@ public class ConfigurationController : ControllerBase
 
         await TestArrInstanceGroupAsync(request.SonarrInstances, "Sonarr", warnings, cancellationToken)
             .ConfigureAwait(false);
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return warnings;
+        }
+
+        await TestSeerrConnectionAsync(request, warnings, cancellationToken).ConfigureAwait(false);
 
         return warnings;
+    }
+
+    /// <summary>
+    ///     Tests the configured Seerr instance connection and appends a warning if unreachable.
+    ///     Skipped when no Seerr URL or API key is configured.
+    /// </summary>
+    /// <param name="request">The configuration request containing Seerr settings.</param>
+    /// <param name="warnings">The warnings list to append to.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    private async Task TestSeerrConnectionAsync(
+        ConfigurationUpdateRequest request,
+        List<string> warnings,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.SeerrUrl) || string.IsNullOrWhiteSpace(request.SeerrApiKey))
+        {
+            return;
+        }
+
+        try
+        {
+            var (success, message) = await _seerrService.TestConnectionAsync(
+                request.SeerrUrl,
+                request.SeerrApiKey,
+                cancellationToken).ConfigureAwait(false);
+
+            if (success)
+            {
+                _pluginLog.LogInfo("API", $"Seerr connection test OK: {message}", _logger);
+            }
+            else
+            {
+                var warning = $"Seerr instance ({request.SeerrUrl}) is not reachable: {message}";
+                warnings.Add(warning);
+                _pluginLog.LogWarning("API", warning, logger: _logger);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // User cancelled — stop testing
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TimeoutException or OperationCanceledException)
+        {
+            var warning = $"Seerr instance ({request.SeerrUrl}) connection test failed: {ex.Message}";
+            warnings.Add(warning);
+            _pluginLog.LogWarning("API", warning, ex, _logger);
+        }
     }
 
     /// <summary>
@@ -245,6 +303,7 @@ public class ConfigurationController : ControllerBase
         config.EmptyMediaFolderTaskMode = request.EmptyMediaFolderTaskMode;
         config.OrphanedSubtitleTaskMode = request.OrphanedSubtitleTaskMode;
         config.LinkRepairTaskMode = request.LinkRepairTaskMode;
+        config.SeerrCleanupTaskMode = request.SeerrCleanupTaskMode;
 
         config.UseTrash = request.UseTrash;
         config.TrashFolderPath = string.IsNullOrWhiteSpace(request.TrashFolderPath)
@@ -253,6 +312,11 @@ public class ConfigurationController : ControllerBase
         config.TrashRetentionDays = request.TrashRetentionDays;
 
         config.Language = string.IsNullOrWhiteSpace(request.Language) ? "en" : request.Language;
+
+        // Seerr settings
+        config.SeerrUrl = request.SeerrUrl ?? string.Empty;
+        config.SeerrApiKey = request.SeerrApiKey ?? string.Empty;
+        config.SeerrCleanupAgeDays = Math.Clamp(request.SeerrCleanupAgeDays, 1, 3650);
 
         // Validate and normalize log level (same rules as UpdateLogLevel endpoint)
         var validLevels = new[] { "DEBUG", "INFO", "WARN", "ERROR" };
