@@ -333,12 +333,7 @@
         var activeDot = chart.querySelector('.trend-active-dot');
         if (!svgEl || !tooltip || !crosshair || !activeDot) return;
 
-        var pointData;
-        try {
-            pointData = _lastTrendPointData;
-        } catch (e) {
-            return;
-        }
+        var pointData = _lastTrendPointData;
         if (!pointData || pointData.length === 0) return;
 
         var padL = parseFloat(chart.getAttribute('data-trend-padl'));
