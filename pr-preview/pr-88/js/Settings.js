@@ -9,6 +9,63 @@
     // Preserve PluginLogLevel across Settings saves (managed in Logs tab)
     var _currentLogLevel = 'INFO';
 
+    // Update Seerr greyed-out UI state based on whether URL+Key are configured
+    function updateSeerrUIState(isConfigured) {
+        var taskW = document.querySelector('.seerr-task-mode-wrapper');
+        if (taskW) { taskW.style.opacity = isConfigured ? '' : '0.5'; taskW.style.pointerEvents = isConfigured ? '' : 'none'; }
+        var ageW = document.querySelector('.seerr-age-wrapper');
+        if (ageW) { ageW.style.opacity = isConfigured ? '' : '0.5'; ageW.style.pointerEvents = isConfigured ? '' : 'none'; }
+        var count = document.getElementById('arrCountSeerr');
+        if (count) count.textContent = isConfigured ? '✔' : '';
+    }
+
+    // Dirty-tracking: snapshot of settings payload after load/save
+    var _settingsSnapshot = '';
+
+    function takeSettingsSnapshot() {
+        try { _settingsSnapshot = JSON.stringify(buildSettingsPayload()); } catch (e) { _settingsSnapshot = ''; }
+    }
+
+    function hasUnsavedSettings() {
+        if (!_settingsSnapshot) return false;
+        try { return JSON.stringify(buildSettingsPayload()) !== _settingsSnapshot; } catch (e) { return false; }
+    }
+
+    // Show unsaved-changes dialog, then call onProceed() or stay
+    function checkUnsavedAndProceed(onProceed) {
+        if (!hasUnsavedSettings()) { onProceed(); return; }
+        removeDialogById('unsavedDialogOverlay');
+        var d = createDialogOverlay(
+            'unsavedDialogOverlay',
+            '⚠️ ' + T('unsavedChangesTitle', 'Unsaved Changes'),
+            '#e67e22',
+            T('unsavedChangesMsg', 'You have unsaved settings changes. What would you like to do?'),
+            false
+        );
+        d.btnRow.appendChild(createDialogBtn(T('cancel', 'Cancel'), 'cancel', function () {
+            removeDialogById('unsavedDialogOverlay');
+        }));
+        d.btnRow.appendChild(createDialogBtn('🚪 ' + T('discardChanges', 'Discard Changes'), 'danger', function () {
+            removeDialogById('unsavedDialogOverlay');
+            onProceed();
+        }));
+        d.btnRow.appendChild(createDialogBtn('💾 ' + T('saveAndContinue', 'Save & Continue'), 'success', function () {
+            removeDialogById('unsavedDialogOverlay');
+            var payload = buildSettingsPayload();
+            doSaveSettings(payload);
+            onProceed();
+        }));
+        document.body.appendChild(d.overlay);
+    }
+
+    // Browser navigation guard
+    window.addEventListener('beforeunload', function (e) {
+        if (hasUnsavedSettings()) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
     // Rebuild the entire UI after a language change
     function rebuildUI() {
         applyStaticTranslations();
@@ -83,6 +140,13 @@
             h += renderTaskModeSelect('cfgSubtitleMode', T('orphanedSubtitleCleaner', 'Orphaned Subtitle Cleaner'), cfg.OrphanedSubtitleTaskMode || 'DryRun');
             h += renderTaskModeSelect('cfgLinkMode', T('linkRepair', 'Link Repair'), cfg.LinkRepairTaskMode || 'DryRun');
 
+            // Seerr Cleanup task mode - greyed out if not configured
+            var seerrConfigured = !!(cfg.SeerrUrl && cfg.SeerrApiKey);
+            h += '<div class="seerr-task-mode-wrapper" style="' + (!seerrConfigured ? 'opacity:0.5;pointer-events:none;' : '') + '">';
+            h += renderTaskModeSelect('cfgSeerrMode', '🔄 ' + T('seerrCleanup', 'Seerr Cleanup'), cfg.SeerrCleanupTaskMode || 'Deactivate');
+            if (!seerrConfigured) h += '<div class="help-text">⚠️ ' + T('seerrNotConfigured', 'Configure Seerr below to enable this task.') + '</div>';
+            h += '</div>';
+
             h += '<div class="section-title">' + T('settingsTrashTitle', 'Trash settings') + '</div>';
             h += '<div class="checkbox-row"><input type="checkbox" id="cfgTrash"' + (cfg.UseTrash ? ' checked' : '') + '><label for="cfgTrash">' + T('useTrash', 'Use Trash (Recycle Bin)') + '</label></div>';
             
@@ -91,6 +155,31 @@
             
             h += '<label>' + T('trashRetention', 'Trash Retention (days)') + '</label>';
             h += '<input type="number" id="cfgTrashDays" min="0" value="' + (cfg.TrashRetentionDays != null ? cfg.TrashRetentionDays : 30) + '">';
+
+            // --- Seerr Instance ---
+            h += '<div class="section-title">' + T('settingsSeerrTitle', 'Seerr settings') + '</div>';
+            h += '<div class="help-text">' + T('settingsSeerrHelp', 'Connect to Jellyseerr, Overseerr, or Seerr to automatically clean up old media requests.') + '</div>';
+            var seerrHasCfg = !!(cfg.SeerrUrl && cfg.SeerrApiKey);
+            h += '<div class="arr-collapsible' + (!seerrHasCfg ? ' arr-expanded' : '') + '" id="arrCollapsibleSeerr">';
+            h += '<button type="button" class="arr-collapsible-header" aria-expanded="' + (!seerrHasCfg ? 'true' : 'false') + '" onclick="var p=this.parentElement;p.classList.toggle(\'arr-expanded\');this.setAttribute(\'aria-expanded\',p.classList.contains(\'arr-expanded\'))">';
+            h += '<span><span class="arr-chevron">▶</span><span class="arr-section-label">🔄 ' + T('seerrInstance', 'Seerr Instance') + '</span><span class="arr-instance-count" id="arrCountSeerr">' + (seerrHasCfg ? '✔' : '') + '</span></span>';
+            h += '<span class="help-text" style="margin:0;">' + T('clickToExpand', 'click to expand') + '</span>';
+            h += '</button>';
+            h += '<div class="arr-collapsible-body">';
+            h += '<label>' + T('seerrUrl', 'Seerr URL') + '</label>';
+            h += '<input type="text" id="cfgSeerrUrl" value="' + escAttr(cfg.SeerrUrl || '') + '" placeholder="http://localhost:5055">';
+            h += '<label>' + T('seerrApiKey', 'Seerr API Key') + '</label>';
+            h += '<input type="text" id="cfgSeerrApiKey" value="' + escAttr(cfg.SeerrApiKey || '') + '">';
+            h += '<div class="seerr-age-wrapper" style="' + (!seerrHasCfg ? 'opacity:0.5;pointer-events:none;' : '') + '">';
+            h += '<label>' + T('seerrCleanupAgeDays', 'Max Request Age (days)') + '</label>';
+            h += '<input type="number" id="cfgSeerrAgeDays" min="1" value="' + (cfg.SeerrCleanupAgeDays || 365) + '">';
+            h += '<div class="help-text">' + T('seerrCleanupAgeDaysHelp', 'Requests older than this will be deleted. Default: 365 days.') + '</div>';
+            h += '</div>';
+            h += '<div style="margin-top:0.5em;">';
+            h += '<button type="button" class="refresh-btn" id="btnTestSeerr" style="padding:0.3em 1em;font-size:0.85em;">🔌 ' + T('testConnection', 'Test Connection') + '</button>';
+            h += '<span id="seerrTestResult" style="margin-left:0.7em;"></span>';
+            h += '</div>';
+            h += '</div></div>';
 
             // --- Radarr Instances ---
             h += '<div class="section-title">' + T('settingsArrTitle', 'Arr stack settings') + '</div>';
@@ -140,8 +229,12 @@
             attachTestHandlers();
             attachAddHandlers();
             attachBackupHandlers();
+            attachSeerrHandlers();
 
             initArrButtons(cfg);
+
+            // Take snapshot after settings are fully rendered
+            setTimeout(takeSettingsSnapshot, 0);
         }, function () {
             form.innerHTML = '<div class="error-msg">' + T('settingsLoadError', 'Failed to load settings.') + '</div>';
         });
@@ -158,6 +251,10 @@
             EmptyMediaFolderTaskMode: document.getElementById('cfgEmptyFolderMode').value,
             OrphanedSubtitleTaskMode: document.getElementById('cfgSubtitleMode').value,
             LinkRepairTaskMode: document.getElementById('cfgLinkMode').value,
+            SeerrCleanupTaskMode: document.getElementById('cfgSeerrMode') ? document.getElementById('cfgSeerrMode').value : 'Deactivate',
+            SeerrUrl: (document.getElementById('cfgSeerrUrl') || {}).value || '',
+            SeerrApiKey: (document.getElementById('cfgSeerrApiKey') || {}).value || '',
+            SeerrCleanupAgeDays: (function () { var el = document.getElementById('cfgSeerrAgeDays'); var v = el ? parseInt(el.value, 10) : 365; return isNaN(v) || v < 1 ? 365 : v; })(),
             UseTrash: document.getElementById('cfgTrash').checked,
             TrashFolderPath: document.getElementById('cfgTrashPath').value,
             TrashRetentionDays: (function () { var v = parseInt(document.getElementById('cfgTrashDays').value, 10); return isNaN(v) || v < 0 ? 30 : v; })(),
@@ -197,6 +294,9 @@
                 }
             }
 
+            // Update snapshot after successful save
+            takeSettingsSnapshot();
+
             btn.innerHTML = '<div style="display: flex; align-items: center"><span class="btn-icon">✔</span>' + T('settingsSaved', 'Settings saved!') + '</div>';
             btn.classList.add('success');
             btn.disabled = false;
@@ -208,6 +308,9 @@
             initArrButtons(payload);
             var arrResult = document.getElementById('arrResult');
             if (arrResult) arrResult.innerHTML = '';
+
+            // Sync Seerr greyed-out state after save (URL/Key may have been cleared)
+            updateSeerrUIState(!!(payload.SeerrUrl && payload.SeerrApiKey));
         }, function () {
             btn.disabled = false;
             btn.innerHTML = '<div style="display: flex; align-items: center"><span class="btn-icon">X</span>' + T('settingsError', 'Failed to save settings.') + '</div>';
@@ -535,6 +638,45 @@
             msg.innerHTML = '<div class="error-msg">❌ ' + T('backupImportError', 'Failed to import backup.') + '</div>';
         };
         reader.readAsText(file);
+    }
+
+    function attachSeerrHandlers() {
+        var btn = document.getElementById('btnTestSeerr');
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+            var url = (document.getElementById('cfgSeerrUrl') || {}).value || '';
+            var key = (document.getElementById('cfgSeerrApiKey') || {}).value || '';
+            var span = document.getElementById('seerrTestResult');
+            if (!url || !key) {
+                if (span) span.innerHTML = '<span style="color:#e74c3c;">⚠️ ' + T('seerrFillFields', 'Please fill in URL and API Key first.') + '</span>';
+                return;
+            }
+            btn.disabled = true;
+            if (span) span.innerHTML = '<span class="btn-spinner" style="display:inline-block;width:14px;height:14px;"></span>';
+            var apiClient = ApiClient;
+            apiClient.ajax({
+                type: 'POST',
+                url: apiClient.getUrl('JellyfinHelper/Seerr/Test'),
+                data: JSON.stringify({ Url: url, ApiKey: key }),
+                contentType: 'application/json',
+                dataType: 'json'
+            }).then(function (res) {
+                btn.disabled = false;
+                if (res && res.success) {
+                    if (span) span.innerHTML = '<span style="color:#2ecc71;">✅ ' + escHtml(res.message || 'OK') + '</span>';
+                    // Auto-save settings after successful connection test
+                    var payload = buildSettingsPayload();
+                    doSaveSettings(payload);
+                    // Enable previously greyed-out Seerr UI sections
+                    updateSeerrUIState(true);
+                } else {
+                    if (span) span.innerHTML = '<span style="color:#e74c3c;">❌ ' + escHtml(res.message || 'Failed') + '</span>';
+                }
+            }, function () {
+                btn.disabled = false;
+                if (span) span.innerHTML = '<span style="color:#e74c3c;">❌ ' + T('connectionFailed', 'Connection failed.') + '</span>';
+            });
+        });
     }
 
     function saveSettings() {

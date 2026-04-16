@@ -189,5 +189,20 @@
   "backupConfigRestored": "Settings",
   "backupTimelineRestored": "Growth Timeline",
   "backupBaselineRestored": "Baseline",
-  "backupWarnings": "warning(s)"
+  "backupWarnings": "warning(s)",
+  "seerrCleanup": "Seerr Cleanup",
+  "seerrNotConfigured": "Configure Seerr below to enable this task.",
+  "settingsSeerrTitle": "Seerr settings",
+  "settingsSeerrHelp": "Connect to Jellyseerr, Overseerr, or Seerr to automatically clean up old media requests.",
+  "seerrInstance": "Seerr Instance",
+  "seerrUrl": "Seerr URL",
+  "seerrApiKey": "Seerr API Key",
+  "seerrCleanupAgeDays": "Max Request Age (days)",
+  "seerrCleanupAgeDaysHelp": "Requests older than this will be deleted. Default: 365 days.",
+  "seerrFillFields": "Please fill in URL and API Key first.",
+  "connectionFailed": "Connection failed.",
+  "unsavedChangesTitle": "Unsaved Changes",
+  "unsavedChangesMsg": "You have unsaved settings changes. What would you like to do?",
+  "discardChanges": "Discard Changes",
+  "saveAndContinue": "Save & Continue"
 }

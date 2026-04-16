@@ -6,27 +6,40 @@
         var tabBtns = document.querySelectorAll('.tab-btn');
         for (var i = 0; i < tabBtns.length; i++) {
             tabBtns[i].addEventListener('click', function () {
-                var tabId = this.getAttribute('data-tab');
+                var clickedBtn = this;
+                var tabId = clickedBtn.getAttribute('data-tab');
 
-                // Deactivate all
-                var allBtns = document.querySelectorAll('.tab-btn');
-                var allContent = document.querySelectorAll('.tab-content');
-                for (var j = 0; j < allBtns.length; j++) allBtns[j].classList.remove('active');
-                for (var k = 0; k < allContent.length; k++) allContent[k].classList.remove('active');
-
-                // Cleanup previous tab (e.g. stop auto-refresh timers)
-                if (typeof destroyLogsTab === 'function') destroyLogsTab();
-
-                // Activate selected
-                this.classList.add('active');
-                var target = document.getElementById('tab-' + tabId);
-                if (target) target.classList.add('active');
-
-                // Initialize tab-specific logic
-                if (tabId === 'logs' && typeof initLogsTab === 'function') {
-                    initLogsTab();
+                // Check if we're leaving the settings tab with unsaved changes
+                var currentActive = document.querySelector('.tab-btn.active');
+                var currentTab = currentActive ? currentActive.getAttribute('data-tab') : '';
+                if (currentTab === 'settings' && tabId !== 'settings' && typeof checkUnsavedAndProceed === 'function') {
+                    checkUnsavedAndProceed(function () { doTabSwitch(clickedBtn, tabId); });
+                    return;
                 }
+
+                doTabSwitch(clickedBtn, tabId);
             });
+        }
+    }
+
+    function doTabSwitch(clickedBtn, tabId) {
+        // Deactivate all
+        var allBtns = document.querySelectorAll('.tab-btn');
+        var allContent = document.querySelectorAll('.tab-content');
+        for (var j = 0; j < allBtns.length; j++) allBtns[j].classList.remove('active');
+        for (var k = 0; k < allContent.length; k++) allContent[k].classList.remove('active');
+
+        // Cleanup previous tab (e.g. stop auto-refresh timers)
+        if (typeof destroyLogsTab === 'function') destroyLogsTab();
+
+        // Activate selected
+        clickedBtn.classList.add('active');
+        var target = document.getElementById('tab-' + tabId);
+        if (target) target.classList.add('active');
+
+        // Initialize tab-specific logic
+        if (tabId === 'logs' && typeof initLogsTab === 'function') {
+            initLogsTab();
         }
     }
 

@@ -88,6 +88,8 @@
         var collapsible = document.getElementById('arrCollapsible' + type);
         if (collapsible && !collapsible.classList.contains('arr-expanded')) {
             collapsible.classList.add('arr-expanded');
+            var header = collapsible.querySelector('.arr-collapsible-header');
+            if (header) header.setAttribute('aria-expanded', 'true');
         }
         updateArrCollapsibleCount(type);
     }
@@ -178,6 +180,10 @@
             if (data.success) {
                 btn.innerHTML = '<span class="btn-icon">✔</span>' + escHtml(data.message);
                 btn.classList.add('success');
+                // Auto-save settings after successful connection test
+                if (typeof buildSettingsPayload === 'function' && typeof doSaveSettings === 'function') {
+                    doSaveSettings(buildSettingsPayload());
+                }
                 _testTimers[timerKey] = setTimeout(function() {
                     btn.innerHTML = originalHtml;
                     btn.classList.remove('success');
