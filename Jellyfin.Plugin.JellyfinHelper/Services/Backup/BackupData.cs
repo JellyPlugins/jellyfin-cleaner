@@ -84,10 +84,10 @@ public class BackupData
     public string OrphanedSubtitleTaskMode { get; set; } = "DryRun";
 
     /// <summary>
-    ///     Gets or sets the .strm Repair task mode.
+    ///     Gets or sets the Link Repair task mode.
     /// </summary>
-    [JsonPropertyName("strmRepairTaskMode")]
-    public string StrmRepairTaskMode { get; set; } = "DryRun";
+    [JsonPropertyName("linkRepairTaskMode")]
+    public string LinkRepairTaskMode { get; set; } = "DryRun";
 
     // === Trash Settings ===
 

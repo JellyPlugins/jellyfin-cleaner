@@ -97,7 +97,7 @@
   "trickplayFolderCleaner": "Trickplay Klasör Temizleyici",
   "emptyMediaFolderCleaner": "Boş Medya Klasörü Temizleyici",
   "orphanedSubtitleCleaner": "Sahipsiz Altyazı Temizleyici",
-  "strmFileRepair": ".strm Dosya Onarımı",
+  "linkRepair": "Link Onarımı",
   "useTrash": "Kalıcı silme yerine çöp kutusunu kullan",
   "trashFolder": "Çöp kutusu klasör yolu",
   "trashRetention": "Çöp kutusu saklama süresi (gün)",

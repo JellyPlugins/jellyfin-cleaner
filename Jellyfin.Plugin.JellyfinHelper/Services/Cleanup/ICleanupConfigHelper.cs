@@ -36,10 +36,10 @@ public interface ICleanupConfigHelper
     TaskMode GetOrphanedSubtitleTaskMode();
 
     /// <summary>
-    /// Gets the <see cref="TaskMode"/> for the .strm File Repair task.
+    /// Gets the <see cref="TaskMode"/> for the Link Repair task (.strm files and symlinks).
     /// </summary>
     /// <returns>The configured task mode.</returns>
-    TaskMode GetStrmRepairTaskMode();
+    TaskMode GetLinkRepairTaskMode();
 
     /// <summary>
     /// Determines whether the Trickplay Folder Cleaner should run in dry-run mode.
@@ -60,10 +60,10 @@ public interface ICleanupConfigHelper
     bool IsDryRunOrphanedSubtitles();
 
     /// <summary>
-    /// Determines whether the .strm File Repair task should run in dry-run mode.
+    /// Determines whether the Link Repair task should run in dry-run mode.
     /// </summary>
     /// <returns>True if the operation should be a dry run.</returns>
-    bool IsDryRunStrmRepair();
+    bool IsDryRunLinkRepair();
 
     /// <summary>
     /// Gets the filtered library locations based on the whitelist/blacklist configuration.

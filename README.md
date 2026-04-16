@@ -24,7 +24,7 @@ Explore the full 7-tab dashboard with realistic sample data — no Jellyfin serv
 | **🧹 Trickplay Cleaner** | Removes orphaned `.trickplay` folders with no corresponding media file |
 | **📁 Empty Folder Cleaner** | Deletes media folders containing no video files (skips empty & metadata-only folders) |
 | **🧹 Subtitle Cleaner** | Removes orphaned subtitle files with smart language-code detection |
-| **🔧 STRM Repair** | Fixes broken `.strm` files by locating renamed/moved media |
+| **🔧 Link Repair** | Fixes broken `.strm` files and symlinks by locating renamed/moved media |
 | **📈 Statistics & Trends** | Per-library disk usage, codec/resolution/container analysis, historical growth graphs |
 | **📈 Growth Timeline** | Cumulative media growth visualization with daily/weekly/monthly/quarterly/yearly bucketing |
 | **🩺 Health Checks** | Detects missing subtitles, artwork, NFO, and orphaned metadata directories |

@@ -97,7 +97,7 @@
   "trickplayFolderCleaner": "Trickplay-Ordner-Bereinigung",
   "emptyMediaFolderCleaner": "Leere-Medienordner-Bereinigung",
   "orphanedSubtitleCleaner": "Verwaiste-Untertitel-Bereinigung",
-  "strmFileRepair": ".strm-Datei-Reparatur",
+  "linkRepair": "Link-Reparatur",
   "useTrash": "Papierkorb statt dauerhaftem Löschen verwenden",
   "trashFolder": "Papierkorb-Ordnerpfad",
   "trashRetention": "Papierkorb-Aufbewahrung (Tage)",

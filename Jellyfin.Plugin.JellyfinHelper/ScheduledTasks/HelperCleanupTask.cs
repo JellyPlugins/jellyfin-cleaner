@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
+using Jellyfin.Plugin.JellyfinHelper.Services.Link;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
-using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
 using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Library;
@@ -35,7 +35,7 @@ public class HelperCleanupTask : IScheduledTask
     private readonly ILoggerFactory _loggerFactory;
     private readonly IPluginLogService _pluginLog;
     private readonly IMediaStatisticsService _statisticsService;
-    private readonly IStrmRepairService _strmRepairService;
+    private readonly ILinkRepairService _linkRepairService;
     private readonly ICleanupTrackingService _trackingService;
     private readonly ITrashService _trashService;
 
@@ -53,7 +53,7 @@ public class HelperCleanupTask : IScheduledTask
     /// <param name="configHelper">The cleanup configuration helper.</param>
     /// <param name="trackingService">The cleanup tracking service.</param>
     /// <param name="trashService">The trash service.</param>
-    /// <param name="strmRepairService">The strm repair service.</param>
+    /// <param name="linkRepairService">The link repair service.</param>
     public HelperCleanupTask(
         ILibraryManager libraryManager,
         IFileSystem fileSystem,
@@ -66,7 +66,7 @@ public class HelperCleanupTask : IScheduledTask
         ICleanupConfigHelper configHelper,
         ICleanupTrackingService trackingService,
         ITrashService trashService,
-        IStrmRepairService strmRepairService)
+        ILinkRepairService linkRepairService)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
@@ -80,7 +80,7 @@ public class HelperCleanupTask : IScheduledTask
         _configHelper = configHelper;
         _trackingService = trackingService;
         _trashService = trashService;
-        _strmRepairService = strmRepairService;
+        _linkRepairService = linkRepairService;
     }
 
     /// <inheritdoc />
@@ -91,7 +91,7 @@ public class HelperCleanupTask : IScheduledTask
 
     /// <inheritdoc />
     public string Description =>
-        "Runs all configured cleanup and repair tasks sequentially (Trickplay, Empty Folders, Orphaned Subtitles, STRM Repair).";
+        "Runs all configured cleanup and repair tasks sequentially (Trickplay, Empty Folders, Orphaned Subtitles, Link Repair).";
 
     /// <inheritdoc />
     public string Category => "Jellyfin Helper";
@@ -107,7 +107,7 @@ public class HelperCleanupTask : IScheduledTask
             ("Trickplay Cleanup", config.TrickplayTaskMode, RunTrickplayCleanup),
             ("Empty Media Folder Cleanup", config.EmptyMediaFolderTaskMode, RunEmptyMediaFolderCleanup),
             ("Orphaned Subtitle Cleanup", config.OrphanedSubtitleTaskMode, RunOrphanedSubtitleCleanup),
-            ("STRM File Repair", config.StrmRepairTaskMode, RunStrmRepair)
+            ("Link Repair", config.LinkRepairTaskMode, RunLinkRepair)
         };
 
         var totalTasks = subTasks.Length;
@@ -319,13 +319,13 @@ public class HelperCleanupTask : IScheduledTask
         return task.ExecuteAsync(progress, cancellationToken);
     }
 
-    private Task RunStrmRepair(IProgress<double> progress, CancellationToken cancellationToken)
+    private Task RunLinkRepair(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var task = new RepairStrmFilesTask(
-            _loggerFactory.CreateLogger<RepairStrmFilesTask>(),
+        var task = new RepairLinksTask(
+            _loggerFactory.CreateLogger<RepairLinksTask>(),
             _libraryManager,
             _pluginLog,
-            _strmRepairService,
+            _linkRepairService,
             _configHelper);
         return task.ExecuteAsync(progress, cancellationToken);
     }

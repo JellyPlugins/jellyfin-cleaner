@@ -4,9 +4,9 @@ using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Backup;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
+using Jellyfin.Plugin.JellyfinHelper.Services.Link;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
-using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
 using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
@@ -37,7 +37,10 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<IGrowthTimelineService, GrowthTimelineService>();
         serviceCollection.AddSingleton<IBackupService, BackupService>();
         serviceCollection.AddSingleton<IFileSystem, FileSystem>();
-        serviceCollection.AddSingleton<IStrmRepairService, StrmRepairService>();
+        serviceCollection.AddSingleton<ISymlinkHelper, SymlinkHelper>();
+        serviceCollection.AddSingleton<ILinkHandler, StrmLinkHandler>();
+        serviceCollection.AddSingleton<ILinkHandler, SymlinkHandler>();
+        serviceCollection.AddSingleton<ILinkRepairService, LinkRepairService>();
         serviceCollection.AddSingleton<IArrIntegrationService, ArrIntegrationService>();
     }
 }

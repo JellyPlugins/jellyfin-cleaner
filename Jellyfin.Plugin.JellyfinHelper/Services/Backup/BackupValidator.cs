@@ -139,7 +139,7 @@ public static class BackupValidator
         ValidateStringField(result, backup.TrickplayTaskMode, "TrickplayTaskMode", MaxStringLength);
         ValidateStringField(result, backup.EmptyMediaFolderTaskMode, "EmptyMediaFolderTaskMode", MaxStringLength);
         ValidateStringField(result, backup.OrphanedSubtitleTaskMode, "OrphanedSubtitleTaskMode", MaxStringLength);
-        ValidateStringField(result, backup.StrmRepairTaskMode, "StrmRepairTaskMode", MaxStringLength);
+        ValidateStringField(result, backup.LinkRepairTaskMode, "LinkRepairTaskMode", MaxStringLength);
 
         // Enum validation
         if (!string.IsNullOrEmpty(backup.Language) && !ValidLanguages.Contains(backup.Language))
@@ -150,7 +150,7 @@ public static class BackupValidator
         ValidateTaskMode(result, backup.TrickplayTaskMode, "TrickplayTaskMode");
         ValidateTaskMode(result, backup.EmptyMediaFolderTaskMode, "EmptyMediaFolderTaskMode");
         ValidateTaskMode(result, backup.OrphanedSubtitleTaskMode, "OrphanedSubtitleTaskMode");
-        ValidateTaskMode(result, backup.StrmRepairTaskMode, "StrmRepairTaskMode");
+        ValidateTaskMode(result, backup.LinkRepairTaskMode, "LinkRepairTaskMode");
 
         if (!string.IsNullOrEmpty(backup.PluginLogLevel) && !ValidLogLevels.Contains(backup.PluginLogLevel))
         {

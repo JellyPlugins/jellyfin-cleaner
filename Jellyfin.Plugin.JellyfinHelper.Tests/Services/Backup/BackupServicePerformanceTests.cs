@@ -207,7 +207,7 @@ public class BackupServicePerformanceTests(ITestOutputHelper output)
             TrickplayTaskMode = "DryRun",
             EmptyMediaFolderTaskMode = "DryRun",
             OrphanedSubtitleTaskMode = "DryRun",
-            StrmRepairTaskMode = "DryRun",
+            LinkRepairTaskMode = "DryRun",
             TrashRetentionDays = 30,
             RadarrInstances = radarrInstances,
             SonarrInstances = sonarrInstances,

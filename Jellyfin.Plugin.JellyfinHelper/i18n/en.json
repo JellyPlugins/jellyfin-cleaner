@@ -97,7 +97,7 @@
   "trickplayFolderCleaner": "Trickplay Folder Cleaner",
   "emptyMediaFolderCleaner": "Empty Media Folder Cleaner",
   "orphanedSubtitleCleaner": "Orphaned Subtitle Cleaner",
-  "strmFileRepair": ".strm File Repair",
+  "linkRepair": "Link Repair",
   "useTrash": "Use Trash (Recycle Bin) instead of permanent delete",
   "trashFolder": "Trash Folder Path",
   "trashRetention": "Trash Retention (days)",

@@ -1,12 +1,12 @@
-namespace Jellyfin.Plugin.JellyfinHelper.Services.Strm;
+namespace Jellyfin.Plugin.JellyfinHelper.Services.Link;
 
 /// <summary>
-/// Status of a .strm file inspection.
+/// Status of a link file inspection.
 /// </summary>
-public enum StrmFileStatus
+public enum LinkFileStatus
 {
     /// <summary>
-    /// The target path in the .strm file is valid.
+    /// The target path in the link file is valid.
     /// </summary>
     Valid,
 
@@ -26,7 +26,7 @@ public enum StrmFileStatus
     Ambiguous,
 
     /// <summary>
-    /// The .strm file is empty or contains invalid content.
+    /// The link file is empty or contains invalid content.
     /// </summary>
     InvalidContent,
 }

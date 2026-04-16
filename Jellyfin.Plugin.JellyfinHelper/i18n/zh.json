@@ -97,7 +97,7 @@
   "trickplayFolderCleaner": "Trickplay 文件夹清理",
   "emptyMediaFolderCleaner": "空媒体文件夹清理",
   "orphanedSubtitleCleaner": "孤立字幕清理",
-  "strmFileRepair": ".strm 文件修复",
+  "linkRepair": "链接修复",
   "useTrash": "使用回收站而非永久删除",
   "trashFolder": "回收站文件夹路径",
   "trashRetention": "回收站保留天数",

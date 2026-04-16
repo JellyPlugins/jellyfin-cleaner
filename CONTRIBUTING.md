@@ -130,12 +130,17 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   ├── StatisticsCacheService.cs # IMemoryCache wrapper (5-min TTL)
 │   │   ├── MediaStatisticsResult.cs
 │   │   └── LibraryStatistics.cs
-│   ├── Strm/                         # STRM file repair
-│   │   ├── IStrmRepairService.cs
-│   │   ├── StrmRepairService.cs      # Locates renamed/moved media for broken .strm
-│   │   ├── StrmRepairResult.cs
-│   │   ├── StrmFileResult.cs
-│   │   └── StrmFileStatus.cs
+│   ├── Link/                         # Link repair (.strm files & symlinks)
+│   │   ├── ILinkRepairService.cs
+│   │   ├── LinkRepairService.cs      # Orchestrates repair of broken .strm files & symlinks
+│   │   ├── ILinkHandler.cs           # Strategy interface for link type handling
+│   │   ├── StrmLinkHandler.cs        # Handles .strm file repair (locates renamed/moved media)
+│   │   ├── SymlinkHandler.cs         # Handles broken symlink repair
+│   │   ├── ISymlinkHelper.cs         # Abstraction for symlink OS operations
+│   │   ├── SymlinkHelper.cs          # Platform-specific symlink detection & creation
+│   │   ├── LinkRepairResult.cs
+│   │   ├── LinkFileResult.cs
+│   │   └── LinkFileStatus.cs
 │   └── Timeline/                     # Growth timeline computation
 │       ├── IGrowthTimelineService.cs
 │       ├── GrowthTimelineService.cs  # Baseline diff + append-only snapshots
@@ -150,7 +155,7 @@ Jellyfin.Plugin.JellyfinHelper/
 │   ├── CleanTrickplayTask.cs
 │   ├── CleanEmptyMediaFoldersTask.cs
 │   ├── CleanOrphanedSubtitlesTask.cs
-│   └── RepairStrmFilesTask.cs
+│   └── RepairLinksTask.cs
 └── PluginPages/
     ├── configPage.template.html # HTML shell (build-time composition)
     ├── configPage.html          # Generated output (do not edit)
@@ -173,7 +178,10 @@ serviceCollection.AddSingleton<IStatisticsCacheService, StatisticsCacheService>(
 serviceCollection.AddSingleton<IGrowthTimelineService, GrowthTimelineService>();
 serviceCollection.AddSingleton<IBackupService, BackupService>();
 serviceCollection.AddSingleton<IFileSystem, FileSystem>();
-serviceCollection.AddSingleton<IStrmRepairService, StrmRepairService>();
+serviceCollection.AddSingleton<ISymlinkHelper, SymlinkHelper>();
+serviceCollection.AddSingleton<ILinkHandler, StrmLinkHandler>();
+serviceCollection.AddSingleton<ILinkHandler, SymlinkHandler>();
+serviceCollection.AddSingleton<ILinkRepairService, LinkRepairService>();
 serviceCollection.AddSingleton<IArrIntegrationService, ArrIntegrationService>();
 ```
 
@@ -200,7 +208,7 @@ A named `HttpClient` (`"ArrIntegration"`) is configured with a 15-second timeout
 ### Key Design Decisions
 
 - **Domain-organized Controllers** — Each API domain has its own controller (Configuration, Statistics, Arr, Logs, Backup, Trash, Cleanup, Timeline, Translations)
-- **Domain-organized Services** — Services grouped by domain (Arr, Backup, Cleanup, PluginLog, Statistics, Strm, Timeline)
+- **Domain-organized Services** — Services grouped by domain (Arr, Backup, Cleanup, Link, PluginLog, Statistics, Timeline)
 - **Build-time UI composition** — CSS and JS modules are concatenated into `configPage.html` at build time (no runtime bundler needed)
 - **Persisted scan results** — Latest statistics are saved to disk and survive server restarts
 - **5-minute cache** — `IMemoryCache` prevents redundant scans; `?forceRefresh=true` bypasses it
@@ -323,7 +331,7 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 | **Trickplay Task Mode** | Activate / DryRun / Deactivate | DryRun |
 | **Empty Folder Task Mode** | Activate / DryRun / Deactivate | DryRun |
 | **Subtitle Task Mode** | Activate / DryRun / Deactivate | DryRun |
-| **STRM Repair Task Mode** | Activate / DryRun / Deactivate | DryRun |
+| **Link Repair Task Mode** | Activate / DryRun / Deactivate | DryRun |
 | **Use Trash** | Move to trash instead of permanent delete | Off |
 | **Trash Folder Path** | Relative or absolute path | `.jellyfin-trash` |
 | **Trash Retention** | Days to keep items in trash | 30 |
@@ -347,7 +355,7 @@ Sub-tasks executed in order (each respecting its configured task mode):
 1. Trickplay Folder Cleanup
 2. Empty Media Folder Cleanup
 3. Orphaned Subtitle Cleanup
-4. STRM File Repair
+4. Link Repair (.strm files & symlinks)
 5. Trash Purge (if enabled)
 6. Post-Cleanup Statistics Scan (auto-refreshes and persists stats)
 7. Growth Timeline Recomputation (independent of statistics scan)
@@ -373,9 +381,11 @@ Sub-tasks executed in order (each respecting its configured task mode):
 - Detects subtitle flags: `forced`, `sdh`, `hi`, `cc`
 - Avoids false positives from tokens like "DTS", "HDR", "S01"
 
-**STRM File Repair:**
-- Searches parent directory for matching media files
+**Link Repair (.strm & Symlinks):**
+- Repairs broken `.strm` files by searching parent directory for matching media files
+- Repairs broken symlinks by locating renamed/moved target files
 - URL-based `.strm` files (`http://`, `rtsp://`) are untouched
+- Uses Strategy pattern with `ILinkHandler` implementations for extensibility
 
 ### Statistics & Analysis
 
@@ -433,7 +443,7 @@ Sub-tasks executed in order (each respecting its configured task mode):
 
 The project includes a **comprehensive automated test suite** covering:
 
-- All services (cleanup, statistics, path validation, Arr integration, backup/restore, growth timeline, STRM repair)
+- All services (cleanup, statistics, path validation, Arr integration, backup/restore, growth timeline, link repair)
 - API endpoints (controller tests with mocked dependencies)
 - Configuration migration (legacy format → current)
 - UI structure (HTML element presence, tab structure)
@@ -554,10 +564,12 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
     ├── Statistics/
     │   ├── MediaStatisticsServiceTests.cs
     │   └── MediaStatisticsServiceTvShowTests.cs
-    ├── Strm/
-    │   ├── StrmRepairServiceTests.cs
-    │   ├── StrmRepairPerformanceTests.cs       # [Trait("Category", "Performance")]
-    │   └── StrmRepairSecurityTests.cs          # [Trait("Category", "Security")]
+    ├── Link/
+    │   ├── LinkRepairServiceTests.cs
+    │   ├── LinkRepairPerformanceTests.cs       # [Trait("Category", "Performance")]
+    │   ├── LinkRepairSecurityTests.cs          # [Trait("Category", "Security")]
+    │   ├── StrmLinkHandlerTests.cs
+    │   └── SymlinkHandlerTests.cs
     └── Timeline/
         ├── GrowthTimelineModelTests.cs
         ├── GrowthTimelineServiceTests.cs

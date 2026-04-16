@@ -81,7 +81,7 @@
             h += renderTaskModeSelect('cfgTrickplayMode', T('trickplayFolderCleaner', 'Trickplay Folder Cleaner'), cfg.TrickplayTaskMode || 'DryRun');
             h += renderTaskModeSelect('cfgEmptyFolderMode', T('emptyMediaFolderCleaner', 'Empty Media Folder Cleaner'), cfg.EmptyMediaFolderTaskMode || 'DryRun');
             h += renderTaskModeSelect('cfgSubtitleMode', T('orphanedSubtitleCleaner', 'Orphaned Subtitle Cleaner'), cfg.OrphanedSubtitleTaskMode || 'DryRun');
-            h += renderTaskModeSelect('cfgStrmMode', T('strmFileRepair', '.strm File Repair'), cfg.StrmRepairTaskMode || 'DryRun');
+            h += renderTaskModeSelect('cfgLinkMode', T('linkRepair', 'Link Repair'), cfg.LinkRepairTaskMode || 'DryRun');
 
             h += '<div class="section-title">' + T('settingsTrashTitle', 'Trash settings') + '</div>';
             h += '<div class="checkbox-row"><input type="checkbox" id="cfgTrash"' + (cfg.UseTrash ? ' checked' : '') + '><label for="cfgTrash">' + T('useTrash', 'Use Trash (Recycle Bin)') + '</label></div>';
@@ -143,7 +143,7 @@
             TrickplayTaskMode: document.getElementById('cfgTrickplayMode').value,
             EmptyMediaFolderTaskMode: document.getElementById('cfgEmptyFolderMode').value,
             OrphanedSubtitleTaskMode: document.getElementById('cfgSubtitleMode').value,
-            StrmRepairTaskMode: document.getElementById('cfgStrmMode').value,
+            LinkRepairTaskMode: document.getElementById('cfgLinkMode').value,
             UseTrash: document.getElementById('cfgTrash').checked,
             TrashFolderPath: document.getElementById('cfgTrashPath').value,
             TrashRetentionDays: (function () { var v = parseInt(document.getElementById('cfgTrashDays').value, 10); return isNaN(v) || v < 0 ? 30 : v; })(),

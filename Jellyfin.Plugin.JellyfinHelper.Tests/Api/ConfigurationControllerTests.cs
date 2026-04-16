@@ -317,7 +317,7 @@ public class ConfigurationControllerTests
                                         "TrickplayTaskMode": "DryRun",
                                         "EmptyMediaFolderTaskMode": "DryRun",
                                         "OrphanedSubtitleTaskMode": "DryRun",
-                                        "StrmRepairTaskMode": "DryRun",
+                                        "LinkRepairTaskMode": "DryRun",
                                         "UseTrash": false,
                                         "TrashFolderPath": ".jellyfin-trash",
                                         "TrashRetentionDays": 30,

@@ -11,7 +11,7 @@ public class SettingsHtmlTests : ConfigPageTestBase
     [InlineData("cfgTrickplayMode", "TrickplayTaskMode")]
     [InlineData("cfgEmptyFolderMode", "EmptyMediaFolderTaskMode")]
     [InlineData("cfgSubtitleMode", "OrphanedSubtitleTaskMode")]
-    [InlineData("cfgStrmMode", "StrmRepairTaskMode")]
+    [InlineData("cfgLinkMode", "LinkRepairTaskMode")]
     public void Html_SavesTaskModeFromSelectElement(string elementId, string configProperty)
     {
         var savePattern = configProperty + ": document.getElementById('" + elementId + "').value";
@@ -22,7 +22,7 @@ public class SettingsHtmlTests : ConfigPageTestBase
     [InlineData("cfgTrickplayMode")]
     [InlineData("cfgEmptyFolderMode")]
     [InlineData("cfgSubtitleMode")]
-    [InlineData("cfgStrmMode")]
+    [InlineData("cfgLinkMode")]
     public void Html_DefaultsToDryRunWhenConfigPropertyMissing(string elementId)
     {
         var pattern = new Regex("renderTaskModeSelect\\s*\\(\\s*'" + Regex.Escape(elementId) + "'.*\\|\\|\\s*'DryRun'\\s*\\)");
@@ -35,14 +35,14 @@ public class SettingsHtmlTests : ConfigPageTestBase
         Assert.DoesNotContain("cfgDryRunTrickplay", HtmlContent);
         Assert.DoesNotContain("cfgDryRunEmptyFolders", HtmlContent);
         Assert.DoesNotContain("cfgDryRunSubtitles", HtmlContent);
-        Assert.DoesNotContain("cfgDryRunStrm", HtmlContent);
+        Assert.DoesNotContain("cfgDryRunLink", HtmlContent);
     }
 
     [Theory]
     [InlineData("Trickplay Folder Cleaner")]
     [InlineData("Empty Media Folder Cleaner")]
     [InlineData("Orphaned Subtitle Cleaner")]
-    [InlineData(".strm File Repair")]
+    [InlineData("Link Repair")]
     public void Html_ContainsTaskLabel(string label)
     {
         Assert.Contains(label, HtmlContent);

@@ -179,7 +179,7 @@
         TrickplayTaskMode: "DryRun",
         EmptyMediaFolderTaskMode: "Activate",
         OrphanedSubtitleTaskMode: "DryRun",
-        StrmRepairTaskMode: "Deactivate",
+        LinkRepairTaskMode: "Deactivate",
         UseTrash: true,
         TrashFolderPath: ".jellyfin-trash",
         TrashRetentionDays: 30,
@@ -255,7 +255,7 @@
     var MOCK_LOGS = {
         Entries: (function() {
             var entries = [];
-            var sources = ["MediaStatistics", "TrickplayCleaner", "EmptyFolderCleaner", "SubtitleCleaner", "StrmRepair", "TrashService", "ArrIntegration"];
+            var sources = ["MediaStatistics", "TrickplayCleaner", "EmptyFolderCleaner", "SubtitleCleaner", "LinkRepair", "TrashService", "ArrIntegration"];
             var levels = ["INFO", "INFO", "INFO", "DEBUG", "WARN", "ERROR", "INFO", "INFO", "DEBUG", "INFO"];
             var messages = [
                 "Statistics scan started for 3 libraries",
@@ -267,7 +267,7 @@
                 "Statistics scan completed in 12.4s — 3842 videos, 12450 audio files",
                 "Empty folder cleanup: 3 folders deleted, 45.2 MB freed",
                 "Checking subtitle: /data/movies/Old Movie/Old Movie.en.srt",
-                "STRM repair completed: 2 files repaired, 0 errors"
+                "Link repair completed: 2 files repaired, 0 errors"
             ];
             var now = Date.now();
             for (var i = 0; i < messages.length; i++) {

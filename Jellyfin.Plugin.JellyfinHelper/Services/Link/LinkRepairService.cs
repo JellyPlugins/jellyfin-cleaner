@@ -1,0 +1,287 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Abstractions;
+using System.Linq;
+using System.Threading;
+using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
+using Microsoft.Extensions.Logging;
+
+namespace Jellyfin.Plugin.JellyfinHelper.Services.Link;
+
+/// <summary>
+///     Service for finding and repairing broken link file references.
+///     Delegates link-type-specific logic (reading/writing targets) to
+///     <see cref="ILinkHandler" /> strategies, keeping this service agnostic
+///     of any particular link format.
+/// </summary>
+public class LinkRepairService : ILinkRepairService
+{
+    private readonly IFileSystem _fileSystem;
+    private readonly IReadOnlyList<ILinkHandler> _handlers;
+    private readonly ILogger<LinkRepairService> _logger;
+    private readonly IPluginLogService _pluginLog;
+
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="LinkRepairService" /> class.
+    /// </summary>
+    /// <param name="fileSystem">The file system abstraction.</param>
+    /// <param name="handlers">The registered link handlers (one per link type).</param>
+    /// <param name="pluginLog">The plugin log service.</param>
+    /// <param name="logger">The logger instance.</param>
+    public LinkRepairService(
+        IFileSystem fileSystem,
+        IEnumerable<ILinkHandler> handlers,
+        IPluginLogService pluginLog,
+        ILogger<LinkRepairService> logger)
+    {
+        _fileSystem = fileSystem;
+        _handlers = handlers.ToList().AsReadOnly();
+        _pluginLog = pluginLog;
+        _logger = logger;
+    }
+
+    /// <summary>
+    ///     Scans the given library paths for link files, validates their target paths,
+    ///     and repairs broken references by searching the parent directory for a media file.
+    /// </summary>
+    /// <param name="libraryPaths">The library paths to scan for link files.</param>
+    /// <param name="dryRun">If true, no files will be modified.</param>
+    /// <param name="cancellationToken">Cancellation token to stop the operation.</param>
+    /// <returns>The result of the repair operation.</returns>
+    public LinkRepairResult RepairLinks(
+        IEnumerable<string> libraryPaths,
+        bool dryRun,
+        CancellationToken cancellationToken = default)
+    {
+        var result = new LinkRepairResult();
+        var linkFiles = FindLinkFiles(libraryPaths);
+
+        _pluginLog.LogInfo("LinkRepair", $"Found {linkFiles.Count} link files to check", _logger);
+
+        foreach (var (filePath, handler) in linkFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var fileResult = ProcessLinkFile(filePath, handler, dryRun);
+            result.FileResults.Add(fileResult);
+        }
+
+        _pluginLog.LogInfo(
+            "LinkRepair",
+            $"Link repair complete: {result.ValidCount} valid, {result.RepairedCount} repaired, {result.BrokenCount} broken, {result.AmbiguousCount} ambiguous, {result.InvalidContentCount} invalid content",
+            _logger);
+
+        return result;
+    }
+
+    /// <summary>
+    ///     Finds all link files in the given library paths using recursive search.
+    ///     Each file is paired with the handler that recognized it.
+    /// </summary>
+    /// <param name="libraryPaths">The library paths to search.</param>
+    /// <returns>A list of (filePath, handler) tuples.</returns>
+    internal List<(string FilePath, ILinkHandler Handler)> FindLinkFiles(IEnumerable<string> libraryPaths)
+    {
+        var linkFiles = new List<(string FilePath, ILinkHandler Handler)>();
+
+        foreach (var libraryPath in libraryPaths)
+        {
+            if (!_fileSystem.Directory.Exists(libraryPath))
+            {
+                _pluginLog.LogWarning("LinkRepair", $"Library path does not exist: {libraryPath}", logger: _logger);
+                continue;
+            }
+
+            FindLinkFilesRecursive(libraryPath, linkFiles);
+        }
+
+        return linkFiles;
+    }
+
+    /// <summary>
+    ///     Recursively scans a directory for files that any registered handler recognizes.
+    /// </summary>
+    private void FindLinkFilesRecursive(string directory, List<(string FilePath, ILinkHandler Handler)> result)
+    {
+        try
+        {
+            foreach (var file in _fileSystem.Directory.EnumerateFiles(directory))
+            {
+                foreach (var handler in _handlers)
+                {
+                    if (handler.CanHandle(file))
+                    {
+                        result.Add((file, handler));
+                        break; // first matching handler wins
+                    }
+                }
+            }
+
+            foreach (var subDir in _fileSystem.Directory.EnumerateDirectories(directory))
+            {
+                FindLinkFilesRecursive(subDir, result);
+            }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or DirectoryNotFoundException)
+        {
+            _pluginLog.LogWarning("LinkRepair", $"Cannot access directory: {directory} - {ex.Message}", ex, _logger);
+        }
+    }
+
+    /// <summary>
+    ///     Processes a single link file: reads the target path via the handler, validates it,
+    ///     and attempts repair if broken.
+    /// </summary>
+    /// <param name="linkFilePath">The path to the link file.</param>
+    /// <param name="handler">The handler that owns this link type.</param>
+    /// <param name="dryRun">If true, no files will be modified.</param>
+    /// <returns>The result for this file.</returns>
+    internal LinkFileResult ProcessLinkFile(string linkFilePath, ILinkHandler handler, bool dryRun)
+    {
+        var fileResult = new LinkFileResult { LinkFilePath = linkFilePath };
+
+        var targetPath = handler.ReadTarget(linkFilePath);
+
+        if (targetPath == null)
+        {
+            _pluginLog.LogWarning("LinkRepair", $"Failed to read link file {linkFilePath}", logger: _logger);
+            fileResult.Status = LinkFileStatus.InvalidContent;
+            return fileResult;
+        }
+
+        // Skip URL-based link files (e.g. http://, https://, rtsp://, file://)
+        // Note: Any scheme containing "://" is accepted — link files intentionally support all URL schemes.
+        if (targetPath.Contains("://", StringComparison.OrdinalIgnoreCase))
+        {
+            _pluginLog.LogDebug("LinkRepair", $"Skipping URL-based link file: {linkFilePath}", _logger);
+            fileResult.OriginalTargetPath = targetPath;
+            fileResult.Status = LinkFileStatus.Valid;
+            return fileResult;
+        }
+
+        fileResult.OriginalTargetPath = targetPath;
+
+        // Check if the target path is still valid
+        if (_fileSystem.File.Exists(targetPath))
+        {
+            _pluginLog.LogDebug("LinkRepair", $"Valid link file: {linkFilePath} -> {targetPath}", _logger);
+            fileResult.Status = LinkFileStatus.Valid;
+            return fileResult;
+        }
+
+        // Target path is broken - try to repair
+        _pluginLog.LogInfo("LinkRepair", $"Broken link file: {linkFilePath} -> {targetPath}", _logger);
+
+        return TryRepairLinkFile(fileResult, handler, dryRun);
+    }
+
+    /// <summary>
+    ///     Tries to repair a broken link file by searching the parent directory
+    ///     of the broken target path for a media file.
+    /// </summary>
+    /// <param name="fileResult">The file result with the broken path info.</param>
+    /// <param name="handler">The handler to use for writing the repaired target.</param>
+    /// <param name="dryRun">If true, no files will be modified.</param>
+    /// <returns>The updated file result.</returns>
+    private LinkFileResult TryRepairLinkFile(LinkFileResult fileResult, ILinkHandler handler, bool dryRun)
+    {
+        var parentDir = _fileSystem.Path.GetDirectoryName(fileResult.OriginalTargetPath);
+
+        if (string.IsNullOrEmpty(parentDir) || !_fileSystem.Directory.Exists(parentDir))
+        {
+            _pluginLog.LogWarning(
+                "LinkRepair",
+                $"Parent directory does not exist for broken link target: {fileResult.OriginalTargetPath} (parent: {parentDir ?? "null"})",
+                logger: _logger);
+            fileResult.Status = LinkFileStatus.Broken;
+            return fileResult;
+        }
+
+        // Search the parent directory for media files
+        var mediaFiles = FindMediaFilesInDirectory(parentDir);
+
+        if (mediaFiles.Count == 0)
+        {
+            _pluginLog.LogWarning(
+                "LinkRepair",
+                $"No media files found in parent directory {parentDir} for broken link: {fileResult.LinkFilePath}",
+                logger: _logger);
+            fileResult.Status = LinkFileStatus.Broken;
+            return fileResult;
+        }
+
+        if (mediaFiles.Count == 1)
+        {
+            // Exactly one media file found - this is our match
+            var newTargetPath = mediaFiles[0];
+            fileResult.NewTargetPath = newTargetPath;
+            fileResult.Status = LinkFileStatus.Repaired;
+
+            if (dryRun)
+            {
+                _pluginLog.LogInfo(
+                    "LinkRepair",
+                    $"[DRY RUN] Would repair link file: {fileResult.LinkFilePath} | {fileResult.OriginalTargetPath} -> {newTargetPath}",
+                    _logger);
+            }
+            else
+            {
+                _pluginLog.LogInfo(
+                    "LinkRepair",
+                    $"Repairing link file: {fileResult.LinkFilePath} | {fileResult.OriginalTargetPath} -> {newTargetPath}",
+                    _logger);
+
+                try
+                {
+                    handler.WriteTarget(fileResult.LinkFilePath, newTargetPath);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _pluginLog.LogError(
+                        "LinkRepair",
+                        $"Failed to write repaired link file {fileResult.LinkFilePath}: {ex.Message}",
+                        ex,
+                        _logger);
+                    fileResult.Status = LinkFileStatus.Broken;
+                    fileResult.NewTargetPath = null;
+                    return fileResult;
+                }
+            }
+
+            return fileResult;
+        }
+
+        // Multiple media files found - ambiguous
+        _pluginLog.LogWarning(
+            "LinkRepair",
+            $"Multiple media files ({mediaFiles.Count}) found in parent directory {parentDir} for broken link: {fileResult.LinkFilePath}. Candidates: {string.Join(", ", mediaFiles.Select(f => _fileSystem.Path.GetFileName(f)))}",
+            logger: _logger);
+        fileResult.Status = LinkFileStatus.Ambiguous;
+        return fileResult;
+    }
+
+    /// <summary>
+    ///     Finds all media files (video files) in the given directory (non-recursive).
+    /// </summary>
+    /// <param name="directory">The directory to search.</param>
+    /// <returns>A list of media file paths.</returns>
+    internal List<string> FindMediaFilesInDirectory(string directory)
+    {
+        var mediaFiles = new List<string>();
+
+        try
+        {
+            mediaFiles.AddRange(
+                from file in _fileSystem.Directory.EnumerateFiles(directory)
+                let extension = _fileSystem.Path.GetExtension(file)
+                where MediaExtensions.VideoExtensions.Contains(extension)
+                select file);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or DirectoryNotFoundException)
+        {
+            _pluginLog.LogWarning("LinkRepair", $"Cannot access directory: {directory} - {ex.Message}", ex, _logger);
+        }
+
+        return mediaFiles;
+    }
+}

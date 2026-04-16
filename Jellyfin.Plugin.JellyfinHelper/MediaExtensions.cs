@@ -9,7 +9,7 @@ namespace Jellyfin.Plugin.JellyfinHelper;
 public static class MediaExtensions
 {
     /// <summary>
-    ///     Stream file extension used by Jellyfin to reference external media files.
+    ///     Stream file extension used by Jellyfin for .strm link files.
     /// </summary>
     public const string StrmExtension = ".strm";
 
@@ -114,7 +114,7 @@ public static class MediaExtensions
 
     /// <summary>
     ///     Gets the combined set of all known media file extensions (video + audio, case-insensitive).
-    ///     Used by the .strm repair service to identify media files.
+    ///     Used by the link repair service to identify media files.
     /// </summary>
     internal static HashSet<string> AllMediaExtensions { get; } = BuildAllMediaExtensions();
 

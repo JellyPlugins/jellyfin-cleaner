@@ -97,7 +97,7 @@
   "trickplayFolderCleaner": "Limpeza de pastas Trickplay",
   "emptyMediaFolderCleaner": "Limpeza de pastas de mídia vazias",
   "orphanedSubtitleCleaner": "Limpeza de legendas órfãs",
-  "strmFileRepair": "Reparo de arquivos .strm",
+  "linkRepair": "Reparo de links",
   "useTrash": "Usar lixeira em vez de excluir permanentemente",
   "trashFolder": "Caminho da pasta de lixeira",
   "trashRetention": "Retenção da lixeira (dias)",

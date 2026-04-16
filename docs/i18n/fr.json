@@ -97,7 +97,7 @@
   "trickplayFolderCleaner": "Nettoyeur de dossiers Trickplay",
   "emptyMediaFolderCleaner": "Nettoyeur de dossiers médias vides",
   "orphanedSubtitleCleaner": "Nettoyeur de sous-titres orphelins",
-  "strmFileRepair": "Réparation de fichiers .strm",
+  "linkRepair": "Réparation de liens",
   "useTrash": "Utiliser la corbeille au lieu de supprimer définitivement",
   "trashFolder": "Chemin du dossier corbeille",
   "trashRetention": "Rétention de la corbeille (jours)",

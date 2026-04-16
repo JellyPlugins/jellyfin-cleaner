@@ -1,17 +1,17 @@
-namespace Jellyfin.Plugin.JellyfinHelper.Services.Strm;
+namespace Jellyfin.Plugin.JellyfinHelper.Services.Link;
 
 /// <summary>
-/// Represents the result of a single .strm file inspection.
+/// Represents the result of a single link file inspection.
 /// </summary>
-public class StrmFileResult
+public class LinkFileResult
 {
     /// <summary>
-    /// Gets or sets the path to the .strm file.
+    /// Gets or sets the path to the link file (.strm or symlink).
     /// </summary>
-    public string StrmFilePath { get; set; } = string.Empty;
+    public string LinkFilePath { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the original target path read from the .strm file.
+    /// Gets or sets the original target path read from the link file.
     /// </summary>
     public string OriginalTargetPath { get; set; } = string.Empty;
 
@@ -22,7 +22,7 @@ public class StrmFileResult
     public string? NewTargetPath { get; set; }
 
     /// <summary>
-    /// Gets or sets the status of this .strm file.
+    /// Gets or sets the status of this link file.
     /// </summary>
-    public StrmFileStatus Status { get; set; }
+    public LinkFileStatus Status { get; set; }
 }

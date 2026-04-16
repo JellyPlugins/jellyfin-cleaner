@@ -102,7 +102,7 @@ public class BackupService : IBackupService
             TrickplayTaskMode = config.TrickplayTaskMode.ToString(),
             EmptyMediaFolderTaskMode = config.EmptyMediaFolderTaskMode.ToString(),
             OrphanedSubtitleTaskMode = config.OrphanedSubtitleTaskMode.ToString(),
-            StrmRepairTaskMode = config.StrmRepairTaskMode.ToString(),
+            LinkRepairTaskMode = config.LinkRepairTaskMode.ToString(),
 
             // Trash settings
             UseTrash = config.UseTrash,
@@ -258,7 +258,7 @@ public class BackupService : IBackupService
         config.TrickplayTaskMode = ParseTaskMode(backup.TrickplayTaskMode);
         config.EmptyMediaFolderTaskMode = ParseTaskMode(backup.EmptyMediaFolderTaskMode);
         config.OrphanedSubtitleTaskMode = ParseTaskMode(backup.OrphanedSubtitleTaskMode);
-        config.StrmRepairTaskMode = ParseTaskMode(backup.StrmRepairTaskMode);
+        config.LinkRepairTaskMode = ParseTaskMode(backup.LinkRepairTaskMode);
 
         // Trash settings
         config.UseTrash = backup.UseTrash;

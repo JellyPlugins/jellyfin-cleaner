@@ -244,7 +244,7 @@ public class ConfigurationController : ControllerBase
         config.TrickplayTaskMode = request.TrickplayTaskMode;
         config.EmptyMediaFolderTaskMode = request.EmptyMediaFolderTaskMode;
         config.OrphanedSubtitleTaskMode = request.OrphanedSubtitleTaskMode;
-        config.StrmRepairTaskMode = request.StrmRepairTaskMode;
+        config.LinkRepairTaskMode = request.LinkRepairTaskMode;
 
         config.UseTrash = request.UseTrash;
         config.TrashFolderPath = string.IsNullOrWhiteSpace(request.TrashFolderPath)

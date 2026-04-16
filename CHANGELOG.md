@@ -5,7 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] — 2026-04-16
+
+## [1.1.1.0] — 2026-04-16
+
+### Fixed
+- **Plugin Logo** — Fixed `imagePath` in `meta.json` to use absolute `/config/plugins/` path matching Jellyfin's expected format.
+- **meta.json Structure** — Replaced invalid `assembly` field with `assemblies: []`, added missing `changelog`, `timestamp`, and `imageUrl` fields.
+- **meta.json Generation** — Switched from heredoc to `jq` for safe JSON generation (prevents broken JSON from special characters in changelog).
+
+### Changed
+- **4-Part Versioning** — All versions now use 4-part format (`x.x.x.x`) consistent with other Jellyfin plugins (e.g. Jellyfin Enhanced, Intro Skipper).
+- - **Link Repair** — Renamed "STRM Repair" task to "Link Repair". The task now scans for both broken `.strm` files and broken symlinks, repairing them by locating renamed/moved target files. Refactored `Services/Strm/` to `Services/Link/` with Strategy pattern (`ILinkHandler` → `StrmLinkHandler`, `SymlinkHandler`).
+- **Configuration** — `StrmRepairTaskMode` renamed to `LinkRepairTaskMode`.
+- **Scheduled Task** — `RepairStrmFilesTask` renamed to `RepairLinksTask`.
+- **Documentation** — Updated CONTRIBUTING.md, README.md, manifest.json, and build.yaml to reflect Link Repair naming and symlink support.
+
+---
+
+## [1.1.0.0] — 2026-04-16
 
 ### Added
 - **Trends UI Enhancements** — Improved CSS and JS for the Trends tab with better chart rendering and responsiveness.
@@ -23,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.9] — 2026-04-14
+## [1.0.9.0] — 2026-04-14
 
 ### Removed
 - **Statistics History** — Removed legacy scan-based snapshot system (`StatisticsHistoryService`, `StatisticsSnapshot`), replaced entirely by the growth timeline. The `/Statistics/History` API endpoint has been removed.
@@ -45,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.8] — 2026-04-12
+## [1.0.8.0] — 2026-04-12
 
 ### Added
 - **Backup & Restore** — New backup/restore functionality to export and import plugin configuration and historical data as JSON.
@@ -62,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.7] — 2026-04-12
+## [1.0.7.0] — 2026-04-12
 
 ### Added
 - **Plugin Log Viewer** — New **Logs** tab in the dashboard providing real-time access to plugin-specific log entries with level filtering (DEBUG/INFO/WARN/ERROR), source component filtering, auto-refresh (10s), download as `.log` file, and clear with confirmation dialog.
@@ -79,7 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.6] — 2026-04-11
+## [1.0.6.0] — 2026-04-11
 
 ### Fixed
 - **Trash exclusion in statistics** — Trash folders are now explicitly excluded from media statistics calculations to avoid distorted results.
@@ -88,7 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.5] — 2026-04-11
+## [1.0.5.0] — 2026-04-11
 
 ### Added
 - **Multi-Instance Arr Support** — Up to 3 Radarr and 3 Sonarr instances simultaneously (e.g. "Radarr 4K", "Radarr Anime") with per-instance comparison and merged views. Automatic migration from legacy single-instance configuration.
@@ -113,7 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.4] — 2026-04-10
+## [1.0.4.0] — 2026-04-10
 
 ### Added
 - **STRM File Repair** — New task that detects and repairs broken `.strm` files whose referenced media file has been renamed or moved. Searches the parent directory for a matching media file and updates the path. URL-based `.strm` files are left untouched.
@@ -131,7 +148,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.3] — 2026-04-09
+## [1.0.3.0] — 2026-04-09
 
 ### Fixed
 - **Plugin Logo 404** — `logo.png` now included as physical file in release ZIP alongside `meta.json` with `"imagePath": "logo.png"`. Jellyfin 10.11 serves plugin images from disk, not from embedded resources.
@@ -144,7 +161,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.2] — 2026-04-09
+## [1.0.2.0] — 2026-04-09
 
 ### Fixed
 - **Subtitle False Positives** — `IsSubtitleSuffix` used a naive "2-3 letter" heuristic that incorrectly matched non-language tokens like "DTS", "HDR", "S01", "720p". Replaced with explicit ISO 639-1/639-2 allowlists (`MediaExtensions.KnownLanguageCodes`, `MediaExtensions.SubtitleFlags`).
@@ -162,7 +179,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.1] — 2026-04-09
+## [1.0.1.0] — 2026-04-09
 
 ### Fixed
 - **Config Page** — `<style>` and `<script>` tags moved inside `<div data-role="page">` wrapper; Jellyfin's web client now properly loads the settings page JavaScript and styles.
@@ -173,7 +190,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.0] — 2026-04-09
+## [1.0.0.0] — 2026-04-09
 
 ### Added
 

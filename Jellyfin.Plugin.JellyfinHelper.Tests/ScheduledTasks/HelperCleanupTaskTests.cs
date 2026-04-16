@@ -1,7 +1,7 @@
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
-using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
+using Jellyfin.Plugin.JellyfinHelper.Services.Link;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Tasks;
@@ -55,7 +55,7 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Activate,
             EmptyMediaFolderTaskMode = TaskMode.Activate,
             OrphanedSubtitleTaskMode = TaskMode.Activate,
-            StrmRepairTaskMode = TaskMode.Activate
+            LinkRepairTaskMode = TaskMode.Activate
         };
 
         var configHelperMock = new Mock<ICleanupConfigHelper>();
@@ -63,14 +63,14 @@ public class HelperCleanupTaskTests : IDisposable
         configHelperMock.Setup(c => c.GetTrickplayTaskMode()).Returns(() => _config.TrickplayTaskMode);
         configHelperMock.Setup(c => c.GetEmptyMediaFolderTaskMode()).Returns(() => _config.EmptyMediaFolderTaskMode);
         configHelperMock.Setup(c => c.GetOrphanedSubtitleTaskMode()).Returns(() => _config.OrphanedSubtitleTaskMode);
-        configHelperMock.Setup(c => c.GetStrmRepairTaskMode()).Returns(() => _config.StrmRepairTaskMode);
+        configHelperMock.Setup(c => c.GetLinkRepairTaskMode()).Returns(() => _config.LinkRepairTaskMode);
         configHelperMock.Setup(c => c.IsDryRunTrickplay()).Returns(() => _config.TrickplayTaskMode == TaskMode.DryRun);
         configHelperMock.Setup(c => c.IsDryRunEmptyMediaFolders())
             .Returns(() => _config.EmptyMediaFolderTaskMode == TaskMode.DryRun);
         configHelperMock.Setup(c => c.IsDryRunOrphanedSubtitles())
             .Returns(() => _config.OrphanedSubtitleTaskMode == TaskMode.DryRun);
-        configHelperMock.Setup(c => c.IsDryRunStrmRepair())
-            .Returns(() => _config.StrmRepairTaskMode == TaskMode.DryRun);
+        configHelperMock.Setup(c => c.IsDryRunLinkRepair())
+            .Returns(() => _config.LinkRepairTaskMode == TaskMode.DryRun);
         configHelperMock.Setup(c => c.IsOldEnoughForDeletion(It.IsAny<string>())).Returns(true);
         configHelperMock.Setup(c => c.IsFileOldEnoughForDeletion(It.IsAny<string>())).Returns(true);
         configHelperMock.Setup(c => c.GetTrashPath(It.IsAny<string>()))
@@ -80,7 +80,7 @@ public class HelperCleanupTaskTests : IDisposable
 
         var trackingServiceMock = new Mock<ICleanupTrackingService>();
         var trashServiceMock = new Mock<ITrashService>();
-        var strmRepairServiceMock = new Mock<IStrmRepairService>();
+        var linkRepairServiceMock = new Mock<ILinkRepairService>();
 
         _task = new HelperCleanupTask(
             libraryManagerMock.Object,
@@ -94,7 +94,7 @@ public class HelperCleanupTaskTests : IDisposable
             configHelperMock.Object,
             trackingServiceMock.Object,
             trashServiceMock.Object,
-            strmRepairServiceMock.Object);
+            linkRepairServiceMock.Object);
     }
 
     public void Dispose()
@@ -155,7 +155,7 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            StrmRepairTaskMode = TaskMode.Deactivate
+            LinkRepairTaskMode = TaskMode.Deactivate
         };
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
@@ -163,7 +163,7 @@ public class HelperCleanupTaskTests : IDisposable
         VerifyLogContains("Skipping Trickplay Cleanup (deactivated in settings)", LogLevel.Information);
         VerifyLogContains("Skipping Empty Media Folder Cleanup (deactivated in settings)", LogLevel.Information);
         VerifyLogContains("Skipping Orphaned Subtitle Cleanup (deactivated in settings)", LogLevel.Information);
-        VerifyLogContains("Skipping STRM File Repair (deactivated in settings)", LogLevel.Information);
+        VerifyLogContains("Skipping Link Repair (deactivated in settings)", LogLevel.Information);
         VerifyLogContains("Helper Cleanup finished", LogLevel.Information);
     }
 
@@ -175,7 +175,7 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Activate,
             EmptyMediaFolderTaskMode = TaskMode.Activate,
             OrphanedSubtitleTaskMode = TaskMode.Activate,
-            StrmRepairTaskMode = TaskMode.Activate
+            LinkRepairTaskMode = TaskMode.Activate
         };
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
@@ -183,7 +183,7 @@ public class HelperCleanupTaskTests : IDisposable
         VerifyLogContains("Starting Trickplay Cleanup (Active)", LogLevel.Information);
         VerifyLogContains("Starting Empty Media Folder Cleanup (Active)", LogLevel.Information);
         VerifyLogContains("Starting Orphaned Subtitle Cleanup (Active)", LogLevel.Information);
-        VerifyLogContains("Starting STRM File Repair (Active)", LogLevel.Information);
+        VerifyLogContains("Starting Link Repair (Active)", LogLevel.Information);
         VerifyLogContains("Helper Cleanup finished", LogLevel.Information);
     }
 
@@ -195,7 +195,7 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.DryRun,
             EmptyMediaFolderTaskMode = TaskMode.DryRun,
             OrphanedSubtitleTaskMode = TaskMode.DryRun,
-            StrmRepairTaskMode = TaskMode.DryRun
+            LinkRepairTaskMode = TaskMode.DryRun
         };
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
@@ -203,7 +203,7 @@ public class HelperCleanupTaskTests : IDisposable
         VerifyLogContains("Starting Trickplay Cleanup (Dry Run)", LogLevel.Information);
         VerifyLogContains("Starting Empty Media Folder Cleanup (Dry Run)", LogLevel.Information);
         VerifyLogContains("Starting Orphaned Subtitle Cleanup (Dry Run)", LogLevel.Information);
-        VerifyLogContains("Starting STRM File Repair (Dry Run)", LogLevel.Information);
+        VerifyLogContains("Starting Link Repair (Dry Run)", LogLevel.Information);
     }
 
     [Fact]
@@ -214,7 +214,7 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Activate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.DryRun,
-            StrmRepairTaskMode = TaskMode.Deactivate
+            LinkRepairTaskMode = TaskMode.Deactivate
         };
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
@@ -222,7 +222,7 @@ public class HelperCleanupTaskTests : IDisposable
         VerifyLogContains("Starting Trickplay Cleanup (Active)", LogLevel.Information);
         VerifyLogContains("Skipping Empty Media Folder Cleanup (deactivated in settings)", LogLevel.Information);
         VerifyLogContains("Starting Orphaned Subtitle Cleanup (Dry Run)", LogLevel.Information);
-        VerifyLogContains("Skipping STRM File Repair (deactivated in settings)", LogLevel.Information);
+        VerifyLogContains("Skipping Link Repair (deactivated in settings)", LogLevel.Information);
     }
 
     [Fact]
@@ -243,7 +243,7 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            StrmRepairTaskMode = TaskMode.Deactivate
+            LinkRepairTaskMode = TaskMode.Deactivate
         };
 
         var reportedValues = new List<double>();
@@ -262,7 +262,7 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            StrmRepairTaskMode = TaskMode.Deactivate
+            LinkRepairTaskMode = TaskMode.Deactivate
         };
 
         var reportedValues = new List<double>();
@@ -286,7 +286,7 @@ public class HelperCleanupTaskTests : IDisposable
         VerifyLogContains("Finished Trickplay Cleanup", LogLevel.Information);
         VerifyLogContains("Finished Empty Media Folder Cleanup", LogLevel.Information);
         VerifyLogContains("Finished Orphaned Subtitle Cleanup", LogLevel.Information);
-        VerifyLogContains("Finished STRM File Repair", LogLevel.Information);
+        VerifyLogContains("Finished Link Repair", LogLevel.Information);
     }
 
     [Fact]
@@ -297,7 +297,7 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            StrmRepairTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
             UseTrash = true,
             TrashRetentionDays = 30,
             TrashFolderPath = ".jellyfin-trash"
@@ -317,7 +317,7 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            StrmRepairTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
             UseTrash = false,
             TrashRetentionDays = 30
         };
@@ -335,7 +335,7 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            StrmRepairTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
             UseTrash = true,
             TrashRetentionDays = 0,
             TrashFolderPath = ".jellyfin-trash"

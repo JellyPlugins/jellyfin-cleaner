@@ -97,7 +97,7 @@
   "trickplayFolderCleaner": "Limpiador de carpetas Trickplay",
   "emptyMediaFolderCleaner": "Limpiador de carpetas vacías",
   "orphanedSubtitleCleaner": "Limpiador de subtítulos huérfanos",
-  "strmFileRepair": "Reparación de archivos .strm",
+  "linkRepair": "Reparación de enlaces",
   "useTrash": "Usar papelera en lugar de eliminar permanentemente",
   "trashFolder": "Ruta de la carpeta de papelera",
   "trashRetention": "Retención de papelera (días)",

@@ -50,10 +50,10 @@ public class PluginConfiguration : BasePluginConfiguration
     public TaskMode OrphanedSubtitleTaskMode { get; set; } = TaskMode.DryRun;
 
     /// <summary>
-    ///     Gets or sets the execution mode for the .strm File Repair task.
+    ///     Gets or sets the execution mode for the Link Repair task (.strm files and symlinks).
     ///     Default is <see cref="TaskMode.DryRun" /> (safe mode).
     /// </summary>
-    public TaskMode StrmRepairTaskMode { get; set; } = TaskMode.DryRun;
+    public TaskMode LinkRepairTaskMode { get; set; } = TaskMode.DryRun;
 
     // ===== Config version for migration =====
 

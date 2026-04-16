@@ -112,7 +112,7 @@ public class I18NServiceTests : IDisposable
             "orphanMinAgeDays", "orphanMinAgeDaysHelp",
             "useTrash", "trashFolder", "trashRetention", "language",
             "taskModeTitle", "taskModeHelp", "activate", "dryRun", "deactivate",
-            "trickplayFolderCleaner", "emptyMediaFolderCleaner", "orphanedSubtitleCleaner", "strmFileRepair",
+            "trickplayFolderCleaner", "emptyMediaFolderCleaner", "orphanedSubtitleCleaner", "linkRepair",
             "saveSettings", "savingSettings", "settingsSaved", "settingsError", "settingsLoadError",
             "arrTitle", "compareWith",
             "inBoth", "inArrOnly", "inArrOnlyMissing", "inJellyfinOnly",

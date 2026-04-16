@@ -40,9 +40,9 @@ public class ConfigurationUpdateRequest
     public TaskMode OrphanedSubtitleTaskMode { get; init; } = TaskMode.DryRun;
 
     /// <summary>
-    ///     Gets the execution mode for the .strm File Repair task.
+    ///     Gets the execution mode for the Link Repair task (.strm files and symlinks).
     /// </summary>
-    public TaskMode StrmRepairTaskMode { get; init; } = TaskMode.DryRun;
+    public TaskMode LinkRepairTaskMode { get; init; } = TaskMode.DryRun;
 
     /// <summary>
     ///     Gets a value indicating whether to use a trash folder instead of permanently deleting files.

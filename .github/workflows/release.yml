@@ -158,9 +158,17 @@ jobs:
           -c Release \
           -o ./publish \
           -p:Version=${VERSION} \
-          -p:AssemblyVersion=${VERSION}.0 \
-          -p:FileVersion=${VERSION}.0 \
+          -p:AssemblyVersion=${VERSION} \
+          -p:FileVersion=${VERSION} \
           -p:InformationalVersion=${VERSION}
+
+    - name: Read changelog from build.yaml
+      if: env.TAG_EXISTS == 'false'
+      run: |
+        CHANGELOG=$(jq -r '.[0].versions[0].changelog' manifest.json)
+        echo "BUILD_CHANGELOG<<EOF" >> $GITHUB_ENV
+        echo "$CHANGELOG" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
 
     - name: Create release package
       if: env.TAG_EXISTS == 'false'
@@ -168,22 +176,29 @@ jobs:
         mkdir package
         cp publish/*.dll package/
         cp publish/logo.png package/ 2>/dev/null || cp media/logo.png package/
-        cat > package/meta.json <<METAEOF
-        {
-          "guid": "0c737645-5cbb-4bd8-80c7-d377b560aaa4",
-          "name": "Jellyfin Helper",
-          "description": "Automated cleanup (trickplay, empty folders, subtitles), media statistics, trash bin, Arr integration.",
-          "overview": "Automated cleanup, media statistics, trash bin, Arr integration.",
-          "owner": "JellyPlugins",
-          "category": "General",
-          "version": "${VERSION}.0",
-          "targetAbi": "${TARGET_ABI}",
-          "status": "Active",
-          "autoUpdate": true,
-          "imagePath": "logo.png",
-          "assembly": "Jellyfin.Plugin.JellyfinHelper.dll"
-        }
-        METAEOF
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%S.0000000Z")
+        jq -n \
+          --arg changelog "$BUILD_CHANGELOG" \
+          --arg targetAbi "$TARGET_ABI" \
+          --arg timestamp "$TIMESTAMP" \
+          --arg version "$VERSION" \
+          '{
+            "category": "General",
+            "changelog": $changelog,
+            "description": "Automated cleanup (trickplay, empty folders, subtitles), media statistics, trash bin, Arr integration.",
+            "guid": "0c737645-5cbb-4bd8-80c7-d377b560aaa4",
+            "name": "Jellyfin Helper",
+            "overview": "Automated cleanup, media statistics, trash bin, Arr integration.",
+            "owner": "JellyPlugins",
+            "targetAbi": $targetAbi,
+            "timestamp": $timestamp,
+            "version": $version,
+            "status": "Active",
+            "autoUpdate": true,
+            "imageUrl": "https://raw.githubusercontent.com/JellyPlugins/jellyfin-helper/main/media/logo.png",
+            "imagePath": ("/config/plugins/Jellyfin Helper_" + $version + "/logo.png"),
+            "assemblies": []
+          }' > package/meta.json
         cd package
         zip ../${PLUGIN_NAME}_${VERSION}.zip *
 

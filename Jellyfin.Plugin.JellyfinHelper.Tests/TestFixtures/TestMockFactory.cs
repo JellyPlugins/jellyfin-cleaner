@@ -111,11 +111,11 @@ public static class TestMockFactory
         mock.Setup(c => c.GetTrickplayTaskMode()).Returns(cfg.TrickplayTaskMode);
         mock.Setup(c => c.GetEmptyMediaFolderTaskMode()).Returns(cfg.EmptyMediaFolderTaskMode);
         mock.Setup(c => c.GetOrphanedSubtitleTaskMode()).Returns(cfg.OrphanedSubtitleTaskMode);
-        mock.Setup(c => c.GetStrmRepairTaskMode()).Returns(cfg.StrmRepairTaskMode);
+        mock.Setup(c => c.GetLinkRepairTaskMode()).Returns(cfg.LinkRepairTaskMode);
         mock.Setup(c => c.IsDryRunTrickplay()).Returns(() => CleanupConfigHelper.IsDryRun(cfg.TrickplayTaskMode));
         mock.Setup(c => c.IsDryRunEmptyMediaFolders()).Returns(() => CleanupConfigHelper.IsDryRun(cfg.EmptyMediaFolderTaskMode));
         mock.Setup(c => c.IsDryRunOrphanedSubtitles()).Returns(() => CleanupConfigHelper.IsDryRun(cfg.OrphanedSubtitleTaskMode));
-        mock.Setup(c => c.IsDryRunStrmRepair()).Returns(() => CleanupConfigHelper.IsDryRun(cfg.StrmRepairTaskMode));
+        mock.Setup(c => c.IsDryRunLinkRepair()).Returns(() => CleanupConfigHelper.IsDryRun(cfg.LinkRepairTaskMode));
         mock.Setup(c => c.IsOldEnoughForDeletion(It.IsAny<string>())).Returns(true);
         mock.Setup(c => c.IsFileOldEnoughForDeletion(It.IsAny<string>())).Returns(true);
         mock.Setup(c => c.GetFilteredLibraryLocations(It.IsAny<ILibraryManager>()))
