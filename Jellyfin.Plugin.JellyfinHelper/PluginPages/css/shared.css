@@ -25,8 +25,8 @@
 
 .last-scan-badge {
     font-size: 0.78em;
-    color: rgba(255,255,255,0.6);
-    background: rgba(255,255,255,0.08);
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.08);
     padding: 0.3em 0.8em;
     border-radius: 12px;
     white-space: nowrap;
@@ -50,10 +50,12 @@
 .refresh-btn svg {
     display: block;
     transition: transform 0.3s ease;
+    width: 22px;
+    height: 22px;
 }
 
 .refresh-btn:hover {
-    background: rgba(0,164,220,0.15);
+    background: rgba(0, 164, 220, 0.15);
     color: #0088b8;
 }
 
@@ -72,8 +74,12 @@
 }
 
 @keyframes refresh-spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .refresh-btn.success {
@@ -125,7 +131,9 @@
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .error-msg {
@@ -143,10 +151,25 @@
     text-transform: uppercase;
 }
 
-.badge-movies { background: #e67e22; color: #fff; }
-.badge-tvshows { background: #2ecc71; color: #fff; }
-.badge-music { background: #9b59b6; color: #fff; }
-.badge-other { background: #95a5a6; color: #fff; }
+.badge-movies {
+    background: #e67e22;
+    color: #fff;
+}
+
+.badge-tvshows {
+    background: #2ecc71;
+    color: #fff;
+}
+
+.badge-music {
+    background: #9b59b6;
+    color: #fff;
+}
+
+.badge-other {
+    background: #95a5a6;
+    color: #fff;
+}
 
 /* Tabs */
 .tab-bar {
@@ -201,23 +224,69 @@
     display: block;
 }
 
-.success-msg { color: #2ecc71; padding: 0.5em; text-align: center; font-weight: 600; }
-.action-btn { display: inline-flex; align-items: center; padding: 0.5em 1.2em; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 0.95em; transition: background 0.2s; background: #00a4dc; }
-.action-btn:hover { background: #0088b8; }
-.action-btn:disabled { background: #555; cursor: not-allowed; }
-.arr-compare-btn { min-width: 14em; justify-content: center; text-align: center; }
-.action-btn.success,
-.action-btn.success:hover { background: #2ecc71; }
-.action-btn.error,
-.action-btn.error:hover { background: #e74c3c; }
+.success-msg {
+    color: #2ecc71;
+    padding: 0.5em;
+    text-align: center;
+    font-weight: 600;
+}
 
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5em 1.2em;
+    border: none;
+    border-radius: 4px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.95em;
+    transition: background 0.2s;
+    background: #00a4dc;
+}
+
+.action-btn:hover {
+    background: #0088b8;
+}
+
+.action-btn:disabled {
+    background: #555;
+    cursor: not-allowed;
+}
+
+.arr-compare-btn {
+    min-width: 14em;
+    justify-content: center;
+    text-align: center;
+}
+
+.action-btn.success,
+.action-btn.success:hover {
+    background: #2ecc71;
+}
+
+.action-btn.error,
+.action-btn.error:hover {
+    background: #e74c3c;
+}
 
 
 /* Arr button variants */
-.btn-arr-test { background: rgba(255,255,255,0.15); }
-.btn-arr-test:hover { background: rgba(255,255,255,0.25); }
-.btn-arr-remove { background: #e74c3c; }
-.btn-arr-remove:hover { background: #c0392b; }
+.btn-arr-test {
+    margin-top: 0.5em;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-arr-test:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.btn-arr-remove {
+    background: #e74c3c;
+}
+
+.btn-arr-remove:hover {
+    background: #c0392b;
+}
 
 /* No data placeholder */
 .no-data-container {
@@ -430,10 +499,10 @@
 }
 
 .tree-leaf-icon {
-     flex-shrink: 0;
-     width: 1.2em;
-     text-align: center;
- }
+    flex-shrink: 0;
+    width: 1.2em;
+    text-align: center;
+}
 
 .tree-leaf-file-name {
     white-space: nowrap;

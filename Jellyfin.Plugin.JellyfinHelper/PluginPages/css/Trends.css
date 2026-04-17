@@ -10,7 +10,7 @@
     border-radius: 8px;
     overflow: visible;
     position: relative;
-    touch-action: manipulation;  /* allow pinch-zoom on chart area */
+    touch-action: manipulation; /* allow pinch-zoom on chart area */
 }
 
 .trend-chart svg {
