@@ -122,6 +122,15 @@ public sealed class SeerrIntegrationService : ISeerrIntegrationService
                 break;
             }
 
+            if (page.PageInfo == null)
+            {
+                _pluginLog.LogWarning(
+                    "SeerrCleanup",
+                    "Unexpected API response: missing pageInfo, aborting pagination",
+                    logger: _logger);
+                break;
+            }
+
             foreach (var request in page.Results)
             {
                 result.TotalChecked++;
@@ -228,7 +237,7 @@ public sealed class SeerrIntegrationService : ISeerrIntegrationService
 
         try
         {
-            var endpoint = media.MediaType.Equals("tv", StringComparison.OrdinalIgnoreCase)
+            var endpoint = string.Equals(media.MediaType, "tv", StringComparison.OrdinalIgnoreCase)
                 ? $"api/v1/tv/{media.TmdbId}"
                 : $"api/v1/movie/{media.TmdbId}";
 
