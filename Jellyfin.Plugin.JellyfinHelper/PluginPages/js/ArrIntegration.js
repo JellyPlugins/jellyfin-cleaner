@@ -152,9 +152,11 @@ function removeArrInstance(type, index) {
         remaining[i].setAttribute('data-index', i);
         var prefix = type + '_' + i;
         var inputs = remaining[i].querySelectorAll('input');
+        var labels = remaining[i].querySelectorAll('label');
         var suffixes = ['_name', '_url', '_key'];
         for (var j = 0; j < inputs.length && j < suffixes.length; j++) {
             inputs[j].id = prefix + suffixes[j];
+            if (labels[j]) { labels[j].htmlFor = prefix + suffixes[j]; }
         }
         var strong = remaining[i].querySelector('strong');
         if (strong) {

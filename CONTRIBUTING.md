@@ -221,7 +221,7 @@ A named `HttpClient` (`"ArrIntegration"`) is configured with a 15-second timeout
 ### Key Design Decisions
 
 - **Domain-organized Controllers** — Each API domain has its own controller (Configuration, Statistics, Arr, Logs, Backup, Trash, Cleanup, Timeline, Translations)
-- **Domain-organized Services** — Services grouped by domain (Arr, Backup, Cleanup, Link, PluginLog, Statistics, Timeline)
+- **Domain-organized Services** — Services grouped by domain (Arr, Backup, Cleanup, Link, PluginLog, Seerr, Statistics, Timeline)
 - **Build-time UI composition** — CSS and JS modules are concatenated into `configPage.html` at build time (no runtime bundler needed)
 - **Persisted scan results** — Latest statistics are saved to disk and survive server restarts
 - **5-minute cache** — `IMemoryCache` prevents redundant scans; `?forceRefresh=true` bypasses it
@@ -489,7 +489,7 @@ Sub-tasks executed in order (each respecting its configured task mode):
 
 The project includes a **comprehensive automated test suite** covering:
 
-- All services (cleanup, statistics, path validation, Arr integration, backup/restore, growth timeline, link repair)
+- All services (cleanup, statistics, path validation, Arr integration, backup/restore, growth timeline, link repair, Seerr integration)
 - API endpoints (controller tests with mocked dependencies)
 - Configuration migration (legacy format → current)
 - UI structure (HTML element presence, tab structure)

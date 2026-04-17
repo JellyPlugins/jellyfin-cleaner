@@ -264,9 +264,14 @@ function buildSettingsPayload() {
         EmptyMediaFolderTaskMode: document.getElementById('cfgEmptyFolderMode').value,
         OrphanedSubtitleTaskMode: document.getElementById('cfgSubtitleMode').value,
         LinkRepairTaskMode: document.getElementById('cfgLinkMode').value,
-        SeerrCleanupTaskMode: document.getElementById('cfgSeerrMode') ? document.getElementById('cfgSeerrMode').value : 'Deactivate',
         SeerrUrl: (document.getElementById('cfgSeerrUrl') || {}).value || '',
         SeerrApiKey: (document.getElementById('cfgSeerrApiKey') || {}).value || '',
+        SeerrCleanupTaskMode: (function () {
+            var modeEl = document.getElementById('cfgSeerrMode');
+            var url = (document.getElementById('cfgSeerrUrl') || {}).value || '';
+            var key = (document.getElementById('cfgSeerrApiKey') || {}).value || '';
+            return (url && key && modeEl) ? modeEl.value : 'Deactivate';
+        })(),
         SeerrCleanupAgeDays: (function () {
             var el = document.getElementById('cfgSeerrAgeDays');
             var v = el ? parseInt(el.value, 10) : 365;

@@ -26,7 +26,7 @@ and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin
 - **Link Repair** — Renamed "STRM Repair" task to "Link Repair". The task now scans for both broken `.strm` files and broken symlinks, repairing them by locating renamed/moved target files. Refactored `Services/Strm/` to `Services/Link/` with Strategy pattern (`ILinkHandler` → `StrmLinkHandler`, `SymlinkHandler`).
 - **Configuration** — `StrmRepairTaskMode` renamed to `LinkRepairTaskMode`.
 - **Scheduled Task** — `RepairStrmFilesTask` renamed to `RepairLinksTask`.
-- **Save Workflow** — `doSaveSettings()` now supports a `quiet` mode with `{ quiet: true, element: el }` options for auto-save (no button animation, inline indicator instead). Language change no longer triggers full page reload.
+- **Save Workflow** — `doSaveSettings()` now supports a `quiet` mode with `{ quiet: true, element: el }` options for auto-save (no button animation, inline indicator instead). Language change no longer triggers a full-page reload.
 - **Log Level Auto-Save** — Log level dropdown in the Logs tab now uses the shared `showAutoSaveIndicator()` function from `shared.js` for consistent UX across all auto-save controls.
 - **Documentation** — Updated CONTRIBUTING.md, README.md, manifest.json, and build.yaml to reflect Link Repair naming, symlink support, Seerr integration, and UI improvements.
 
