@@ -4,6 +4,7 @@
   "scanning": "Analyse…",
   "scanDescription": "Analyse des bibliothèques… Cela peut prendre du temps pour les grandes collections.",
   "scanPlaceholder": "Cliquez sur <strong>Scanner les bibliothèques</strong> pour analyser vos dossiers médias.",
+  "initializingScan": "Initialisation du scan des médias…",
   "error": "Impossible de charger les statistiques. Assurez-vous d'être administrateur.",
   "tabOverview": "Aperçu",
   "tabCodecs": "Codecs",

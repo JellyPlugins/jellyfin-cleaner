@@ -76,15 +76,14 @@ function updateLastScanBadge(utcTimestamp) {
 
 // Load the latest persisted statistics (no new scan) and populate tabs if available
 function loadLatestStatistics() {
-    apiGet('JellyfinHelper/MediaStatistics/Latest', function (data) {
+    apiGetOptional('JellyfinHelper/MediaStatistics/Latest', function (data) {
         if (data && data.Libraries) {
             fillScanData(data);
             updateLastScanBadge(data.ScanTimestamp);
         }
     }, function () {
-        // 204 or error — no persisted data, auto-trigger initial scan
-        console.log(
-            'Jellyfin Helper: No persisted statistics available, triggering initial scan...');
+        // 204 — no persisted data yet, auto-trigger initial scan
+        console.log('Jellyfin Helper: No persisted statistics (204), triggering initial scan...');
         loadStatistics();
     });
 }
@@ -114,19 +113,19 @@ function renderShell() {
     // === OVERVIEW TAB (placeholder until scan) ===
     html += '<div class="tab-content active" id="tab-overview">';
     html += '<div id="overviewContent"><p style="text-align:center;padding:2em;opacity:0.5;">'
-        + T('scanPlaceholder', 'Initializing media scan\u2026') + '</p></div>';
+        + T('initializingScan', 'Initializing media scan\u2026') + '</p></div>';
     html += '</div>';
 
     // === CODECS TAB (placeholder until scan) ===
     html += '<div class="tab-content" id="tab-codecs">';
     html += '<div id="codecsContent"><p style="text-align:center;padding:2em;opacity:0.5;">'
-        + T('scanPlaceholder', 'Initializing media scan\u2026') + '</p></div>';
+        + T('initializingScan', 'Initializing media scan\u2026') + '</p></div>';
     html += '</div>';
 
     // === HEALTH TAB (placeholder until scan) ===
     html += '<div class="tab-content" id="tab-health">';
     html += '<div id="healthContent"><p style="text-align:center;padding:2em;opacity:0.5;">'
-        + T('scanPlaceholder', 'Initializing media scan\u2026') + '</p></div>';
+        + T('initializingScan', 'Initializing media scan\u2026') + '</p></div>';
     html += '</div>';
 
     // === TRENDS TAB ===

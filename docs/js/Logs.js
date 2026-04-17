@@ -3,6 +3,7 @@
 var _logsAutoRefreshTimer = null;
 var _logsAutoRefreshEnabled = true;
 var _logsLoadSeq = 0;
+var _logsTabInitialized = false;
 
 function renderLogsTab() {
   var h = '';
@@ -53,29 +54,32 @@ function renderLogsTab() {
 }
 
 function initLogsTab() {
-  var downloadBtn = document.getElementById('btnLogsDownload');
-  var clearBtn = document.getElementById('btnLogsClear');
-  var levelFilter = document.getElementById('logsLevelFilter');
-  var sourceFilter = document.getElementById('logsSourceFilter');
+  if (!_logsTabInitialized) {
+    var downloadBtn = document.getElementById('btnLogsDownload');
+    var clearBtn = document.getElementById('btnLogsClear');
+    var levelFilter = document.getElementById('logsLevelFilter');
+    var sourceFilter = document.getElementById('logsSourceFilter');
 
-  if (downloadBtn) {
-    downloadBtn.addEventListener('click', downloadLogs);
-  }
-  if (clearBtn) {
-    clearBtn.addEventListener('click', clearLogs);
-  }
-  if (levelFilter) {
-    levelFilter.addEventListener('change', function () {
-      saveLogLevelToConfig(levelFilter.value);
-      loadLogs();
-    });
-  }
-  if (sourceFilter) {
-    var debounceTimer = null;
-    sourceFilter.addEventListener('input', function () {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(loadLogs, 400);
-    });
+    if (downloadBtn) {
+      downloadBtn.addEventListener('click', downloadLogs);
+    }
+    if (clearBtn) {
+      clearBtn.addEventListener('click', clearLogs);
+    }
+    if (levelFilter) {
+      levelFilter.addEventListener('change', function () {
+        saveLogLevelToConfig(levelFilter.value);
+        loadLogs();
+      });
+    }
+    if (sourceFilter) {
+      var debounceTimer = null;
+      sourceFilter.addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(loadLogs, 400);
+      });
+    }
+    _logsTabInitialized = true;
   }
 
   // Load persisted log level from config, then load logs

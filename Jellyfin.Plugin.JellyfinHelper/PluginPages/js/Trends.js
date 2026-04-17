@@ -9,18 +9,19 @@ function formatGranularityLabel(dateStr, granularity) {
 
     switch (granularity) {
         case 'yearly':
-            return d.getFullYear().toString();
-        case 'quarterly':
-            var q = Math.floor(d.getMonth() / 3) + 1;
-            return 'Q' + q + ' ' + d.getFullYear();
+            return d.getUTCFullYear().toString();
+        case 'quarterly': {
+            var q = Math.floor(d.getUTCMonth() / 3) + 1;
+            return 'Q' + q + ' ' + d.getUTCFullYear();
+        }
         case 'monthly':
-            return d.toLocaleDateString(undefined, {year: 'numeric', month: 'short'});
+            return d.toLocaleDateString(undefined, {year: 'numeric', month: 'short', timeZone: 'UTC'});
         case 'weekly':
-            return d.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+            return d.toLocaleDateString(undefined, {month: 'short', day: 'numeric', timeZone: 'UTC'});
         case 'daily':
-            return d.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+            return d.toLocaleDateString(undefined, {month: 'short', day: 'numeric', timeZone: 'UTC'});
         default:
-            return d.toLocaleDateString();
+            return d.toLocaleDateString(undefined, {timeZone: 'UTC'});
     }
 }
 

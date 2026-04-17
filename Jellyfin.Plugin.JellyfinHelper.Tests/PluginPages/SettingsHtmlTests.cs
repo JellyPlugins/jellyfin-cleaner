@@ -348,7 +348,7 @@ public class SettingsHtmlTests : ConfigPageTestBase
     }
 
     [Fact]
-    public void Html_SeerrDisabledWhenNotConfigured()
+    public void Html_SeerrWrapperElementsExist()
     {
         Assert.Contains("seerr-task-mode-wrapper", HtmlContent);
         Assert.Contains("seerr-age-wrapper", HtmlContent);
