@@ -74,7 +74,7 @@ public sealed class SeerrIntegrationService : ISeerrIntegrationService
         {
             throw;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException or UriFormatException or JsonException)
         {
             return (false, $"Connection failed: {ex.Message}");
         }
@@ -254,6 +254,10 @@ public sealed class SeerrIntegrationService : ISeerrIntegrationService
             var details = JsonSerializer.Deserialize<SeerrMediaDetails>(json, JsonOptions);
 
             return details?.DisplayTitle ?? "Unknown";
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException or JsonException)
         {

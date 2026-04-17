@@ -224,12 +224,20 @@ public class LinkRepairService : ILinkRepairService
         string normalizedTargetPath;
         try
         {
-            normalizedTargetPath = _fileSystem.Path.IsPathRooted(targetPath)
-                ? _fileSystem.Path.GetFullPath(targetPath)
+            // Convert file:// URIs to local paths before normalization
+            var pathToNormalize = targetPath;
+            if (Uri.TryCreate(targetPath, UriKind.Absolute, out var fileUri)
+                && fileUri.Scheme == Uri.UriSchemeFile)
+            {
+                pathToNormalize = fileUri.LocalPath;
+            }
+
+            normalizedTargetPath = _fileSystem.Path.IsPathRooted(pathToNormalize)
+                ? _fileSystem.Path.GetFullPath(pathToNormalize)
                 : _fileSystem.Path.GetFullPath(
                     _fileSystem.Path.Combine(
                         _fileSystem.Path.GetDirectoryName(linkFilePath) ?? string.Empty,
-                        targetPath));
+                        pathToNormalize));
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {

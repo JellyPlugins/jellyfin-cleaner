@@ -433,6 +433,30 @@ function apiPostRaw(path, rawBody, contentType, onSuccess, onError) {
 }
 
 /**
+ * Perform a GET request where 204 No Content is a valid (expected) response.
+ * Uses the native fetch API so we can inspect the HTTP status code.
+ * @param {string} path - Relative API path.
+ * @param {function} onSuccess - Callback with parsed JSON data (HTTP 200).
+ * @param {function} onNoContent - Callback when server returns 204 (no data yet).
+ * @param {function} [onError] - Optional error callback for network/server errors.
+ */
+function apiGetOptional(path, onSuccess, onNoContent, onError) {
+    var c = ApiClient;
+    var errHandler = onError || _apiDefaultError('GET', path);
+    fetch(c.getUrl(path), {
+        headers: {'Authorization': 'MediaBrowser Token="' + c.accessToken() + '"'}
+    }).then(function (response) {
+        if (response.status === 204) {
+            if (onNoContent) onNoContent();
+            return;
+        }
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.json().then(onSuccess || function () {
+        });
+    }).catch(errHandler);
+}
+
+/**
  * Fetch a resource as a Blob (e.g. file downloads).
  * Uses the native fetch API with Jellyfin auth header since ApiClient.ajax
  * does not support blob responses.
