@@ -14,11 +14,11 @@ function formatGranularityLabel(dateStr, granularity) {
             var q = Math.floor(d.getMonth() / 3) + 1;
             return 'Q' + q + ' ' + d.getFullYear();
         case 'monthly':
-            return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
+            return d.toLocaleDateString(undefined, {year: 'numeric', month: 'short'});
         case 'weekly':
-            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            return d.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
         case 'daily':
-            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            return d.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
         default:
             return d.toLocaleDateString();
     }
@@ -162,7 +162,7 @@ function renderTrendChart(timeline) {
     // show clean values like "5 TB", "10 TB" instead of "9.09 TB", "27.28 TB".
     // formatBytes() uses 1024-based divisions, so we must calculate in the same base.
     var niceTickCount = 4;
-    var binaryUnits = [1, 1024, 1024*1024, 1024*1024*1024, 1024*1024*1024*1024, 1024*1024*1024*1024*1024];
+    var binaryUnits = [1, 1024, 1024 * 1024, 1024 * 1024 * 1024, 1024 * 1024 * 1024 * 1024, 1024 * 1024 * 1024 * 1024 * 1024];
     var unitIdx = 0;
     var humanMax = rawMax;
     while (humanMax >= 1024 && unitIdx < binaryUnits.length - 1) {
@@ -218,7 +218,8 @@ function renderTrendChart(timeline) {
     svg += '<polygon points="' + areaPoints + '" fill="rgba(0,164,220,0.15)" />';
 
     // Line
-    svg += '<polyline points="' + points.join(' ') + '" fill="none" stroke="#00a4dc" stroke-width="2" />';
+    var trendColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#00a4dc';
+    svg += '<polyline points="' + points.join(' ') + '" fill="none" stroke="' + trendColor + '" stroke-width="2" />';
 
     // Invisible interaction overlay — full chart area rect for mouse/touch tracking
     svg += '<rect class="trend-hit-area" x="' + padL + '" y="' + padT + '" width="' + chartW + '" height="' + chartH + '" fill="transparent" />';
@@ -228,7 +229,7 @@ function renderTrendChart(timeline) {
     if (dotRadius > 0) {
         for (var k = 0; k < points.length; k++) {
             var coords = points[k].split(',');
-            svg += '<circle cx="' + coords[0] + '" cy="' + coords[1] + '" r="' + dotRadius + '" fill="#00a4dc" opacity="0.6" />';
+            svg += '<circle cx="' + coords[0] + '" cy="' + coords[1] + '" r="' + dotRadius + '" fill="' + trendColor + '" opacity="0.6" />';
         }
     }
 
@@ -498,13 +499,16 @@ function attachTrendInteraction(container) {
     var hideTimeoutId = null;
 
     svgEl.addEventListener('touchstart', function (e) {
-        if (hideTimeoutId) { clearTimeout(hideTimeoutId); hideTimeoutId = null; }
+        if (hideTimeoutId) {
+            clearTimeout(hideTimeoutId);
+            hideTimeoutId = null;
+        }
         if (e.touches.length === 1) {
             var idx = getPointIndex(e.touches[0].clientX);
             showTooltip(idx);
             updateDiffPanel(idx);
         }
-    }, { passive: true });
+    }, {passive: true});
 
     svgEl.addEventListener('touchmove', function (e) {
         if (e.touches.length === 1) {
@@ -512,22 +516,32 @@ function attachTrendInteraction(container) {
             showTooltip(idx);
             updateDiffPanel(idx);
         }
-    }, { passive: true });
+    }, {passive: true});
 
     svgEl.addEventListener('touchend', function () {
         // Keep tooltip visible briefly after touch ends, then hide
-        if (hideTimeoutId) { clearTimeout(hideTimeoutId); }
-        hideTimeoutId = setTimeout(function () { hideTooltip(); hideTimeoutId = null; }, 1500);
-    }, { passive: true });
+        if (hideTimeoutId) {
+            clearTimeout(hideTimeoutId);
+        }
+        hideTimeoutId = setTimeout(function () {
+            hideTooltip();
+            hideTimeoutId = null;
+        }, 1500);
+    }, {passive: true});
 
     svgEl.addEventListener('touchcancel', function () {
-        if (hideTimeoutId) { clearTimeout(hideTimeoutId); }
+        if (hideTimeoutId) {
+            clearTimeout(hideTimeoutId);
+        }
         hideTooltip();
         hideTimeoutId = null;
-    }, { passive: true });
+    }, {passive: true});
 }
 
+var _trendLoadRequestSeq = 0;
+
 function loadTrendData(forceRefresh) {
+    var requestSeq = ++_trendLoadRequestSeq;
     var apiClient = ApiClient;
     var url = apiClient.getUrl('JellyfinHelper/GrowthTimeline');
     if (forceRefresh) {
@@ -539,12 +553,14 @@ function loadTrendData(forceRefresh) {
         url: url,
         dataType: 'json'
     }).then(function (timeline) {
+        if (requestSeq !== _trendLoadRequestSeq) return;
         var container = document.getElementById('trendChartContainer');
         if (container) {
             container.innerHTML = renderTrendChart(timeline);
             attachTrendInteraction(container);
         }
     }, function () {
+        if (requestSeq !== _trendLoadRequestSeq) return;
         var container = document.getElementById('trendChartContainer');
         if (container) {
             container.innerHTML = '<div class="trend-empty">' + T('trendError', 'Could not load trend data.') + '</div>';

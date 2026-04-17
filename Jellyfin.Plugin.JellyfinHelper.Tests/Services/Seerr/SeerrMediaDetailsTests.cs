@@ -193,7 +193,9 @@ public class SeerrMediaDetailsTests
         var details = new SeerrMediaDetails { Title = "Test Movie", Name = "Test Show" };
         var json = JsonSerializer.Serialize(details);
 
-        Assert.DoesNotContain("displayTitle", json, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("DisplayTitle", json);
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        Assert.DoesNotContain(
+            doc.RootElement.EnumerateObject(),
+            p => string.Equals(p.Name, "displayTitle", StringComparison.OrdinalIgnoreCase));
     }
 }

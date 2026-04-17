@@ -130,15 +130,13 @@ public class SettingsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_TrashDisableDialog_CallsGetTrashFoldersEndpoint()
     {
-        Assert.Matches(
-            new Regex(@"type\s*:\s*['""]GET['""].*JellyfinHelper/Trash/Folders", RegexOptions.Singleline),
-            HtmlContent);
+        Assert.Contains("apiGet('JellyfinHelper/Trash/Folders'", HtmlContent);
     }
 
     [Fact]
     public void Html_TrashDisableDialog_CallsDeleteTrashFoldersEndpoint()
     {
-        Assert.Contains("type: 'DELETE', url: apiClient.getUrl('JellyfinHelper/Trash/Folders')", HtmlContent);
+        Assert.Contains("apiDelete('JellyfinHelper/Trash/Folders'", HtmlContent);
     }
 
     [Fact]

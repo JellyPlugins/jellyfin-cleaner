@@ -22,13 +22,13 @@ function buildBarSegments(data) {
 
     var videoTotal = data.TotalMovieVideoSize + data.TotalTvShowVideoSize;
     var categories = [
-        { cls: 'bar-video', bytes: videoTotal, labelKey: 'video', labelFallback: 'Video' },
-        { cls: 'bar-audio', bytes: data.TotalMusicAudioSize, labelKey: 'audio', labelFallback: 'Audio' },
-        { cls: 'bar-subtitle', bytes: data.TotalSubtitleSize, labelKey: 'subtitles', labelFallback: 'Subtitles' },
-        { cls: 'bar-image', bytes: data.TotalImageSize, labelKey: 'images', labelFallback: 'Images' },
-        { cls: 'bar-trickplay', bytes: data.TotalTrickplaySize, labelKey: 'trickplay', labelFallback: 'Trickplay' },
-        { cls: 'bar-nfo', bytes: data.TotalNfoSize, labelKey: 'metadata', labelFallback: 'Metadata' },
-        { cls: 'bar-other', bytes: otherSize, labelKey: 'other', labelFallback: 'Other' }
+        {cls: 'bar-video', bytes: videoTotal, labelKey: 'video', labelFallback: 'Video'},
+        {cls: 'bar-audio', bytes: data.TotalMusicAudioSize, labelKey: 'audio', labelFallback: 'Audio'},
+        {cls: 'bar-subtitle', bytes: data.TotalSubtitleSize, labelKey: 'subtitles', labelFallback: 'Subtitles'},
+        {cls: 'bar-image', bytes: data.TotalImageSize, labelKey: 'images', labelFallback: 'Images'},
+        {cls: 'bar-trickplay', bytes: data.TotalTrickplaySize, labelKey: 'trickplay', labelFallback: 'Trickplay'},
+        {cls: 'bar-nfo', bytes: data.TotalNfoSize, labelKey: 'metadata', labelFallback: 'Metadata'},
+        {cls: 'bar-other', bytes: otherSize, labelKey: 'other', labelFallback: 'Other'}
     ];
 
     var barHtml = '<div class="total-bar">';
@@ -51,8 +51,7 @@ function buildBarSegments(data) {
 }
 
 function loadCleanupStats() {
-    var apiClient = ApiClient;
-    apiClient.ajax({ type: 'GET', url: apiClient.getUrl('JellyfinHelper/CleanupStatistics'), dataType: 'json' }).then(function (stats) {
+    apiGet('JellyfinHelper/CleanupStatistics', function (stats) {
         var cleanupContainer = document.getElementById('cleanup-stats-container');
         if (!cleanupContainer) return;
         var h = '<div class="section-title">🧹 ' + T('cleanupStatistics', 'Cleanup Statistics') + '</div>';
@@ -119,7 +118,7 @@ function fillOverviewData(data) {
 
     var grandTotal = 0;
     for (var gt = 0; gt < data.Libraries.length; gt++) grandTotal += data.Libraries[gt].TotalSize;
-    overviewHtml += '<div class="section-title">⛃ ' + T('storageDistribution', 'Storage Distribution') + ' — <span style="color:#00a4dc;">' + formatBytes(grandTotal) + ' ' + T('total', 'Total') + '</span></div>';
+    overviewHtml += '<div class="section-title">⛃ ' + T('storageDistribution', 'Storage Distribution') + ' — <span class="color-primary">' + formatBytes(grandTotal) + ' ' + T('total', 'Total') + '</span></div>';
     overviewHtml += buildBarSegments(data);
 
     overviewHtml += '<div class="section-title">📚 ' + T('perLibraryBreakdown', 'Per-Library Breakdown') + '</div>';

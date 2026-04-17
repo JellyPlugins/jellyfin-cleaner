@@ -55,7 +55,7 @@ function checkUnsavedAndProceed(onProceed) {
     var d = createDialogOverlay(
         'unsavedDialogOverlay',
         '⚠️ ' + T('unsavedChangesTitle', 'Unsaved Changes'),
-        '#00a4dc',
+        getCssVar('--color-primary', '#00a4dc'),
         T('unsavedChangesMsg', 'You have unsaved settings changes. What would you like to do?'),
         false
     );
@@ -107,12 +107,7 @@ function rebuildUI() {
 function loadSettings() {
     var form = document.getElementById('settingsForm');
     if (!form) return;
-    var apiClient = ApiClient;
-    apiClient.ajax({
-        type: 'GET',
-        url: apiClient.getUrl('JellyfinHelper/Configuration'),
-        dataType: 'json'
-    }).then(function (cfg) {
+    apiGet('JellyfinHelper/Configuration', function (cfg) {
         // Remember the current language for change detection
         _currentLang = cfg.Language || 'en';
         // Remember log level so Settings save doesn't reset it
@@ -211,9 +206,7 @@ function loadSettings() {
 
         // --- Radarr Instances ---
         h += '<div class="section-title">' + T('settingsArrTitle', 'Arr stack settings') + '</div>';
-        var radarrInstances = cfg.RadarrInstances && cfg.RadarrInstances.length > 0
-            ? cfg.RadarrInstances
-            : (cfg.RadarrUrl ? [{Name: 'Radarr', Url: cfg.RadarrUrl, ApiKey: cfg.RadarrApiKey}] : []);
+        var radarrInstances = resolveArrInstances(cfg, 'Radarr');
         var radarrCount = radarrInstances.length;
         h += '<div class="arr-collapsible' + (radarrCount === 0 ? ' arr-expanded' : '') + '" id="arrCollapsibleRadarr">';
         h += renderArrCollapseButton(radarrCount === 0, '<span>🎬</span>', T('radarrInstances', 'Radarr Instances'), createArrCountText(radarrCount), 'Radarr');
@@ -222,9 +215,7 @@ function loadSettings() {
         h += '</div></div>';
 
         // --- Sonarr Instances ---
-        var sonarrInstances = cfg.SonarrInstances && cfg.SonarrInstances.length > 0
-            ? cfg.SonarrInstances
-            : (cfg.SonarrUrl ? [{Name: 'Sonarr', Url: cfg.SonarrUrl, ApiKey: cfg.SonarrApiKey}] : []);
+        var sonarrInstances = resolveArrInstances(cfg, 'Sonarr');
         var sonarrCount = sonarrInstances.length;
         h += '<div class="arr-collapsible' + (sonarrCount === 0 ? ' arr-expanded' : '') + '" id="arrCollapsibleSonarr">';
         h += renderArrCollapseButton(sonarrCount === 0, '<span>📺</span>', T('sonarrInstances', 'Sonarr Instances'), createArrCountText(sonarrCount), 'Sonarr');
@@ -243,7 +234,7 @@ function loadSettings() {
         h += '<label class="action-btn" id="btnBackupImportLabel" style="flex:1;min-width:0;padding:0.5em 1.2em;cursor:pointer;margin:0;text-align:center;justify-content:center;">📤 ' + T('backupImport', 'Import Backup') + '<input type="file" id="btnBackupImportFile" accept=".json,application/json" style="display:none;"></label>';
         h += '</div>';
         h += '<div id="backupMsg" style="margin-top:0.5em;"></div>';
-        
+
         form.innerHTML = h;
         document.getElementById('btnSaveSettings').addEventListener('click', saveSettings);
         attachRemoveHandlers();
@@ -312,11 +303,7 @@ function doSaveSettings(payload, options) {
         btn.innerHTML = '<span class="btn-spinner"></span>' + T('savingSettings', 'Saving Settings...');
     }
 
-    var apiClient = ApiClient;
-    apiClient.ajax({
-        type: 'POST', url: apiClient.getUrl('JellyfinHelper/Configuration'),
-        data: JSON.stringify(payload), contentType: 'application/json'
-    }).then(function () {
+    apiPost('JellyfinHelper/Configuration', payload, function () {
         var trashChanged = (!!payload.UseTrash) !== _wasTrashEnabled;
         _wasTrashEnabled = payload.UseTrash;
         _currentLang = payload.Language;
@@ -331,13 +318,8 @@ function doSaveSettings(payload, options) {
         if (quiet) {
             showAutoSaveIndicator(indicatorEl, true);
         } else {
-            btn.innerHTML = '<div style="display: flex; align-items: center"><span class="btn-icon">✔</span>' + T('settingsSaved', 'Settings saved!') + '</div>';
-            btn.classList.add('success');
             btn.disabled = false;
-            setTimeout(function () {
-                btn.innerHTML = T('saveSettings', 'Save Settings');
-                btn.classList.remove('success');
-            }, 3000);
+            showButtonFeedback(btn, true, T('settingsSaved', 'Settings saved!'), T('saveSettings', 'Save Settings'));
         }
 
         initArrButtons(payload);
@@ -355,65 +337,12 @@ function doSaveSettings(payload, options) {
             showAutoSaveIndicator(indicatorEl, false);
         } else {
             btn.disabled = false;
-            btn.innerHTML = '<div style="display: flex; align-items: center"><span class="btn-icon">X</span>' + T('settingsError', 'Failed to save settings.') + '</div>';
-            btn.classList.add('error');
-            setTimeout(function () {
-                btn.innerHTML = T('saveSettings', 'Save Settings');
-                btn.classList.remove('error');
-            }, 5000);
+            showButtonFeedback(btn, false, T('settingsError', 'Failed to save settings.'), T('saveSettings', 'Save Settings'));
         }
     });
 }
 
-// --- Dialog Helpers ---
-// Creates a modal dialog overlay with title, body, and button row.
-// Returns { overlay, dialog, btnRow } so callers can add buttons.
-function createDialogOverlay(overlayId, titleText, titleColor, bodyContent, bodyUseHtml) {
-    var overlay = document.createElement('div');
-    overlay.id = overlayId;
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;';
-
-    var dialog = document.createElement('div');
-    dialog.style.cssText = 'background:#1c1c1e;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:1.5em 2em;max-width:550px;width:90%;color:#fff;font-size:0.95em;';
-
-    var title = document.createElement('h3');
-    title.style.cssText = 'margin:0 0 0.8em 0;color:' + titleColor + ';';
-    title.textContent = titleText;
-    dialog.appendChild(title);
-
-    var body = document.createElement('div');
-    body.style.cssText = 'white-space:pre-wrap;margin-bottom:1.2em;line-height:1.5;opacity:0.9;';
-    if (bodyUseHtml) {
-        body.innerHTML = bodyContent;
-    } else {
-        body.textContent = bodyContent;
-    }
-    dialog.appendChild(body);
-
-    var btnRow = document.createElement('div');
-    btnRow.style.cssText = 'display:flex;gap:0.8em;justify-content:flex-end;flex-wrap:wrap;';
-    dialog.appendChild(btnRow);
-    overlay.appendChild(dialog);
-
-    return {overlay: overlay, dialog: dialog, btnRow: btnRow};
-}
-
-// Creates a styled dialog button.
-// style: 'cancel' (transparent), 'danger' (#e74c3c), 'success' (#2ecc71), 'warning' (#00a4dc)
-function createDialogBtn(text, style, onclick) {
-    var btn = document.createElement('button');
-    btn.textContent = text;
-    var bg = style === 'cancel' ? 'transparent' : style === 'danger' ? '#e74c3c' : style === 'success' ? '#2ecc71' : '#00a4dc';
-    var border = style === 'cancel' ? '1px solid rgba(255,255,255,0.2)' : 'none';
-    btn.style.cssText = 'padding:0.5em 1.2em;border:' + border + ';border-radius:4px;background:' + bg + ';color:#fff;cursor:pointer;font-size:0.9em;';
-    btn.onclick = onclick;
-    return btn;
-}
-
-function removeDialogById(id) {
-    var existing = document.getElementById(id);
-    if (existing) existing.remove();
-}
+// Dialog helpers (createDialogOverlay, createDialogBtn, removeDialogById) are now in shared.js
 
 function removeTrashDialog() {
     removeDialogById('trashDialogOverlay');
@@ -429,11 +358,8 @@ function formatPathList(paths) {
 
 function showTrashDisableDialog(payload) {
     var saveBtn = document.getElementById('btnSaveSettings');
-    var apiClient = ApiClient;
 
-    apiClient.ajax({
-        type: 'GET', url: apiClient.getUrl('JellyfinHelper/Trash/Folders'), dataType: 'json'
-    }).then(function (data) {
+    apiGet('JellyfinHelper/Trash/Folders', function (data) {
         var paths = data.Paths || [];
         if (paths.length === 0) {
             doSaveSettings(payload);
@@ -445,7 +371,7 @@ function showTrashDisableDialog(payload) {
             + '\n\n' + T('trashDisableQuestion', 'What should happen with these folders?');
 
         removeTrashDialog();
-        var d = createDialogOverlay('trashDialogOverlay', '🗑️ ' + T('trashDisableTitle', 'Trash Folders Detected'), '#e74c3c', bodyText, false);
+        var d = createDialogOverlay('trashDialogOverlay', '🗑️ ' + T('trashDisableTitle', 'Trash Folders Detected'), getCssVar('--color-danger', '#e74c3c'), bodyText, false);
 
         d.btnRow.appendChild(createDialogBtn(T('cancel', 'Cancel'), 'cancel', function () {
             removeTrashDialog();
@@ -476,7 +402,7 @@ function showTrashDeleteConfirmation(payload, paths) {
         + formatPathList(paths)
         + '\n\n' + T('trashDeleteConfirmWarn', 'This action cannot be undone!');
 
-    var d = createDialogOverlay('trashDialogOverlay', '⚠️ ' + T('trashDeleteConfirmTitle', 'Are you sure?'), '#e74c3c', bodyText, false);
+    var d = createDialogOverlay('trashDialogOverlay', '⚠️ ' + T('trashDeleteConfirmTitle', 'Are you sure?'), getCssVar('--color-danger', '#e74c3c'), bodyText, false);
 
     d.btnRow.appendChild(createDialogBtn(T('cancel', 'Cancel'), 'cancel', function () {
         removeTrashDialog();
@@ -488,10 +414,7 @@ function showTrashDeleteConfirmation(payload, paths) {
         removeTrashDialog();
         msg.innerHTML = '<div style="opacity:0.6;">🗑️ ' + T('trashDeleting', 'Deleting trash folders…') + '</div>';
 
-        var apiClient = ApiClient;
-        apiClient.ajax({
-            type: 'DELETE', url: apiClient.getUrl('JellyfinHelper/Trash/Folders'), dataType: 'json'
-        }).then(function (result) {
+        apiDelete('JellyfinHelper/Trash/Folders', function (result) {
             var summary = '';
             if (result.deleted > 0) {
                 summary += '✅ ' + T('trashDeletedCount', 'Deleted') + ': ' + result.deleted + ' ' + T('folders', 'folders');
@@ -536,10 +459,7 @@ function triggerBackupExport() {
     btn.disabled = true;
     msg.innerHTML = '';
 
-    var apiClient = ApiClient;
-    var url = apiClient.getUrl('JellyfinHelper/Backup/Export');
-
-    apiClient.ajax({type: 'GET', url: url, dataType: 'text'}).then(function (data) {
+    apiGetText('JellyfinHelper/Backup/Export', function (data) {
         var content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
         var blob = new Blob([content], {type: 'application/json'});
         var blobUrl = URL.createObjectURL(blob);
@@ -589,9 +509,9 @@ function showBackupImportConfirmation(file) {
 
     var bodyHtml = '<p>' + T('backupImportConfirmMsg', 'This will overwrite your current settings, Arr integrations, and trend data with the backup data.') + '</p>'
         + '<p><strong>' + T('backupImportConfirmFile', 'File') + ':</strong> ' + escHtml(file.name) + ' (' + formatBytes(file.size) + ')</p>'
-        + '<p style="color:#e74c3c;">' + T('backupImportConfirmWarn', 'This action cannot be undone!') + '</p>';
+        + '<p class="color-danger">' + T('backupImportConfirmWarn', 'This action cannot be undone!') + '</p>';
 
-    var d = createDialogOverlay('backupDialogOverlay', '📤 ' + T('backupImportConfirmTitle', 'Import Backup'), '#00a4dc', bodyHtml, true);
+    var d = createDialogOverlay('backupDialogOverlay', '📤 ' + T('backupImportConfirmTitle', 'Import Backup'), getCssVar('--color-primary', '#00a4dc'), bodyHtml, true);
 
     d.btnRow.appendChild(createDialogBtn(T('cancel', 'Cancel'), 'cancel', function () {
         removeBackupDialog();
@@ -624,15 +544,7 @@ function doBackupImport(file) {
             return;
         }
 
-        var apiClient = ApiClient;
-        var url = apiClient.getUrl('JellyfinHelper/Backup/Import');
-
-        apiClient.ajax({
-            type: 'POST',
-            url: url,
-            data: json,
-            contentType: 'application/json'
-        }).then(function (result) {
+        apiPostRaw('JellyfinHelper/Backup/Import', json, 'application/json', function (result) {
             var data = typeof result === 'string' ? JSON.parse(result) : result;
             var summary = data.Summary || data.summary || {};
             var parts = [];
@@ -648,7 +560,7 @@ function doBackupImport(file) {
             // Show warnings if any
             var warnings = data.Warnings || data.warnings || [];
             if (warnings.length > 0) {
-                successMsg += '<br><span style="color:#e67e22;">⚠️ ' + warnings.length + ' ' + T('backupWarnings', 'warning(s)') + ':</span>';
+                successMsg += '<br><span class="color-warning">⚠️ ' + warnings.length + ' ' + T('backupWarnings', 'warning(s)') + ':</span>';
                 for (var i = 0; i < Math.min(warnings.length, 5); i++) {
                     successMsg += '<br><span style="opacity:0.7;font-size:0.85em;">• ' + escHtml(warnings[i]) + '</span>';
                 }
@@ -663,31 +575,23 @@ function doBackupImport(file) {
             var scrollContainer = document.querySelector('.mainAnimatedPage') || document.documentElement;
             var savedScroll = scrollContainer.scrollTop;
 
+            function reloadAfterImport() {
+                loadTranslations(function () {
+                    rebuildUI();
+                    var settingsBtn = document.querySelector('.tab-btn[data-tab="settings"]');
+                    if (settingsBtn) settingsBtn.click();
+                    setTimeout(function () {
+                        scrollContainer.scrollTop = savedScroll;
+                    }, 50);
+                });
+            }
+
             setTimeout(function () {
-                ApiClient.ajax({
-                    type: 'GET',
-                    url: ApiClient.getUrl('JellyfinHelper/Configuration'),
-                    dataType: 'json'
-                }).then(function (cfg) {
+                apiGet('JellyfinHelper/Configuration', function (cfg) {
                     _currentLang = (cfg && cfg.Language) || _currentLang;
-                    loadTranslations(function () {
-                        rebuildUI();
-                        var settingsBtn = document.querySelector('.tab-btn[data-tab="settings"]');
-                        if (settingsBtn) settingsBtn.click();
-                        setTimeout(function () {
-                            scrollContainer.scrollTop = savedScroll;
-                        }, 50);
-                    });
+                    reloadAfterImport();
                 }, function () {
-                    // Config load failed — reload with current language
-                    loadTranslations(function () {
-                        rebuildUI();
-                        var settingsBtn = document.querySelector('.tab-btn[data-tab="settings"]');
-                        if (settingsBtn) settingsBtn.click();
-                        setTimeout(function () {
-                            scrollContainer.scrollTop = savedScroll;
-                        }, 50);
-                    });
+                    reloadAfterImport();
                 });
             }, 1500);
         }, function (err) {
@@ -723,57 +627,26 @@ function attachSeerrHandlers() {
         }
 
         if (!url || !key) {
-            btn.innerHTML = '<span class="btn-icon">X</span>' + T('seerrFillFields', 'Please fill in URL and API Key first.');
-            btn.classList.add('error');
-            _seerrTimer = setTimeout(function () {
-                btn.innerHTML = originalHtml;
-                btn.classList.remove('error');
-                _seerrTimer = null;
-            }, 3000);
+            _seerrTimer = showButtonFeedback(btn, false, T('seerrFillFields', 'Please fill in URL and API Key first.'), originalHtml, 3000);
             return;
         }
         btn.disabled = true;
         btn.innerHTML = '<span class="btn-spinner"></span>' + T('testing', 'Testing…');
-        var apiClient = ApiClient;
-        apiClient.ajax({
-            type: 'POST',
-            url: apiClient.getUrl('JellyfinHelper/Seerr/Test'),
-            data: JSON.stringify({Url: url, ApiKey: key}),
-            contentType: 'application/json',
-            dataType: 'json'
-        }).then(function (res) {
+        apiPost('JellyfinHelper/Seerr/Test', {Url: url, ApiKey: key}, function (res) {
             btn.disabled = false;
             if (res && res.success) {
-                btn.innerHTML = '<span class="btn-icon">✔</span>' + escHtml(res.message || 'OK');
-                btn.classList.add('success');
+                _seerrTimer = showButtonFeedback(btn, true, escHtml(res.message || 'OK'), originalHtml);
                 // Auto-save settings after successful connection test
                 var payload = buildSettingsPayload();
                 doSaveSettings(payload);
                 // Enable previously greyed-out Seerr UI sections
                 updateSeerrUIState(true);
-                _seerrTimer = setTimeout(function () {
-                    btn.innerHTML = originalHtml;
-                    btn.classList.remove('success');
-                    _seerrTimer = null;
-                }, 3000);
             } else {
-                btn.innerHTML = '<span class="btn-icon">X</span>' + escHtml(res.message || 'Failed');
-                btn.classList.add('error');
-                _seerrTimer = setTimeout(function () {
-                    btn.innerHTML = originalHtml;
-                    btn.classList.remove('error');
-                    _seerrTimer = null;
-                }, 5000);
+                _seerrTimer = showButtonFeedback(btn, false, escHtml(res.message || 'Failed'), originalHtml);
             }
         }, function () {
             btn.disabled = false;
-            btn.innerHTML = '<span class="btn-icon">X</span>' + T('connectionFailed', 'Connection failed.');
-            btn.classList.add('error');
-            _seerrTimer = setTimeout(function () {
-                btn.innerHTML = originalHtml;
-                btn.classList.remove('error');
-                _seerrTimer = null;
-            }, 5000);
+            _seerrTimer = showButtonFeedback(btn, false, T('connectionFailed', 'Connection failed.'), originalHtml);
         });
     });
 }

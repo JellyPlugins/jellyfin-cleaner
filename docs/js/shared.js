@@ -15,6 +15,15 @@ var SVG = {
         + '</svg>'
 };
 
+/**
+ * Reads a CSS custom property from :root.
+ * Falls back to the provided default if the property is not set.
+ */
+function getCssVar(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name);
+    return (v && v.trim()) || fallback || '';
+}
+
 // Translation helper — loaded async from /JellyfinHelper/Translations
 var _translations = {};
 
@@ -26,8 +35,7 @@ function T(key, fallback) {
 
 function loadTranslations(callback) {
     try {
-        var apiClient = ApiClient;
-        apiClient.ajax({ type: 'GET', url: apiClient.getUrl('JellyfinHelper/Translations'), dataType: 'json' }).then(function (t) {
+        apiGet('JellyfinHelper/Translations', function (t) {
             _translations = t || {};
             if (callback) callback();
         }, function () {
@@ -64,8 +72,13 @@ function formatBytes(bytes) {
     return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + units[i];
 }
 
-function escAttr(s) { return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
-function escHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function escAttr(s) {
+    return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function escHtml(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 
 function getFileName(fullPath) {
     if (!fullPath) return '';
@@ -99,12 +112,14 @@ function getPathSegments(fullPath, rootPaths) {
         normalized = normalized.substring(offset);
     }
 
-    return normalized.split('/').filter(function (s) { return s.length > 0; });
+    return normalized.split('/').filter(function (s) {
+        return s.length > 0;
+    });
 }
 
 // Builds a nested tree structure from a list of paths
 function buildPathTree(paths, rootPaths) {
-    var root = { name: 'root', children: {}, items: [] };
+    var root = {name: 'root', children: {}, items: []};
     for (var i = 0; i < paths.length; i++) {
         var path = paths[i];
         var segments = getPathSegments(path, rootPaths || []);
@@ -113,13 +128,13 @@ function buildPathTree(paths, rootPaths) {
         for (var j = 0; j < segments.length - 1; j++) {
             var segment = segments[j];
             if (!currentNode.children[segment]) {
-                currentNode.children[segment] = { name: segment, children: {}, items: [] };
+                currentNode.children[segment] = {name: segment, children: {}, items: []};
             }
             currentNode = currentNode.children[segment];
         }
 
         var leafName = segments.length > 0 ? segments[segments.length - 1] : path;
-        currentNode.items.push({ name: leafName, fullPath: path });
+        currentNode.items.push({name: leafName, fullPath: path});
     }
     return root;
 }
@@ -137,18 +152,18 @@ function countTreeItems(node) {
 function renderTreeLevel(node, level, icon) {
     var html = '';
     var sortedChildren = Object.keys(node.children).sort();
-    
+
     for (var i = 0; i < sortedChildren.length; i++) {
         var childName = sortedChildren[i];
         var childNode = node.children[childName];
         var hasContent = Object.keys(childNode.children).length > 0 || childNode.items.length > 0;
-        
+
         html += '<div class="tree-node">';
         html += '<div class="tree-folder' + (hasContent ? ' tree-toggle' : '') + '" tabindex="0" role="button" aria-expanded="false" onclick="this.parentElement.classList.toggle(\'tree-expanded\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.parentElement.classList.toggle(\'tree-expanded\')}">';
         html += '<span class="tree-icon">' + (hasContent ? '📁' : '📂') + '</span>';
         html += '<span class="tree-name">' + escHtml(childName) + '</span> <span class="tree-name-count">(' + countTreeItems(childNode) + ')</span>';
         html += '</div>';
-        
+
         if (hasContent) {
             html += '<div class="tree-children">';
             html += renderTreeLevel(childNode, level + 1, icon);
@@ -246,10 +261,12 @@ function aggregateDict(libraries, prop) {
     }
     return result;
 }
+
 /**
  * Reusable auto-save feedback indicator.
  * Shows a brief ✔ or ✘ next to the given element, then fades out.
- * @param {HTMLElement} element - The form element (select, input, etc.) to attach the indicator to.
+ * Can be attached to any element — the indicator is inserted as a sibling.
+ * @param {HTMLElement} element - The element to attach the indicator next to.
  * @param {boolean} [success=true] - true = green ✔, false = red ✘
  */
 function showAutoSaveIndicator(element, success) {
@@ -264,13 +281,510 @@ function showAutoSaveIndicator(element, success) {
     var span = document.createElement('span');
     span.className = cls;
     span.style.cssText = 'margin-left:0.4em;font-size:0.95em;transition:opacity 0.4s;opacity:0;';
-    span.style.color = success !== false ? '#2ecc71' : '#e74c3c';
+    span.style.color = success !== false ? getCssVar('--color-success', '#2ecc71') : getCssVar('--color-danger', '#e74c3c');
     span.textContent = success !== false ? '✔' : '✘';
     element.parentNode.insertBefore(span, element.nextSibling);
     // Force reflow then fade in
     void span.offsetWidth;
     span.style.opacity = '1';
     var fadeDelay = success !== false ? 2000 : 3000;
-    span._fadeTimer = setTimeout(function () { span.style.opacity = '0'; }, fadeDelay);
-    span._removeTimer = setTimeout(function () { if (span.parentNode) span.remove(); }, fadeDelay + 500);
+    span._fadeTimer = setTimeout(function () {
+        span.style.opacity = '0';
+    }, fadeDelay);
+    span._removeTimer = setTimeout(function () {
+        if (span.parentNode) span.remove();
+    }, fadeDelay + 500);
+}
+
+/**
+ * Reusable button feedback for success / error states.
+ * Switches the button content to a ✔ or ✘ icon + message, adds a CSS class,
+ * then resets to the original content after a timeout.
+ *
+ * @param {HTMLElement} btn - The button element.
+ * @param {boolean} success - true = green success, false = red error.
+ * @param {string} message - Text to display alongside the icon.
+ * @param {string} originalHtml - HTML to restore after the timeout.
+ * @param {number} [timeout] - ms before reset (default: 3000 for success, 5000 for error).
+ * @returns {number} The timer ID so callers can clear it if needed.
+ */
+function showButtonFeedback(btn, success, message, originalHtml, timeout) {
+    if (!btn) return 0;
+    var icon = success ? '✔' : '✘';
+    var cls = success ? 'success' : 'error';
+    var delay = timeout || (success ? 3000 : 5000);
+    btn.innerHTML = '<span class="btn-icon">' + icon + '</span>' + message;
+    btn.classList.add(cls);
+    return setTimeout(function () {
+        btn.innerHTML = originalHtml;
+        btn.classList.remove(cls);
+    }, delay);
+}
+
+// ============================================================
+// API Wrapper — centralizes ApiClient.ajax() calls
+// ============================================================
+
+/**
+ * Default error handler for API calls — logs to console so failures are never silent.
+ */
+function _apiDefaultError(method, path) {
+    return function (err) {
+        console.error('JellyfinHelper ' + method + ' failed: ' + path, err);
+    };
+}
+
+/**
+ * Perform a GET request to a JellyfinHelper endpoint.
+ * @param {string} path - Relative API path (e.g. 'JellyfinHelper/Configuration').
+ * @param {function} onSuccess - Callback with parsed JSON data.
+ * @param {function} [onError] - Optional error callback (defaults to console.error).
+ */
+function apiGet(path, onSuccess, onError) {
+    var c = ApiClient;
+    c.ajax({type: 'GET', url: c.getUrl(path), dataType: 'json'}).then(
+        onSuccess || function () {
+        },
+        onError || _apiDefaultError('GET', path)
+    );
+}
+
+/**
+ * Perform a POST request to a JellyfinHelper endpoint.
+ * @param {string} path - Relative API path.
+ * @param {Object|string} payload - Data to send (will be JSON-stringified if object).
+ * @param {function} onSuccess - Callback with response data.
+ * @param {function} [onError] - Optional error callback (defaults to console.error).
+ */
+function apiPost(path, payload, onSuccess, onError) {
+    var c = ApiClient;
+    var body = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    c.ajax({type: 'POST', url: c.getUrl(path), data: body, contentType: 'application/json', dataType: 'json'}).then(
+        onSuccess || function () {
+        },
+        onError || _apiDefaultError('POST', path)
+    );
+}
+
+/**
+ * Perform a PUT request to a JellyfinHelper endpoint.
+ * @param {string} path - Relative API path.
+ * @param {Object|string} payload - Data to send (will be JSON-stringified if object).
+ * @param {function} onSuccess - Callback with response data.
+ * @param {function} [onError] - Optional error callback (defaults to console.error).
+ */
+function apiPut(path, payload, onSuccess, onError) {
+    var c = ApiClient;
+    var body = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    c.ajax({type: 'PUT', url: c.getUrl(path), data: body, contentType: 'application/json'}).then(
+        onSuccess || function () {
+        },
+        onError || _apiDefaultError('PUT', path)
+    );
+}
+
+/**
+ * Perform a DELETE request to a JellyfinHelper endpoint.
+ * @param {string} path - Relative API path.
+ * @param {function} onSuccess - Callback with response data.
+ * @param {function} [onError] - Optional error callback (defaults to console.error).
+ */
+function apiDelete(path, onSuccess, onError) {
+    var c = ApiClient;
+    c.ajax({type: 'DELETE', url: c.getUrl(path), dataType: 'json'}).then(
+        onSuccess || function () {
+        },
+        onError || _apiDefaultError('DELETE', path)
+    );
+}
+
+/**
+ * Perform a GET request that returns plain text (not JSON).
+ * @param {string} path - Relative API path.
+ * @param {function} onSuccess - Callback with text data.
+ * @param {function} [onError] - Optional error callback (defaults to console.error).
+ */
+function apiGetText(path, onSuccess, onError) {
+    var c = ApiClient;
+    c.ajax({type: 'GET', url: c.getUrl(path), dataType: 'text'}).then(
+        onSuccess || function () {
+        },
+        onError || _apiDefaultError('GET(text)', path)
+    );
+}
+
+/**
+ * Perform a POST request with a raw (pre-serialized) body.
+ * Unlike apiPost, this does NOT set dataType:'json' on the response,
+ * so the caller receives the raw response from the server.
+ * @param {string} path - Relative API path.
+ * @param {string} rawBody - Already serialized request body.
+ * @param {string} contentType - MIME type (e.g. 'application/json').
+ * @param {function} onSuccess - Callback with response data.
+ * @param {function} [onError] - Optional error callback (defaults to console.error).
+ */
+function apiPostRaw(path, rawBody, contentType, onSuccess, onError) {
+    var c = ApiClient;
+    c.ajax({type: 'POST', url: c.getUrl(path), data: rawBody, contentType: contentType}).then(
+        onSuccess || function () {
+        },
+        onError || _apiDefaultError('POST', path)
+    );
+}
+
+/**
+ * Fetch a resource as a Blob (e.g. file downloads).
+ * Uses the native fetch API with Jellyfin auth header since ApiClient.ajax
+ * does not support blob responses.
+ * @param {string} path - Relative API path (may include query string).
+ * @param {function} onSuccess - Callback with the Blob.
+ * @param {function} [onError] - Optional error callback (defaults to console.error).
+ */
+function apiFetchBlob(path, onSuccess, onError) {
+    var c = ApiClient;
+    var errHandler = onError || _apiDefaultError('FETCH', path);
+    fetch(c.getUrl(path), {
+        headers: {'Authorization': 'MediaBrowser Token="' + c.accessToken() + '"'}
+    }).then(function (response) {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.blob();
+    }).then(
+        onSuccess || function () {
+        }
+    ).catch(errHandler);
+}
+
+// ============================================================
+// Pluralize helper
+// ============================================================
+
+/**
+ * Return singular or plural translation based on count.
+ * @param {number} count
+ * @param {string} singularKey - Translation key for singular.
+ * @param {string} pluralKey - Translation key for plural.
+ * @param {string} [singularFallback]
+ * @param {string} [pluralFallback]
+ * @returns {string}
+ */
+function pluralize(count, singularKey, pluralKey, singularFallback, pluralFallback) {
+    return count === 1
+        ? T(singularKey, singularFallback || singularKey)
+        : T(pluralKey, pluralFallback || pluralKey);
+}
+
+// ============================================================
+// Format a UTC timestamp as "X ago" relative text
+// ============================================================
+
+function formatTimeAgo(utcTimestamp) {
+    if (!utcTimestamp) return '';
+    var then = new Date(utcTimestamp);
+    var now = new Date();
+    var diffMs = now - then;
+    if (diffMs < 0) return '';
+    var diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return T('justNow', 'just now');
+    if (diffMin < 60) return diffMin + ' ' + pluralize(diffMin, 'minuteAgo', 'minutesAgo', 'min ago', 'min ago');
+    var diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return diffH + ' ' + pluralize(diffH, 'hourAgo', 'hoursAgo', 'hour ago', 'hours ago');
+    var diffD = Math.floor(diffH / 24);
+    return diffD + ' ' + pluralize(diffD, 'dayAgo', 'daysAgo', 'day ago', 'days ago');
+}
+
+// ============================================================
+// Shared scan data — single source of truth for last scan result
+// ============================================================
+
+// noinspection JSUnusedGlobalSymbols
+var _lastScanResult = null;
+
+// ============================================================
+// Collect paths from a list of libraries for a given property.
+// Works for both flat arrays (Health) and keyed dictionaries (Codecs).
+// ============================================================
+
+/**
+ * Collect flat path arrays from libraries.
+ * @param {Array} libraries - Array of library objects.
+ * @param {string} prop - Property name containing a string array.
+ * @returns {string[]}
+ */
+function collectFlatPaths(libraries, prop) {
+    var paths = [];
+    if (libraries) {
+        for (var i = 0; i < libraries.length; i++) {
+            var libPaths = libraries[i][prop];
+            if (libPaths) {
+                for (var j = 0; j < libPaths.length; j++) {
+                    paths.push(libPaths[j]);
+                }
+            }
+        }
+    }
+    return paths;
+}
+
+/**
+ * Collect paths from a dictionary property keyed by codec/format name.
+ * @param {Array} libraries - Array of library objects.
+ * @param {string} prop - Property name containing { key: string[] }.
+ * @param {string} key - The dictionary key to collect for.
+ * @returns {string[]}
+ */
+function collectDictPaths(libraries, prop, key) {
+    var paths = [];
+    if (libraries) {
+        for (var i = 0; i < libraries.length; i++) {
+            var dict = libraries[i][prop];
+            if (dict && dict[key]) {
+                for (var j = 0; j < dict[key].length; j++) {
+                    paths.push(dict[key][j]);
+                }
+            }
+        }
+    }
+    return paths;
+}
+
+// ============================================================
+// Dialog Helpers — reusable modal dialogs
+// ============================================================
+
+/**
+ * Creates a modal dialog overlay with title, body, and button row.
+ * Returns { overlay, dialog, btnRow } so callers can add buttons.
+ */
+function createDialogOverlay(overlayId, titleText, titleColor, bodyContent, bodyUseHtml) {
+    var overlay = document.createElement('div');
+    overlay.id = overlayId;
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:center;justify-content:center;';
+
+    var dialog = document.createElement('div');
+    dialog.style.cssText = 'background:#1c1c1e;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:1.5em 2em;max-width:550px;width:90%;color:#fff;font-size:0.95em;';
+
+    var title = document.createElement('h3');
+    title.style.cssText = 'margin:0 0 0.8em 0;color:' + titleColor + ';';
+    title.textContent = titleText;
+    dialog.appendChild(title);
+
+    var body = document.createElement('div');
+    body.style.cssText = 'white-space:pre-wrap;margin-bottom:1.2em;line-height:1.5;opacity:0.9;';
+    if (bodyUseHtml) {
+        body.innerHTML = bodyContent;
+    } else {
+        body.textContent = bodyContent;
+    }
+    dialog.appendChild(body);
+
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:0.8em;justify-content:flex-end;flex-wrap:wrap;';
+    dialog.appendChild(btnRow);
+    overlay.appendChild(dialog);
+
+    return {overlay: overlay, dialog: dialog, btnRow: btnRow};
+}
+
+/**
+ * Creates a styled dialog button.
+ * style: 'cancel' (transparent), 'danger' (#e74c3c), 'success' (#2ecc71), 'warning' (#00a4dc)
+ */
+function createDialogBtn(text, style, onclick) {
+    var btn = document.createElement('button');
+    btn.textContent = text;
+    var bg = style === 'cancel' ? 'transparent' : style === 'danger' ? getCssVar('--color-danger', '#e74c3c') : style === 'success' ? getCssVar('--color-success', '#2ecc71') : getCssVar('--color-primary', '#00a4dc');
+    var border = style === 'cancel' ? '1px solid rgba(255,255,255,0.2)' : 'none';
+    btn.style.cssText = 'padding:0.5em 1.2em;border:' + border + ';border-radius:4px;background:' + bg + ';color:#fff;cursor:pointer;font-size:0.9em;';
+    btn.onclick = onclick;
+    return btn;
+}
+
+function removeDialogById(id) {
+    var existing = document.getElementById(id);
+    if (existing) existing.remove();
+}
+
+// ============================================================
+// Generic toggle-panel click handler
+// Used by Codecs (codec rows) and Health (health items) for
+// expanding/collapsing detail panels with file trees.
+// ============================================================
+
+/**
+ * Attach click handlers to clickable items that toggle a detail panel.
+ *
+ * @param {Object} opts
+ * @param {string} opts.itemSelector - CSS selector for the clickable items (e.g. '.codec-clickable').
+ * @param {string} opts.activeClass - CSS class toggled on the active item (e.g. 'codec-row-active').
+ * @param {string} opts.groupAttr - Data attribute used to group items (e.g. 'data-chart'). Optional.
+ * @param {string} opts.typeAttr - Data attribute identifying the item type/value (e.g. 'data-codec').
+ * @param {function} opts.getPanelId - Function(item) returning the panel element ID.
+ * @param {function} opts.renderContent - Function(item) returning the HTML to put in the panel.
+ */
+function attachTogglePanelHandlers(opts) {
+    var items = document.querySelectorAll(opts.itemSelector);
+    for (var i = 0; i < items.length; i++) {
+        items[i].addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.click();
+            }
+        });
+        items[i].addEventListener('click', function () {
+            var panelId = opts.getPanelId(this);
+            var panel = document.getElementById(panelId);
+            if (!panel) return;
+
+            // Toggle: if same item is already active, close it
+            if (this.classList.contains(opts.activeClass)) {
+                panel.innerHTML = '';
+                panel.classList.remove('file-tree-panel-visible');
+                this.classList.remove(opts.activeClass);
+                return;
+            }
+
+            // Remove active state from sibling items
+            var groupVal = opts.groupAttr ? this.getAttribute(opts.groupAttr) : null;
+            var allItems = document.querySelectorAll(opts.itemSelector);
+            for (var j = 0; j < allItems.length; j++) {
+                var sameGroup = !opts.groupAttr || allItems[j].getAttribute(opts.groupAttr) === groupVal;
+                if (sameGroup) allItems[j].classList.remove(opts.activeClass);
+            }
+
+            // Close all other panels
+            var allPanels = document.querySelectorAll('.file-tree-panel');
+            for (var p = 0; p < allPanels.length; p++) {
+                if (allPanels[p].id !== panelId) {
+                    allPanels[p].innerHTML = '';
+                    allPanels[p].classList.remove('file-tree-panel-visible');
+                }
+            }
+            // Deactivate items in other groups
+            if (opts.groupAttr) {
+                for (var r = 0; r < allItems.length; r++) {
+                    if (allItems[r].getAttribute(opts.groupAttr) !== groupVal) {
+                        allItems[r].classList.remove(opts.activeClass);
+                    }
+                }
+            }
+
+            this.classList.add(opts.activeClass);
+            panel.innerHTML = opts.renderContent(this);
+            panel.classList.add('file-tree-panel-visible');
+
+            // Smooth scroll into view
+            var scrollPanel = panel;
+            setTimeout(function () {
+                scrollPanel.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+            }, 50);
+        });
+    }
+}
+
+// --- Finding 3: Resolve Arr instances with legacy single-instance fallback ---
+function resolveArrInstances(cfg, type) {
+    var key = type + 'Instances';     // e.g. RadarrInstances
+    var urlKey = type + 'Url';        // e.g. RadarrUrl
+    var apiKeyKey = type + 'ApiKey';  // e.g. RadarrApiKey
+    if (cfg[key] && cfg[key].length > 0) return cfg[key];
+    if (cfg[urlKey]) return [{Name: type, Url: cfg[urlKey], ApiKey: cfg[apiKeyKey]}];
+    return [];
+}
+
+// --- Finding 5: Scroll-position restore utility ---
+function withScrollRestore(callback) {
+    var scrollContainer = document.querySelector('.mainAnimatedPage') || document.documentElement;
+    var savedScroll = scrollContainer.scrollTop;
+    callback(function () {
+        setTimeout(function () {
+            scrollContainer.scrollTop = savedScroll;
+        }, 50);
+    });
+}
+
+// --- Finding 7: Shorthand element-by-ID helper ---
+function elById(id) {
+    return document.getElementById(id);
+}
+
+// ============================================================
+// Finding 20: Tiny HTML tag builder
+// ============================================================
+//
+// Avoids raw string concatenation (`h += '<div class="...'`) for new code.
+// Existing code can be gradually migrated; no existing code is changed.
+//
+// Usage examples:
+//   tag('div', {cls: 'card', id: 'main'}, 'Hello')
+//   // → '<div class="card" id="main">Hello</div>'
+//
+//   tag('input', {type: 'text', value: userInput})
+//   // → '<input type="text" value="escaped-value"/>'
+//
+//   tag('ul', {cls: 'list'}, [
+//       tag('li', {}, 'Item 1'),
+//       tag('li', {cls: 'active'}, 'Item 2')
+//   ])
+//   // → '<ul class="list"><li>Item 1</li><li class="active">Item 2</li></ul>'
+//
+//   // Safe text (auto-escaped):
+//   tag('span', {}, escHtml(userText))
+//
+// Note: children are raw HTML strings. Use escHtml() for user-supplied text.
+// ============================================================
+
+/**
+ * Build an HTML tag string from structured arguments.
+ *
+ * @param {string} name - Tag name (e.g. 'div', 'span', 'input').
+ * @param {Object} [attributes] - Key-value pairs for HTML attributes.
+ *   Values are auto-escaped via escAttr(). Special keys:
+ *     - 'cls' → rendered as 'class' (avoids reserved-word issues)
+ *     - null / undefined values → attribute is skipped
+ * @param {string|string[]} [children] - Inner HTML content.
+ *   A string is inserted as-is (raw HTML).
+ *   An array is joined (null/undefined entries are skipped).
+ *   Omit for void elements or empty containers.
+ * @returns {string} The complete HTML string.
+ */
+function tag(name, attributes, children) {
+    var s = '<' + name;
+    if (attributes) {
+        for (var key in attributes) {
+            if (Object.prototype.hasOwnProperty.call(attributes, key)) {
+                var val = attributes[key];
+                if (val == null) continue;
+                var attrName = key === 'cls' ? 'class' : key;
+                s += ' ' + attrName + '="' + escAttr(String(val)) + '"';
+            }
+        }
+    }
+    // Void elements (self-closing, no children)
+    var VOID = {
+        area: 1,
+        base: 1,
+        br: 1,
+        col: 1,
+        embed: 1,
+        hr: 1,
+        img: 1,
+        input: 1,
+        link: 1,
+        meta: 1,
+        source: 1,
+        track: 1,
+        wbr: 1
+    };
+    if (VOID[name]) return s + '/>';
+    s += '>';
+    if (children != null) {
+        if (Array.isArray(children)) {
+            for (var i = 0; i < children.length; i++) {
+                if (children[i] != null) s += children[i];
+            }
+        } else {
+            s += children;
+        }
+    }
+    return s + '</' + name + '>';
 }

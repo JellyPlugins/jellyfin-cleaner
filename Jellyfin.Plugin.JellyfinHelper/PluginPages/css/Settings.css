@@ -16,8 +16,8 @@
 .settings-form select {
     width: 100%;
     padding: 0.5em;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
     background: rgba(255, 255, 255, 0.05);
     color: inherit;
     font-size: 0.95em;
@@ -62,7 +62,7 @@
 .settings-form .checkbox-row input[type="checkbox"] {
     width: 18px;
     height: 18px;
-    accent-color: #00a4dc;
+    accent-color: var(--color-primary);
 }
 
 /* noinspection CssUnusedSymbol */
@@ -81,7 +81,7 @@
 
 /* noinspection CssUnusedSymbol */
 .settings-form .section-divider {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid var(--color-border);
     margin-top: 1.5em;
     padding-top: 0.5em;
 }
@@ -89,8 +89,8 @@
 /* Collapsible Arr instance sections */
 /* noinspection CssUnusedSymbol */
 .arr-collapsible {
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
     margin-top: 0.8em;
     overflow: hidden;
 }

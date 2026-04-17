@@ -265,7 +265,8 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            LinkRepairTaskMode = TaskMode.Deactivate
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate
         };
 
         var reportedValues = new List<double>();
@@ -284,7 +285,8 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            LinkRepairTaskMode = TaskMode.Deactivate
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate
         };
 
         var reportedValues = new List<double>();

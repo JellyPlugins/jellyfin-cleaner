@@ -13,7 +13,7 @@
     padding: 0.8em 1em;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
 }
 
 .logs-toolbar label {
@@ -25,8 +25,8 @@
 .logs-toolbar select,
 .logs-toolbar input {
     padding: 0.4em 0.6em;
-    border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border-strong);
     background: rgba(255, 255, 255, 0.05);
     color: inherit;
     font-size: 0.85em;
@@ -67,8 +67,8 @@
 
 .logs-btn {
     padding: 0.4em 0.9em;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
     background: rgba(255, 255, 255, 0.05);
     color: #fff;
     cursor: pointer;
@@ -86,7 +86,7 @@
 
 .logs-btn.danger {
     border-color: rgba(231, 76, 60, 0.3);
-    color: #e74c3c;
+    color: var(--color-danger);
 }
 
 .logs-btn.danger:hover {
@@ -96,7 +96,7 @@
 
 .logs-btn.primary {
     border-color: rgba(46, 204, 113, 0.3);
-    color: #2ecc71;
+    color: var(--color-success);
 }
 
 .logs-btn.primary:hover {
@@ -109,7 +109,7 @@
     max-height: 520px;
     overflow-y: auto;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     background: rgba(0, 0, 0, 0.2);
 }
 
@@ -171,7 +171,7 @@
 }
 
 .log-level-INFO {
-    color: #3498db;
+    color: var(--color-blue);
 }
 
 .log-level-WARN {
@@ -179,7 +179,7 @@
 }
 
 .log-level-ERROR {
-    color: #e74c3c;
+    color: var(--color-danger);
 }
 
 /* Exception detail */
@@ -222,8 +222,8 @@
 .logs-auto-refresh .dot {
     width: 6px;
     height: 6px;
-    border-radius: 50%;
-    background: #2ecc71;
+    border-radius: var(--radius-round);
+    background: var(--color-success);
     animation: pulse-dot 2s ease-in-out infinite;
 }
 

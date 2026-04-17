@@ -77,7 +77,7 @@ public class TrendsHtmlTests : ConfigPageTestBase
 
         var fnMatch = Regex.Match(
             HtmlContent,
-            @"function\s+renderTrendChart\s*\([^)]*\)\s*\{(?<body>[\s\S]*?)\n\s{4}\}",
+            @"function\s+renderTrendChart\s*\([^)]*\)\s*\{(?<body>[\s\S]*?)\n\}",
             RegexOptions.Multiline);
         Assert.True(fnMatch.Success, "renderTrendChart function not found.");
 

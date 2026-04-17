@@ -6,8 +6,8 @@
 .arr-list {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-    padding: 0.8em 1em;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md) 1em;
     margin-top: 0.5em;
     max-height: 300px;
     overflow-y: auto;
@@ -27,6 +27,6 @@
 
 .arr-count {
     font-weight: 700;
-    color: #00a4dc;
+    color: var(--color-primary);
 }
 

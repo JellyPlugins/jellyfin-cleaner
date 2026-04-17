@@ -108,7 +108,7 @@ public class HealthHtmlTests : ConfigPageTestBase
     public void Html_HealthClickHandler_UsesCollectHealthPaths()
     {
         // The health click handler should use collectHealthPaths to gather paths
-        Assert.Contains("collectHealthPaths(_lastScanData, mapping.prop)", HtmlContent);
+        Assert.Contains("collectHealthPaths(_lastScanResult, mapping.prop)", HtmlContent);
     }
 
     [Fact]

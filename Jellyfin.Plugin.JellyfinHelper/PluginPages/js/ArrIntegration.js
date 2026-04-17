@@ -11,7 +11,8 @@ function renderArrInstances(type, instances) {
     }
     h += '<div id="' + type + 'AddBtnWrap">';
     h += '<button type="button" class="action-btn" id="btnAdd' + type + '"' +
-        (count >= MAX_ARR_INSTANCES ? ' style="display:none;margin-top:0.5em;"' : ' style="margin-top:0.5em;"') +
+        (count >= MAX_ARR_INSTANCES ? ' style="display:none;margin-top:0.5em;"'
+            : ' style="margin-top:0.5em;"') +
         '>+ ' + T('addInstance', 'Add instance') + '</button>';
     h += '</div>';
     return h;
@@ -22,25 +23,41 @@ function renderArrInstanceRow(type, index, inst) {
     var name = inst ? (inst.Name || '') : '';
     var url = inst ? (inst.Url || '') : '';
     var apiKey = inst ? (inst.ApiKey || '') : '';
-    var placeholderUrl = type === 'Radarr' ? 'http://localhost:7878' : 'http://localhost:8989';
-    var h = '<div class="arr-instance-row" data-type="' + type + '" data-index="' + index + '" style="border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:0.8em;margin-top:0.8em;position:relative;">';
+    var placeholderUrl = type === 'Radarr' ? 'http://localhost:7878'
+        : 'http://localhost:8989';
+    var h = '<div class="arr-instance-row" data-type="' + type + '" data-index="'
+        + index
+        + '" style="border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:0.8em;margin-top:0.8em;position:relative;">';
     h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3em;">';
     h += '<strong>' + type + ' #' + (index + 1) + '</strong>';
-    h += '<button type="button" class="action-btn btn-arr-remove btnRemoveArr" data-type="' + type + '" data-index="' + index + '" style="padding:0.2em 0.6em;font-size:0.8em;">✕ ' + T('remove', 'Remove') + '</button>';
+    h += '<button type="button" class="action-btn btn-arr-remove btnRemoveArr" data-type="'
+        + type + '" data-index="' + index
+        + '" style="padding:0.2em 0.6em;font-size:0.8em;">✕ ' + T('remove',
+            'Remove') + '</button>';
     h += '</div>';
     var instanceNameId = prefix + '_name';
-    h += '<label for="' + instanceNameId + '">' + T('instanceName', 'Instance Name') + '</label><input type="text" id="' + instanceNameId + '" value="' + escAttr(name) + '" placeholder="e.g. ' + type + ' 4K">';
+    h += '<label for="' + instanceNameId + '">' + T('instanceName',
+            'Instance Name') + '</label><input type="text" id="' + instanceNameId
+        + '" value="' + escAttr(name) + '" placeholder="e.g. ' + type + ' 4K">';
     var instanceUrlId = prefix + '_url';
-    h += '<label for="' + instanceUrlId + '">' + T('url', 'URL') + '</label><input type="text" id="' + instanceUrlId + '" value="' + escAttr(url) + '" placeholder="' + placeholderUrl + '">';
+    h += '<label for="' + instanceUrlId + '">' + T('url', 'URL')
+        + '</label><input type="text" id="' + instanceUrlId + '" value="'
+        + escAttr(url) + '" placeholder="' + placeholderUrl + '">';
     var instanceApiKeyId = prefix + '_key';
-    h += '<label for="' + instanceApiKeyId + '">' + T('apiKey', 'API Key') + '</label><input type="password" id="' + instanceApiKeyId + '" value="' + escAttr(apiKey) + '">';
-    h += '<button type="button" class="action-btn btn-arr-test btnTestArr" id="' + prefix + '_btnTest" data-type="' + type + '" data-index="' + index + '" style="padding:0.3em 0.8em;font-size:0.85em;">🔌 ' + T('testConnection', 'Test Connection') + '</button>';
+    h += '<label for="' + instanceApiKeyId + '">' + T('apiKey', 'API Key')
+        + '</label><input type="password" id="' + instanceApiKeyId + '" value="'
+        + escAttr(apiKey) + '">';
+    h += '<button type="button" class="action-btn btn-arr-test btnTestArr" id="'
+        + prefix + '_btnTest" data-type="' + type + '" data-index="' + index
+        + '" style="padding:0.3em 0.8em;font-size:0.85em;">🔌 ' + T(
+            'testConnection', 'Test Connection') + '</button>';
     h += '</div>';
     return h;
 }
 
 function collectArrInstances(type) {
-    var rows = document.querySelectorAll('.arr-instance-row[data-type="' + type + '"]');
+    var rows = document.querySelectorAll(
+        '.arr-instance-row[data-type="' + type + '"]');
     var result = [];
     for (var i = 0; i < rows.length; i++) {
         var idx = rows[i].getAttribute('data-index');
@@ -49,14 +66,15 @@ function collectArrInstances(type) {
         var urlEl = document.getElementById(prefix + '_url');
         var keyEl = document.getElementById(prefix + '_key');
         if (nameEl && urlEl && keyEl) {
-            result.push({ Name: nameEl.value, Url: urlEl.value, ApiKey: keyEl.value });
+            result.push({Name: nameEl.value, Url: urlEl.value, ApiKey: keyEl.value});
         }
     }
     return result;
 }
 
 function updateArrCollapsibleCount(type) {
-    var rows = document.querySelectorAll('.arr-instance-row[data-type="' + type + '"]');
+    var rows = document.querySelectorAll(
+        '.arr-instance-row[data-type="' + type + '"]');
     var countEl = document.getElementById('arrCount' + type);
     if (countEl) {
         countEl.textContent = createArrCountText(rows.length);
@@ -67,16 +85,21 @@ function createArrCountText(count) {
     if (count === 0) {
         return '';
     }
-    
+
     return '(' + count + ' / ' + MAX_ARR_INSTANCES + ')';
 }
 
 function addArrInstance(type) {
-    var rows = document.querySelectorAll('.arr-instance-row[data-type="' + type + '"]');
-    if (rows.length >= MAX_ARR_INSTANCES) return;
+    var rows = document.querySelectorAll(
+        '.arr-instance-row[data-type="' + type + '"]');
+    if (rows.length >= MAX_ARR_INSTANCES) {
+        return;
+    }
     var newIndex = rows.length;
     var wrap = document.getElementById(type + 'AddBtnWrap');
-    if (!wrap) return;
+    if (!wrap) {
+        return;
+    }
     var tmp = document.createElement('div');
     tmp.innerHTML = renderArrInstanceRow(type, newIndex, null);
     wrap.parentNode.insertBefore(tmp.firstChild, wrap);
@@ -84,14 +107,18 @@ function addArrInstance(type) {
     attachTestHandlers();
     if (newIndex + 1 >= MAX_ARR_INSTANCES) {
         var btn = document.getElementById('btnAdd' + type);
-        if (btn) btn.style.display = 'none';
+        if (btn) {
+            btn.style.display = 'none';
+        }
     }
     // Expand the collapsible section and update count
     var collapsible = document.getElementById('arrCollapsible' + type);
     if (collapsible && !collapsible.classList.contains('arr-expanded')) {
         collapsible.classList.add('arr-expanded');
         var header = collapsible.querySelector('.arr-collapsible-header');
-        if (header) header.setAttribute('aria-expanded', 'true');
+        if (header) {
+            header.setAttribute('aria-expanded', 'true');
+        }
     }
     updateArrCollapsibleCount(type);
 }
@@ -105,16 +132,22 @@ function removeArrInstance(type, index) {
         }
     }
     // Reset any test buttons that are in success/error state
-    var testBtns = document.querySelectorAll('.btnTestArr[data-type="' + type + '"]');
+    var testBtns = document.querySelectorAll(
+        '.btnTestArr[data-type="' + type + '"]');
     for (var b = 0; b < testBtns.length; b++) {
         testBtns[b].classList.remove('success', 'error');
         testBtns[b].disabled = false;
         testBtns[b].innerHTML = '🔌 ' + T('testConnection', 'Test Connection');
     }
 
-    var row = document.querySelector('.arr-instance-row[data-type="' + type + '"][data-index="' + index + '"]');
-    if (row) row.remove();
-    var remaining = document.querySelectorAll('.arr-instance-row[data-type="' + type + '"]');
+    var row = document.querySelector(
+        '.arr-instance-row[data-type="' + type + '"][data-index="' + index
+        + '"]');
+    if (row) {
+        row.remove();
+    }
+    var remaining = document.querySelectorAll(
+        '.arr-instance-row[data-type="' + type + '"]');
     for (var i = 0; i < remaining.length; i++) {
         remaining[i].setAttribute('data-index', i);
         var prefix = type + '_' + i;
@@ -124,9 +157,13 @@ function removeArrInstance(type, index) {
             inputs[j].id = prefix + suffixes[j];
         }
         var strong = remaining[i].querySelector('strong');
-        if (strong) strong.textContent = type + ' #' + (i + 1);
+        if (strong) {
+            strong.textContent = type + ' #' + (i + 1);
+        }
         var removeBtn = remaining[i].querySelector('.btnRemoveArr');
-        if (removeBtn) removeBtn.setAttribute('data-index', i);
+        if (removeBtn) {
+            removeBtn.setAttribute('data-index', i);
+        }
         var testBtn = remaining[i].querySelector('.btnTestArr');
         if (testBtn) {
             testBtn.setAttribute('data-index', i);
@@ -134,35 +171,17 @@ function removeArrInstance(type, index) {
         }
     }
     var btn = document.getElementById('btnAdd' + type);
-    if (btn && remaining.length < MAX_ARR_INSTANCES) btn.style.display = '';
+    if (btn && remaining.length < MAX_ARR_INSTANCES) {
+        btn.style.display = '';
+    }
     updateArrCollapsibleCount(type);
 
-    // Auto-save settings after removal
-    if (typeof buildSettingsPayload === 'function' && typeof doSaveSettings === 'function') {
-        doSaveSettings(buildSettingsPayload());
-
-        var arrCollapsibleHeader = document.getElementById('arrCollapsibleHeader' + type);
-        if (arrCollapsibleHeader) {
-            var cls = 'auto-save-check';
-            var existing = arrCollapsibleHeader.querySelector('.' + cls);
-            if (existing) {
-                clearTimeout(existing._fadeTimer);
-                clearTimeout(existing._removeTimer);
-                existing.remove();
-            }
-            var span = document.createElement('span');
-            span.className = cls;
-            span.style.cssText = 'margin-left:0.4em;font-size:0.95em;transition:opacity 0.4s;opacity:0;';
-            span.style.color = '#2ecc71';
-            span.textContent = '✔';
-            arrCollapsibleHeader.insertBefore(span, arrCollapsibleHeader.lastChild);
-            // Force reflow then fade in
-            void span.offsetWidth;
-            span.style.opacity = '1';
-            var fadeDelay = 2000;
-            span._fadeTimer = setTimeout(function () { span.style.opacity = '0'; }, fadeDelay);
-            span._removeTimer = setTimeout(function () { if (span.parentNode) span.remove(); }, fadeDelay + 500);
-        }
+    // Auto-save settings after removal and show feedback on collapsible header (Finding 17: removed unnecessary typeof checks)
+    doSaveSettings(buildSettingsPayload());
+    var arrCollapsibleHeader = document.getElementById(
+        'arrCollapsibleHeader' + type);
+    if (arrCollapsibleHeader) {
+        showAutoSaveIndicator(arrCollapsibleHeader, true);
     }
 }
 
@@ -171,7 +190,9 @@ function testArrConnection(type, index) {
     var urlEl = document.getElementById(prefix + '_url');
     var keyEl = document.getElementById(prefix + '_key');
     var btn = document.getElementById(prefix + '_btnTest');
-    if (!urlEl || !keyEl || !btn) return;
+    if (!urlEl || !keyEl || !btn) {
+        return;
+    }
 
     var url = urlEl.value.trim();
     var apiKey = keyEl.value.trim();
@@ -185,75 +206,55 @@ function testArrConnection(type, index) {
     }
 
     if (!url || !apiKey) {
-        btn.innerHTML = '<span class="btn-icon">X</span>' + T('testMissingFields', 'URL and API Key are required.');
-        btn.classList.add('error');
-        _testTimers[timerKey] = setTimeout(function() {
-            btn.innerHTML = originalHtml;
-            btn.classList.remove('error');
-            _testTimers[timerKey] = null;
-        }, 3000);
+        _testTimers[timerKey] = showButtonFeedback(btn, false,
+            T('testMissingFields', 'URL and API Key are required.'), originalHtml,
+            3000);
         return;
     }
 
     btn.disabled = true;
-    btn.innerHTML = '<span class="btn-spinner"></span>' + T('testing', 'Testing…');
+    btn.innerHTML = '<span class="btn-spinner"></span>' + T('testing',
+        'Testing…');
 
-    var apiClient = ApiClient;
-    apiClient.ajax({
-        type: 'POST',
-        url: apiClient.getUrl('JellyfinHelper/ArrIntegration/TestConnection'),
-        data: JSON.stringify({ Url: url, ApiKey: apiKey }),
-        contentType: 'application/json',
-        dataType: 'json'
-    }).then(function (data) {
-        btn.disabled = false;
-        if (data.success) {
-            btn.innerHTML = '<span class="btn-icon">✔</span>' + escHtml(data.message);
-            btn.classList.add('success');
-            // Auto-save settings after successful connection test
-            if (typeof buildSettingsPayload === 'function' && typeof doSaveSettings === 'function') {
+    apiPost('JellyfinHelper/ArrIntegration/TestConnection',
+        {Url: url, ApiKey: apiKey}, function (data) {
+            btn.disabled = false;
+            if (data.success) {
+                _testTimers[timerKey] = showButtonFeedback(btn, true,
+                    escHtml(data.message), originalHtml);
+                // Auto-save settings after successful connection test (Finding 17: removed unnecessary typeof checks)
                 doSaveSettings(buildSettingsPayload());
+            } else {
+                _testTimers[timerKey] = showButtonFeedback(btn, false,
+                    escHtml(data.message), originalHtml);
             }
-            _testTimers[timerKey] = setTimeout(function() {
-                btn.innerHTML = originalHtml;
-                btn.classList.remove('success');
-                _testTimers[timerKey] = null;
-            }, 3000);
-        } else {
-            btn.innerHTML = '<span class="btn-icon">X</span>' + escHtml(data.message);
-            btn.classList.add('error');
-            _testTimers[timerKey] = setTimeout(function() {
-                btn.innerHTML = originalHtml;
-                btn.classList.remove('error');
-                _testTimers[timerKey] = null;
-            }, 5000);
-        }
-    }, function () {
-        btn.disabled = false;
-        btn.innerHTML = '<span class="btn-icon">X</span>' + T('testConnectionFailed', 'Connection test failed.');
-        btn.classList.add('error');
-        _testTimers[timerKey] = setTimeout(function() {
-            btn.innerHTML = originalHtml;
-            btn.classList.remove('error');
-            _testTimers[timerKey] = null;
-        }, 5000);
-    });
+        }, function () {
+            btn.disabled = false;
+            _testTimers[timerKey] = showButtonFeedback(btn, false,
+                T('testConnectionFailed', 'Connection test failed.'), originalHtml);
+        });
 }
 
 function attachTestHandlers() {
     var btns = document.querySelectorAll('.btnTestArr');
     for (var i = 0; i < btns.length; i++) {
+        // Use onclick assignment (not addEventListener) to prevent handler stacking on re-bind
         btns[i].onclick = function () {
-            testArrConnection(this.getAttribute('data-type'), parseInt(this.getAttribute('data-index'), 10));
+            testArrConnection(this.getAttribute('data-type'),
+                parseInt(this.getAttribute('data-index'), 10));
         };
     }
 }
 
 function attachRemoveHandlers(type) {
-    var btns = document.querySelectorAll('.btnRemoveArr');
+    var selector = type ? '.btnRemoveArr[data-type="' + type + '"]'
+        : '.btnRemoveArr';
+    var btns = document.querySelectorAll(selector);
     for (var i = 0; i < btns.length; i++) {
+        // Use onclick assignment (not addEventListener) to prevent handler stacking on re-bind
         btns[i].onclick = function () {
-            removeArrInstance(this.getAttribute('data-type'), parseInt(this.getAttribute('data-index'), 10));
+            removeArrInstance(this.getAttribute('data-type'),
+                parseInt(this.getAttribute('data-index'), 10));
         };
     }
 }
@@ -261,30 +262,39 @@ function attachRemoveHandlers(type) {
 function attachAddHandlers() {
     var btnRadarr = document.getElementById('btnAddRadarr');
     var btnSonarr = document.getElementById('btnAddSonarr');
-    if (btnRadarr) btnRadarr.onclick = function () { addArrInstance('Radarr'); };
-    if (btnSonarr) btnSonarr.onclick = function () { addArrInstance('Sonarr'); };
+    if (btnRadarr) {
+        btnRadarr.onclick = function () {
+            addArrInstance('Radarr');
+        };
+    }
+    if (btnSonarr) {
+        btnSonarr.onclick = function () {
+            addArrInstance('Sonarr');
+        };
+    }
 }
 
 function initArrButtons(cfg) {
     var btnContainer = document.getElementById('arrButtons');
-    if (!btnContainer) return;
+    if (!btnContainer) {
+        return;
+    }
     var h = '';
-    var radarrInstances = (cfg.RadarrInstances || []).filter(function (inst) {
-        return inst && inst.Url && inst.ApiKey;
-    });
-    if (radarrInstances.length === 0 && cfg.RadarrUrl && cfg.RadarrApiKey) {
-        radarrInstances = [{ Name: 'Radarr', Url: cfg.RadarrUrl, ApiKey: cfg.RadarrApiKey }];
-    }
+    var radarrInstances = resolveArrInstances(cfg, 'Radarr').filter(
+        function (inst) {
+            return inst && inst.Url && inst.ApiKey;
+        });
 
-    var sonarrInstances = (cfg.SonarrInstances || []).filter(function (inst) {
-        return inst && inst.Url && inst.ApiKey;
-    });
-    if (sonarrInstances.length === 0 && cfg.SonarrUrl && cfg.SonarrApiKey) {
-        sonarrInstances = [{ Name: 'Sonarr', Url: cfg.SonarrUrl, ApiKey: cfg.SonarrApiKey }];
-    }
+    var sonarrInstances = resolveArrInstances(cfg, 'Sonarr').filter(
+        function (inst) {
+            return inst && inst.Url && inst.ApiKey;
+        });
 
     if (radarrInstances.length === 0 && sonarrInstances.length === 0) {
-        btnContainer.innerHTML = '<div class="no-data-container"><p>' + T('arrNotConfigured', 'Not configured. Please set URL and API key in Settings.') + '</p></div>';
+        btnContainer.innerHTML = '<div class="no-data-container"><p>' + T(
+                'arrNotConfigured',
+                'Not configured. Please set URL and API key in Settings.')
+            + '</p></div>';
         return;
     }
 
@@ -294,7 +304,9 @@ function initArrButtons(cfg) {
         h += '<div class="header-actions" style="flex-wrap:wrap;">';
         for (var r = 0; r < radarrInstances.length; r++) {
             var rName = radarrInstances[r].Name || ('Radarr #' + (r + 1));
-            h += '<button class="action-btn arr-compare-btn" data-type="Radarr" data-index="' + r + '">' + T('compareWith', 'Compare with') + ' ' + escHtml(rName) + '</button>';
+            h += '<button class="action-btn arr-compare-btn" data-type="Radarr" data-index="'
+                + r + '">' + T('compareWith', 'Compare with') + ' ' + escHtml(rName)
+                + '</button>';
         }
         h += '</div></div>';
     }
@@ -305,7 +317,9 @@ function initArrButtons(cfg) {
         h += '<div class="header-actions" style="flex-wrap:wrap;">';
         for (var s = 0; s < sonarrInstances.length; s++) {
             var sName = sonarrInstances[s].Name || ('Sonarr #' + (s + 1));
-            h += '<button class="action-btn arr-compare-btn" data-type="Sonarr" data-index="' + s + '">' + T('compareWith', 'Compare with') + ' ' + escHtml(sName) + '</button>';
+            h += '<button class="action-btn arr-compare-btn" data-type="Sonarr" data-index="'
+                + s + '">' + T('compareWith', 'Compare with') + ' ' + escHtml(sName)
+                + '</button>';
         }
         h += '</div></div>';
     }
@@ -326,14 +340,17 @@ function initArrButtons(cfg) {
 // Render a single Arr comparison section (list with max 50 items and "and X more" hint)
 function renderArrSection(icon, titleKey, titleFallback, items) {
     items = Array.isArray(items) ? items : [];
-    var h = '<div class="arr-section"><h4>' + icon + ' ' + T(titleKey, titleFallback) + ' — <span class="arr-count">' + items.length + '</span></h4>';
+    var h = '<div class="arr-section"><h4>' + icon + ' ' + T(titleKey,
+            titleFallback) + ' — <span class="arr-count">' + items.length
+        + '</span></h4>';
     if (items.length > 0) {
         h += '<div class="arr-list"><ul>';
         for (var i = 0; i < Math.min(items.length, 50); i++) {
             h += '<li>' + escHtml(items[i]) + '</li>';
         }
         if (items.length > 50) {
-            h += '<li>… ' + T('andMore', 'and') + ' ' + (items.length - 50) + ' ' + T('more', 'more') + '</li>';
+            h += '<li>… ' + T('andMore', 'and') + ' ' + (items.length - 50) + ' ' + T(
+                'more', 'more') + '</li>';
         }
         h += '</ul></div>';
     }
@@ -343,19 +360,28 @@ function renderArrSection(icon, titleKey, titleFallback, items) {
 
 function compareArr(type, index, label) {
     var resultDiv = document.getElementById('arrResult');
-    if (!resultDiv) return;
-    resultDiv.innerHTML = '<div class="loading-overlay" style="padding:1em;"><div class="spinner"></div><p>' + T('comparing', 'Comparing') + ' ' + escHtml(label || type) + '…</p></div>';
-    var apiClient = ApiClient;
-    var url = apiClient.getUrl('JellyfinHelper/ArrIntegration/Compare/' + type) + '?index=' + index;
-    apiClient.ajax({ type: 'GET', url: url, dataType: 'json' }).then(function (data) {
-        var instanceLabel = label ? label.replace(T('compareWith', 'Compare with') + ' ', '') : type;
-        var h = '<h3 style="margin-bottom:0.8em;">' + escHtml(instanceLabel) + '</h3>';
-        h += renderArrSection('✅', 'inBoth', 'In Both', data.InBoth);
-        h += renderArrSection('📦', 'inArrOnly', 'In Arr Only (with file)', data.InArrOnly);
-        h += renderArrSection('⚠️', 'inArrOnlyMissing', 'In Arr Only (no file)', data.InArrOnlyMissing);
-        h += renderArrSection('🔍', 'inJellyfinOnly', 'In Jellyfin Only', data.InJellyfinOnly);
-        resultDiv.innerHTML = h;
-    }, function () {
-        resultDiv.innerHTML = '<div class="error-msg">❌ ' + T('arrCompareError', 'Failed to compare. Check settings.') + '</div>';
-    });
+    if (!resultDiv) {
+        return;
+    }
+    resultDiv.innerHTML = '<div class="loading-overlay" style="padding:1em;"><div class="spinner"></div><p>'
+        + T('comparing', 'Comparing') + ' ' + escHtml(label || type)
+        + '…</p></div>';
+    apiGet('JellyfinHelper/ArrIntegration/Compare/' + type + '?index=' + index,
+        function (data) {
+            var instanceLabel = label ? label.replace(
+                T('compareWith', 'Compare with') + ' ', '') : type;
+            var h = '<h3 style="margin-bottom:0.8em;">' + escHtml(instanceLabel)
+                + '</h3>';
+            h += renderArrSection('✅', 'inBoth', 'In Both', data.InBoth);
+            h += renderArrSection('📦', 'inArrOnly', 'In Arr Only (with file)',
+                data.InArrOnly);
+            h += renderArrSection('⚠️', 'inArrOnlyMissing', 'In Arr Only (no file)',
+                data.InArrOnlyMissing);
+            h += renderArrSection('🔍', 'inJellyfinOnly', 'In Jellyfin Only',
+                data.InJellyfinOnly);
+            resultDiv.innerHTML = h;
+        }, function () {
+            resultDiv.innerHTML = '<div class="error-msg">❌ ' + T('arrCompareError',
+                'Failed to compare. Check settings.') + '</div>';
+        });
 }

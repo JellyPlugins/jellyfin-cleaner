@@ -39,12 +39,6 @@
 
   <!-- Compose configPage.html from template + multiple CSS + multiple JS files at build time -->
   <UsingTask TaskName="Jellyfin.Plugin.JellyfinHelper.BuildTasks.ComposeConfigPage" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
-    <ParameterGroup>
-      <TemplateFile ParameterType="System.String" Required="true" />
-      <CssFiles ParameterType="System.String" Required="true" />
-      <JsFiles ParameterType="System.String" Required="true" />
-      <OutputFile ParameterType="System.String" Required="true" />
-    </ParameterGroup>
     <Task>
       <Code Type="Class" Language="cs" Source="BuildTasks\ComposeConfigPage.cs" />
     </Task>
