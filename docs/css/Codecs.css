@@ -33,6 +33,45 @@
     display: inline-block;
 }
 
+.donut-svg .donut-segment {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 0.2s ease;
+    pointer-events: none;
+}
+
+.donut-svg .donut-segment circle {
+    pointer-events: visibleStroke;
+    cursor: pointer;
+}
+
+.donut-svg .donut-segment:hover {
+    transform: scale(1.05);
+}
+
+.donut-tooltip {
+    position: absolute;
+    z-index: 5;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    background: rgba(20, 20, 20, 0.92);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    padding: 0.35em 0.55em;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+.donut-tooltip.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
 /* === Codec Breakdown (clickable legend/table below donut) === */
 
 .codec-breakdown {
