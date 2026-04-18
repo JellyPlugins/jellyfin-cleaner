@@ -80,20 +80,6 @@ function escHtml(s) {
     return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function getFileName(fullPath) {
-    if (!fullPath) return '';
-    var parts = fullPath.replace(/\\/g, '/').split('/');
-    return parts[parts.length - 1] || fullPath;
-}
-
-function getParentFolder(fullPath) {
-    if (!fullPath) return '';
-    var normalized = fullPath.replace(/\\/g, '/');
-    var parts = normalized.split('/');
-    if (parts.length >= 2) return parts[parts.length - 2];
-    return '';
-}
-
 function getPathSegments(fullPath, rootPaths) {
     if (!fullPath) return [];
     var normalized = fullPath.replace(/\\/g, '/');
@@ -264,36 +250,152 @@ function aggregateDict(libraries, prop) {
 
 /**
  * Reusable auto-save feedback indicator.
- * Shows a brief ✔ or ✘ next to the given element, then fades out.
- * Can be attached to any element — the indicator is inserted as a sibling.
- * @param {HTMLElement} element - The element to attach the indicator next to.
+ * Shows a brief ✔ or ✘ on top of the given element, then fades out.
+ * Can be attached to any element — the indicator is inserted as an overlay.
+ * @param {HTMLElement} element - The element to show the indicator over.
  * @param {boolean} [success=true] - true = green ✔, false = red ✘
  */
-function showAutoSaveIndicator(element, success) {
+function showAutoSaveIndicatorOverlay(element, success) {
     if (!element || !element.parentNode) return;
-    var cls = 'auto-save-check';
-    var existing = element.parentNode.querySelector('.' + cls);
+
+    removeExistingSaveIndicatorOverlay(element);
+
+    const fadeDelay = calculateFadeDelay(success);
+    const indicator = createSaveIndicator(element, success);
+
+    const indicatorContainer = document.createElement('div');
+    indicatorContainer.style.position = 'absolute';
+    indicatorContainer.style.top = getComputedStyle(element).marginTop;
+    indicatorContainer.style.width = element.offsetWidth + 'px';
+    indicatorContainer.style.height = element.offsetHeight + 'px';
+    indicatorContainer.style.display = 'flex';
+    indicatorContainer.style.alignItems = 'center';
+    indicatorContainer.style.justifyContent = 'flex-end';
+    indicatorContainer.style.pointerEvents = 'none';
+    indicatorContainer.style.boxSizing = 'border-box';
+    indicatorContainer.style.paddingRight = '20px';
+    indicatorContainer.append(indicator);
+
+    const emptyContainer = document.createElement('div');
+    emptyContainer.style.position = 'relative';
+    emptyContainer.append(indicatorContainer);
+
+    addFadingDelay(emptyContainer, fadeDelay);
+
+    element.before(emptyContainer);
+}
+
+/**
+ * Adds an auto-save indicator to the specified element to visually display the save status.
+ *
+ * @param {HTMLElement} element - The element to which the auto-save indicator should be added.
+ * @param {boolean} success - A flag indicating whether the operation succeeded (true) or failed (false).
+ * @param {number} [index] - Optional index specifying where in the element's child nodes the indicator should be inserted.
+ * @return {void} Does not return a value.
+ */
+function addAutoSaveIndicator(element, success, index) {
+    if (!element || !element.parentNode) return;
+
+    removeExistingSaveIndicator(element);
+
+    const fadeDelay = calculateFadeDelay(success);
+    const indicator = createSaveIndicator(element, success);
+    addFadingDelay(indicator, fadeDelay);
+
+    if (index) {
+        const referenceNode = element.childNodes[index] || null;
+        element.insertBefore(indicator, referenceNode);
+    } else {
+        element.append(indicator);
+    }
+}
+
+/**
+ * Removes an existing save indicator overlay if it is present as the previous sibling of the specified element.
+ * The overlay is identified by having the 'fade-element' class.
+ * Any associated fade or removal timers are cleared before the overlay is removed from the DOM.
+ *
+ * @param {HTMLElement} element - The element whose previous sibling will be checked and removed if it matches the criteria.
+ * @return {void} This function does not return any value.
+ */
+function removeExistingSaveIndicatorOverlay(element) {
+    const existing = element.previousElementSibling;
+
+    if (existing && existing.classList.contains('fade-element')) {
+        clearTimeout(existing._fadeTimer);
+        clearTimeout(existing._removeTimer);
+        existing.remove();
+    }
+}
+
+/**
+ * Removes an existing save indicator element with the class 'fade-element' from the specified element.
+ * If the save indicator exists, any associated timers are cleared, and the element is removed.
+ *
+ * @param {HTMLElement} element The parent element to check for the existing save indicator.
+ * @return {void}
+ */
+function removeExistingSaveIndicator(element) {
+    const existing = element.querySelector('.fade-element');
+
     if (existing) {
         clearTimeout(existing._fadeTimer);
         clearTimeout(existing._removeTimer);
         existing.remove();
     }
-    var span = document.createElement('span');
-    span.className = cls;
-    span.style.cssText = 'margin-left:0.4em;font-size:0.95em;transition:opacity 0.4s;opacity:0;';
-    span.style.color = success !== false ? getCssVar('--color-success', '#2ecc71') : getCssVar('--color-danger', '#e74c3c');
-    span.textContent = success !== false ? '✔' : '✘';
-    element.parentNode.insertBefore(span, element.nextSibling);
+}
+
+/**
+ * Creates a save indicator element with the specified success status.
+ * The indicator is styled with a green ✔ for success and a red ✘ for failure.
+ *
+ * @param {HTMLElement} element The parent element to which the indicator will be attached.
+ * @param {boolean} [success=true] - true = green ✔, false = red ✘
+ * @return {HTMLElement} The created save indicator element.
+ */
+function createSaveIndicator(element, success) {
+    let indicator = document.createElement('span');
+    indicator.style.fontSize = '0.95em';
+    indicator.style.color = success !== false ? getCssVar('--color-success', '#2ecc71') : getCssVar('--color-danger', '#e74c3c');
+    indicator.textContent = success !== false ? '✔' : '✘';
+
+    return indicator;
+}
+
+/**
+ * Applies a fading effect to a given element with a specified delay.
+ * The element will fade out after the provided delay, and then be removed
+ * from the DOM shortly after the fade-out completes.
+ *
+ * @param {HTMLElement} element - The DOM element to which the fading effect will be applied.
+ * @param {number} fadeDelay - The delay in milliseconds before the element starts fading out.
+ * @return {void} This method does not return a value.
+ */
+function addFadingDelay(element, fadeDelay) {
+    element.style.transition = 'opacity 0.4s';
+    element.style.opacity = '1';
+
     // Force reflow then fade in
-    void span.offsetWidth;
-    span.style.opacity = '1';
-    var fadeDelay = success !== false ? 2000 : 3000;
-    span._fadeTimer = setTimeout(function () {
-        span.style.opacity = '0';
-    }, fadeDelay);
-    span._removeTimer = setTimeout(function () {
-        if (span.parentNode) span.remove();
+    void element.offsetWidth;
+    element.classList.add('fade-element');
+
+    element._fadeTimer = setTimeout(() => element.style.opacity = '0', fadeDelay);
+    element._removeTimer = setTimeout(() => {
+        if (element.parentNode) {
+            element.remove();
+        }
     }, fadeDelay + 500);
+}
+
+/**
+ * Calculates the fade delay based on the success status.
+ * Returns 2000ms for success, 3000ms for failure.
+ *
+ * @param {boolean} success - true for success, false for failure.
+ * @return {number} The calculated fade delay in milliseconds.
+ */
+function calculateFadeDelay(success) {
+    return success !== false ? 2000 : 3000;
 }
 
 /**
@@ -713,102 +815,4 @@ function resolveArrInstances(cfg, type) {
     if (cfg[key] && cfg[key].length > 0) return cfg[key];
     if (cfg[urlKey]) return [{Name: type, Url: cfg[urlKey], ApiKey: cfg[apiKeyKey]}];
     return [];
-}
-
-// --- Finding 5: Scroll-position restore utility ---
-function withScrollRestore(callback) {
-    var scrollContainer = document.querySelector('.mainAnimatedPage') || document.documentElement;
-    var savedScroll = scrollContainer.scrollTop;
-    callback(function () {
-        setTimeout(function () {
-            scrollContainer.scrollTop = savedScroll;
-        }, 50);
-    });
-}
-
-// --- Finding 7: Shorthand element-by-ID helper ---
-function elById(id) {
-    return document.getElementById(id);
-}
-
-// ============================================================
-// Finding 20: Tiny HTML tag builder
-// ============================================================
-//
-// Avoids raw string concatenation (`h += '<div class="...'`) for new code.
-// Existing code can be gradually migrated; no existing code is changed.
-//
-// Usage examples:
-//   tag('div', {cls: 'card', id: 'main'}, 'Hello')
-//   // → '<div class="card" id="main">Hello</div>'
-//
-//   tag('input', {type: 'text', value: userInput})
-//   // → '<input type="text" value="escaped-value"/>'
-//
-//   tag('ul', {cls: 'list'}, [
-//       tag('li', {}, 'Item 1'),
-//       tag('li', {cls: 'active'}, 'Item 2')
-//   ])
-//   // → '<ul class="list"><li>Item 1</li><li class="active">Item 2</li></ul>'
-//
-//   // Safe text (auto-escaped):
-//   tag('span', {}, escHtml(userText))
-//
-// Note: children are raw HTML strings. Use escHtml() for user-supplied text.
-// ============================================================
-
-/**
- * Build an HTML tag string from structured arguments.
- *
- * @param {string} name - Tag name (e.g. 'div', 'span', 'input').
- * @param {Object} [attributes] - Key-value pairs for HTML attributes.
- *   Values are auto-escaped via escAttr(). Special keys:
- *     - 'cls' → rendered as 'class' (avoids reserved-word issues)
- *     - null / undefined values → attribute is skipped
- * @param {string|string[]} [children] - Inner HTML content.
- *   A string is inserted as-is (raw HTML).
- *   An array is joined (null/undefined entries are skipped).
- *   Omit for void elements or empty containers.
- * @returns {string} The complete HTML string.
- */
-function tag(name, attributes, children) {
-    var s = '<' + name;
-    if (attributes) {
-        for (var key in attributes) {
-            if (Object.prototype.hasOwnProperty.call(attributes, key)) {
-                var val = attributes[key];
-                if (val == null) continue;
-                var attrName = key === 'cls' ? 'class' : key;
-                s += ' ' + attrName + '="' + escAttr(String(val)) + '"';
-            }
-        }
-    }
-    // Void elements (self-closing, no children)
-    var VOID = {
-        area: 1,
-        base: 1,
-        br: 1,
-        col: 1,
-        embed: 1,
-        hr: 1,
-        img: 1,
-        input: 1,
-        link: 1,
-        meta: 1,
-        source: 1,
-        track: 1,
-        wbr: 1
-    };
-    if (VOID[name]) return s + '/>';
-    s += '>';
-    if (children != null) {
-        if (Array.isArray(children)) {
-            for (var i = 0; i < children.length; i++) {
-                if (children[i] != null) s += children[i];
-            }
-        } else {
-            s += children;
-        }
-    }
-    return s + '</' + name + '>';
 }

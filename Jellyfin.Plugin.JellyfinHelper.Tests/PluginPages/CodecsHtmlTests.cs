@@ -3,7 +3,7 @@ using Xunit;
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.PluginPages;
 
 /// <summary>
-/// Tests for the Codecs tab in the composed configPage.html.
+///     Tests for the Codecs tab in the composed configPage.html.
 /// </summary>
 public class CodecsHtmlTests : ConfigPageTestBase
 {
@@ -174,12 +174,5 @@ public class CodecsHtmlTests : ConfigPageTestBase
     {
         Assert.Contains("file-tree-panel-visible", HtmlContent);
         Assert.Contains("max-height", HtmlContent);
-    }
-
-    [Fact]
-    public void Html_ContainsHelperFunctions()
-    {
-        Assert.Contains("function getFileName", HtmlContent);
-        Assert.Contains("function getParentFolder", HtmlContent);
     }
 }
