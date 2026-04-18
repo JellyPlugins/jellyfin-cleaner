@@ -10,7 +10,22 @@ function showDonutTooltip(container, evt, segment) {
         return;
     }
 
-    tooltip.textContent = segment.getAttribute('data-title') || '';
+    var rows = (segment.getAttribute('data-title') || '').split(';');
+    var firstRowSplit = rows[0].split(':');
+    var tooltipContent = '<span>' + firstRowSplit[0] + '</span>';
+    tooltipContent += '<table class="donut-tooltip-table">';
+    tooltipContent += '<tbody>';
+
+    for (let i = 1; i < rows.length; i++) {
+        var rowSplit = rows[i].split(':');
+        tooltipContent += '<tr><td>' + rowSplit[0] + '</td><td>' + rowSplit[1] + '</td></tr>';
+    }
+
+    tooltipContent += '<tr><td>' + T('all', 'All') + '</td><td>' + firstRowSplit[1] + '</td></tr>';
+    tooltipContent += '</tbody>';
+    tooltipContent += '</table>';
+
+    tooltip.innerHTML = tooltipContent;
     tooltip.classList.add('visible');
 
     var containerRect = container.getBoundingClientRect();
@@ -26,8 +41,8 @@ function hideDonutTooltip(container) {
 }
 
 // SVG donut chart generator (returns only the SVG + container, no legend)
-function renderDonutSvg(data, size) {
-    size = size || 160;
+function renderDonutSvg(data, libraries, libraryProperty) {
+    var size = 160;
     var entries = [];
     var total = 0;
     for (var key in data) {
@@ -60,7 +75,29 @@ function renderDonutSvg(data, size) {
         var dashLen = pct * circumference;
         var dashGap = circumference - dashLen;
         var color = DONUT_COLORS[i % DONUT_COLORS.length];
-        var titleText = entries[i].label + ': ' + (pct * 100).toFixed(1) + '%';
+
+        var titleLines = [entries[i].label + ':' + (pct * 100).toFixed(1) + '%'];
+
+        if (libraries && libraries.length > 0) {
+            for (var l = 0; l < libraries.length; l++) {
+                var lib = libraries[l];
+                var libPropertyValue = lib[libraryProperty];
+                var libCount = libPropertyValue && libPropertyValue[entries[i].label]
+                    ? libPropertyValue[entries[i].label]
+                    : 0;
+                var libTotal = libPropertyValue
+                    ? Object.values(libPropertyValue).reduce(function (sum, v) {
+                        return sum + v;
+                    }, 0)
+                    : 0;
+
+                if (libCount > 0 && libTotal > 0) {
+                    titleLines.push(lib.LibraryName + ':' + (libCount / libTotal * 100).toFixed(1) + '%');
+                }
+            }
+        }
+
+        var titleText = titleLines.join(';');
 
         donutContainer += '<g class="donut-segment" data-title="' + escAttr(titleText) + '">';
         donutContainer += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" ' +
@@ -125,8 +162,8 @@ function renderCodecBreakdown(countDict, sizeDict, chartId) {
 }
 
 // Render a full chart box with donut + breakdown
-function renderDonutChart(countDict, sizeDict, chartId) {
-    var svgHtml = renderDonutSvg(countDict);
+function renderDonutChart(countDict, sizeDict, chartId, libraries, libraryProperty) {
+    var svgHtml = renderDonutSvg(countDict, libraries, libraryProperty);
     var breakdownHtml = renderCodecBreakdown(countDict, sizeDict, chartId);
     return svgHtml + breakdownHtml;
 }
@@ -244,7 +281,7 @@ function fillCodecsData(data) {
 
     var codecsHtml = '<div class="charts-row">';
     codecsHtml += '<div class="chart-box"><h4>🎬 ' + T('videoCodecs', 'Video Codecs') + '</h4>';
-    codecsHtml += renderDonutChart(videoCodecs, videoCodecSizes, 'videoCodecs');
+    codecsHtml += renderDonutChart(videoCodecs, videoCodecSizes, 'videoCodecs', data.Libraries, 'VideoCodecs');
     codecsHtml += '</div>';
 
     var hasVideoAudio = Object.keys(videoAudioCodecs).length > 0;
@@ -252,19 +289,21 @@ function fillCodecsData(data) {
 
     if (hasVideoAudio) {
         codecsHtml += '<div class="chart-box"><h4>🔊 ' + T('videoAudioCodecs', 'Video Audio Codecs') + '</h4>';
-        codecsHtml += renderDonutChart(videoAudioCodecs, videoAudioCodecSizes, 'videoAudioCodecs');
+        codecsHtml += renderDonutChart(videoAudioCodecs, videoAudioCodecSizes, 'videoAudioCodecs', data.Libraries,
+            'VideoAudioCodecs');
         codecsHtml += '</div>';
     }
     if (hasMusicAudio) {
         codecsHtml += '<div class="chart-box"><h4>🎵 ' + T('musicAudioCodecs', 'Music Audio Codecs') + '</h4>';
-        codecsHtml += renderDonutChart(musicAudioCodecs, musicAudioCodecSizes, 'musicAudioCodecs');
+        codecsHtml += renderDonutChart(musicAudioCodecs, musicAudioCodecSizes, 'musicAudioCodecs', data.Libraries,
+            'MusicAudioCodecs');
         codecsHtml += '</div>';
     }
     codecsHtml += '<div class="chart-box"><h4>📦 ' + T('containerFormats', 'Container Formats') + '</h4>';
-    codecsHtml += renderDonutChart(containers, containerSizes, 'containers');
+    codecsHtml += renderDonutChart(containers, containerSizes, 'containers', data.Libraries, 'ContainerFormats');
     codecsHtml += '</div>';
     codecsHtml += '<div class="chart-box"><h4>📐 ' + T('resolutions', 'Resolutions') + '</h4>';
-    codecsHtml += renderDonutChart(resolutions, resolutionSizes, 'resolutions');
+    codecsHtml += renderDonutChart(resolutions, resolutionSizes, 'resolutions', data.Libraries, 'Resolutions');
     codecsHtml += '</div>';
     codecsHtml += '</div>';
 

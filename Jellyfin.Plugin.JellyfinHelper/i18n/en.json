@@ -201,5 +201,6 @@
   "unsavedChangesTitle": "Unsaved Changes",
   "unsavedChangesMsg": "You have unsaved settings changes. What would you like to do?",
   "discardChanges": "Discard Changes",
-  "saveAndContinue": "Save & Continue"
+  "saveAndContinue": "Save & Continue",
+  "all": "All"
 }

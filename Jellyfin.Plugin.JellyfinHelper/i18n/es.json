@@ -201,5 +201,6 @@
   "unsavedChangesTitle": "Cambios sin guardar",
   "unsavedChangesMsg": "Tienes cambios sin guardar. ¿Qué deseas hacer?",
   "discardChanges": "Descartar cambios",
-  "saveAndContinue": "Guardar y continuar"
+  "saveAndContinue": "Guardar y continuar",
+  "all": "Todos"
 }

@@ -42,7 +42,6 @@
 
 .donut-svg .donut-segment circle {
     pointer-events: visibleStroke;
-    cursor: pointer;
 }
 
 .donut-svg .donut-segment:hover {
@@ -51,25 +50,47 @@
 
 .donut-tooltip {
     position: absolute;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
     z-index: 5;
     pointer-events: none;
     opacity: 0;
     transform: translateY(4px);
     transition: opacity 0.15s ease, transform 0.15s ease;
-    background: rgba(20, 20, 20, 0.92);
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(20, 20, 20, 0.95);
+    color: #e0e0e0;
+    border: 1px solid var(--color-primary-scrollbar-hover);
     border-radius: 6px;
     padding: 0.35em 0.55em;
     font-size: 0.75rem;
     line-height: 1.2;
-    white-space: nowrap;
+    /*white-space: nowrap;*/
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
 
 .donut-tooltip.visible {
     opacity: 1;
     transform: translateY(0);
+}
+
+.donut-tooltip span {
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
+.donut-tooltip-table td {
+    white-space: nowrap;
+    padding: 0.2em 0;
+}
+
+.donut-tooltip-table tbody td:first-child {
+    padding-right: 0.6em;
+    text-align: left;
+}
+
+.donut-tooltip-table tbody td:last-child {
+    text-align: right;
 }
 
 /* === Codec Breakdown (clickable legend/table below donut) === */
