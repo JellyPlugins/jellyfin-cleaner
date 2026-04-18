@@ -331,6 +331,7 @@
 
     // ========== MOCK ApiClient ==========
     var ApiClient = {
+        accessToken: function() { return 'mock-demo-token'; },
         getUrl: function(path) {
             return 'mock://' + path;
         },
@@ -408,6 +409,25 @@
 
     // Polyfill Promise.then with two-arg style (Jellyfin's ApiClient.ajax uses .then(success, error))
     // Standard Promises already support this — no polyfill needed.
+
+    // ========== MOCK fetch() for native fetch calls in Shared.js ==========
+    // apiGetOptional and apiFetchBlob use native fetch() with mock:// URLs.
+    // We intercept those and route them through the same mock routing as ApiClient.ajax.
+    var _originalFetch = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+        if (typeof url === 'string' && url.indexOf('mock://') === 0) {
+            // Route through the same mock data as ApiClient.ajax
+            return ApiClient.ajax({ url: url, type: (opts && opts.method) || 'GET', dataType: 'json' })
+                .then(function(data) {
+                    var body = typeof data === 'string' ? data : JSON.stringify(data);
+                    return new Response(body, {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                });
+        }
+        return _originalFetch(url, opts);
+    };
     </script>
 
     <!-- Load translations, then inject plugin CSS & JS -->
