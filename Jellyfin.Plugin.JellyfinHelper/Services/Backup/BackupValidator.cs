@@ -305,7 +305,7 @@ public static class BackupValidator
             }
 
             if (!Uri.TryCreate(instance.Url, UriKind.Absolute, out var uri) ||
-                (uri.Scheme != "http" && uri.Scheme != "https"))
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             {
                 result.Errors.Add($"{prefix}.Url is not a valid HTTP/HTTPS URL: '{instance.Url}'.");
             }

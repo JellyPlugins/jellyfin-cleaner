@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.PluginPages;
@@ -71,14 +72,18 @@ public class CodecsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_CodecCategoryMap_VideoCodecsExcludesMusic()
     {
-        // videoCodecs should have music: false
-        Assert.Contains("'videoCodecs': {movies: true, tvShows: true, music: false, other: true}", HtmlContent);
+        // videoCodecs should have music: false (whitespace-tolerant)
+        Assert.Matches(
+            @"'videoCodecs':\s*\{\s*movies:\s*true,\s*tvShows:\s*true,\s*music:\s*false,\s*other:\s*true\s*\}",
+            HtmlContent);
     }
 
     [Fact]
     public void Html_CodecCategoryMap_VideoAudioCodecsExcludesMusic()
     {
-        Assert.Contains("'videoAudioCodecs': {movies: true, tvShows: true, music: false, other: true}", HtmlContent);
+        Assert.Matches(
+            @"'videoAudioCodecs':\s*\{\s*movies:\s*true,\s*tvShows:\s*true,\s*music:\s*false,\s*other:\s*true\s*\}",
+            HtmlContent);
     }
 
     [Fact]
@@ -93,14 +98,18 @@ public class CodecsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_CodecCategoryMap_ContainersIncludesAll()
     {
-        // containers should include all library types
-        Assert.Contains("'containers': {movies: true, tvShows: true, music: true, other: true}", HtmlContent);
+        // containers should include all library types (whitespace-tolerant)
+        Assert.Matches(
+            @"'containers':\s*\{\s*movies:\s*true,\s*tvShows:\s*true,\s*music:\s*true,\s*other:\s*true\s*\}",
+            HtmlContent);
     }
 
     [Fact]
     public void Html_CodecCategoryMap_ResolutionsExcludesMusic()
     {
-        Assert.Contains("'resolutions': {movies: true, tvShows: true, music: false, other: true}", HtmlContent);
+        Assert.Matches(
+            @"'resolutions':\s*\{\s*movies:\s*true,\s*tvShows:\s*true,\s*music:\s*false,\s*other:\s*true\s*\}",
+            HtmlContent);
     }
 
     [Fact]

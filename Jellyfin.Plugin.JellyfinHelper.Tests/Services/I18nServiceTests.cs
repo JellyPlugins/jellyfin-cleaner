@@ -86,7 +86,7 @@ public class I18NServiceTests : IDisposable
 
         var expectedKeys = new[]
         {
-            "scanLibraries", "scanning", "scanDescription", "scanPlaceholder", "error",
+            "scanLibraries", "scanning", "scanDescription", "scanPlaceholder", "initializingScan", "error",
             "tabOverview", "tabCodecs", "tabHealth", "tabTrends", "tabSettings", "tabArr", "tabLogs",
             "movieVideoData", "tvVideoData", "musicAudioData", "trickplayData", "subtitleData", "subtitles",
             "totalFiles",
@@ -128,7 +128,9 @@ public class I18NServiceTests : IDisposable
             // Seerr keys
             "seerrCleanup", "seerrNotConfigured", "settingsSeerrTitle", "settingsSeerrHelp",
             "seerrInstance", "seerrUrl", "seerrApiKey",
-            "seerrCleanupAgeDays", "seerrCleanupAgeDaysHelp", "seerrFillFields"
+            "seerrCleanupAgeDays", "seerrCleanupAgeDaysHelp", "seerrFillFields",
+            // Unsaved changes dialog keys
+            "unsavedChangesTitle", "unsavedChangesMsg", "discardChanges", "saveAndContinue"
         };
 
         foreach (var key in expectedKeys)

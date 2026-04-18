@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.PluginPages;
@@ -107,8 +108,10 @@ public class HealthHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_HealthClickHandler_UsesCollectHealthPaths()
     {
-        // The health click handler should use collectHealthPaths to gather paths
-        Assert.Contains("collectHealthPaths(_lastScanResult, mapping.prop)", HtmlContent);
+        // The health click handler should use collectHealthPaths to gather paths (whitespace-tolerant)
+        Assert.Matches(
+            @"collectHealthPaths\(\s*_lastScanResult\s*,\s*mapping\.prop\s*\)",
+            HtmlContent);
     }
 
     [Fact]

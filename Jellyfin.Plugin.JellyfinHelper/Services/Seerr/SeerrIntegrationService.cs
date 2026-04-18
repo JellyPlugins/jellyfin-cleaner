@@ -127,6 +127,7 @@ public sealed class SeerrIntegrationService : ISeerrIntegrationService
             }
             catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
             {
+                result.Failed++;
                 _pluginLog.LogWarning(
                     "SeerrCleanup",
                     $"Timed out fetching requests page (skip={skip}): {ex.Message}",
@@ -136,6 +137,7 @@ public sealed class SeerrIntegrationService : ISeerrIntegrationService
             }
             catch (Exception ex) when (ex is HttpRequestException or JsonException)
             {
+                result.Failed++;
                 _pluginLog.LogWarning(
                     "SeerrCleanup",
                     $"Failed to fetch requests page (skip={skip}): {ex.Message}",
@@ -151,6 +153,7 @@ public sealed class SeerrIntegrationService : ISeerrIntegrationService
 
             if (page.PageInfo == null)
             {
+                result.Failed++;
                 _pluginLog.LogWarning(
                     "SeerrCleanup",
                     "Unexpected API response: missing pageInfo, aborting pagination",

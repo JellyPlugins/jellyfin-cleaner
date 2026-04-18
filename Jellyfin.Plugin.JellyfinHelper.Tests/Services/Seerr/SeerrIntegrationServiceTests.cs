@@ -102,6 +102,28 @@ public class SeerrIntegrationServiceTests : IDisposable
     private static string MakeMovieDetails(string title) =>
         JsonSerializer.Serialize(new { title, name = (string?)null });
 
+    private static string MakeRequestPageWithMediaType(
+        string mediaType,
+        List<(int Id, DateTimeOffset CreatedAt)> requests,
+        int totalResults,
+        int page = 1,
+        int pages = 1)
+    {
+        var results = requests.Select(r => new
+        {
+            id = r.Id,
+            createdAt = r.CreatedAt.ToString("O"),
+            status = 2,
+            media = new { mediaType, tmdbId = r.Id * 100, status = 5 }
+        }).ToList();
+
+        return JsonSerializer.Serialize(new
+        {
+            pageInfo = new { page, pages, results = totalResults, pageSize = 50 },
+            results
+        });
+    }
+
     private static string MakeTvDetails(string name) =>
         JsonSerializer.Serialize(new { title = (string?)null, name });
 
@@ -661,6 +683,70 @@ public class SeerrIntegrationServiceTests : IDisposable
             x => x.LogInfo(
                 "SeerrCleanup",
                 It.Is<string>(s => s.Contains("\"Interstellar\"") && s.Contains("Deleted")),
+                It.IsAny<ILogger>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Cleanup_DryRun_TwoPages_ProcessesAllExpired()
+    {
+        var page1Requests = new List<(int, DateTimeOffset)>
+        {
+            (1, DateTimeOffset.UtcNow.AddDays(-400)),
+            (2, DateTimeOffset.UtcNow.AddDays(-500))
+        };
+        var page2Requests = new List<(int, DateTimeOffset)>
+        {
+            (3, DateTimeOffset.UtcNow.AddDays(-600))
+        };
+        var page1 = MakeRequestPage(page1Requests, 3, page: 1, pages: 2);
+        var page2 = MakeRequestPage(page2Requests, 3, page: 2, pages: 2);
+
+        // Phase 1: two pages fetched, Phase 2: three title resolutions
+        var handler = CreateSequenceHandler(
+            (HttpStatusCode.OK, page1),
+            (HttpStatusCode.OK, page2),
+            (HttpStatusCode.OK, MakeMovieDetails("Film A")),
+            (HttpStatusCode.OK, MakeMovieDetails("Film B")),
+            (HttpStatusCode.OK, MakeMovieDetails("Film C")));
+
+        var service = CreateService(handler.Object, out _, out var pluginLogMock);
+        var result = await service.CleanupExpiredRequestsAsync(
+            BaseUrl, ApiKey, 365, true, CancellationToken.None);
+
+        Assert.Equal(3, result.TotalChecked);
+        Assert.Equal(3, result.ExpiredFound);
+        Assert.True(result.DryRun);
+
+        pluginLogMock.Verify(
+            x => x.LogInfo(
+                "SeerrCleanup",
+                It.Is<string>(s => s.Contains("[Dry Run]")),
+                It.IsAny<ILogger>()),
+            Times.Exactly(3));
+    }
+
+    [Fact]
+    public async Task Cleanup_DryRun_TvMedia_ResolvesTvTitle()
+    {
+        var requests = new List<(int, DateTimeOffset)>
+        {
+            (1, DateTimeOffset.UtcNow.AddDays(-400))
+        };
+        var page = MakeRequestPageWithMediaType("tv", requests, 1);
+
+        var handler = CreateSequenceHandler(
+            (HttpStatusCode.OK, page),
+            (HttpStatusCode.OK, MakeTvDetails("Breaking Bad")));
+
+        var service = CreateService(handler.Object, out _, out var pluginLogMock);
+        await service.CleanupExpiredRequestsAsync(
+            BaseUrl, ApiKey, 365, true, CancellationToken.None);
+
+        pluginLogMock.Verify(
+            x => x.LogInfo(
+                "SeerrCleanup",
+                It.Is<string>(s => s.Contains("\"Breaking Bad\"") && s.Contains("[Dry Run]")),
                 It.IsAny<ILogger>()),
             Times.Once);
     }
