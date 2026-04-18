@@ -227,7 +227,7 @@ public class LogsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_DownloadUsesAuthorizationHeader()
     {
-        // Auth header is handled internally by apiFetchBlob in shared.js;
+        // Auth header is handled internally by apiFetchBlob in Shared.js;
         // verify the shared helper carries the token via Authorization header
         Assert.Contains("Authorization", HtmlContent);
         Assert.Contains("accessToken()", HtmlContent);

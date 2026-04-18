@@ -243,7 +243,7 @@ The dashboard UI is assembled at build time via a custom `ComposeConfigPage` MSB
 PluginPages/
 ├── configPage.template.html  # HTML shell with CSS_CONTENT / JS_CONTENT placeholders
 ├── css/
-│   ├── shared.css            # Common styles (layout, modals, file lists)
+│   ├── Shared.css            # Common styles (layout, modals, file lists)
 │   ├── Overview.css          # Overview tab (disk usage bars, stat cards)
 │   ├── Codecs.css            # Codec tab (donut charts, file explorer)
 │   ├── Health.css            # Health check (tiles, detail panels)
@@ -252,7 +252,7 @@ PluginPages/
 │   ├── ArrIntegration.css    # Arr comparison tables
 │   └── Logs.css              # Log viewer (table, toolbar, level colors)
 └── js/
-    ├── shared.js             # IIFE open, utilities (formatBytes, escHtml, T(), showAutoSaveIndicator())
+    ├── Shared.js             # IIFE open, utilities (formatBytes, escHtml, T(), showAutoSaveIndicator())
     ├── Overview.js           # Overview tab rendering
     ├── Codecs.js             # Codec tab (donut charts, file drill-down)
     ├── Health.js             # Health tab (tiles, clickable details, trash)
@@ -260,14 +260,14 @@ PluginPages/
     ├── Settings.js           # Settings tab (task modes, trash, language, Arr, Seerr, backup/restore, auto-save, collapsible sections)
     ├── ArrIntegration.js     # Arr tab (instance comparison, connection test)
     ├── Logs.js               # Logs tab (filtering, download, auto-refresh)
-    └── main.js               # Tab routing, scan trigger, IIFE close
+    └── Main.js               # Tab routing, scan trigger, IIFE close
 ```
 
 CSS files are concatenated and injected into `/* CSS_CONTENT */`, JS files into `/* JS_CONTENT */`. The output is `configPage.html` — a single self-contained file.
 
 **Adding a new tab:**
 1. Create `css/YourTab.css` and `js/YourTab.js`
-2. Add a tab button + content container in `main.js` → `renderShell()`
+2. Add a tab button + content container in `Main.js` → `renderShell()`
 3. Add a `fillYourTabData(data)` function and call it from `fillScanData()`
 4. Build — the new files are automatically included
 

@@ -41,7 +41,7 @@ public class CodecsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_ContainsSharedFileTreeRenderer()
     {
-        // renderFileList was replaced by the tree-based renderFileTree in shared.js
+        // renderFileList was replaced by the tree-based renderFileTree in Shared.js
         Assert.Contains("function renderFileTree", HtmlContent);
     }
 

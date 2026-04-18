@@ -49,14 +49,11 @@ function loadTranslations(callback) {
 }
 
 function applyStaticTranslations() {
-    var title = document.querySelector('.stats-header h2');
-    if (title) title.textContent = T('title', 'Jellyfin Helper \u2014 Media Statistics');
-
-    var btnRefresh = document.getElementById('btnRefresh');
-    if (btnRefresh) {
+    var btnScanLibraries = document.getElementById('btnScanLibraries');
+    if (btnScanLibraries) {
         var scanLabel = T('scanLibraries', 'Scan Libraries');
-        btnRefresh.title = scanLabel;
-        btnRefresh.setAttribute('aria-label', scanLabel);
+        btnScanLibraries.title = scanLabel;
+        btnScanLibraries.setAttribute('aria-label', scanLabel);
     }
 
     var loadingText = document.querySelector('#loadingIndicator p');

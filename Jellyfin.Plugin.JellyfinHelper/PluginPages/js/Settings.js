@@ -347,7 +347,7 @@ function doSaveSettings(payload, options) {
     });
 }
 
-// Dialog helpers (createDialogOverlay, createDialogBtn, removeDialogById) are now in shared.js
+// Dialog helpers (createDialogOverlay, createDialogBtn, removeDialogById) are now in Shared.js
 
 function removeTrashDialog() {
     removeDialogById('trashDialogOverlay');

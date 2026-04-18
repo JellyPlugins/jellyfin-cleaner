@@ -27,7 +27,7 @@ and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin
 - **Configuration** — `StrmRepairTaskMode` renamed to `LinkRepairTaskMode`.
 - **Scheduled Task** — `RepairStrmFilesTask` renamed to `RepairLinksTask`.
 - **Save Workflow** — `doSaveSettings()` now supports a `quiet` mode with `{ quiet: true, element: el }` options for auto-save (no button animation, inline indicator instead). Language change no longer triggers a full-page reload.
-- **Log Level Auto-Save** — Log level dropdown in the Logs tab now uses the shared `showAutoSaveIndicator()` function from `shared.js` for consistent UX across all auto-save controls.
+- **Log Level Auto-Save** — Log level dropdown in the Logs tab now uses the shared `showAutoSaveIndicator()` function from `Shared.js` for consistent UX across all auto-save controls.
 - **Documentation** — Updated CONTRIBUTING.md, README.md, manifest.json, and build.yaml to reflect Link Repair naming, symlink support, Seerr integration, and UI improvements.
 
 ---
@@ -134,7 +134,7 @@ and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin
 - **Boxset/Collection Skipping** — Health checks automatically skip boxset/collection libraries.
 
 ### Changed
-- **Dashboard Architecture** — Migrated from monolithic config page to modular 6-tab architecture with shared utilities (`shared.js`, `shared.css`).
+- **Dashboard Architecture** — Migrated from monolithic config page to modular 6-tab architecture with shared utilities (`Shared.js`, `Shared.css`).
 - **README** — Comprehensive rewrite reflecting all new features, API endpoints, configuration options, and architecture.
 - **Test Count** — Increased from 315 to **572 tests** covering multi-instance Arr, connection testing, persisted statistics, embedded subtitles, codec path tracking, trash contents, modular build, and all new UI features.
 

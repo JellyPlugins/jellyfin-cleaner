@@ -116,7 +116,7 @@ function renderDonutChart(countDict, sizeDict, chartId) {
 }
 
 // Collect paths for a specific codec from libraries, filtered by categories.
-// Uses collectDictPaths from shared.js for the per-library dict lookup.
+// Uses collectDictPaths from Shared.js for the per-library dict lookup.
 function collectCodecPaths(data, pathsProp, codecName, categories) {
     var includeMovies = !categories || categories.movies;
     var includeTvShows = !categories || categories.tvShows;

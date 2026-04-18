@@ -57,7 +57,7 @@ function doTabSwitch(clickedBtn, tabId) {
     }
 }
 
-// formatTimeAgo is now in shared.js
+// formatTimeAgo is now in Shared.js
 
 // Update the "Last Scan" badge in the header
 function updateLastScanBadge(utcTimestamp) {

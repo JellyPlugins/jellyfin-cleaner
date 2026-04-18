@@ -141,14 +141,14 @@ public class HealthHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_ContainsSharedRenderFileTreeFunction()
     {
-        // renderFileTree should be in shared.js (available to both Codecs + Health)
+        // renderFileTree should be in Shared.js (available to both Codecs + Health)
         Assert.Contains("function renderFileTree", HtmlContent);
     }
 
     [Fact]
     public void Html_FileTreeCssInShared()
     {
-        // File tree CSS classes should be present (now in shared.css)
+        // File tree CSS classes should be present (now in Shared.css)
         Assert.Contains("file-tree-header", HtmlContent);
         Assert.Contains("file-tree-columns", HtmlContent);
         Assert.Contains("tree-view", HtmlContent);

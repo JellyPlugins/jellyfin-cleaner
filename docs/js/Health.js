@@ -1,6 +1,6 @@
 // --- Health Tab ---
 
-// collectFlatPaths is now in shared.js
+// collectFlatPaths is now in Shared.js
 
 function collectHealthPaths(data, prop) {
     return {

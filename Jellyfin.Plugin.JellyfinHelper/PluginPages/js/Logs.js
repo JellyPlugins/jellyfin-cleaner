@@ -366,4 +366,4 @@ function formatLogTimestamp(ts) {
     }
 }
 
-// escHtml is defined in shared.js
+// escHtml is defined in Shared.js

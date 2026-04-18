@@ -46,7 +46,7 @@
 
     <!-- Define CSS and JS module files in concatenation order -->
     <ItemGroup>
-        <CssModule Include="PluginPages\css\shared.css"/>
+        <CssModule Include="PluginPages\css\Shared.css"/>
         <CssModule Include="PluginPages\css\Overview.css"/>
         <CssModule Include="PluginPages\css\Codecs.css"/>
         <CssModule Include="PluginPages\css\Health.css"/>
@@ -57,7 +57,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <JsModule Include="PluginPages\js\shared.js"/>
+        <JsModule Include="PluginPages\js\Shared.js"/>
         <JsModule Include="PluginPages\js\Overview.js"/>
         <JsModule Include="PluginPages\js\Codecs.js"/>
         <JsModule Include="PluginPages\js\Health.js"/>
@@ -65,7 +65,7 @@
         <JsModule Include="PluginPages\js\Settings.js"/>
         <JsModule Include="PluginPages\js\ArrIntegration.js"/>
         <JsModule Include="PluginPages\js\Logs.js"/>
-        <JsModule Include="PluginPages\js\main.js"/>
+        <JsModule Include="PluginPages\js\Main.js"/>
     </ItemGroup>
 
     <Target Name="ComposeConfigPageHtml"
