@@ -74,7 +74,7 @@ public sealed class SeerrIntegrationService : ISeerrIntegrationService
         {
             throw;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException or UriFormatException or JsonException or ArgumentException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException or UriFormatException or JsonException or ArgumentException or FormatException)
         {
             return (false, $"Connection failed: {ex.Message}");
         }
@@ -102,6 +102,23 @@ public sealed class SeerrIntegrationService : ISeerrIntegrationService
             unsafeClient = CreateClient(baseUrl, apiKey);
         }
         catch (Exception ex) when (ex is UriFormatException or ArgumentException)
+        {
+            _pluginLog.LogWarning(
+                "SeerrCleanup",
+                $"Invalid Seerr configuration: {ex.Message}",
+                ex,
+                _logger);
+            result.Failed = 1;
+            return result;
+        }
+
+        using var client = unsafeClient;
+        HttpClient unsafeClient;
+        try
+        {
+            unsafeClient = CreateClient(baseUrl, apiKey);
+        }
+        catch (Exception ex) when (ex is UriFormatException or ArgumentException or FormatException)
         {
             _pluginLog.LogWarning(
                 "SeerrCleanup",
@@ -162,7 +179,17 @@ public sealed class SeerrIntegrationService : ISeerrIntegrationService
                 break;
             }
 
-            if (page?.Results == null || page.Results.Count == 0)
+            if (page?.Results == null)
+            {
+                result.Failed++;
+                _pluginLog.LogWarning(
+                    "SeerrCleanup",
+                    $"Unexpected null response deserializing requests page (skip={skip})",
+                    logger: _logger);
+                break;
+            }
+
+            if (page.Results.Count == 0)
             {
                 break;
             }
