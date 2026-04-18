@@ -57,7 +57,7 @@ function doTabSwitch(clickedBtn, tabId) {
     }
 }
 
-// formatTimeAgo is now in shared.js
+// formatTimeAgo is now in Shared.js
 
 // Update the "Last Scan" badge in the header
 function updateLastScanBadge(utcTimestamp) {
@@ -170,7 +170,7 @@ function fillScanData(data) {
 }
 
 function loadStatistics() {
-    var btn = document.getElementById('btnRefresh');
+    var btn = document.getElementById('btnScanLibraries');
     var loading = document.getElementById('loadingIndicator');
     var placeholder = document.getElementById('statsPlaceholder');
 
@@ -229,9 +229,9 @@ function initPage() {
         return;
     }
 
-    var btnRefresh = document.getElementById('btnRefresh');
+    var btnScanLibraries = document.getElementById('btnScanLibraries');
 
-    if (!btnRefresh) {
+    if (!btnScanLibraries) {
         _initRetries++;
         if (_initRetries < _maxInitRetries) {
             console.warn('Jellyfin Helper: DOM not ready, retry ' + _initRetries + '/'
@@ -239,13 +239,13 @@ function initPage() {
             setTimeout(initPage, 250);
         } else {
             console.error(
-                'Jellyfin Helper: Could not find btnRefresh after ' + _maxInitRetries
+                'Jellyfin Helper: Could not find btnScanLibraries after ' + _maxInitRetries
                 + ' retries');
         }
         return;
     }
 
-    btnRefresh.innerHTML = SVG.REFRESH;
+    btnScanLibraries.innerHTML = SVG.REFRESH;
 
     _pageInitialized = true;
 
@@ -262,6 +262,10 @@ function initPage() {
         if (result) {
             result.innerHTML = renderShell();
             result.style.display = 'block';
+            // Reset tab-level state after DOM re-render so handlers get rebound
+            if (typeof resetLogsTabState === 'function') {
+                resetLogsTabState();
+            }
         }
 
         // Initialize tab switching
@@ -278,7 +282,7 @@ function initPage() {
     });
 
     if (!_handlersBound) {
-        btnRefresh.addEventListener('click', function (e) {
+        btnScanLibraries.addEventListener('click', function (e) {
             e.preventDefault();
             loadStatistics();
         });
@@ -306,6 +310,17 @@ function bindPageLifecycle() {
         _pageInitialized = false;
         _initRetries = 0;
         setTimeout(initPage, 0);
+    });
+    // Teardown when navigating away from the plugin page
+    pageEl.addEventListener('pagehide', function () {
+        if (typeof destroyLogsTab === 'function') {
+            destroyLogsTab();
+        }
+    });
+    pageEl.addEventListener('viewhide', function () {
+        if (typeof destroyLogsTab === 'function') {
+            destroyLogsTab();
+        }
     });
     _pageLifecycleBound = true;
 }

@@ -12,24 +12,27 @@ function renderLogsTab() {
 
     // Toolbar
     h += '<div class="logs-toolbar">';
+
+    h += '<div class="logs-toolbar-item">';
     h += '<label for="logsLevelFilter">' + T('logsLevel', 'Level') + ':</label>';
     h += '<div>';
-    h += '<select id="logsLevelFilter">';
+    h += '<select id="logsLevelFilter" style="min-width: 100px">';
     h += '<option value="DEBUG">DEBUG</option>';
     h += '<option value="INFO">INFO</option>';
     h += '<option value="WARN">WARN</option>';
     h += '<option value="ERROR">ERROR</option>';
     h += '</select>';
     h += '</div>';
+    h += '</div>';
 
+    h += '<div class="logs-toolbar-item">';
     h += '<label for="logsSourceFilter">' + T('logsSource', 'Source') + ':</label>';
     h += '<input type="text" id="logsSourceFilter" placeholder="' + T(
             'logsSourcePlaceholder', 'e.g. TrickplayCleaner')
-        + '" style="width:150px;">';
-
-    h += '<div class="logs-spacer"></div>';
+        + '" style="width:130px;">';
 
     h += '<span class="logs-count" id="logsCount"></span>';
+    h += '</div>';
 
     h += '<div class="logs-auto-refresh" id="logsAutoRefreshIndicator">';
     h += '<span class="dot"></span>';
@@ -111,61 +114,53 @@ function loadLogLevelFromConfig(callback) {
         }
         return;
     }
-    try {
-        apiGet('JellyfinHelper/Configuration', function (cfg) {
-            var level = cfg.PluginLogLevel || 'INFO';
-            if (typeof _currentLogLevel !== 'undefined') {
-                _currentLogLevel = level;
-            }
-            var lf = document.getElementById('logsLevelFilter');
-            if (lf) {
-                lf.value = level;
-            }
-            if (callback) {
-                callback();
-            }
-        }, function () {
-            var lf = document.getElementById('logsLevelFilter');
-            if (lf) {
-                lf.value = 'INFO';
-            }
-            if (callback) {
-                callback();
-            }
-        });
-    } catch (e) {
-        logLevelFilter = document.getElementById('logsLevelFilter');
-        if (logLevelFilter) {
-            logLevelFilter.value = 'INFO';
+    apiGet('JellyfinHelper/Configuration', function (cfg) {
+        var level = cfg.PluginLogLevel || 'INFO';
+        if (typeof _currentLogLevel !== 'undefined') {
+            _currentLogLevel = level;
+        }
+        var lf = document.getElementById('logsLevelFilter');
+        if (lf) {
+            lf.value = level;
         }
         if (callback) {
             callback();
         }
-    }
+    }, function () {
+        var lf = document.getElementById('logsLevelFilter');
+        if (lf) {
+            lf.value = 'INFO';
+        }
+        if (callback) {
+            callback();
+        }
+    });
 }
 
 function saveLogLevelToConfig(newLevel) {
-    try {
-        var levelFilter = document.getElementById('logsLevelFilter');
-        apiPut('JellyfinHelper/Configuration/LogLevel', {PluginLogLevel: newLevel},
-            function () {
-                // Update Settings tab safety-net variable if available
-                if (typeof _currentLogLevel !== 'undefined') {
-                    _currentLogLevel = newLevel;
-                }
-                showAutoSaveIndicatorOverlay(levelFilter, true);
-            }, function () {
-                console.warn('Failed to save log level');
-                showAutoSaveIndicatorOverlay(levelFilter, false);
-            });
-    } catch (e) {
-        console.warn('Failed to save log level', e);
-    }
+    var levelFilter = document.getElementById('logsLevelFilter');
+    apiPut('JellyfinHelper/Configuration/LogLevel', {PluginLogLevel: newLevel},
+        function () {
+            // Update Settings tab safety-net variable if available
+            if (typeof _currentLogLevel !== 'undefined') {
+                _currentLogLevel = newLevel;
+            }
+            showAutoSaveIndicatorOverlay(levelFilter, true);
+        }, function () {
+            console.warn('Failed to save log level');
+            showAutoSaveIndicatorOverlay(levelFilter, false);
+        });
 }
 
 function destroyLogsTab() {
     _logsInitSeq++;
     stopLogsAutoRefresh();
+    // NOTE: Do NOT reset _logsTabInitialized here.
+    // The DOM elements persist across tab switches, so handlers stay valid.
+    // _logsTabInitialized is only reset when the page shell is re-rendered.
+}
+
+function resetLogsTabState() {
     _logsTabInitialized = false;
 }
 
@@ -363,4 +358,4 @@ function formatLogTimestamp(ts) {
     }
 }
 
-// escHtml is defined in shared.js
+// escHtml is defined in Shared.js

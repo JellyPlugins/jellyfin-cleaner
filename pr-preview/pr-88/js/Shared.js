@@ -49,11 +49,12 @@ function loadTranslations(callback) {
 }
 
 function applyStaticTranslations() {
-    var title = document.querySelector('.stats-header h2');
-    if (title) title.textContent = T('title', 'Jellyfin Helper \u2014 Media Statistics');
-
-    var btnRefresh = document.getElementById('btnRefresh');
-    if (btnRefresh) btnRefresh.title = T('scanLibraries', 'Scan Libraries');
+    var btnScanLibraries = document.getElementById('btnScanLibraries');
+    if (btnScanLibraries) {
+        var scanLabel = T('scanLibraries', 'Scan Libraries');
+        btnScanLibraries.title = scanLabel;
+        btnScanLibraries.setAttribute('aria-label', scanLabel);
+    }
 
     var loadingText = document.querySelector('#loadingIndicator p');
     if (loadingText) loadingText.textContent = T('scanDescription', 'Scanning libraries\u2026 This may take a while for large collections.');
@@ -86,8 +87,9 @@ function getPathSegments(fullPath, rootPaths) {
 
     var bestRoot = '';
     for (var i = 0; i < rootPaths.length; i++) {
-        var root = rootPaths[i].replace(/\\/g, '/');
-        if (normalized.startsWith(root) && root.length > bestRoot.length) {
+        var root = rootPaths[i].replace(/\\/g, '/').replace(/\/+$/, '');
+        var matchesRoot = normalized === root || normalized.startsWith(root + '/');
+        if (matchesRoot && root.length > bestRoot.length) {
             bestRoot = root;
         }
     }
@@ -302,7 +304,7 @@ function addAutoSaveIndicator(element, success, index) {
     const indicator = createSaveIndicator(element, success);
     addFadingDelay(indicator, fadeDelay);
 
-    if (index) {
+    if (typeof index === 'number') {
         const referenceNode = element.childNodes[index] || null;
         element.insertBefore(indicator, referenceNode);
     } else {
