@@ -155,8 +155,18 @@ function removeArrInstance(type, index) {
         var labels = remaining[i].querySelectorAll('label');
         var suffixes = ['_name', '_url', '_key'];
         for (var j = 0; j < inputs.length && j < suffixes.length; j++) {
-            inputs[j].id = prefix + suffixes[j];
-            if (labels[j]) { labels[j].htmlFor = prefix + suffixes[j]; }
+            var oldId = inputs[j].id;
+            var newId = prefix + suffixes[j];
+            inputs[j].id = newId;
+
+            // Update corresponding label if it exists
+            var label = remaining[i].querySelector('label[for="' + oldId + '"]');
+            if (label) {
+                label.htmlFor = newId;
+            } else if (labels[j]) {
+                // Fallback to index-based if label[for] not found
+                labels[j].htmlFor = newId;
+            }
         }
         var strong = remaining[i].querySelector('strong');
         if (strong) {
@@ -180,10 +190,9 @@ function removeArrInstance(type, index) {
 
     // Auto-save settings after removal and show feedback on collapsible header (Finding 17: removed unnecessary typeof checks)
     doSaveSettings(buildSettingsPayload());
-    var arrCollapsibleHeader = document.getElementById(
-        'arrCollapsibleHeader' + type);
+    const arrCollapsibleHeader = document.getElementById('arrCollapsibleHeader' + type);
     if (arrCollapsibleHeader) {
-        showAutoSaveIndicator(arrCollapsibleHeader, true);
+        addAutoSaveIndicator(arrCollapsibleHeader, true, 4);
     }
 }
 

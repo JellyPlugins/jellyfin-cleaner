@@ -117,18 +117,18 @@ function loadSettings() {
         var h = '';
         h += '<div class="section-title">' + T('settingsGeneralTitle', 'General settings') + '</div>';
 
-        h += '<label>' + T('includedLibraries', 'Included Libraries (whitelist, comma-separated)') + '</label>';
+        h += '<label for="cfgIncluded">' + T('includedLibraries', 'Included Libraries (whitelist, comma-separated)') + '</label>';
         h += '<input type="text" id="cfgIncluded" value="' + escAttr(cfg.IncludedLibraries || '') + '">';
         h += '<div class="help-text">' + T('includedLibrariesHelp', 'Leave empty to include all libraries.') + '</div>';
 
-        h += '<label>' + T('excludedLibraries', 'Excluded Libraries (blacklist, comma-separated)') + '</label>';
+        h += '<label for="cfgExcluded">' + T('excludedLibraries', 'Excluded Libraries (blacklist, comma-separated)') + '</label>';
         h += '<input type="text" id="cfgExcluded" value="' + escAttr(cfg.ExcludedLibraries || '') + '">';
 
-        h += '<label>' + T('orphanMinAgeDays', 'Orphan Minimum Age (days)') + '</label>';
+        h += '<label for="cfgOrphanAge">' + T('orphanMinAgeDays', 'Orphan Minimum Age (days)') + '</label>';
         h += '<input type="number" id="cfgOrphanAge" min="0" value="' + (cfg.OrphanMinAgeDays || 0) + '">';
         h += '<div class="help-text">' + T('orphanMinAgeDaysHelp', 'Items younger than this are protected from deletion.') + '</div>';
 
-        h += '<label>' + T('language', 'Dashboard Language') + '</label>';
+        h += '<label for="cfgLang">' + T('language', 'Dashboard Language') + '</label>';
         h += '<select id="cfgLang">';
         var langs = [['en', 'English'], ['de', 'Deutsch'], ['fr', 'Français'], ['es', 'Español'], ['pt', 'Português'], ['zh', '中文'], ['tr', 'Türkçe']];
         for (var i = 0; i < langs.length; i++) {
@@ -169,10 +169,10 @@ function loadSettings() {
         h += '<div class="section-title">' + T('settingsTrashTitle', 'Trash settings') + '</div>';
         h += '<div class="checkbox-row"><input type="checkbox" id="cfgTrash"' + (cfg.UseTrash ? ' checked' : '') + '><label for="cfgTrash">' + T('useTrash', 'Use Trash (Recycle Bin)') + '</label></div>';
 
-        h += '<label>' + T('trashFolder', 'Trash Folder Path') + '</label>';
+        h += '<label for="cfgTrashPath">' + T('trashFolder', 'Trash Folder Path') + '</label>';
         h += '<input type="text" id="cfgTrashPath" value="' + escAttr(cfg.TrashFolderPath || '.jellyfin-trash') + '">';
 
-        h += '<label>' + T('trashRetention', 'Trash Retention (days)') + '</label>';
+        h += '<label for="cfgTrashDays">' + T('trashRetention', 'Trash Retention (days)') + '</label>';
         h += '<input type="number" id="cfgTrashDays" min="0" value="' + (cfg.TrashRetentionDays != null ? cfg.TrashRetentionDays : 30) + '">';
 
         function renderArrCollapseButton(expanded, icon, text, countText, type) {
@@ -190,12 +190,12 @@ function loadSettings() {
         h += '<div class="arr-collapsible' + (!seerrHasCfg ? ' arr-expanded' : '') + '" id="arrCollapsibleSeerr">';
         h += renderArrCollapseButton(!seerrHasCfg, SVG.EYE, T('seerrInstance', 'Seerr Instance'), seerrHasCfg ? '✔' : '', 'Seerr');
         h += '<div class="arr-collapsible-body">';
-        h += '<label>' + T('seerrUrl', 'Seerr URL') + '</label>';
+        h += '<label for="cfgSeerrUrl">' + T('seerrUrl', 'Seerr URL') + '</label>';
         h += '<input type="text" id="cfgSeerrUrl" value="' + escAttr(cfg.SeerrUrl || '') + '" placeholder="http://localhost:5055">';
-        h += '<label>' + T('seerrApiKey', 'Seerr API Key') + '</label>';
+        h += '<label for="cfgSeerrApiKey">' + T('seerrApiKey', 'Seerr API Key') + '</label>';
         h += '<input type="password" id="cfgSeerrApiKey" value="' + escAttr(cfg.SeerrApiKey || '') + '">';
         h += '<div class="seerr-age-wrapper" style="' + (!seerrHasCfg ? 'opacity:0.5;pointer-events:none;' : '') + '">';
-        h += '<label>' + T('seerrCleanupAgeDays', 'Max Request Age (days)') + '</label>';
+        h += '<label for="cfgSeerrAgeDays">' + T('seerrCleanupAgeDays', 'Max Request Age (days)') + '</label>';
         h += '<input type="number" id="cfgSeerrAgeDays" min="1" value="' + (cfg.SeerrCleanupAgeDays || 365) + '">';
         h += '<div class="help-text">' + T('seerrCleanupAgeDaysHelp', 'Requests older than this will be deleted. Default: 365 days.') + '</div>';
         h += '</div>';
@@ -321,7 +321,7 @@ function doSaveSettings(payload, options) {
         }
 
         if (quiet) {
-            showAutoSaveIndicator(indicatorEl, true);
+            showAutoSaveIndicatorOverlay(indicatorEl, true);
         } else {
             btn.disabled = false;
             showButtonFeedback(btn, true, T('settingsSaved', 'Settings saved!'), T('saveSettings', 'Save Settings'));
@@ -339,7 +339,7 @@ function doSaveSettings(payload, options) {
         }
     }, function () {
         if (quiet) {
-            showAutoSaveIndicator(indicatorEl, false);
+            showAutoSaveIndicatorOverlay(indicatorEl, false);
         } else {
             btn.disabled = false;
             showButtonFeedback(btn, false, T('settingsError', 'Failed to save settings.'), T('saveSettings', 'Save Settings'));
@@ -693,7 +693,7 @@ function attachAutoSaveHandlers() {
                             scrollContainer.scrollTop = savedScroll;
                             // Show indicator on the newly rendered language select
                             var newLangEl = document.getElementById('cfgLang');
-                            if (newLangEl) showAutoSaveIndicator(newLangEl, true);
+                            if (newLangEl) showAutoSaveIndicatorOverlay(newLangEl, true);
                         }, 50);
                     });
                 }

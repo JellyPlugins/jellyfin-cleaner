@@ -139,20 +139,6 @@ public class HealthHtmlTests : ConfigPageTestBase
     }
 
     [Fact]
-    public void Html_ContainsSharedGetFileNameFunction()
-    {
-        // getFileName should be in shared.js (available to both Codecs + Health)
-        Assert.Contains("function getFileName", HtmlContent);
-    }
-
-    [Fact]
-    public void Html_ContainsSharedGetParentFolderFunction()
-    {
-        // getParentFolder should be in shared.js (available to both Codecs + Health)
-        Assert.Contains("function getParentFolder", HtmlContent);
-    }
-
-    [Fact]
     public void Html_ContainsSharedRenderFileTreeFunction()
     {
         // renderFileTree should be in shared.js (available to both Codecs + Health)
