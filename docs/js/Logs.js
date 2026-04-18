@@ -166,6 +166,7 @@ function saveLogLevelToConfig(newLevel) {
 function destroyLogsTab() {
     _logsInitSeq++;
     stopLogsAutoRefresh();
+    _logsTabInitialized = false;
 }
 
 function startLogsAutoRefresh() {

@@ -74,7 +74,7 @@ public sealed class SeerrIntegrationService : ISeerrIntegrationService
         {
             throw;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException or UriFormatException or JsonException)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException or UriFormatException or JsonException or ArgumentException)
         {
             return (false, $"Connection failed: {ex.Message}");
         }
@@ -125,6 +125,15 @@ public sealed class SeerrIntegrationService : ISeerrIntegrationService
             {
                 throw;
             }
+            catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                _pluginLog.LogWarning(
+                    "SeerrCleanup",
+                    $"Timed out fetching requests page (skip={skip}): {ex.Message}",
+                    ex,
+                    _logger);
+                break;
+            }
             catch (Exception ex) when (ex is HttpRequestException or JsonException)
             {
                 _pluginLog.LogWarning(
@@ -132,7 +141,7 @@ public sealed class SeerrIntegrationService : ISeerrIntegrationService
                     $"Failed to fetch requests page (skip={skip}): {ex.Message}",
                     ex,
                     _logger);
-                throw;
+                break;
             }
 
             if (page?.Results == null || page.Results.Count == 0)
