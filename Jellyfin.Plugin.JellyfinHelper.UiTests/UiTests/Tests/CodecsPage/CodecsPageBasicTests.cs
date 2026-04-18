@@ -16,8 +16,6 @@ public class CodecsPageBasicTests : BaseUiTest
     [Test]
     public async Task CodecsPage_ShouldDisplayDataAfterLibraryScan()
     {
-        await BasicHelper.ScanLibraries();
-
         await AssertionsHelper.AssertChartBox("Video Codecs", true);
         await AssertionsHelper.AssertChartBox("Container Formats", true);
         await AssertionsHelper.AssertChartBox("Resolutions", true);

@@ -16,8 +16,9 @@ public class GeneralTests : BaseUiTest
     [Test]
     public async Task General_ShouldDisplayPluginStartPage()
     {
-        await AssertionsHelper.AssertElementToBeVisibleAsync("h2:has-text('Jellyfin Helper — Media Statistics')");
-        await AssertionsHelper.AssertElementToBeVisibleAsync("button:has-text('↻ Scan Libraries')");
+        await AssertionsHelper.AssertElementToBeVisibleAsync("h2:has-text('Jellyfin Helper')");
+        await AssertionsHelper.AssertElementToBeVisibleAsync("span:has-text('🕒 Last Scan: just now')");
+        await AssertionsHelper.AssertElementToBeVisibleAsync("button.scan-libraries-btn");
         await AssertionsHelper.AssertTabIsActiveAsync("Overview");
     }
 
@@ -37,8 +38,6 @@ public class GeneralTests : BaseUiTest
     [Test]
     public async Task General_ScanLibrary_LastScanBadge_ShouldDisplayJustNow()
     {
-        await BasicHelper.ScanLibraries();
-
         await AssertionsHelper.AssertElementToBeVisibleAsync("span#lastScanBadge:has-text('🕒 Last Scan: just now')");
     }
 }

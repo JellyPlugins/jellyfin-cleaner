@@ -10,8 +10,8 @@ public static class TestConfiguration
     public static string PathToPluginConfigFilesFolder => PathToConfigFolder + "data/";
     public static string JellyfinUser => "Test";
     public static string JellyfinPassword => "Test";
-    public static bool Headless => false;
-    public static int SlowMo => 500;
+    public static bool Headless => true;
+    public static int SlowMo => 0;
     public static bool SaveScreenshotsOnFailure => true;
     public static string ScreenshotPath => "UiTests/Screenshots";
 

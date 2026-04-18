@@ -16,8 +16,6 @@ public class HealthPageBasicTests : BaseUiTest
     [Test]
     public async Task HealthPage_ShouldDisplayDataAfterLibraryScan()
     {
-        await BasicHelper.ScanLibraries();
-
         await AssertionsHelper.AssertHealthGridItem("Videos without subtitles", 0);
         await AssertionsHelper.AssertHealthGridItem("Videos without images", 0);
         await AssertionsHelper.AssertHealthGridItem("Videos without NFO", 0);

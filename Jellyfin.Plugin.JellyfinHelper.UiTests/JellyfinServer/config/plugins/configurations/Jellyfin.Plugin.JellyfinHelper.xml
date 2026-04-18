@@ -6,7 +6,11 @@
   <TrickplayTaskMode>DryRun</TrickplayTaskMode>
   <EmptyMediaFolderTaskMode>DryRun</EmptyMediaFolderTaskMode>
   <OrphanedSubtitleTaskMode>DryRun</OrphanedSubtitleTaskMode>
-  <StrmRepairTaskMode>DryRun</StrmRepairTaskMode>
+  <LinkRepairTaskMode>DryRun</LinkRepairTaskMode>
+  <SeerrCleanupTaskMode>Deactivate</SeerrCleanupTaskMode>
+  <SeerrCleanupAgeDays>365</SeerrCleanupAgeDays>
+  <SeerrUrl />
+  <SeerrApiKey />
   <ConfigVersion>0</ConfigVersion>
   <UseTrash>false</UseTrash>
   <TrashFolderPath>.jellyfin-trash</TrashFolderPath>

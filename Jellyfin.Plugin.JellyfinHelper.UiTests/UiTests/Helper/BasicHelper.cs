@@ -10,7 +10,7 @@ public static class BasicHelper
     /// </summary>
     public static async Task ScanLibraries()
     {
-        var scanLibraryButton = TestConfiguration.Page.Locator("button:has-text('↻ Scan Libraries')");
+        var scanLibraryButton = TestConfiguration.Page.Locator("button.scan-libraries-btn");
 
         var success = false;
         var scanCount = 0;

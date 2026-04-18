@@ -19,8 +19,6 @@ public class OverviewPageBasicTests : BaseUiTest
     [Test]
     public async Task OverviewPage_ShouldDisplayDataAfterLibraryScan()
     {
-        await BasicHelper.ScanLibraries();
-
         // Statistics
         await AssertionsHelper.AssertStatsGridCard("Video Data — Movies", "0 B", "0 files across 2 libraries");
         await AssertionsHelper.AssertStatsGridCard("Video Data — TV Shows", "0 B", "0 episodes across 2 libraries");
