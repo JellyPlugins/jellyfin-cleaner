@@ -50,7 +50,11 @@ function loadTranslations(callback) {
 
 function applyStaticTranslations() {
     var btnScanLibraries = document.getElementById('btnScanLibraries');
-    if (btnScanLibraries) btnScanLibraries.title = T('scanLibraries', 'Scan Libraries');
+    if (btnScanLibraries) {
+        var scanLabel = T('scanLibraries', 'Scan Libraries');
+        btnScanLibraries.title = scanLabel;
+        btnScanLibraries.setAttribute('aria-label', scanLabel);
+    }
 
     var loadingText = document.querySelector('#loadingIndicator p');
     if (loadingText) loadingText.textContent = T('scanDescription', 'Scanning libraries\u2026 This may take a while for large collections.');

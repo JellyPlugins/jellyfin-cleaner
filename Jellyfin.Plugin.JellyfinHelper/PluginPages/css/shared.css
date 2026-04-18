@@ -118,8 +118,9 @@
 .scan-libraries-btn {
     display: inline-flex;
     align-items: center;
-    width: 18px;
-    height: 18px;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
     padding: 0;
     border: none;
     border-radius: var(--radius-round);

@@ -53,7 +53,11 @@ function applyStaticTranslations() {
     if (title) title.textContent = T('title', 'Jellyfin Helper \u2014 Media Statistics');
 
     var btnRefresh = document.getElementById('btnRefresh');
-    if (btnRefresh) btnRefresh.title = T('scanLibraries', 'Scan Libraries');
+    if (btnRefresh) {
+        var scanLabel = T('scanLibraries', 'Scan Libraries');
+        btnRefresh.title = scanLabel;
+        btnRefresh.setAttribute('aria-label', scanLabel);
+    }
 
     var loadingText = document.querySelector('#loadingIndicator p');
     if (loadingText) loadingText.textContent = T('scanDescription', 'Scanning libraries\u2026 This may take a while for large collections.');
