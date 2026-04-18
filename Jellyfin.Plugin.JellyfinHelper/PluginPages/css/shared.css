@@ -106,6 +106,7 @@
 
 .last-scan-badge {
     display: flex;
+    align-items: center;
     gap: 2px;
     font-size: 0.78em;
     color: var(--color-text-muted);
