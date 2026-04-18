@@ -61,6 +61,7 @@ Then restart Jellyfin to load the plugin.
 
 ## 🏗️ Architecture Overview
 
+
 ### Project Structure
 
 ```text
@@ -80,6 +81,8 @@ Jellyfin.Plugin.JellyfinHelper/
 │   ├── LogLevelUpdateRequest.cs       # Request DTO for log level updates
 │   ├── LogsController.cs             # Log viewer endpoints
 │   ├── MediaStatisticsController.cs   # Statistics & library scan endpoints (with caching)
+│   ├── SeerrController.cs             # Seerr integration API endpoints (connection test)
+│   ├── SeerrTestRequest.cs            # Request DTO for Seerr connection tests
 │   ├── TranslationsController.cs      # UI translation endpoint (anonymous access)
 │   └── TrashController.cs            # Trash management endpoints
 ├── Configuration/
@@ -100,7 +103,9 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   └── ArrSeries.cs
 │   ├── Backup/                       # Configuration backup & restore
 │   │   ├── IBackupService.cs
-│   │   ├── BackupService.cs          # Create, validate, sanitize, restore
+│   │   ├── BackupService.cs          # Create & restore orchestration
+│   │   ├── BackupValidator.cs        # Static validation (security, ranges, structure)
+│   │   ├── BackupSanitizer.cs        # Static sanitization (clamping, defaults)
 │   │   ├── BackupData.cs             # Backup payload model
 │   │   ├── BackupArrInstance.cs
 │   │   ├── BackupRestoreSummary.cs
@@ -127,15 +132,31 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   ├── StatisticsCacheService.cs # IMemoryCache wrapper (5-min TTL)
 │   │   ├── MediaStatisticsResult.cs
 │   │   └── LibraryStatistics.cs
-│   ├── Strm/                         # STRM file repair
-│   │   ├── IStrmRepairService.cs
-│   │   ├── StrmRepairService.cs      # Locates renamed/moved media for broken .strm
-│   │   ├── StrmRepairResult.cs
-│   │   ├── StrmFileResult.cs
-│   │   └── StrmFileStatus.cs
+│   ├── Seerr/                         # Overseerr/Jellyseerr integration
+│   │   ├── ISeerrIntegrationService.cs
+│   │   ├── SeerrIntegrationService.cs # HTTP client for Seerr API communication & cleanup
+│   │   ├── SeerrCleanupResult.cs      # Cleanup result DTO
+│   │   ├── SeerrMainSettings.cs       # Seerr settings DTO
+│   │   ├── SeerrMedia.cs              # Media request DTO (mediaType, tmdbId, status)
+│   │   ├── SeerrMediaDetails.cs       # Movie/TV detail DTO with title resolution (DisplayTitle)
+│   │   ├── SeerrPageInfo.cs           # Pagination info DTO
+│   │   ├── SeerrRequest.cs            # Media request DTO
+│   │   └── SeerrRequestPage.cs        # Paged request response DTO
+│   ├── Link/                         # Link repair (.strm files & symlinks)
+│   │   ├── ILinkRepairService.cs
+│   │   ├── LinkRepairService.cs      # Orchestrates repair of broken .strm files & symlinks
+│   │   ├── ILinkHandler.cs           # Strategy interface for link type handling
+│   │   ├── StrmLinkHandler.cs        # Handles .strm file repair (locates renamed/moved media)
+│   │   ├── SymlinkHandler.cs         # Handles broken symlink repair
+│   │   ├── ISymlinkHelper.cs         # Abstraction for symlink OS operations
+│   │   ├── SymlinkHelper.cs          # Platform-specific symlink detection & creation
+│   │   ├── LinkRepairResult.cs
+│   │   ├── LinkFileResult.cs
+│   │   └── LinkFileStatus.cs
 │   └── Timeline/                     # Growth timeline computation
 │       ├── IGrowthTimelineService.cs
 │       ├── GrowthTimelineService.cs  # Baseline diff + append-only snapshots
+│       ├── TimelineAggregator.cs     # Static aggregation logic (bucketing, granularity)
 │       ├── GrowthTimelineResult.cs
 │       ├── GrowthTimelinePoint.cs
 │       ├── GrowthTimelineBaseline.cs
@@ -146,7 +167,7 @@ Jellyfin.Plugin.JellyfinHelper/
 │   ├── CleanTrickplayTask.cs
 │   ├── CleanEmptyMediaFoldersTask.cs
 │   ├── CleanOrphanedSubtitlesTask.cs
-│   └── RepairStrmFilesTask.cs
+│   └── RepairLinksTask.cs            # Repairs broken STRM/symlink references
 └── PluginPages/
     ├── configPage.template.html # HTML shell (build-time composition)
     ├── configPage.html          # Generated output (do not edit)
@@ -169,11 +190,15 @@ serviceCollection.AddSingleton<IStatisticsCacheService, StatisticsCacheService>(
 serviceCollection.AddSingleton<IGrowthTimelineService, GrowthTimelineService>();
 serviceCollection.AddSingleton<IBackupService, BackupService>();
 serviceCollection.AddSingleton<IFileSystem, FileSystem>();
-serviceCollection.AddSingleton<IStrmRepairService, StrmRepairService>();
+serviceCollection.AddSingleton<ISymlinkHelper, SymlinkHelper>();
+serviceCollection.AddSingleton<ILinkHandler, StrmLinkHandler>();
+serviceCollection.AddSingleton<ILinkHandler, SymlinkHandler>();
+serviceCollection.AddSingleton<ILinkRepairService, LinkRepairService>();
 serviceCollection.AddSingleton<IArrIntegrationService, ArrIntegrationService>();
+serviceCollection.AddSingleton<ISeerrIntegrationService, SeerrIntegrationService>();
 ```
 
-A named `HttpClient` (`"ArrIntegration"`) is configured with a 15-second timeout for Radarr/Sonarr API calls.
+Named `HttpClient` instances are configured for external API communication: `"ArrIntegration"` (Radarr/Sonarr, 15-second timeout) and `"SeerrIntegration"` (Overseerr/Jellyseerr).
 
 ---
 
@@ -188,14 +213,15 @@ A named `HttpClient` (`"ArrIntegration"`) is configured with a 15-second timeout
 | **Configuration Abstraction** | `IPluginConfigurationService` | Decouples all services from the static `Plugin.Instance` singleton. Services receive configuration via DI, enabling isolated unit tests without shared mutable state. |
 | **Build-time Composition** | UI pipeline | CSS/JS modules concatenated into a single `configPage.html` at build time (MSBuild target). |
 | **Append-only Snapshots** | `GrowthTimelineService` | Historical timeline data points are immutable; only the current time-bucket is updated. Deletions show as drops at the current point. |
-| **Validation + Sanitization** | `BackupService` | Backup imports go through 3 stages: `Validate()` → `Sanitize()` → `RestoreBackup()`. Includes XSS/injection detection, size limits, path traversal checks. |
+| **Validation + Sanitization** | `BackupValidator` + `BackupSanitizer` | Backup imports go through 3 stages: `BackupValidator.Validate()` → `BackupSanitizer.Sanitize()` → `BackupService.RestoreBackup()`. Includes XSS/injection detection, size limits, path traversal checks. |
+| **Static Helper Extraction** | `TimelineAggregator`, `BackupValidator`, `BackupSanitizer` | Pure, stateless logic extracted into static classes for testability and separation of concerns. No I/O, no dependencies — only operate on data passed in. |
 | **Ring Buffer** | `PluginLogService` | Fixed-capacity in-memory log (2000 entries) with auto-eviction of oldest entries. |
 | **Centralized Serialization** | `JsonDefaults` | Shared `JsonSerializerOptions` (camelCase, enum-as-string) used across all API controllers and backup service for consistent JSON handling. |
 
 ### Key Design Decisions
 
-- **Domain-organized Controllers** — Each API domain has its own controller (Configuration, Statistics, Arr, Logs, Backup, Trash, Cleanup, Timeline, Translations)
-- **Domain-organized Services** — Services grouped by domain (Arr, Backup, Cleanup, PluginLog, Statistics, Strm, Timeline)
+- **Domain-organized Controllers** — Each API domain has its own controller (Configuration, Statistics, Arr, Logs, Backup, Trash, Cleanup, Seerr, Timeline, Translations)
+- **Domain-organized Services** — Services grouped by domain (Arr, Backup, Cleanup, Link, PluginLog, Seerr, Statistics, Timeline)
 - **Build-time UI composition** — CSS and JS modules are concatenated into `configPage.html` at build time (no runtime bundler needed)
 - **Persisted scan results** — Latest statistics are saved to disk and survive server restarts
 - **5-minute cache** — `IMemoryCache` prevents redundant scans; `?forceRefresh=true` bypasses it
@@ -226,12 +252,12 @@ PluginPages/
 │   ├── ArrIntegration.css    # Arr comparison tables
 │   └── Logs.css              # Log viewer (table, toolbar, level colors)
 └── js/
-    ├── shared.js             # IIFE open, utilities (formatBytes, escHtml, T())
+    ├── shared.js             # IIFE open, utilities (formatBytes, escHtml, T(), showAutoSaveIndicator())
     ├── Overview.js           # Overview tab rendering
     ├── Codecs.js             # Codec tab (donut charts, file drill-down)
     ├── Health.js             # Health tab (tiles, clickable details, trash)
     ├── Trends.js             # Trends tab (history graph, growth timeline)
-    ├── Settings.js           # Settings tab (task modes, trash, language, Arr, backup/restore)
+    ├── Settings.js           # Settings tab (task modes, trash, language, Arr, Seerr, backup/restore, auto-save, collapsible sections)
     ├── ArrIntegration.js     # Arr tab (instance comparison, connection test)
     ├── Logs.js               # Logs tab (filtering, download, auto-refresh)
     └── main.js               # Tab routing, scan trigger, IIFE close
@@ -255,9 +281,14 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/JellyfinHelper/Statistics` | GET | Full library scan (cached 5 min; `?forceRefresh=true` bypasses) |
-| `/JellyfinHelper/Statistics/Latest` | GET | Latest persisted scan result (no new scan) |
-| `/JellyfinHelper/Statistics/GrowthTimeline` | GET | Cumulative growth timeline with bucketing (`?granularity=daily\|weekly\|monthly\|quarterly\|yearly`) |
+| `/JellyfinHelper/MediaStatistics/ScanLibraries` | GET | Full library scan (cached 5 min; `?forceRefresh=true` bypasses) |
+| `/JellyfinHelper/MediaStatistics/Latest` | GET | Latest persisted scan result (no new scan) |
+
+### Growth Timeline
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/JellyfinHelper/GrowthTimeline` | GET | Cumulative growth timeline with bucketing (`?granularity=daily\|weekly\|monthly\|quarterly\|yearly`) |
 
 ### Configuration
 
@@ -266,14 +297,13 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 | `/JellyfinHelper/Configuration` | GET | Current plugin configuration |
 | `/JellyfinHelper/Configuration` | POST | Update plugin configuration |
 | `/JellyfinHelper/Configuration/LogLevel` | PUT | Update only the plugin log level (avoids race conditions with Settings tab) |
-| `/JellyfinHelper/Libraries` | GET | Available library names |
 | `/JellyfinHelper/Translations` | GET | UI translations for specified language (anonymous) |
 
 ### Cleanup
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/JellyfinHelper/Cleanup/Statistics` | GET | Accumulated cleanup statistics |
+| `/JellyfinHelper/CleanupStatistics` | GET | Accumulated cleanup statistics |
 | `/JellyfinHelper/Trash/Summary` | GET | Trash folder summary across libraries |
 | `/JellyfinHelper/Trash/Contents` | GET | Detailed trash contents (name, size, dates) |
 | `/JellyfinHelper/Trash/Folders` | GET | List existing trash folder paths |
@@ -283,9 +313,9 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/JellyfinHelper/Arr/TestConnection` | POST | Test Radarr/Sonarr connection |
-| `/JellyfinHelper/Arr/Radarr/Compare` | GET | Compare movies (`?index=N` for specific instance) |
-| `/JellyfinHelper/Arr/Sonarr/Compare` | GET | Compare TV shows (`?index=N` for specific instance) |
+| `/JellyfinHelper/ArrIntegration/TestConnection` | POST | Test Radarr/Sonarr connection |
+| `/JellyfinHelper/ArrIntegration/Compare/Radarr` | GET | Compare movies (`?index=N` for specific instance) |
+| `/JellyfinHelper/ArrIntegration/Compare/Sonarr` | GET | Compare TV shows (`?index=N` for specific instance) |
 
 ### Logs
 
@@ -302,6 +332,12 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 | `/JellyfinHelper/Backup/Export` | GET | Export plugin configuration and historical data as JSON |
 | `/JellyfinHelper/Backup/Import` | POST | Import plugin configuration and historical data from JSON (validates → sanitizes → restores) |
 
+### Seerr Integration
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/JellyfinHelper/Seerr/Test` | POST | Test Overseerr/Jellyseerr connection |
+
 ---
 
 ## ⚙️ Configuration Options
@@ -314,7 +350,7 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 | **Trickplay Task Mode** | Activate / DryRun / Deactivate | DryRun |
 | **Empty Folder Task Mode** | Activate / DryRun / Deactivate | DryRun |
 | **Subtitle Task Mode** | Activate / DryRun / Deactivate | DryRun |
-| **STRM Repair Task Mode** | Activate / DryRun / Deactivate | DryRun |
+| **Link Repair Task Mode** | Activate / DryRun / Deactivate | DryRun |
 | **Use Trash** | Move to trash instead of permanent delete | Off |
 | **Trash Folder Path** | Relative or absolute path | `.jellyfin-trash` |
 | **Trash Retention** | Days to keep items in trash | 30 |
@@ -338,10 +374,11 @@ Sub-tasks executed in order (each respecting its configured task mode):
 1. Trickplay Folder Cleanup
 2. Empty Media Folder Cleanup
 3. Orphaned Subtitle Cleanup
-4. STRM File Repair
-5. Trash Purge (if enabled)
-6. Post-Cleanup Statistics Scan (auto-refreshes and persists stats)
-7. Growth Timeline Recomputation (independent of statistics scan)
+4. Link Repair (.strm files & symlinks)
+5. Seerr Cleanup (removes unavailable Overseerr/Jellyseerr media requests)
+6. Trash Purge (if enabled)
+7. Post-Cleanup Statistics Scan (auto-refreshes and persists stats)
+8. Growth Timeline Recomputation (independent of statistics scan)
 
 ---
 
@@ -364,9 +401,37 @@ Sub-tasks executed in order (each respecting its configured task mode):
 - Detects subtitle flags: `forced`, `sdh`, `hi`, `cc`
 - Avoids false positives from tokens like "DTS", "HDR", "S01"
 
-**STRM File Repair:**
-- Searches parent directory for matching media files
+**Link Repair (.strm & Symlinks):**
+- Repairs broken `.strm` files by searching parent directory for matching media files
+- Repairs broken symlinks by locating renamed/moved target files
 - URL-based `.strm` files (`http://`, `rtsp://`) are untouched
+- Uses Strategy pattern with `ILinkHandler` implementations for extensibility
+
+**Seerr Cleanup (Overseerr/Jellyseerr):**
+- Scheduled task that queries the Overseerr/Jellyseerr API for media requests
+- Automatically identifies and removes requests for unavailable media
+- Resolves human-readable media titles via Seerr movie/TV detail endpoints (`/api/v1/movie/{tmdbId}`, `/api/v1/tv/{tmdbId}`)
+- Dry Run logs include resolved titles: `[Dry Run] Would delete expired request #42 ("The Matrix" (movie, TMDB: 12345)), created ..., age 180 days`
+- Graceful fallback to "Unknown" if title resolution fails (HTTP errors, timeouts)
+- Configurable via Seerr URL and API key in the Settings tab
+- Connection test endpoint to validate settings before running
+
+**Unsaved Settings Alert:**
+- Tracks form changes via JSON snapshot comparison (`takeSettingsSnapshot()` / `hasUnsavedSettings()`)
+- Displays a modal dialog with "Discard Changes", "Save & Continue", or "Cancel" options
+- Registers `beforeunload` browser guard for page navigation / reload
+- Prevents accidental loss of configuration changes
+
+**Auto-Save Dropdowns:**
+- Task mode selects (Trickplay, Empty Folders, Subtitles, Link Repair, Seerr) auto-save instantly on change
+- Language dropdown auto-saves and triggers UI rebuild with scroll position restore
+- Uses `doSaveSettings()` with `{ quiet: true, element: el }` for inline ✔/✘ indicator via `showAutoSaveIndicator()`
+- Log level dropdown in Logs tab uses the same shared indicator function
+
+**Collapsible Arr/Seerr Sections:**
+- Radarr, Sonarr, and Seerr configuration sections are collapsible with CSS chevron animation
+- Dynamic instance count badges: `(n)` for Arr instances, `✔` for configured Seerr
+- Sections auto-expand when empty (no configured instances), auto-collapse when populated
 
 ### Statistics & Analysis
 
@@ -424,17 +489,24 @@ Sub-tasks executed in order (each respecting its configured task mode):
 
 The project includes a **comprehensive automated test suite** covering:
 
-- All services (cleanup, statistics, path validation, Arr integration, backup/restore, growth timeline, STRM repair)
-- API endpoints (controller tests with mocked dependencies)
+- All services (cleanup, statistics, path validation, Arr integration, backup/restore, growth timeline, link repair, Seerr integration)
+- API endpoints (controller tests with mocked dependencies; Seerr and MediaStatistics controllers are not yet covered)
 - Configuration migration (legacy format → current)
 - UI structure (HTML element presence, tab structure)
 - Plugin logging (ring buffer, level filtering)
 - Serialization roundtrips
+- Performance tests — Stopwatch-based timing assertions for critical operations (sanitize, validate, large data sets)
+- Security tests — Path traversal, null-byte injection, XSS payloads, command injection, collision handling
+
+Tests use `[Trait("Category", "...")]` for selective filtering:
 
 ```bash
-dotnet test                           # Run all tests
-dotnet test --filter "FullyQualifiedName~Services"  # Run service tests only
-dotnet test --filter "FullyQualifiedName~Api"       # Run API tests only
+dotnet test                                          # Run all tests
+dotnet test --filter "FullyQualifiedName~Services"   # Run service tests only
+dotnet test --filter "FullyQualifiedName~Api"        # Run API tests only
+dotnet test --filter "Category=Performance"           # Run performance tests only
+dotnet test --filter "Category=Security"              # Run security tests only
+dotnet test --filter "Category!=Performance"          # Exclude performance tests
 ```
 
 ### Test Architecture — Fixtures & Factories
@@ -522,11 +594,14 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
     │   ├── ArrComparisonResultTests.cs
     │   └── ArrIntegrationServiceTests.cs
     ├── Backup/
-    │   └── BackupServiceTests.cs
+    │   ├── BackupServiceTests.cs
+    │   └── BackupServicePerformanceTests.cs    # [Trait("Category", "Performance")]
     ├── Cleanup/
     │   ├── CleanupConfigHelperTests.cs
     │   ├── CleanupTrackingServiceTests.cs
-    │   └── TrashServiceTests.cs
+    │   ├── TrashServiceTests.cs
+    │   ├── TrashServiceSecurityTests.cs        # [Trait("Category", "Security")]
+    │   └── TrashControllerSecurityTests.cs     # [Trait("Category", "Security")]
     ├── ConfigAccess/
     │   └── PluginConfigurationServiceTests.cs
     ├── PluginLog/
@@ -535,11 +610,19 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
     ├── Statistics/
     │   ├── MediaStatisticsServiceTests.cs
     │   └── MediaStatisticsServiceTvShowTests.cs
-    ├── Strm/
-    │   └── StrmRepairServiceTests.cs
+    ├── Link/
+    │   ├── LinkRepairServiceTests.cs
+    │   ├── LinkRepairPerformanceTests.cs       # [Trait("Category", "Performance")]
+    │   ├── LinkRepairSecurityTests.cs          # [Trait("Category", "Security")]
+    │   ├── StrmLinkHandlerTests.cs
+    │   └── SymlinkHandlerTests.cs
+    ├── Seerr/
+    │   ├── SeerrIntegrationServiceTests.cs
+    │   └── SeerrMediaDetailsTests.cs
     └── Timeline/
         ├── GrowthTimelineModelTests.cs
-        └── GrowthTimelineServiceTests.cs
+        ├── GrowthTimelineServiceTests.cs
+        └── GrowthTimelinePerformanceTests.cs   # [Trait("Category", "Performance")]
 ```
 
 ---

@@ -5,6 +5,7 @@ using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
+using Jellyfin.Plugin.JellyfinHelper.Services.Seerr;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -24,6 +25,7 @@ public class ConfigurationControllerTests
     private readonly PluginConfiguration _config;
     private readonly Mock<IPluginConfigurationService> _configServiceMock;
     private readonly ConfigurationController _controller;
+    private readonly Mock<ISeerrIntegrationService> _seerrServiceMock;
 
     public ConfigurationControllerTests()
     {
@@ -40,6 +42,11 @@ public class ConfigurationControllerTests
             .Setup(s => s.TestConnectionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((true, "OK"));
 
+        _seerrServiceMock = new Mock<ISeerrIntegrationService>();
+        _seerrServiceMock
+            .Setup(s => s.TestConnectionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((true, "OK"));
+
         var configHelperMock = new Mock<ICleanupConfigHelper>();
         configHelperMock.Setup(h => h.GetConfig()).Returns(_config);
 
@@ -50,7 +57,8 @@ public class ConfigurationControllerTests
             pluginLogMock.Object,
             loggerMock.Object,
             configHelperMock.Object,
-            _configServiceMock.Object);
+            _configServiceMock.Object,
+            _seerrServiceMock.Object);
     }
 
     [Fact]
@@ -317,7 +325,7 @@ public class ConfigurationControllerTests
                                         "TrickplayTaskMode": "DryRun",
                                         "EmptyMediaFolderTaskMode": "DryRun",
                                         "OrphanedSubtitleTaskMode": "DryRun",
-                                        "StrmRepairTaskMode": "DryRun",
+                                        "LinkRepairTaskMode": "DryRun",
                                         "UseTrash": false,
                                         "TrashFolderPath": ".jellyfin-trash",
                                         "TrashRetentionDays": 30,

@@ -3,7 +3,7 @@ using Xunit;
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.PluginPages;
 
 /// <summary>
-/// Tests for the Codecs tab in the composed configPage.html.
+///     Tests for the Codecs tab in the composed configPage.html.
 /// </summary>
 public class CodecsHtmlTests : ConfigPageTestBase
 {
@@ -72,33 +72,35 @@ public class CodecsHtmlTests : ConfigPageTestBase
     public void Html_CodecCategoryMap_VideoCodecsExcludesMusic()
     {
         // videoCodecs should have music: false
-        Assert.Contains("'videoCodecs': { movies: true, tvShows: true, music: false, other: true }", HtmlContent);
+        Assert.Contains("'videoCodecs': {movies: true, tvShows: true, music: false, other: true}", HtmlContent);
     }
 
     [Fact]
     public void Html_CodecCategoryMap_VideoAudioCodecsExcludesMusic()
     {
-        Assert.Contains("'videoAudioCodecs': { movies: true, tvShows: true, music: false, other: true }", HtmlContent);
+        Assert.Contains("'videoAudioCodecs': {movies: true, tvShows: true, music: false, other: true}", HtmlContent);
     }
 
     [Fact]
     public void Html_CodecCategoryMap_MusicAudioCodecsExcludesVideo()
     {
-        // musicAudioCodecs should only include music
-        Assert.Contains("'musicAudioCodecs': { movies: false, tvShows: false, music: true, other: false }", HtmlContent);
+        // musicAudioCodecs should only include music — validate as one contiguous block
+        Assert.Matches(
+            @"'musicAudioCodecs':\s*\{\s*movies:\s*false,\s*tvShows:\s*false,\s*music:\s*true,\s*other:\s*false\s*\}",
+            HtmlContent);
     }
 
     [Fact]
     public void Html_CodecCategoryMap_ContainersIncludesAll()
     {
         // containers should include all library types
-        Assert.Contains("'containers': { movies: true, tvShows: true, music: true, other: true }", HtmlContent);
+        Assert.Contains("'containers': {movies: true, tvShows: true, music: true, other: true}", HtmlContent);
     }
 
     [Fact]
     public void Html_CodecCategoryMap_ResolutionsExcludesMusic()
     {
-        Assert.Contains("'resolutions': { movies: true, tvShows: true, music: false, other: true }", HtmlContent);
+        Assert.Contains("'resolutions': {movies: true, tvShows: true, music: false, other: true}", HtmlContent);
     }
 
     [Fact]
@@ -142,7 +144,9 @@ public class CodecsHtmlTests : ConfigPageTestBase
     {
         // The click handler should pass CODEC_CATEGORY_MAP to collectCodecPaths
         Assert.Contains("var categories = CODEC_CATEGORY_MAP[chartId]", HtmlContent);
-        Assert.Contains("collectCodecPaths(_lastCodecData, pathsProp, codecName, categories)", HtmlContent);
+        Assert.Matches(
+            @"collectCodecPaths\(_lastCodecData,\s*pathsProp,\s*codecName,\s*categories\)",
+            HtmlContent);
     }
 
     [Fact]
@@ -172,12 +176,5 @@ public class CodecsHtmlTests : ConfigPageTestBase
     {
         Assert.Contains("file-tree-panel-visible", HtmlContent);
         Assert.Contains("max-height", HtmlContent);
-    }
-
-    [Fact]
-    public void Html_ContainsHelperFunctions()
-    {
-        Assert.Contains("function getFileName", HtmlContent);
-        Assert.Contains("function getParentFolder", HtmlContent);
     }
 }

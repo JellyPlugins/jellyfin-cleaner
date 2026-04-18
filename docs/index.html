@@ -63,8 +63,8 @@
                             <h2>Jellyfin Helper &#x2014; Media Statistics</h2>
                         <div class="header-actions">
                                 <span id="lastScanBadge" class="last-scan-badge" style="display:none;"></span>
-                                <button id="btnRefresh" class="refresh-btn">
-                                    &#x21bb; Scan Libraries
+                                <button id="btnRefresh" class="refresh-btn" title="Scan Libraries">
+                                    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4C7.58 4 4.01 7.58 4.01 12S7.58 20 12 20c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
                                 </button>
                             </div>
                         </div>
@@ -179,7 +179,7 @@
         TrickplayTaskMode: "DryRun",
         EmptyMediaFolderTaskMode: "Activate",
         OrphanedSubtitleTaskMode: "DryRun",
-        StrmRepairTaskMode: "Deactivate",
+        LinkRepairTaskMode: "Deactivate",
         UseTrash: true,
         TrashFolderPath: ".jellyfin-trash",
         TrashRetentionDays: 30,
@@ -192,6 +192,10 @@
         SonarrInstances: [
             { Name: "Sonarr", Url: "http://192.168.1.100:8989", ApiKey: "demo-key-abcd" }
         ],
+        SeerrUrl: "http://192.168.1.100:5055",
+        SeerrApiKey: "demo-seerr-key-xyz",
+        SeerrCleanupTaskMode: "DryRun",
+        SeerrCleanupAgeDays: 365,
         ConfigVersion: 3
     };
 
@@ -255,7 +259,7 @@
     var MOCK_LOGS = {
         Entries: (function() {
             var entries = [];
-            var sources = ["MediaStatistics", "TrickplayCleaner", "EmptyFolderCleaner", "SubtitleCleaner", "StrmRepair", "TrashService", "ArrIntegration"];
+            var sources = ["MediaStatistics", "TrickplayCleaner", "EmptyFolderCleaner", "SubtitleCleaner", "LinkRepair", "TrashService", "ArrIntegration"];
             var levels = ["INFO", "INFO", "INFO", "DEBUG", "WARN", "ERROR", "INFO", "INFO", "DEBUG", "INFO"];
             var messages = [
                 "Statistics scan started for 3 libraries",
@@ -267,7 +271,7 @@
                 "Statistics scan completed in 12.4s — 3842 videos, 12450 audio files",
                 "Empty folder cleanup: 3 folders deleted, 45.2 MB freed",
                 "Checking subtitle: /data/movies/Old Movie/Old Movie.en.srt",
-                "STRM repair completed: 2 files repaired, 0 errors"
+                "Link repair completed: 2 files repaired, 0 errors"
             ];
             var now = Date.now();
             for (var i = 0; i < messages.length; i++) {
@@ -377,6 +381,8 @@
                         resolve(MOCK_TRASH_FOLDERS);
                     } else if (url.indexOf('Trash/Summary') !== -1) {
                         resolve({ TotalSize: 17179869184, TotalItems: 3 });
+                    } else if (url.indexOf('Seerr/Test') !== -1) {
+                        resolve({ success: true, message: "Connected to Jellyseerr (demo)" });
                     } else if (url.indexOf('ArrIntegration/TestConnection') !== -1) {
                         resolve({ Success: true, Message: "Connection successful (demo)" });
                     } else if (url.indexOf('ArrIntegration/Compare/') !== -1) {

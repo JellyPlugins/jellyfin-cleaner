@@ -1,145 +1,141 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <AssemblyName>Jellyfin.Plugin.JellyfinHelper</AssemblyName>
-    <RootNamespace>Jellyfin.Plugin.JellyfinHelper</RootNamespace>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Nullable>enable</Nullable>
-    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
-    <CodeAnalysisRuleSet>../jellyfin.ruleset</CodeAnalysisRuleSet>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <AssemblyName>Jellyfin.Plugin.JellyfinHelper</AssemblyName>
+        <RootNamespace>Jellyfin.Plugin.JellyfinHelper</RootNamespace>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <Nullable>enable</Nullable>
+        <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+        <CodeAnalysisRuleSet>../jellyfin.ruleset</CodeAnalysisRuleSet>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-      <_Parameter1>Jellyfin.Plugin.JellyfinHelper.Tests</_Parameter1>
-    </AssemblyAttribute>
-  </ItemGroup>
+    <ItemGroup>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+            <_Parameter1>Jellyfin.Plugin.JellyfinHelper.Tests</_Parameter1>
+        </AssemblyAttribute>
+    </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Jellyfin.Controller" Version="10.11.0" >
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </PackageReference>
-    <PackageReference Include="Jellyfin.Model" Version="10.11.0">
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </PackageReference>
-    <PackageReference Include="System.IO.Abstractions" Version="21.2.1" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Jellyfin.Controller" Version="10.11.0">
+            <ExcludeAssets>runtime</ExcludeAssets>
+        </PackageReference>
+        <PackageReference Include="Jellyfin.Model" Version="10.11.0">
+            <ExcludeAssets>runtime</ExcludeAssets>
+        </PackageReference>
+        <PackageReference Include="System.IO.Abstractions" Version="21.2.1"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="SerilogAnalyzer" Version="0.15.0" PrivateAssets="All" />
-    <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556" PrivateAssets="All" />
-    <PackageReference Include="SmartAnalyzers.MultithreadingAnalyzer" Version="1.1.31" PrivateAssets="All" />
-  </ItemGroup>
+    <ItemGroup>
+        <Compile Remove="BuildTasks/ComposeConfigPage.cs"/>
+    </ItemGroup>
 
-  <!-- Compose configPage.html from template + multiple CSS + multiple JS files at build time -->
-  <UsingTask TaskName="ComposeConfigPage" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
-    <ParameterGroup>
-      <TemplateFile ParameterType="System.String" Required="true" />
-      <CssFiles ParameterType="System.String" Required="true" />
-      <JsFiles ParameterType="System.String" Required="true" />
-      <OutputFile ParameterType="System.String" Required="true" />
-    </ParameterGroup>
-    <Task>
-      <Code Type="Fragment" Language="cs">
-        <![CDATA[
-        var template = System.IO.File.ReadAllText(TemplateFile);
+    <ItemGroup>
+        <PackageReference Include="SerilogAnalyzer" Version="0.15.0" PrivateAssets="All"/>
+        <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556" PrivateAssets="All"/>
+        <PackageReference Include="SmartAnalyzers.MultithreadingAnalyzer" Version="1.1.31" PrivateAssets="All"/>
+    </ItemGroup>
 
-        // Concatenate all CSS files (semicolon-separated list)
-        var cssBuilder = new System.Text.StringBuilder();
-        foreach (var cssFile in CssFiles.Split(new char[] { ';' }, System.StringSplitOptions.RemoveEmptyEntries))
-        {
-            var trimmed = cssFile.Trim();
-            if (string.IsNullOrEmpty(trimmed))
-            {
-                continue;
-            }
+    <!-- Compose configPage.html from template + multiple CSS + multiple JS files at build time -->
+    <UsingTask TaskName="Jellyfin.Plugin.JellyfinHelper.BuildTasks.ComposeConfigPage" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+        <Task>
+            <Code Type="Class" Language="cs" Source="BuildTasks/ComposeConfigPage.cs"/>
+        </Task>
+    </UsingTask>
 
-            if (!System.IO.File.Exists(trimmed))
-            {
-                throw new System.IO.FileNotFoundException("Configured CSS module was not found.", trimmed);
-            }
+    <!-- Define CSS and JS module files in concatenation order -->
+    <ItemGroup>
+        <CssModule Include="PluginPages\css\shared.css"/>
+        <CssModule Include="PluginPages\css\Overview.css"/>
+        <CssModule Include="PluginPages\css\Codecs.css"/>
+        <CssModule Include="PluginPages\css\Health.css"/>
+        <CssModule Include="PluginPages\css\Trends.css"/>
+        <CssModule Include="PluginPages\css\Settings.css"/>
+        <CssModule Include="PluginPages\css\ArrIntegration.css"/>
+        <CssModule Include="PluginPages\css\Logs.css"/>
+    </ItemGroup>
 
-            cssBuilder.AppendLine(System.IO.File.ReadAllText(trimmed));
-        }
+    <ItemGroup>
+        <JsModule Include="PluginPages\js\shared.js"/>
+        <JsModule Include="PluginPages\js\Overview.js"/>
+        <JsModule Include="PluginPages\js\Codecs.js"/>
+        <JsModule Include="PluginPages\js\Health.js"/>
+        <JsModule Include="PluginPages\js\Trends.js"/>
+        <JsModule Include="PluginPages\js\Settings.js"/>
+        <JsModule Include="PluginPages\js\ArrIntegration.js"/>
+        <JsModule Include="PluginPages\js\Logs.js"/>
+        <JsModule Include="PluginPages\js\main.js"/>
+    </ItemGroup>
 
-        // Concatenate all JS files (semicolon-separated list)
-        var jsBuilder = new System.Text.StringBuilder();
-        foreach (var jsFile in JsFiles.Split(new char[] { ';' }, System.StringSplitOptions.RemoveEmptyEntries))
-        {
-            var trimmed = jsFile.Trim();
-            if (string.IsNullOrEmpty(trimmed))
-            {
-                continue;
-            }
+    <Target Name="ComposeConfigPageHtml"
+            BeforeTargets="BeforeBuild;BeforeRebuild"
+            Condition="'$(DesignTimeBuild)' != 'true'"
+            Inputs="$(MSBuildProjectDirectory)\PluginPages\configPage.template.html;@(CssModule->'$(MSBuildProjectDirectory)\%(Identity)');@(JsModule->'$(MSBuildProjectDirectory)\%(Identity)');$(MSBuildProjectDirectory)\BuildTasks\ComposeConfigPage.cs"
+            Outputs="$(MSBuildProjectDirectory)\PluginPages\configPage.html">
+        <Jellyfin.Plugin.JellyfinHelper.BuildTasks.ComposeConfigPage
+                TemplateFile="$(MSBuildProjectDirectory)\PluginPages\configPage.template.html"
+                CssFiles="@(CssModule->'$(MSBuildProjectDirectory)\%(Identity)', ';')"
+                JsFiles="@(JsModule->'$(MSBuildProjectDirectory)\%(Identity)', ';')"
+                OutputFile="$(MSBuildProjectDirectory)\PluginPages\configPage.html"/>
+    </Target>
 
-            if (!System.IO.File.Exists(trimmed))
-            {
-                throw new System.IO.FileNotFoundException("Configured JS module was not found.", trimmed);
-            }
+  <!-- Sync CSS, JS, and i18n files to docs/ for GitHub Pages demo (set SyncDocs=true to enable) -->
+  <Target Name="SyncDocsAssets" AfterTargets="ComposeConfigPageHtml" Condition="'$(SyncDocs)' == 'true'">
+    <PropertyGroup>
+      <DocsRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\docs'))</DocsRoot>
+    </PropertyGroup>
 
-            jsBuilder.AppendLine(System.IO.File.ReadAllText(trimmed));
-        }
+        <!-- Collect source files -->
+        <ItemGroup>
+            <DocsCssSource Include="$(MSBuildProjectDirectory)\PluginPages\css\*.css"/>
+            <DocsJsSource Include="$(MSBuildProjectDirectory)\PluginPages\js\*.js"/>
+            <DocsI18nSource Include="$(MSBuildProjectDirectory)\i18n\*.json"/>
+        </ItemGroup>
 
-        var result = template.Replace("/* CSS_CONTENT */", cssBuilder.ToString()).Replace("/* JS_CONTENT */", jsBuilder.ToString());
-        var dir = System.IO.Path.GetDirectoryName(OutputFile);
-        if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
-            System.IO.Directory.CreateDirectory(dir);
-        System.IO.File.WriteAllText(OutputFile, result);
-        Log.LogMessage(MessageImportance.High, "Composed configPage.html from template + CSS modules + JS modules");
-        ]]>
-      </Code>
-    </Task>
-  </UsingTask>
+        <!-- Clean target directories to mirror source (remove stale/renamed assets) -->
+        <RemoveDir Directories="$(DocsRoot)\css" Condition="Exists('$(DocsRoot)\css')"/>
+        <RemoveDir Directories="$(DocsRoot)\js" Condition="Exists('$(DocsRoot)\js')"/>
+        <RemoveDir Directories="$(DocsRoot)\i18n" Condition="Exists('$(DocsRoot)\i18n')"/>
 
-  <!-- Define CSS and JS module files in concatenation order -->
-  <ItemGroup>
-    <CssModule Include="PluginPages\css\shared.css" />
-    <CssModule Include="PluginPages\css\Overview.css" />
-    <CssModule Include="PluginPages\css\Codecs.css" />
-    <CssModule Include="PluginPages\css\Health.css" />
-    <CssModule Include="PluginPages\css\Trends.css" />
-    <CssModule Include="PluginPages\css\Settings.css" />
-    <CssModule Include="PluginPages\css\ArrIntegration.css" />
-    <CssModule Include="PluginPages\css\Logs.css" />
-  </ItemGroup>
+        <!-- Recreate target directories -->
+        <MakeDir Directories="$(DocsRoot)\css"/>
+        <MakeDir Directories="$(DocsRoot)\js"/>
+        <MakeDir Directories="$(DocsRoot)\i18n"/>
 
-  <ItemGroup>
-    <JsModule Include="PluginPages\js\shared.js" />
-    <JsModule Include="PluginPages\js\Overview.js" />
-    <JsModule Include="PluginPages\js\Codecs.js" />
-    <JsModule Include="PluginPages\js\Health.js" />
-    <JsModule Include="PluginPages\js\Trends.js" />
-    <JsModule Include="PluginPages\js\Settings.js" />
-    <JsModule Include="PluginPages\js\ArrIntegration.js" />
-    <JsModule Include="PluginPages\js\Logs.js" />
-    <JsModule Include="PluginPages\js\main.js" />
-  </ItemGroup>
+        <!-- Copy CSS files -->
+        <Copy SourceFiles="@(DocsCssSource)"
+              DestinationFolder="$(DocsRoot)\css"
+              SkipUnchangedFiles="true"/>
 
-  <Target Name="ComposeConfigPageHtml" BeforeTargets="BeforeBuild;BeforeRebuild">
-    <ComposeConfigPage
-      TemplateFile="$(MSBuildProjectDirectory)\PluginPages\configPage.template.html"
-      CssFiles="@(CssModule->'$(MSBuildProjectDirectory)\%(Identity)', ';')"
-      JsFiles="@(JsModule->'$(MSBuildProjectDirectory)\%(Identity)', ';')"
-      OutputFile="$(MSBuildProjectDirectory)\PluginPages\configPage.html" />
-  </Target>
+        <!-- Copy JS files -->
+        <Copy SourceFiles="@(DocsJsSource)"
+              DestinationFolder="$(DocsRoot)\js"
+              SkipUnchangedFiles="true"/>
 
-  <ItemGroup>
-    <!-- i18n language files as embedded resources -->
-    <EmbeddedResource Include="i18n\*.json" />
-    <!-- The generated configPage.html is the embedded resource -->
-    <EmbeddedResource Include="PluginPages\configPage.html" />
-    <!-- Source module files are NOT embedded but kept for development -->
-    <None Include="PluginPages\configPage.template.html" />
-    <None Include="PluginPages\css\*.css" />
-    <None Include="PluginPages\js\*.js" />
-    <EmbeddedResource Include="..\media\logo.png">
-      <LogicalName>Jellyfin.Plugin.JellyfinHelper.logo.png</LogicalName>
-      <Link>logo.png</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </EmbeddedResource>
-  </ItemGroup>
+        <!-- Copy i18n files -->
+        <Copy SourceFiles="@(DocsI18nSource)"
+              DestinationFolder="$(DocsRoot)\i18n"
+              SkipUnchangedFiles="true"/>
+
+        <Message Importance="High" Text="Synced CSS, JS, and i18n files to docs/ for GitHub Pages demo"/>
+    </Target>
+
+    <ItemGroup>
+        <!-- i18n language files as embedded resources -->
+        <EmbeddedResource Include="i18n\*.json"/>
+        <!-- The generated configPage.html is the embedded resource -->
+        <EmbeddedResource Include="PluginPages\configPage.html"/>
+        <!-- Source module files are NOT embedded but kept for development -->
+        <None Include="PluginPages\configPage.template.html"/>
+        <None Include="PluginPages\css\*.css"/>
+        <None Include="PluginPages\js\*.js"/>
+        <EmbeddedResource Include="..\media\logo.png">
+            <LogicalName>Jellyfin.Plugin.JellyfinHelper.logo.png</LogicalName>
+            <Link>logo.png</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </EmbeddedResource>
+    </ItemGroup>
 
 </Project>

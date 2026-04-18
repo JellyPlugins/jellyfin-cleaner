@@ -108,7 +108,7 @@ public class HealthHtmlTests : ConfigPageTestBase
     public void Html_HealthClickHandler_UsesCollectHealthPaths()
     {
         // The health click handler should use collectHealthPaths to gather paths
-        Assert.Contains("collectHealthPaths(_lastScanData, mapping.prop)", HtmlContent);
+        Assert.Contains("collectHealthPaths(_lastScanResult, mapping.prop)", HtmlContent);
     }
 
     [Fact]
@@ -136,20 +136,6 @@ public class HealthHtmlTests : ConfigPageTestBase
         // Health items should have the data-health-type attribute for click handling
         Assert.Contains("data-health-type", HtmlContent);
         Assert.Contains("health-clickable", HtmlContent);
-    }
-
-    [Fact]
-    public void Html_ContainsSharedGetFileNameFunction()
-    {
-        // getFileName should be in shared.js (available to both Codecs + Health)
-        Assert.Contains("function getFileName", HtmlContent);
-    }
-
-    [Fact]
-    public void Html_ContainsSharedGetParentFolderFunction()
-    {
-        // getParentFolder should be in shared.js (available to both Codecs + Health)
-        Assert.Contains("function getParentFolder", HtmlContent);
     }
 
     [Fact]

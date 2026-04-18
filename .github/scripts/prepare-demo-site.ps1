@@ -17,7 +17,7 @@ foreach ($target in $generatedTargets) {
 
 Copy-Item (Join-Path $repoRoot 'Jellyfin.Plugin.JellyfinHelper\PluginPages\css\*.css') $cssTarget -Force
 Copy-Item (Join-Path $repoRoot 'Jellyfin.Plugin.JellyfinHelper\PluginPages\js\*.js') $jsTarget -Force
-Copy-Item (Join-Path $repoRoot 'Jellyfin.Plugin.JellyfinHelper\i18n\en.json') $i18nTarget -Force
+Copy-Item (Join-Path $repoRoot 'Jellyfin.Plugin.JellyfinHelper\i18n\*.json') $i18nTarget -Force
 
 $noJekyllPath = Join-Path $docsRoot '.nojekyll'
 Set-Content -Path $noJekyllPath -Value '' -NoNewline

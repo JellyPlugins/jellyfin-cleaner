@@ -1,9 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
@@ -14,17 +12,13 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Backup;
 
 /// <summary>
-///     Service for creating and restoring plugin backups with comprehensive data validation.
-///     Handles export of configuration, historical data, and Arr settings,
-///     and validates imported data to prevent malicious or corrupt payloads.
+///     Service for creating and restoring plugin backups.
+///     Handles export of configuration, historical data, and Arr settings.
+///     Validation is provided by <see cref="BackupValidator" /> and
+///     sanitization by <see cref="BackupSanitizer" />.
 /// </summary>
 public class BackupService : IBackupService
 {
-    /// <summary>
-    ///     Maximum allowed backup version for import.
-    /// </summary>
-    private const int MaxBackupVersion = 1;
-
     /// <summary>
     ///     Maximum allowed size of a backup JSON payload in bytes (10 MB).
     ///     Per-directory baselines can be larger for media servers with many items.
@@ -36,82 +30,7 @@ public class BackupService : IBackupService
     /// </summary>
     internal const long LargeBackupWarningThresholdBytes = 1 * 1024 * 1024;
 
-    /// <summary>
-    ///     Maximum number of growth timeline data points allowed in a backup.
-    /// </summary>
-    internal const int MaxTimelineDataPoints = 5000;
-
-    /// <summary>
-    ///     Maximum number of baseline directory entries allowed in a backup.
-    ///     Each top-level media directory (movie folder, TV show folder, etc.) is one entry.
-    ///     50,000 supports very large media servers.
-    /// </summary>
-    private const int MaxBaselineDirectories = 50_000;
-
-    /// <summary>
-    ///     Maximum number of Arr instances per type (Radarr/Sonarr).
-    /// </summary>
-    internal const int MaxArrInstances = 3;
-
-    /// <summary>
-    ///     Maximum string length for general text fields (library names, paths, etc.).
-    /// </summary>
-    internal const int MaxStringLength = 1000;
-
-    /// <summary>
-    ///     Maximum string length for URL fields.
-    /// </summary>
-    private const int MaxUrlLength = 500;
-
-    /// <summary>
-    ///     Maximum string length for API key fields.
-    /// </summary>
-    private const int MaxApiKeyLength = 200;
-
-    /// <summary>
-    ///     Maximum string length for instance name fields.
-    /// </summary>
-    private const int MaxInstanceNameLength = 100;
-
-    /// <summary>
-    ///     Valid language codes.
-    /// </summary>
-    private static readonly HashSet<string> ValidLanguages = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "en", "de", "fr", "es", "pt", "zh", "tr"
-    };
-
-    /// <summary>
-    ///     Valid task mode values.
-    /// </summary>
-    private static readonly HashSet<string> ValidTaskModes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Deactivate", "DryRun", "Activate"
-    };
-
-    /// <summary>
-    ///     Valid log levels.
-    /// </summary>
-    private static readonly HashSet<string> ValidLogLevels = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "DEBUG", "INFO", "WARN", "ERROR"
-    };
-
-    /// <summary>
-    ///     Valid timeline granularity values.
-    /// </summary>
-    private static readonly HashSet<string> ValidGranularities = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "daily", "weekly", "monthly", "quarterly", "yearly"
-    };
-
     private static readonly JsonSerializerOptions JsonOptions = JsonDefaults.Options;
-
-    // Regex to detect script injection in string fields
-    private static readonly Regex ScriptPattern = new(
-        @"<\s*script|javascript\s*:|on\w+\s*=|<\s*iframe|<\s*object|<\s*embed|<\s*form|<\s*svg\s+on",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled,
-        TimeSpan.FromSeconds(1));
 
     private readonly IPluginConfigurationService _configService;
 
@@ -183,7 +102,13 @@ public class BackupService : IBackupService
             TrickplayTaskMode = config.TrickplayTaskMode.ToString(),
             EmptyMediaFolderTaskMode = config.EmptyMediaFolderTaskMode.ToString(),
             OrphanedSubtitleTaskMode = config.OrphanedSubtitleTaskMode.ToString(),
-            StrmRepairTaskMode = config.StrmRepairTaskMode.ToString(),
+            LinkRepairTaskMode = config.LinkRepairTaskMode.ToString(),
+            SeerrCleanupTaskMode = config.SeerrCleanupTaskMode.ToString(),
+
+            // Seerr settings
+            SeerrUrl = config.SeerrUrl,
+            SeerrApiKey = config.SeerrApiKey,
+            SeerrCleanupAgeDays = config.SeerrCleanupAgeDays,
 
             // Trash settings
             UseTrash = config.UseTrash,
@@ -231,7 +156,7 @@ public class BackupService : IBackupService
 
     /// <summary>
     ///     Restores backup data into the plugin configuration and data files.
-    ///     Must be called only after <see cref="Validate" /> returns a valid result.
+    ///     Must be called only after <see cref="BackupValidator.Validate" /> returns a valid result.
     /// </summary>
     /// <param name="backup">The validated backup data.</param>
     /// <returns>A summary of what was restored.</returns>
@@ -313,374 +238,6 @@ public class BackupService : IBackupService
         }
     }
 
-    /// <summary>
-    ///     Validates backup data comprehensively, checking for malicious content,
-    ///     out-of-range values, and structural integrity.
-    /// </summary>
-    /// <param name="backup">The backup data to validate.</param>
-    /// <returns>The validation result with errors and warnings.</returns>
-    public static BackupValidationResult Validate(BackupData? backup)
-    {
-        var result = new BackupValidationResult();
-
-        if (backup == null)
-        {
-            result.Errors.Add("Backup data is null or could not be deserialized.");
-            return result;
-        }
-
-        // Version check
-        if (backup.BackupVersion is < 1 or > MaxBackupVersion)
-        {
-            result.Errors.Add($"Unsupported backup version: {backup.BackupVersion}. Expected 1–{MaxBackupVersion}.");
-        }
-
-        // Timestamp sanity
-        if (backup.CreatedAt < new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc))
-        {
-            result.Warnings.Add($"Backup timestamp is suspiciously old: {backup.CreatedAt:O}");
-        }
-
-        if (backup.CreatedAt > DateTime.UtcNow.AddDays(1))
-        {
-            result.Warnings.Add($"Backup timestamp is in the future: {backup.CreatedAt:O}");
-        }
-
-        // String field validation (XSS / injection prevention)
-        ValidateStringField(result, backup.Language, "Language", MaxStringLength);
-        ValidateStringField(result, backup.IncludedLibraries, "IncludedLibraries", MaxStringLength);
-        ValidateStringField(result, backup.ExcludedLibraries, "ExcludedLibraries", MaxStringLength);
-        ValidateStringField(result, backup.PluginLogLevel, "PluginLogLevel", MaxStringLength);
-        ValidateStringField(result, backup.TrashFolderPath, "TrashFolderPath", MaxStringLength);
-        ValidateStringField(result, backup.PluginVersion, "PluginVersion", MaxStringLength);
-        ValidateStringField(result, backup.TrickplayTaskMode, "TrickplayTaskMode", MaxStringLength);
-        ValidateStringField(result, backup.EmptyMediaFolderTaskMode, "EmptyMediaFolderTaskMode", MaxStringLength);
-        ValidateStringField(result, backup.OrphanedSubtitleTaskMode, "OrphanedSubtitleTaskMode", MaxStringLength);
-        ValidateStringField(result, backup.StrmRepairTaskMode, "StrmRepairTaskMode", MaxStringLength);
-
-        // Enum validation
-        if (!string.IsNullOrEmpty(backup.Language) && !ValidLanguages.Contains(backup.Language))
-        {
-            result.Warnings.Add($"Unknown language '{backup.Language}'. Will default to 'en'.");
-        }
-
-        ValidateTaskMode(result, backup.TrickplayTaskMode, "TrickplayTaskMode");
-        ValidateTaskMode(result, backup.EmptyMediaFolderTaskMode, "EmptyMediaFolderTaskMode");
-        ValidateTaskMode(result, backup.OrphanedSubtitleTaskMode, "OrphanedSubtitleTaskMode");
-        ValidateTaskMode(result, backup.StrmRepairTaskMode, "StrmRepairTaskMode");
-
-        if (!string.IsNullOrEmpty(backup.PluginLogLevel) && !ValidLogLevels.Contains(backup.PluginLogLevel))
-        {
-            result.Warnings.Add($"Unknown log level '{backup.PluginLogLevel}'. Will default to 'INFO'.");
-        }
-
-        // Numeric range validation
-        if (backup.OrphanMinAgeDays < 0 || backup.OrphanMinAgeDays > 3650)
-        {
-            result.Errors.Add($"OrphanMinAgeDays out of range: {backup.OrphanMinAgeDays}. Must be 0–3650.");
-        }
-
-        if (backup.TrashRetentionDays < 0 || backup.TrashRetentionDays > 3650)
-        {
-            result.Errors.Add($"TrashRetentionDays out of range: {backup.TrashRetentionDays}. Must be 0–3650.");
-        }
-
-        // Path traversal check for trash folder
-        if (!string.IsNullOrEmpty(backup.TrashFolderPath))
-        {
-            ValidatePathSafety(result, backup.TrashFolderPath, "TrashFolderPath");
-        }
-
-        // Arr instances validation
-        ValidateArrInstances(result, backup.RadarrInstances, "RadarrInstances");
-        ValidateArrInstances(result, backup.SonarrInstances, "SonarrInstances");
-
-        // Historical data validation
-        ValidateGrowthTimeline(result, backup.GrowthTimeline);
-        ValidateGrowthBaseline(result, backup.GrowthBaseline);
-
-        return result;
-    }
-
-    /// <summary>
-    ///     Sanitizes a backup by clamping values to valid ranges and replacing
-    ///     invalid enum values with defaults. This makes the backup safe to import
-    ///     even if some fields had warning-level issues.
-    /// </summary>
-    /// <param name="backup">The backup to sanitize (modified in place).</param>
-    public static void Sanitize(BackupData backup)
-    {
-        ArgumentNullException.ThrowIfNull(backup);
-
-        // Normalize nullable collections (JSON deserialization can set them to null
-        // even though the model has default initializers, e.g. "radarrInstances": null)
-
-        // Language
-        if (string.IsNullOrEmpty(backup.Language) || !ValidLanguages.Contains(backup.Language))
-        {
-            backup.Language = "en";
-        }
-
-        // Log level
-        if (string.IsNullOrEmpty(backup.PluginLogLevel) || !ValidLogLevels.Contains(backup.PluginLogLevel))
-        {
-            backup.PluginLogLevel = "INFO";
-        }
-
-        // Task modes
-        backup.TrickplayTaskMode = SanitizeTaskMode(backup.TrickplayTaskMode);
-        backup.EmptyMediaFolderTaskMode = SanitizeTaskMode(backup.EmptyMediaFolderTaskMode);
-        backup.OrphanedSubtitleTaskMode = SanitizeTaskMode(backup.OrphanedSubtitleTaskMode);
-        backup.StrmRepairTaskMode = SanitizeTaskMode(backup.StrmRepairTaskMode);
-
-        // Numeric clamping
-        backup.OrphanMinAgeDays = Math.Clamp(backup.OrphanMinAgeDays, 0, 3650);
-        backup.TrashRetentionDays = Math.Clamp(backup.TrashRetentionDays, 0, 3650);
-
-        // String truncation
-        backup.IncludedLibraries = TruncateString(backup.IncludedLibraries, MaxStringLength);
-        backup.ExcludedLibraries = TruncateString(backup.ExcludedLibraries, MaxStringLength);
-        backup.TrashFolderPath = TruncateString(backup.TrashFolderPath, MaxStringLength);
-
-        // Arr instances
-        SanitizeArrInstances(backup.RadarrInstances);
-        SanitizeArrInstances(backup.SonarrInstances);
-
-        // Timeline data points limit
-        if (backup.GrowthTimeline is { DataPoints.Count: > MaxTimelineDataPoints })
-        {
-            var trimmed = backup.GrowthTimeline.DataPoints
-                .Skip(backup.GrowthTimeline.DataPoints.Count - MaxTimelineDataPoints)
-                .ToList();
-            backup.GrowthTimeline.DataPoints.Clear();
-            foreach (var point in trimmed)
-            {
-                backup.GrowthTimeline.DataPoints.Add(point);
-            }
-        }
-
-        // Baseline directories limit
-        if (backup.GrowthBaseline == null || backup.GrowthBaseline.Directories.Count <= MaxBaselineDirectories)
-        {
-            return;
-        }
-
-        var keysToRemove = backup.GrowthBaseline.Directories.Keys
-            .Skip(MaxBaselineDirectories)
-            .ToList();
-        foreach (var key in keysToRemove)
-        {
-            backup.GrowthBaseline.Directories.Remove(key);
-        }
-    }
-
-    // === Validation helpers ===
-
-    private static void ValidateStringField(
-        BackupValidationResult result,
-        string? value,
-        string fieldName,
-        int maxLength)
-    {
-        if (value == null)
-        {
-            return;
-        }
-
-        if (value.Length > maxLength)
-        {
-            result.Errors.Add($"{fieldName} exceeds maximum length ({value.Length} > {maxLength}).");
-        }
-
-        if (ContainsNullBytes(value))
-        {
-            result.Errors.Add($"{fieldName} contains null bytes (potential binary injection).");
-        }
-
-        if (ContainsScriptInjection(value))
-        {
-            result.Errors.Add($"{fieldName} contains potential script injection content.");
-        }
-    }
-
-    private static void ValidateTaskMode(BackupValidationResult result, string? value, string fieldName)
-    {
-        if (!string.IsNullOrEmpty(value) && !ValidTaskModes.Contains(value))
-        {
-            result.Warnings.Add($"Unknown task mode '{value}' for {fieldName}. Will default to 'DryRun'.");
-        }
-    }
-
-    private static void ValidatePathSafety(BackupValidationResult result, string path, string fieldName)
-    {
-        // Check for path traversal attempts
-        if (path.Contains("..", StringComparison.Ordinal))
-        {
-            result.Errors.Add($"{fieldName} contains path traversal characters '..'.");
-        }
-
-        // Check for absolute paths trying to escape (but allow absolute paths as they're a valid config)
-        // Just reject clearly dangerous patterns
-        if (path.Contains('\0', StringComparison.Ordinal))
-        {
-            result.Errors.Add($"{fieldName} contains null bytes.");
-        }
-
-        // Check for pipe/command injection
-        if (path.Contains('|', StringComparison.Ordinal) || path.Contains('`', StringComparison.Ordinal) ||
-            path.Contains(';', StringComparison.Ordinal))
-        {
-            result.Errors.Add($"{fieldName} contains potentially dangerous characters (|, `, ;).");
-        }
-
-        // Check for shell substitution patterns ($(...) or ${...}) but allow bare '$'
-        // since it's valid in Windows UNC paths (e.g. \\server\C$\share)
-        if (path.Contains("$(", StringComparison.Ordinal) || path.Contains("${", StringComparison.Ordinal))
-        {
-            result.Errors.Add($"{fieldName} contains shell substitution pattern ($( or ${{).");
-        }
-
-        // Check for newline characters (potential log/header injection)
-        if (path.Contains('\n', StringComparison.Ordinal) || path.Contains('\r', StringComparison.Ordinal))
-        {
-            result.Errors.Add($"{fieldName} contains newline characters.");
-        }
-    }
-
-    private static void ValidateArrInstances(
-        BackupValidationResult result,
-        List<BackupArrInstance>? instances,
-        string fieldName)
-    {
-        if (instances == null)
-        {
-            return;
-        }
-
-        if (instances.Count > MaxArrInstances)
-        {
-            result.Errors.Add($"{fieldName} has too many instances ({instances.Count} > {MaxArrInstances}).");
-        }
-
-        for (var i = 0; i < instances.Count; i++)
-        {
-            var instance = instances[i];
-            var prefix = $"{fieldName}[{i}]";
-
-            ValidateStringField(result, instance.Name, $"{prefix}.Name", MaxInstanceNameLength);
-            ValidateStringField(result, instance.Url, $"{prefix}.Url", MaxUrlLength);
-            ValidateStringField(result, instance.ApiKey, $"{prefix}.ApiKey", MaxApiKeyLength);
-
-            // Validate URL format
-            if (string.IsNullOrEmpty(instance.Url))
-            {
-                continue;
-            }
-
-            if (!Uri.TryCreate(instance.Url, UriKind.Absolute, out var uri) ||
-                (uri.Scheme != "http" && uri.Scheme != "https"))
-            {
-                result.Errors.Add($"{prefix}.Url is not a valid HTTP/HTTPS URL: '{instance.Url}'.");
-            }
-        }
-    }
-
-    private static void ValidateGrowthTimeline(BackupValidationResult result, GrowthTimelineResult? timeline)
-    {
-        if (timeline == null)
-        {
-            return;
-        }
-
-        if (timeline.DataPoints.Count > MaxTimelineDataPoints)
-        {
-            result.Warnings.Add(
-                $"GrowthTimeline has {timeline.DataPoints.Count} data points (max {MaxTimelineDataPoints}). Will be trimmed.");
-        }
-
-        if (!string.IsNullOrEmpty(timeline.Granularity) && !ValidGranularities.Contains(timeline.Granularity))
-        {
-            result.Warnings.Add($"Unknown timeline granularity '{timeline.Granularity}'. Will be accepted as-is.");
-        }
-
-        // Check for negative cumulative sizes (sanity check)
-        foreach (var point in timeline.DataPoints)
-        {
-            if (point.CumulativeSize >= 0)
-            {
-                continue;
-            }
-
-            result.Warnings.Add(
-                $"Timeline data point at {point.Date:O} has negative cumulative size ({point.CumulativeSize}).");
-            break; // Only warn once
-        }
-    }
-
-    private static void ValidateGrowthBaseline(BackupValidationResult result, GrowthTimelineBaseline? baseline)
-    {
-        if (baseline == null)
-        {
-            return;
-        }
-
-        if (baseline.Directories.Count > MaxBaselineDirectories)
-        {
-            result.Warnings.Add(
-                $"GrowthBaseline has {baseline.Directories.Count} directories (max {MaxBaselineDirectories}). Will be trimmed.");
-        }
-
-        // Check for suspiciously large sizes
-        foreach (var kvp in baseline.Directories)
-        {
-            if (kvp.Value.Size < 0)
-            {
-                result.Warnings.Add(
-                    $"Baseline directory '{TruncateForLog(kvp.Key)}' has negative size ({kvp.Value.Size}).");
-                break; // Only warn once
-            }
-
-            if (kvp.Key.Length > 1000)
-            {
-                result.Errors.Add("Baseline directory path exceeds 1000 characters.");
-                break;
-            }
-
-            if (!ContainsScriptInjection(kvp.Key))
-            {
-                continue;
-            }
-
-            result.Errors.Add("Baseline directory path contains potential script injection content.");
-            break;
-        }
-    }
-
-    // === Security helpers ===
-
-    internal static bool ContainsNullBytes(string value)
-    {
-        return value.Contains('\0', StringComparison.Ordinal);
-    }
-
-    internal static bool ContainsScriptInjection(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return false;
-        }
-
-        try
-        {
-            return ScriptPattern.IsMatch(value);
-        }
-        catch (RegexMatchTimeoutException)
-        {
-            // If the regex times out, treat as suspicious
-            return true;
-        }
-    }
-
     // === Private helpers ===
 
     private void RestoreConfiguration(BackupData backup, BackupRestoreSummary summary)
@@ -697,47 +254,53 @@ public class BackupService : IBackupService
         var config = _configService.GetConfiguration();
 
         // Restore preferences
-        config.Language = ValidLanguages.Contains(backup.Language) ? backup.Language : "en";
+        config.Language = BackupValidator.ValidLanguages.Contains(backup.Language) ? backup.Language : "en";
         config.IncludedLibraries = backup.IncludedLibraries;
         config.ExcludedLibraries = backup.ExcludedLibraries;
-        config.OrphanMinAgeDays = Math.Clamp(backup.OrphanMinAgeDays, 0, 3650);
-        config.PluginLogLevel = ValidLogLevels.Contains(backup.PluginLogLevel) ? backup.PluginLogLevel : "INFO";
+        config.OrphanMinAgeDays = Math.Clamp(backup.OrphanMinAgeDays, 0, BackupValidator.MaxRetentionDays);
+        config.PluginLogLevel = BackupValidator.ValidLogLevels.Contains(backup.PluginLogLevel) ? backup.PluginLogLevel : "INFO";
 
         // Task modes
         config.TrickplayTaskMode = ParseTaskMode(backup.TrickplayTaskMode);
         config.EmptyMediaFolderTaskMode = ParseTaskMode(backup.EmptyMediaFolderTaskMode);
         config.OrphanedSubtitleTaskMode = ParseTaskMode(backup.OrphanedSubtitleTaskMode);
-        config.StrmRepairTaskMode = ParseTaskMode(backup.StrmRepairTaskMode);
+        config.LinkRepairTaskMode = ParseTaskMode(backup.LinkRepairTaskMode);
+        config.SeerrCleanupTaskMode = ParseTaskMode(backup.SeerrCleanupTaskMode, TaskMode.Deactivate);
+
+        // Seerr settings
+        config.SeerrUrl = BackupSanitizer.TruncateString(backup.SeerrUrl ?? string.Empty, BackupValidator.MaxUrlLength);
+        config.SeerrApiKey = BackupSanitizer.TruncateString(backup.SeerrApiKey ?? string.Empty, BackupValidator.MaxApiKeyLength);
+        config.SeerrCleanupAgeDays = Math.Clamp(backup.SeerrCleanupAgeDays, 1, BackupValidator.MaxRetentionDays);
 
         // Trash settings
         config.UseTrash = backup.UseTrash;
         config.TrashFolderPath = string.IsNullOrWhiteSpace(backup.TrashFolderPath)
             ? ".jellyfin-trash"
             : backup.TrashFolderPath;
-        config.TrashRetentionDays = Math.Clamp(backup.TrashRetentionDays, 0, 3650);
+        config.TrashRetentionDays = Math.Clamp(backup.TrashRetentionDays, 0, BackupValidator.MaxRetentionDays);
 
         // Arr instances
         config.RadarrInstances.Clear();
-        foreach (var instance in backup.RadarrInstances.Take(MaxArrInstances))
+        foreach (var instance in backup.RadarrInstances.Take(BackupValidator.MaxArrInstances))
         {
             config.RadarrInstances.Add(
                 new ArrInstanceConfig
                 {
-                    Name = TruncateString(instance.Name, MaxInstanceNameLength),
-                    Url = TruncateString(instance.Url, MaxUrlLength),
-                    ApiKey = TruncateString(instance.ApiKey, MaxApiKeyLength)
+                    Name = BackupSanitizer.TruncateString(instance.Name, BackupValidator.MaxInstanceNameLength),
+                    Url = BackupSanitizer.TruncateString(instance.Url, BackupValidator.MaxUrlLength),
+                    ApiKey = BackupSanitizer.TruncateString(instance.ApiKey, BackupValidator.MaxApiKeyLength)
                 });
         }
 
         config.SonarrInstances.Clear();
-        foreach (var instance in backup.SonarrInstances.Take(MaxArrInstances))
+        foreach (var instance in backup.SonarrInstances.Take(BackupValidator.MaxArrInstances))
         {
             config.SonarrInstances.Add(
                 new ArrInstanceConfig
                 {
-                    Name = TruncateString(instance.Name, MaxInstanceNameLength),
-                    Url = TruncateString(instance.Url, MaxUrlLength),
-                    ApiKey = TruncateString(instance.ApiKey, MaxApiKeyLength)
+                    Name = BackupSanitizer.TruncateString(instance.Name, BackupValidator.MaxInstanceNameLength),
+                    Url = BackupSanitizer.TruncateString(instance.Url, BackupValidator.MaxUrlLength),
+                    ApiKey = BackupSanitizer.TruncateString(instance.ApiKey, BackupValidator.MaxApiKeyLength)
                 });
         }
 
@@ -746,78 +309,19 @@ public class BackupService : IBackupService
         _pluginLog.LogInfo("Backup", "Configuration restored from backup.", _logger);
     }
 
-    private static TaskMode ParseTaskMode(string? value)
+    private static TaskMode ParseTaskMode(string? value, TaskMode fallback = TaskMode.DryRun)
     {
         if (string.IsNullOrEmpty(value))
         {
-            return TaskMode.DryRun;
+            return fallback;
         }
 
-        if (Enum.TryParse<TaskMode>(value, true, out var mode))
+        if (Enum.TryParse<TaskMode>(value, true, out var mode) && Enum.IsDefined(mode))
         {
             return mode;
         }
 
-        return TaskMode.DryRun;
-    }
-
-    private static string SanitizeTaskMode(string? value)
-    {
-        if (string.IsNullOrEmpty(value) || !ValidTaskModes.Contains(value))
-        {
-            return "DryRun";
-        }
-
-        // Normalize casing
-        return value switch
-        {
-            _ when value.Equals("Activate", StringComparison.OrdinalIgnoreCase) => "Activate",
-            _ when value.Equals("DryRun", StringComparison.OrdinalIgnoreCase) => "DryRun",
-            _ when value.Equals("Deactivate", StringComparison.OrdinalIgnoreCase) => "Deactivate",
-            _ => "DryRun"
-        };
-    }
-
-    private static string TruncateString(string? value, int maxLength)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        return value.Length > maxLength ? value[..maxLength] : value;
-    }
-
-    private static string TruncateForLog(string value)
-    {
-        const int maxLogLength = 80;
-        if (value.Length <= maxLogLength)
-        {
-            return value;
-        }
-
-        return value[..maxLogLength] + "...";
-    }
-
-    private static void SanitizeArrInstances(List<BackupArrInstance>? instances)
-    {
-        if (instances == null)
-        {
-            return;
-        }
-
-        // Limit count
-        while (instances.Count > MaxArrInstances)
-        {
-            instances.RemoveAt(instances.Count - 1);
-        }
-
-        foreach (var instance in instances)
-        {
-            instance.Name = TruncateString(instance.Name, MaxInstanceNameLength);
-            instance.Url = TruncateString(instance.Url, MaxUrlLength);
-            instance.ApiKey = TruncateString(instance.ApiKey, MaxApiKeyLength);
-        }
+        return fallback;
     }
 
     private T? LoadJsonFile<T>(string filePath)

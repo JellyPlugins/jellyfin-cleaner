@@ -42,7 +42,7 @@ public abstract class CleanupTaskTestBase : IDisposable
             TrickplayTaskMode = TaskMode.DryRun,
             EmptyMediaFolderTaskMode = TaskMode.DryRun,
             OrphanedSubtitleTaskMode = TaskMode.DryRun,
-            StrmRepairTaskMode = TaskMode.DryRun,
+            LinkRepairTaskMode = TaskMode.DryRun,
             UseTrash = false,
             ConfigVersion = 1,
         };
@@ -52,7 +52,7 @@ public abstract class CleanupTaskTestBase : IDisposable
         MockConfigHelper.Setup(x => x.IsDryRunTrickplay()).Returns(() => Config.TrickplayTaskMode == TaskMode.DryRun);
         MockConfigHelper.Setup(x => x.IsDryRunEmptyMediaFolders()).Returns(() => Config.EmptyMediaFolderTaskMode == TaskMode.DryRun);
         MockConfigHelper.Setup(x => x.IsDryRunOrphanedSubtitles()).Returns(() => Config.OrphanedSubtitleTaskMode == TaskMode.DryRun);
-        MockConfigHelper.Setup(x => x.IsDryRunStrmRepair()).Returns(() => Config.StrmRepairTaskMode == TaskMode.DryRun);
+        MockConfigHelper.Setup(x => x.IsDryRunLinkRepair()).Returns(() => Config.LinkRepairTaskMode == TaskMode.DryRun);
         MockConfigHelper.Setup(x => x.IsOldEnoughForDeletion(It.IsAny<string>())).Returns(true);
         MockConfigHelper.Setup(x => x.GetTrashPath(It.IsAny<string>())).Returns<string>(lib => Path.Join(lib, ".trash"));
         MockConfigHelper.Setup(x => x.GetFilteredLibraryLocations(It.IsAny<ILibraryManager>()))

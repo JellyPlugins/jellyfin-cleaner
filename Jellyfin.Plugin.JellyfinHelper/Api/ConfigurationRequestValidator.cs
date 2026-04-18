@@ -45,6 +45,26 @@ public static class ConfigurationRequestValidator
             return $"Maximum {MaxArrInstances} Sonarr instances allowed.";
         }
 
+        // Seerr settings validation
+        if (request.SeerrCleanupAgeDays is < 1 or > MaxDays)
+        {
+            return "SeerrCleanupAgeDays must be 1–3650.";
+        }
+
+        // Validate Seerr URL if provided
+        if (!string.IsNullOrWhiteSpace(request.SeerrUrl) &&
+            (!Uri.TryCreate(request.SeerrUrl, UriKind.Absolute, out var seerrUri) ||
+             (seerrUri.Scheme != "http" && seerrUri.Scheme != "https")))
+        {
+            return "Seerr URL must be a valid http:// or https:// URL.";
+        }
+
+        // If Seerr URL is set, API key must also be set
+        if (!string.IsNullOrWhiteSpace(request.SeerrUrl) && string.IsNullOrWhiteSpace(request.SeerrApiKey))
+        {
+            return "Seerr API key is required when a Seerr URL is configured.";
+        }
+
         // Arr instance format validation (multi-instance lists)
         var error = ValidateArrInstances(request.RadarrInstances, "Radarr");
 

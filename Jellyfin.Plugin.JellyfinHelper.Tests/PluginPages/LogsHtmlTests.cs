@@ -220,13 +220,17 @@ public class LogsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_DownloadUsesFetchApi()
     {
-        Assert.Contains("fetch(url", HtmlContent);
+        // Download now delegates to the shared apiFetchBlob helper (which uses fetch internally)
+        Assert.Contains("apiFetchBlob(", HtmlContent);
     }
 
     [Fact]
     public void Html_DownloadUsesAuthorizationHeader()
     {
-        Assert.Contains("apiClient.accessToken()", HtmlContent);
+        // Auth header is handled internally by apiFetchBlob in shared.js;
+        // verify the shared helper carries the token via Authorization header
+        Assert.Contains("Authorization", HtmlContent);
+        Assert.Contains("accessToken()", HtmlContent);
     }
 
     [Fact]
@@ -252,7 +256,9 @@ public class LogsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_ClearLogs_RequiresConfirmation()
     {
-        Assert.Contains("confirm(T('logsClearConfirm'", HtmlContent);
+        // Finding 12: native confirm() replaced with custom dialog
+        Assert.Contains("createDialogOverlay(", HtmlContent);
+        Assert.Contains("logsClearConfirm", HtmlContent);
     }
 
     // === CSS classes ===

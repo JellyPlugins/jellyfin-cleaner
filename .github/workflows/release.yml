@@ -19,9 +19,107 @@ env:
   TARGET_ABI: "10.11.0.0"
 
 jobs:
-  build:
+  security-audit:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '[skip release]')"
+    permissions:
+      contents: read
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Restore
+      run: dotnet restore
+
+    - name: Check for vulnerable packages
+      run: |
+        set -euo pipefail
+        echo "## Dependency Vulnerability Scan" >> $GITHUB_STEP_SUMMARY
+        dotnet list package --vulnerable --include-transitive --format json > vuln-report.json
+        cat vuln-report.json
+        # Parse JSON output to detect vulnerabilities (SDK-independent, fail-closed)
+        VULN_COUNT=$(python3 -c "
+        import json, sys
+        data = json.load(open('vuln-report.json'))
+        count = sum(
+            len(pkg.get('vulnerabilities') or [])
+            for proj in data.get('projects', [])
+            for fw in proj.get('frameworks', [])
+            for pkg in (fw.get('topLevelPackages') or []) + (fw.get('transitivePackages') or [])
+        )
+        print(count)
+        ")
+        if [ "$VULN_COUNT" -gt 0 ]; then
+          echo "::error::Vulnerable NuGet packages detected! Release blocked. ($VULN_COUNT vulnerabilities)"
+          echo "❌ **Vulnerable packages found — release blocked! ($VULN_COUNT vulnerabilities)**" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat vuln-report.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          exit 1
+        else
+          echo "✅ **No vulnerable packages detected.**" >> $GITHUB_STEP_SUMMARY
+        fi
+
+  test:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip release]')"
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        bucket:
+          - name: Unit
+            filter: "Category!=Performance&Category!=Security"
+          - name: Security
+            filter: "Category=Security"
+          - name: Performance
+            filter: "Category=Performance"
+
+    name: "Tests (${{ matrix.bucket.name }})"
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Restore
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+
+    - name: "Run ${{ matrix.bucket.name }} tests"
+      run: |
+        dotnet test --configuration Release --no-build --verbosity normal \
+          --filter "${{ matrix.bucket.filter }}" \
+          --logger "trx;LogFileName=${{ matrix.bucket.name }}.trx"
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: test-results-${{ matrix.bucket.name }}
+        path: "**/TestResults/*.trx"
+        retention-days: 7
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [security-audit, test]
+    if: "!contains(github.event.head_commit.message, '[skip release]')"
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout repository
@@ -53,10 +151,6 @@ jobs:
       if: env.TAG_EXISTS == 'false'
       run: dotnet restore
 
-    - name: Run tests
-      if: env.TAG_EXISTS == 'false'
-      run: dotnet test --configuration Release --no-restore --verbosity normal
-
     - name: Publish plugin
       if: env.TAG_EXISTS == 'false'
       run: |
@@ -64,9 +158,25 @@ jobs:
           -c Release \
           -o ./publish \
           -p:Version=${VERSION} \
-          -p:AssemblyVersion=${VERSION}.0 \
-          -p:FileVersion=${VERSION}.0 \
+          -p:AssemblyVersion=${VERSION} \
+          -p:FileVersion=${VERSION} \
           -p:InformationalVersion=${VERSION}
+
+    - name: Read metadata from manifest.json
+      if: env.TAG_EXISTS == 'false'
+      run: |
+        CHANGELOG=$(jq -r '.[0].versions[0].changelog' manifest.json)
+        DESCRIPTION=$(jq -r '.[0].description' manifest.json)
+        OVERVIEW=$(jq -r '.[0].overview' manifest.json)
+        echo "BUILD_CHANGELOG<<EOF" >> $GITHUB_ENV
+        echo "$CHANGELOG" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        echo "BUILD_DESCRIPTION<<EOF" >> $GITHUB_ENV
+        echo "$DESCRIPTION" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        echo "BUILD_OVERVIEW<<EOF" >> $GITHUB_ENV
+        echo "$OVERVIEW" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
 
     - name: Create release package
       if: env.TAG_EXISTS == 'false'
@@ -74,22 +184,31 @@ jobs:
         mkdir package
         cp publish/*.dll package/
         cp publish/logo.png package/ 2>/dev/null || cp media/logo.png package/
-        cat > package/meta.json <<METAEOF
-        {
-          "guid": "0c737645-5cbb-4bd8-80c7-d377b560aaa4",
-          "name": "Jellyfin Helper",
-          "description": "Automated cleanup (trickplay, empty folders, subtitles), media statistics, trash bin, Arr integration.",
-          "overview": "Automated cleanup, media statistics, trash bin, Arr integration.",
-          "owner": "JellyPlugins",
-          "category": "General",
-          "version": "${VERSION}.0",
-          "targetAbi": "${TARGET_ABI}",
-          "status": "Active",
-          "autoUpdate": true,
-          "imagePath": "logo.png",
-          "assembly": "Jellyfin.Plugin.JellyfinHelper.dll"
-        }
-        METAEOF
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%S.0000000Z")
+        jq -n \
+          --arg changelog "$BUILD_CHANGELOG" \
+          --arg description "$BUILD_DESCRIPTION" \
+          --arg overview "$BUILD_OVERVIEW" \
+          --arg targetAbi "$TARGET_ABI" \
+          --arg timestamp "$TIMESTAMP" \
+          --arg version "$VERSION" \
+          '{
+            "category": "General",
+            "changelog": $changelog,
+            "description": $description,
+            "guid": "0c737645-5cbb-4bd8-80c7-d377b560aaa4",
+            "name": "Jellyfin Helper",
+            "overview": $overview,
+            "owner": "JellyPlugins",
+            "targetAbi": $targetAbi,
+            "timestamp": $timestamp,
+            "version": $version,
+            "status": "Active",
+            "autoUpdate": true,
+            "imageUrl": "https://raw.githubusercontent.com/JellyPlugins/jellyfin-helper/main/media/logo.png",
+            "imagePath": ("/config/plugins/Jellyfin Helper_" + $version + "/logo.png"),
+            "assemblies": []
+          }' > package/meta.json
         cd package
         zip ../${PLUGIN_NAME}_${VERSION}.zip *
 
@@ -128,9 +247,11 @@ jobs:
 
     - name: Install jq and yq
       if: env.TAG_EXISTS == 'false'
+      env:
+        YQ_VERSION: v4.52.5
       run: |
         sudo apt-get update && sudo apt-get install -y jq
-        sudo wget -qO /usr/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+        sudo wget -qO /usr/bin/yq https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64
         sudo chmod +x /usr/bin/yq
 
     - name: Read changelog from manifest
