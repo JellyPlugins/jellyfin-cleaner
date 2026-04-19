@@ -374,7 +374,7 @@ public class BackupService : IBackupService
             {
                 File.Delete(tempPath);
             }
-            catch
+            catch (Exception)
             {
                 // best-effort cleanup
             }
