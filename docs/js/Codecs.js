@@ -1,4 +1,4 @@
-// --- Codecs Tab ---
+review// --- Codecs Tab ---
 
 // Store last scan data for codec detail clicks
 var _lastCodecData = null;
@@ -8,6 +8,12 @@ var _donutTooltipData = {};
 
 // Track which segment currently shows a tooltip (for mobile tap-to-show, tap-again-to-click)
 var _activeTooltipSegmentId = null;
+
+// Guard: prevent duplicate document-level touchstart listener registration
+var _touchOutsideListenerAttached = false;
+
+// Timestamp of last touchend — used to suppress touch-originated click events cross-browser
+var _lastTouchEndTime = 0;
 
 // SVG donut tooltip — reads rich data from _donutTooltipData
 function showDonutTooltip(container, evt, segment) {
@@ -328,9 +334,9 @@ function attachDonutHoverTooltips() {
                 });
 
                 // Desktop: click triggers the codec-row tree-view
-                segments[i].addEventListener('click', function (evt) {
-                    // Only handle non-touch clicks (touch is handled via touchend)
-                    if (evt.sourceCapabilities && evt.sourceCapabilities.firesTouchEvents) {
+                segments[i].addEventListener('click', function () {
+                    // Suppress touch-originated clicks (cross-browser, not just Chromium)
+                    if (Date.now() - _lastTouchEndTime < 800) {
                         return;
                     }
                     triggerCodecRowForSegment(this);
@@ -339,6 +345,7 @@ function attachDonutHoverTooltips() {
                 // Mobile: first tap shows tooltip, second tap triggers click
                 segments[i].addEventListener('touchend', function (evt) {
                     evt.preventDefault();
+                    _lastTouchEndTime = Date.now();
                     var segId = this.getAttribute('data-segment-id');
 
                     if (_activeTooltipSegmentId === segId) {
@@ -362,15 +369,18 @@ function attachDonutHoverTooltips() {
     }
 
     // Close tooltip when tapping outside any donut segment (mobile)
-    document.addEventListener('touchstart', function (evt) {
-        if (_activeTooltipSegmentId && !evt.target.closest('.donut-segment')) {
-            var allContainers = document.querySelectorAll('.donut-container');
-            for (var d = 0; d < allContainers.length; d++) {
-                hideDonutTooltip(allContainers[d]);
+    if (!_touchOutsideListenerAttached) {
+        _touchOutsideListenerAttached = true;
+        document.addEventListener('touchstart', function (evt) {
+            if (_activeTooltipSegmentId && !evt.target.closest('.donut-segment')) {
+                var allContainers = document.querySelectorAll('.donut-container');
+                for (var d = 0; d < allContainers.length; d++) {
+                    hideDonutTooltip(allContainers[d]);
+                }
+                _activeTooltipSegmentId = null;
             }
-            _activeTooltipSegmentId = null;
-        }
-    });
+        });
+    }
 }
 
 function fillCodecsData(data) {
