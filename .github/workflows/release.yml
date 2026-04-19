@@ -264,19 +264,19 @@ jobs:
         trap 'rm -rf "$TMP_DIR"' EXIT
         cd "$TMP_DIR"
         echo "Downloading yq ${YQ_VERSION}..."
-        wget --no-verbose https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 || {
+        curl -fsSL -o yq_linux_amd64 "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" || {
           echo "::error::Failed to download yq binary ${YQ_VERSION}. Check if this version exists at https://github.com/mikefarah/yq/releases"
           exit 1
         }
-        wget --no-verbose https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/checksums || {
+        curl -fsSL -o checksums "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/checksums" || {
           echo "::error::Failed to download yq checksums for ${YQ_VERSION}."
           exit 1
         }
-        EXPECTED_HASH=$(awk '$2=="yq_linux_amd64"{print $1}' checksums | head -n1)
+        echo "Checksums file content:"
+        cat checksums
+        EXPECTED_HASH=$(grep -w 'yq_linux_amd64' checksums | grep -v 'yq_linux_amd64.sig' | awk '{print $1}' | head -n1)
         if [ -z "$EXPECTED_HASH" ]; then
           echo "::error::Could not extract checksum for yq_linux_amd64 from checksums file. Format may have changed."
-          echo "Checksums file content:"
-          cat checksums
           exit 1
         fi
         echo "${EXPECTED_HASH}  yq_linux_amd64" | sha256sum -c - || {
