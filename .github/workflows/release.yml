@@ -257,7 +257,7 @@ jobs:
     - name: Install jq and yq
       if: env.TAG_EXISTS == 'false'
       env:
-        YQ_VERSION: v4.52.5
+        YQ_VERSION: v4.53.2
       run: |
         sudo apt-get update && sudo apt-get install -y jq
         TMP_DIR=$(mktemp -d)
@@ -268,21 +268,25 @@ jobs:
           echo "::error::Failed to download yq binary ${YQ_VERSION}. Check if this version exists at https://github.com/mikefarah/yq/releases"
           exit 1
         }
-        curl -fsSL -o yq_linux_amd64.sha256 "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64.sha256" || {
-          echo "::error::Failed to download yq SHA256 checksum for ${YQ_VERSION}."
+        curl -fsSL -o checksums "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/checksums" || {
+          echo "::error::Failed to download yq checksums for ${YQ_VERSION}."
           exit 1
         }
-        EXPECTED_HASH=$(cat yq_linux_amd64.sha256 | awk '{print $1}')
-        if [ -z "$EXPECTED_HASH" ]; then
-          echo "::error::SHA256 checksum file is empty or has unexpected format."
-          echo "File content:"
-          cat yq_linux_amd64.sha256
+        ACTUAL_HASH=$(sha256sum yq_linux_amd64 | awk '{print $1}')
+        CHECKSUM_LINE=$(grep -E '(^|\s)yq_linux_amd64(\s|$)' checksums | head -n1)
+        if [ -z "$CHECKSUM_LINE" ]; then
+          echo "::error::Could not find yq_linux_amd64 in checksums file."
+          echo "Checksums file content:"
+          cat checksums
           exit 1
         fi
-        echo "${EXPECTED_HASH}  yq_linux_amd64" | sha256sum -c - || {
+        if ! echo "$CHECKSUM_LINE" | grep -qF "$ACTUAL_HASH"; then
           echo "::error::yq checksum verification failed!"
+          echo "Computed SHA256: $ACTUAL_HASH"
+          echo "Checksums line:  $CHECKSUM_LINE"
           exit 1
-        }
+        fi
+        echo "Checksum verified: $ACTUAL_HASH"
         sudo install -m 0755 yq_linux_amd64 /usr/bin/yq
         echo "yq ${YQ_VERSION} installed successfully."
 
