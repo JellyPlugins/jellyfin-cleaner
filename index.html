@@ -57,28 +57,25 @@
              data-require="emby-input,emby-checkbox,emby-select">
             <style id="pluginStyles">/* Injected at build */</style>
             <div data-role="content">
-                <div class="content-primary">
-                    <div class="stats-container">
-                        <div class="stats-header">
-                            <h2>Jellyfin Helper &#x2014; Media Statistics</h2>
-                        <div class="header-actions">
-                                <span id="lastScanBadge" class="last-scan-badge" style="display:none;"></span>
-                                <button id="btnRefresh" class="refresh-btn">
-                                    &#x21bb; Scan Libraries
-                                </button>
-                            </div>
+                <div class="content-primary stats-container">
+                    <div class="stats-header">
+                        <h2>Jellyfin Helper</h2>
+                        <div class="last-scan-badge">
+                            <span id="lastScanBadge" style="display:none;"></span>
+                            <button aria-label="Scan libraries" class="scan-libraries-btn" id="btnScanLibraries"
+                                    title="Scan libraries"></button>
                         </div>
+                    </div>
 
-                        <div id="statsContent">
-                            <div class="loading-overlay" id="loadingIndicator" style="display:none;">
-                                <div class="spinner"></div>
-                                <p>Scanning libraries&#x2026; This may take a while for large collections.</p>
-                            </div>
-                            <div id="statsPlaceholder" style="text-align:center; padding:3em; opacity:0.5;">
-                                <p>Click <strong>Scan Libraries</strong> to analyze your media folders.</p>
-                            </div>
-                            <div id="statsResult" style="display:none;"></div>
+                    <div id="statsContent">
+                        <div class="loading-overlay" id="loadingIndicator" style="display:none;">
+                            <div class="spinner"></div>
+                            <p>Scanning libraries&#x2026; This may take a while for large collections.</p>
                         </div>
+                        <div id="statsPlaceholder" style="text-align:center; padding:3em; opacity:0.5;">
+                            <p>Click <strong>Scan Libraries</strong> to analyze your media folders.</p>
+                        </div>
+                        <div id="statsResult" style="display:none;"></div>
                     </div>
                 </div>
             </div>
@@ -179,7 +176,7 @@
         TrickplayTaskMode: "DryRun",
         EmptyMediaFolderTaskMode: "Activate",
         OrphanedSubtitleTaskMode: "DryRun",
-        StrmRepairTaskMode: "Deactivate",
+        LinkRepairTaskMode: "Deactivate",
         UseTrash: true,
         TrashFolderPath: ".jellyfin-trash",
         TrashRetentionDays: 30,
@@ -192,6 +189,10 @@
         SonarrInstances: [
             { Name: "Sonarr", Url: "http://192.168.1.100:8989", ApiKey: "demo-key-abcd" }
         ],
+        SeerrUrl: "http://192.168.1.100:5055",
+        SeerrApiKey: "demo-seerr-key-xyz",
+        SeerrCleanupTaskMode: "DryRun",
+        SeerrCleanupAgeDays: 365,
         ConfigVersion: 3
     };
 
@@ -255,7 +256,7 @@
     var MOCK_LOGS = {
         Entries: (function() {
             var entries = [];
-            var sources = ["MediaStatistics", "TrickplayCleaner", "EmptyFolderCleaner", "SubtitleCleaner", "StrmRepair", "TrashService", "ArrIntegration"];
+            var sources = ["MediaStatistics", "TrickplayCleaner", "EmptyFolderCleaner", "SubtitleCleaner", "LinkRepair", "TrashService", "ArrIntegration"];
             var levels = ["INFO", "INFO", "INFO", "DEBUG", "WARN", "ERROR", "INFO", "INFO", "DEBUG", "INFO"];
             var messages = [
                 "Statistics scan started for 3 libraries",
@@ -267,7 +268,7 @@
                 "Statistics scan completed in 12.4s — 3842 videos, 12450 audio files",
                 "Empty folder cleanup: 3 folders deleted, 45.2 MB freed",
                 "Checking subtitle: /data/movies/Old Movie/Old Movie.en.srt",
-                "STRM repair completed: 2 files repaired, 0 errors"
+                "Link repair completed: 2 files repaired, 0 errors"
             ];
             var now = Date.now();
             for (var i = 0; i < messages.length; i++) {
@@ -330,6 +331,7 @@
 
     // ========== MOCK ApiClient ==========
     var ApiClient = {
+        accessToken: function() { return 'mock-demo-token'; },
         getUrl: function(path) {
             return 'mock://' + path;
         },
@@ -377,6 +379,8 @@
                         resolve(MOCK_TRASH_FOLDERS);
                     } else if (url.indexOf('Trash/Summary') !== -1) {
                         resolve({ TotalSize: 17179869184, TotalItems: 3 });
+                    } else if (url.indexOf('Seerr/Test') !== -1) {
+                        resolve({ success: true, message: "Connected to Jellyseerr (demo)" });
                     } else if (url.indexOf('ArrIntegration/TestConnection') !== -1) {
                         resolve({ Success: true, Message: "Connection successful (demo)" });
                     } else if (url.indexOf('ArrIntegration/Compare/') !== -1) {
@@ -405,6 +409,25 @@
 
     // Polyfill Promise.then with two-arg style (Jellyfin's ApiClient.ajax uses .then(success, error))
     // Standard Promises already support this — no polyfill needed.
+
+    // ========== MOCK fetch() for native fetch calls in Shared.js ==========
+    // apiGetOptional and apiFetchBlob use native fetch() with mock:// URLs.
+    // We intercept those and route them through the same mock routing as ApiClient.ajax.
+    var _originalFetch = window.fetch.bind(window);
+    window.fetch = function(url, opts) {
+        if (typeof url === 'string' && url.indexOf('mock://') === 0) {
+            // Route through the same mock data as ApiClient.ajax
+            return ApiClient.ajax({ url: url, type: (opts && opts.method) || 'GET', dataType: 'json' })
+                .then(function(data) {
+                    var body = typeof data === 'string' ? data : JSON.stringify(data);
+                    return new Response(body, {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                });
+        }
+        return _originalFetch(url, opts);
+    };
     </script>
 
     <!-- Load translations, then inject plugin CSS & JS -->
@@ -427,7 +450,7 @@
     function loadPluginAssets() {
         // Load all CSS files
         var cssFiles = [
-            'css/shared.css', 'css/Overview.css', 'css/Codecs.css', 'css/Health.css',
+            'css/Shared.css', 'css/Overview.css', 'css/Codecs.css', 'css/Health.css',
             'css/Trends.css', 'css/Settings.css', 'css/ArrIntegration.css', 'css/Logs.css'
         ];
         var styleEl = document.getElementById('pluginStyles');
@@ -440,8 +463,8 @@
 
             // Load all JS files in order
             var jsFiles = [
-                'js/shared.js', 'js/Overview.js', 'js/Codecs.js', 'js/Health.js',
-                'js/Trends.js', 'js/Settings.js', 'js/ArrIntegration.js', 'js/Logs.js', 'js/main.js'
+                'js/Shared.js', 'js/Overview.js', 'js/Codecs.js', 'js/Health.js',
+                'js/Trends.js', 'js/Settings.js', 'js/ArrIntegration.js', 'js/Logs.js', 'js/Main.js'
             ];
 
             // We need to concatenate all JS and eval, because they form one IIFE
