@@ -16,7 +16,7 @@ public class StatisticsCacheServiceTests : IDisposable
 
     public StatisticsCacheServiceTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), "jfh-test-" + Guid.NewGuid());
+        _tempDir = Path.Join(Path.GetTempPath(), "jfh-test-" + Guid.NewGuid());
         Directory.CreateDirectory(_tempDir);
 
         var appPaths = new Mock<IApplicationPaths>();
@@ -31,7 +31,8 @@ public class StatisticsCacheServiceTests : IDisposable
     public void Dispose()
     {
         try { Directory.Delete(_tempDir, true); }
-        catch { /* cleanup best-effort */ }
+        catch (IOException) { /* cleanup best-effort */ }
+        catch (UnauthorizedAccessException) { /* cleanup best-effort */ }
     }
 
     [Fact]
@@ -88,7 +89,7 @@ public class StatisticsCacheServiceTests : IDisposable
     [Fact]
     public void SaveLatestResult_CreatesDirectoryIfMissing()
     {
-        var nestedDir = Path.Combine(_tempDir, "nested", "deep");
+        var nestedDir = Path.Join(_tempDir, "nested", "deep");
         var appPaths = new Mock<IApplicationPaths>();
         appPaths.Setup(ap => ap.DataPath).Returns(nestedDir);
 

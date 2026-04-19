@@ -470,7 +470,7 @@ public class CleanupConfigHelperTests
     {
         var cfg = new PluginConfiguration { OrphanMinAgeDays = 365 };
         var helper = CreateHelper(cfg);
-        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        var tempDir = Path.Join(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(tempDir);
         try
         {

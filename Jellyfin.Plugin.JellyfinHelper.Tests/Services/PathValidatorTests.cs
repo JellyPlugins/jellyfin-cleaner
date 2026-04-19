@@ -41,15 +41,15 @@ public class PathValidatorTests
     public void IsSafePath_ReturnsTrue_WhenPathIsWithinBase()
     {
         var basePath = System.IO.Path.GetTempPath();
-        var safePath = System.IO.Path.Combine(basePath, "subdir", "file.txt");
+        var safePath = System.IO.Path.Join(basePath, "subdir", "file.txt");
         Assert.True(PathValidator.IsSafePath(safePath, basePath));
     }
 
     [Fact]
     public void IsSafePath_ReturnsFalse_WhenPathIsOutsideBase()
     {
-        var basePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "allowed");
-        var outsidePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "outside", "file.txt");
+        var basePath = System.IO.Path.Join(System.IO.Path.GetTempPath(), "allowed");
+        var outsidePath = System.IO.Path.Join(System.IO.Path.GetTempPath(), "outside", "file.txt");
         Assert.False(PathValidator.IsSafePath(outsidePath, basePath));
     }
 
