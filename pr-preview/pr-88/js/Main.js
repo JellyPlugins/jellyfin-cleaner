@@ -218,7 +218,13 @@ function loadStatistics() {
     });
 }
 
-// --- Page initialization ---
+// --- Page initialization state machine ---
+// _pageInitialized: guards against duplicate init calls once the page is fully set up.
+// _initRetries / _maxInitRetries: retry counter for deferred DOM-ready detection
+//   (Jellyfin may inject the plugin page asynchronously, so required elements
+//    might not exist on the first call to initPage).
+// _handlersBound: prevents duplicate event-handler registration when the view
+//   is re-entered without a full page reload (SPA navigation).
 var _pageInitialized = false;
 var _initRetries = 0;
 var _maxInitRetries = 20;
