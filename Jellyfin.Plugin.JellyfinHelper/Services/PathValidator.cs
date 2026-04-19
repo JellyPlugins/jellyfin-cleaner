@@ -44,7 +44,10 @@ internal static class PathValidator
                 basePath += Path.DirectorySeparatorChar;
             }
 
-            return fullPath.StartsWith(basePath, StringComparison.OrdinalIgnoreCase);
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            return fullPath.StartsWith(basePath, comparison);
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
@@ -77,6 +80,11 @@ internal static class PathValidator
                 name = name.Replace(c, '_');
             }
         }
+
+        // Normalize backslashes to forward slashes for cross-platform safety.
+        // On Linux, '\' is a valid filename character but could be used in
+        // path traversal attempts — always treat it as a directory separator.
+        name = name.Replace('\\', '/');
 
         // Strip any directory separators
         name = Path.GetFileName(name);

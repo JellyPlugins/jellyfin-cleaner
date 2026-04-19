@@ -37,7 +37,7 @@ public static class BackupSanitizer
         backup.TrickplayTaskMode = SanitizeTaskMode(backup.TrickplayTaskMode);
         backup.EmptyMediaFolderTaskMode = SanitizeTaskMode(backup.EmptyMediaFolderTaskMode);
         backup.OrphanedSubtitleTaskMode = SanitizeTaskMode(backup.OrphanedSubtitleTaskMode);
-        backup.StrmRepairTaskMode = SanitizeTaskMode(backup.StrmRepairTaskMode);
+        backup.LinkRepairTaskMode = SanitizeTaskMode(backup.LinkRepairTaskMode);
 
         // Numeric clamping
         backup.OrphanMinAgeDays = Math.Clamp(backup.OrphanMinAgeDays, 0, BackupValidator.MaxRetentionDays);

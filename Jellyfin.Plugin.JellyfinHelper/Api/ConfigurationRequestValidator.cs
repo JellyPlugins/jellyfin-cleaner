@@ -45,6 +45,27 @@ public static class ConfigurationRequestValidator
             return $"Maximum {MaxArrInstances} Sonarr instances allowed.";
         }
 
+        // Seerr settings validation — only enforce range when Seerr is actually configured
+        if (!string.IsNullOrWhiteSpace(request.SeerrUrl) &&
+            request.SeerrCleanupAgeDays is (< 1 or > MaxDays))
+        {
+            return "SeerrCleanupAgeDays must be 1–3650.";
+        }
+
+        // Validate Seerr URL if provided
+        if (!string.IsNullOrWhiteSpace(request.SeerrUrl) &&
+            (!Uri.TryCreate(request.SeerrUrl, UriKind.Absolute, out var seerrUri) ||
+             (seerrUri.Scheme != "http" && seerrUri.Scheme != "https")))
+        {
+            return "Seerr URL must be a valid http:// or https:// URL.";
+        }
+
+        // If Seerr URL is set, API key must also be set
+        if (!string.IsNullOrWhiteSpace(request.SeerrUrl) && string.IsNullOrWhiteSpace(request.SeerrApiKey))
+        {
+            return "Seerr API key is required when a Seerr URL is configured.";
+        }
+
         // Arr instance format validation (multi-instance lists)
         var error = ValidateArrInstances(request.RadarrInstances, "Radarr");
 
@@ -59,8 +80,13 @@ public static class ConfigurationRequestValidator
     /// <param name="instances">The instances to validate.</param>
     /// <param name="typeName">The type name (Radarr/Sonarr) for error messages.</param>
     /// <returns>An error message string, or <c>null</c> if all instances are valid.</returns>
-    internal static string? ValidateArrInstances(IReadOnlyList<ArrInstanceConfig> instances, string typeName)
+    internal static string? ValidateArrInstances(IReadOnlyList<ArrInstanceConfig>? instances, string typeName)
     {
+        if (instances is null)
+        {
+            return null;
+        }
+
         for (var i = 0; i < instances.Count; i++)
         {
             var instance = instances[i];

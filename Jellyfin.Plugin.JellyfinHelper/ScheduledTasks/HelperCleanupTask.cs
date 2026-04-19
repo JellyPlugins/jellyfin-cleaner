@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
+using Jellyfin.Plugin.JellyfinHelper.Services.Link;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
+using Jellyfin.Plugin.JellyfinHelper.Services.Seerr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
-using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
 using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
-using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
@@ -25,7 +25,6 @@ namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 /// </summary>
 public class HelperCleanupTask : IScheduledTask
 {
-    private readonly IApplicationPaths _applicationPaths;
     private readonly IStatisticsCacheService _cacheService;
     private readonly ICleanupConfigHelper _configHelper;
     private readonly IFileSystem _fileSystem;
@@ -35,7 +34,8 @@ public class HelperCleanupTask : IScheduledTask
     private readonly ILoggerFactory _loggerFactory;
     private readonly IPluginLogService _pluginLog;
     private readonly IMediaStatisticsService _statisticsService;
-    private readonly IStrmRepairService _strmRepairService;
+    private readonly ILinkRepairService _linkRepairService;
+    private readonly ISeerrIntegrationService _seerrService;
     private readonly ICleanupTrackingService _trackingService;
     private readonly ITrashService _trashService;
 
@@ -44,7 +44,6 @@ public class HelperCleanupTask : IScheduledTask
     /// </summary>
     /// <param name="libraryManager">The library manager.</param>
     /// <param name="fileSystem">The file system.</param>
-    /// <param name="applicationPaths">The application paths.</param>
     /// <param name="pluginLog">The plugin log service.</param>
     /// <param name="loggerFactory">The logger factory.</param>
     /// <param name="statisticsService">The media statistics service.</param>
@@ -53,11 +52,11 @@ public class HelperCleanupTask : IScheduledTask
     /// <param name="configHelper">The cleanup configuration helper.</param>
     /// <param name="trackingService">The cleanup tracking service.</param>
     /// <param name="trashService">The trash service.</param>
-    /// <param name="strmRepairService">The strm repair service.</param>
+    /// <param name="linkRepairService">The link repair service.</param>
+    /// <param name="seerrService">The Seerr integration service.</param>
     public HelperCleanupTask(
         ILibraryManager libraryManager,
         IFileSystem fileSystem,
-        IApplicationPaths applicationPaths,
         IPluginLogService pluginLog,
         ILoggerFactory loggerFactory,
         IMediaStatisticsService statisticsService,
@@ -66,11 +65,11 @@ public class HelperCleanupTask : IScheduledTask
         ICleanupConfigHelper configHelper,
         ICleanupTrackingService trackingService,
         ITrashService trashService,
-        IStrmRepairService strmRepairService)
+        ILinkRepairService linkRepairService,
+        ISeerrIntegrationService seerrService)
     {
         _libraryManager = libraryManager;
         _fileSystem = fileSystem;
-        _applicationPaths = applicationPaths;
         _pluginLog = pluginLog;
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<HelperCleanupTask>();
@@ -80,7 +79,8 @@ public class HelperCleanupTask : IScheduledTask
         _configHelper = configHelper;
         _trackingService = trackingService;
         _trashService = trashService;
-        _strmRepairService = strmRepairService;
+        _linkRepairService = linkRepairService;
+        _seerrService = seerrService;
     }
 
     /// <inheritdoc />
@@ -91,7 +91,7 @@ public class HelperCleanupTask : IScheduledTask
 
     /// <inheritdoc />
     public string Description =>
-        "Runs all configured cleanup and repair tasks sequentially (Trickplay, Empty Folders, Orphaned Subtitles, STRM Repair).";
+        "Runs all configured cleanup and repair tasks sequentially (Trickplay, Empty Folders, Orphaned Subtitles, Link Repair, Seerr Cleanup).";
 
     /// <inheritdoc />
     public string Category => "Jellyfin Helper";
@@ -107,7 +107,8 @@ public class HelperCleanupTask : IScheduledTask
             ("Trickplay Cleanup", config.TrickplayTaskMode, RunTrickplayCleanup),
             ("Empty Media Folder Cleanup", config.EmptyMediaFolderTaskMode, RunEmptyMediaFolderCleanup),
             ("Orphaned Subtitle Cleanup", config.OrphanedSubtitleTaskMode, RunOrphanedSubtitleCleanup),
-            ("STRM File Repair", config.StrmRepairTaskMode, RunStrmRepair)
+            ("Link Repair", config.LinkRepairTaskMode, RunLinkRepair),
+            ("Seerr Cleanup", config.SeerrCleanupTaskMode, (p, ct) => RunSeerrCleanup(config, p, ct))
         };
 
         var totalTasks = subTasks.Length;
@@ -142,7 +143,7 @@ public class HelperCleanupTask : IScheduledTask
                 _pluginLog.LogWarning("HelperCleanup", $"Helper Cleanup was cancelled during {name}.", logger: _logger);
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
             {
                 _pluginLog.LogError(
                     "HelperCleanup",
@@ -214,7 +215,7 @@ public class HelperCleanupTask : IScheduledTask
                     logger: _logger);
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
             {
                 _pluginLog.LogError("HelperCleanup", "Error during trash purge. Continuing.", ex, _logger);
             }
@@ -237,7 +238,7 @@ public class HelperCleanupTask : IScheduledTask
                 logger: _logger);
             throw;
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
+        catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
         {
             _pluginLog.LogWarning("HelperCleanup", "Failed to run post-cleanup statistics scan.", ex, _logger);
         }
@@ -319,13 +320,62 @@ public class HelperCleanupTask : IScheduledTask
         return task.ExecuteAsync(progress, cancellationToken);
     }
 
-    private Task RunStrmRepair(IProgress<double> progress, CancellationToken cancellationToken)
+    private async Task RunSeerrCleanup(PluginConfiguration config, IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var task = new RepairStrmFilesTask(
-            _loggerFactory.CreateLogger<RepairStrmFilesTask>(),
+        // Check if Seerr is configured
+        if (string.IsNullOrWhiteSpace(config.SeerrUrl) || string.IsNullOrWhiteSpace(config.SeerrApiKey))
+        {
+            _pluginLog.LogInfo("SeerrCleanup", "Seerr not configured. Skipping.", _logger);
+            progress.Report(100);
+            return;
+        }
+
+        if (config.SeerrCleanupAgeDays <= 0)
+        {
+            _pluginLog.LogWarning(
+                "SeerrCleanup",
+                $"Invalid Seerr cleanup age '{config.SeerrCleanupAgeDays}'. Skipping.",
+                logger: _logger);
+            progress.Report(100);
+            return;
+        }
+
+        var dryRun = config.SeerrCleanupTaskMode == TaskMode.DryRun;
+
+        _pluginLog.LogInfo(
+            "SeerrCleanup",
+            dryRun ? "Task started (Dry Run). No requests will be deleted." : "Task started.",
+            _logger);
+
+        _pluginLog.LogInfo(
+            "SeerrCleanup",
+            $"Max age: {config.SeerrCleanupAgeDays} days.",
+            _logger);
+
+        var result = await _seerrService.CleanupExpiredRequestsAsync(
+            config.SeerrUrl,
+            config.SeerrApiKey,
+            config.SeerrCleanupAgeDays,
+            dryRun,
+            cancellationToken).ConfigureAwait(false);
+
+        _pluginLog.LogInfo(
+            "SeerrCleanup",
+            dryRun
+                ? $"Task finished (Dry Run). Checked: {result.TotalChecked}, Expired: {result.ExpiredFound}, Would delete: {result.ExpiredFound}"
+                : $"Task finished. Checked: {result.TotalChecked}, Expired: {result.ExpiredFound}, Deleted: {result.Deleted}, Failed: {result.Failed}",
+            _logger);
+
+        progress.Report(100);
+    }
+
+    private Task RunLinkRepair(IProgress<double> progress, CancellationToken cancellationToken)
+    {
+        var task = new RepairLinksTask(
+            _loggerFactory.CreateLogger<RepairLinksTask>(),
             _libraryManager,
             _pluginLog,
-            _strmRepairService,
+            _linkRepairService,
             _configHelper);
         return task.ExecuteAsync(progress, cancellationToken);
     }

@@ -45,31 +45,13 @@ public class I18NServiceTests : IDisposable
 
     // ===== GetTranslations Tests =====
 
-    [Theory]
-    [InlineData("en")]
-    [InlineData("de")]
-    [InlineData("fr")]
-    [InlineData("es")]
-    [InlineData("pt")]
-    [InlineData("zh")]
-    [InlineData("tr")]
-    public void GetTranslations_SupportedLanguage_ReturnsDictionary(string lang)
-    {
-        var translations = I18NService.GetTranslations(lang);
-
-        Assert.NotNull(translations);
-        Assert.NotEmpty(translations);
-        Assert.True(translations.ContainsKey("title"), $"Language '{lang}' is missing 'title' key");
-        Assert.True(translations.ContainsKey("scanLibraries"), $"Language '{lang}' is missing 'scanLibraries' key");
-    }
-
     [Fact]
     public void GetTranslations_NullLanguage_FallsBackToEnglish()
     {
         var translations = I18NService.GetTranslations(null);
         var english = I18NService.GetTranslations("en");
 
-        Assert.Equal(english["title"], translations["title"]);
+        Assert.Equal(english["scanLibraries"], translations["scanLibraries"]);
     }
 
     [Fact]
@@ -78,7 +60,7 @@ public class I18NServiceTests : IDisposable
         var translations = I18NService.GetTranslations("xx");
         var english = I18NService.GetTranslations("en");
 
-        Assert.Equal(english["title"], translations["title"]);
+        Assert.Equal(english["scanLibraries"], translations["scanLibraries"]);
     }
 
     [Fact]
@@ -87,17 +69,24 @@ public class I18NServiceTests : IDisposable
         var lower = I18NService.GetTranslations("de");
         var upper = I18NService.GetTranslations("DE");
 
-        Assert.Equal(lower["title"], upper["title"]);
+        Assert.Equal(lower["scanLibraries"], upper["scanLibraries"]);
     }
 
-    [Fact]
-    public void GetTranslations_EnglishHasAllExpectedKeys()
+    [Theory]
+    [InlineData("en")]
+    [InlineData("de")]
+    [InlineData("fr")]
+    [InlineData("es")]
+    [InlineData("pt")]
+    [InlineData("zh")]
+    [InlineData("tr")]
+    public void GetTranslations_AllHaveAllExpectedKeys(string lang)
     {
-        var translations = I18NService.GetTranslations("en");
+        var translations = I18NService.GetTranslations(lang);
 
         var expectedKeys = new[]
         {
-            "title", "scanLibraries", "scanning", "scanDescription", "scanPlaceholder", "error",
+            "scanLibraries", "scanning", "scanDescription", "scanPlaceholder", "initializingScan", "error",
             "tabOverview", "tabCodecs", "tabHealth", "tabTrends", "tabSettings", "tabArr", "tabLogs",
             "movieVideoData", "tvVideoData", "musicAudioData", "trickplayData", "subtitleData", "subtitles",
             "totalFiles",
@@ -107,12 +96,13 @@ public class I18NServiceTests : IDisposable
             "healthChecks", "noSubtitles", "noImages", "noNfo", "orphanedDirs",
             "trendTitle", "trendEmpty", "loadingTrends", "trendError", "trendGranularity", "trendFiles",
             "trendEarliest",
+            "clickToExpand",
             "settingsGeneralTitle", "settingsTaskTitle", "settingsTrashTitle", "settingsArrTitle",
             "includedLibraries", "includedLibrariesHelp", "excludedLibraries",
             "orphanMinAgeDays", "orphanMinAgeDaysHelp",
             "useTrash", "trashFolder", "trashRetention", "language",
             "taskModeTitle", "taskModeHelp", "activate", "dryRun", "deactivate",
-            "trickplayFolderCleaner", "emptyMediaFolderCleaner", "orphanedSubtitleCleaner", "strmFileRepair",
+            "trickplayFolderCleaner", "emptyMediaFolderCleaner", "orphanedSubtitleCleaner", "linkRepair",
             "saveSettings", "savingSettings", "settingsSaved", "settingsError", "settingsLoadError",
             "arrTitle", "compareWith",
             "inBoth", "inArrOnly", "inArrOnlyMissing", "inJellyfinOnly",
@@ -134,21 +124,20 @@ public class I18NServiceTests : IDisposable
             "backupFileTooLarge", "backupInvalidJson",
             "backupImportConfirmTitle", "backupImportConfirmMsg", "backupImportConfirmFile", "backupImportConfirmWarn",
             "backupImportConfirmOk",
-            "backupConfigRestored", "backupTimelineRestored", "backupBaselineRestored", "backupWarnings"
+            "backupConfigRestored", "backupTimelineRestored", "backupBaselineRestored", "backupWarnings",
+            // Seerr keys
+            "seerrCleanup", "seerrNotConfigured", "settingsSeerrTitle", "settingsSeerrHelp",
+            "seerrInstance", "seerrUrl", "seerrApiKey",
+            "seerrCleanupAgeDays", "seerrCleanupAgeDaysHelp", "seerrFillFields",
+            // Unsaved changes dialog keys
+            "unsavedChangesTitle", "unsavedChangesMsg", "discardChanges", "saveAndContinue",
         };
 
         foreach (var key in expectedKeys)
         {
-            Assert.True(translations.ContainsKey(key), $"English translations missing key: '{key}'");
-            Assert.False(string.IsNullOrWhiteSpace(translations[key]), $"English translation for '{key}' is empty");
+            Assert.True(translations.TryGetValue(key, out var value), $"Language '{lang}' translations missing key: '{key}'");
+            Assert.False(string.IsNullOrWhiteSpace(value), $"Language '{lang}' translation for '{key}' is empty");
         }
-    }
-
-    [Fact]
-    public void GetTranslations_GermanHasTitleTranslation()
-    {
-        var de = I18NService.GetTranslations("de");
-        Assert.Equal("Jellyfin Helper — Medienstatistiken", de["title"]);
     }
 
     [Fact]
@@ -194,7 +183,8 @@ public class I18NServiceTests : IDisposable
 
         var missing = htmlKeys.Where(k => !english.ContainsKey(k)).OrderBy(k => k).ToList();
 
-        Assert.True(missing.Count == 0,
+        Assert.True(
+            missing.Count == 0,
             $"The following T() keys from configPage.html are missing in English translations: {string.Join(", ", missing)}");
     }
 
@@ -212,7 +202,8 @@ public class I18NServiceTests : IDisposable
 
         var missing = htmlKeys.Where(k => !translations.ContainsKey(k)).OrderBy(k => k).ToList();
 
-        Assert.True(missing.Count == 0,
+        Assert.True(
+            missing.Count == 0,
             $"The following T() keys from configPage.html are missing in '{lang}' translations: {string.Join(", ", missing)}");
     }
 
@@ -230,7 +221,8 @@ public class I18NServiceTests : IDisposable
 
         var missingInLang = english.Keys.Where(k => !translations.ContainsKey(k)).OrderBy(k => k).ToList();
 
-        Assert.True(missingInLang.Count == 0,
+        Assert.True(
+            missingInLang.Count == 0,
             $"Language '{lang}' is missing the following keys present in English: {string.Join(", ", missingInLang)}");
     }
 
@@ -250,7 +242,8 @@ public class I18NServiceTests : IDisposable
 
         var extraKeys = translations.Keys.Where(k => !english.ContainsKey(k)).OrderBy(k => k).ToList();
 
-        Assert.True(extraKeys.Count == 0,
+        Assert.True(
+            extraKeys.Count == 0,
             $"Language '{lang}' has extra keys not in English: {string.Join(", ", extraKeys)}");
     }
 
@@ -274,7 +267,8 @@ public class I18NServiceTests : IDisposable
             .OrderBy(k => k)
             .ToList();
 
-        Assert.True(emptyKeys.Count == 0,
+        Assert.True(
+            emptyKeys.Count == 0,
             $"Language '{lang}' has empty/whitespace values for keys: {string.Join(", ", emptyKeys)}");
     }
 
@@ -307,9 +301,11 @@ public class I18NServiceTests : IDisposable
 
         foreach (var (singular, plural) in pairs)
         {
-            Assert.True(translations.ContainsKey(singular),
+            Assert.True(
+                translations.ContainsKey(singular),
                 $"Language '{lang}' is missing singular key '{singular}'");
-            Assert.True(translations.ContainsKey(plural),
+            Assert.True(
+                translations.ContainsKey(plural),
                 $"Language '{lang}' is missing plural key '{plural}'");
         }
     }
@@ -323,17 +319,18 @@ public class I18NServiceTests : IDisposable
     [InlineData("pt")]
     [InlineData("zh")]
     [InlineData("tr")]
-    public void NonEnglishLanguages_TitleDiffersFromEnglish(string lang)
+    public void NonEnglishLanguages_ScanLibraryDiffersFromEnglish(string lang)
     {
         var english = I18NService.GetTranslations("en");
         var translations = I18NService.GetTranslations(lang);
 
-        Assert.NotEqual(english["title"], translations["title"]);
+        Assert.NotEqual(english["scanLibraries"], translations["scanLibraries"]);
     }
 
     // ===== Keys that are expected to be the same across languages (technical terms) =====
 
     [Theory]
+    [InlineData("en")]
     [InlineData("de")]
     [InlineData("fr")]
     [InlineData("es")]

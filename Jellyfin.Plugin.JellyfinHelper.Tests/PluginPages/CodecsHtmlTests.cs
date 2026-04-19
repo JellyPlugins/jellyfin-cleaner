@@ -1,9 +1,10 @@
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.PluginPages;
 
 /// <summary>
-/// Tests for the Codecs tab in the composed configPage.html.
+///     Tests for the Codecs tab in the composed configPage.html.
 /// </summary>
 public class CodecsHtmlTests : ConfigPageTestBase
 {
@@ -41,7 +42,7 @@ public class CodecsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_ContainsSharedFileTreeRenderer()
     {
-        // renderFileList was replaced by the tree-based renderFileTree in shared.js
+        // renderFileList was replaced by the tree-based renderFileTree in Shared.js
         Assert.Contains("function renderFileTree", HtmlContent);
     }
 
@@ -71,34 +72,44 @@ public class CodecsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_CodecCategoryMap_VideoCodecsExcludesMusic()
     {
-        // videoCodecs should have music: false
-        Assert.Contains("'videoCodecs': { movies: true, tvShows: true, music: false, other: true }", HtmlContent);
+        // videoCodecs should have music: false (whitespace-tolerant)
+        Assert.Matches(
+            @"'videoCodecs':\s*\{\s*movies:\s*true,\s*tvShows:\s*true,\s*music:\s*false,\s*other:\s*true\s*\}",
+            HtmlContent);
     }
 
     [Fact]
     public void Html_CodecCategoryMap_VideoAudioCodecsExcludesMusic()
     {
-        Assert.Contains("'videoAudioCodecs': { movies: true, tvShows: true, music: false, other: true }", HtmlContent);
+        Assert.Matches(
+            @"'videoAudioCodecs':\s*\{\s*movies:\s*true,\s*tvShows:\s*true,\s*music:\s*false,\s*other:\s*true\s*\}",
+            HtmlContent);
     }
 
     [Fact]
     public void Html_CodecCategoryMap_MusicAudioCodecsExcludesVideo()
     {
-        // musicAudioCodecs should only include music
-        Assert.Contains("'musicAudioCodecs': { movies: false, tvShows: false, music: true, other: false }", HtmlContent);
+        // musicAudioCodecs should only include music — validate as one contiguous block
+        Assert.Matches(
+            @"'musicAudioCodecs':\s*\{\s*movies:\s*false,\s*tvShows:\s*false,\s*music:\s*true,\s*other:\s*false\s*\}",
+            HtmlContent);
     }
 
     [Fact]
     public void Html_CodecCategoryMap_ContainersIncludesAll()
     {
-        // containers should include all library types
-        Assert.Contains("'containers': { movies: true, tvShows: true, music: true, other: true }", HtmlContent);
+        // containers should include all library types (whitespace-tolerant)
+        Assert.Matches(
+            @"'containers':\s*\{\s*movies:\s*true,\s*tvShows:\s*true,\s*music:\s*true,\s*other:\s*true\s*\}",
+            HtmlContent);
     }
 
     [Fact]
     public void Html_CodecCategoryMap_ResolutionsExcludesMusic()
     {
-        Assert.Contains("'resolutions': { movies: true, tvShows: true, music: false, other: true }", HtmlContent);
+        Assert.Matches(
+            @"'resolutions':\s*\{\s*movies:\s*true,\s*tvShows:\s*true,\s*music:\s*false,\s*other:\s*true\s*\}",
+            HtmlContent);
     }
 
     [Fact]
@@ -142,7 +153,9 @@ public class CodecsHtmlTests : ConfigPageTestBase
     {
         // The click handler should pass CODEC_CATEGORY_MAP to collectCodecPaths
         Assert.Contains("var categories = CODEC_CATEGORY_MAP[chartId]", HtmlContent);
-        Assert.Contains("collectCodecPaths(_lastCodecData, pathsProp, codecName, categories)", HtmlContent);
+        Assert.Matches(
+            @"collectCodecPaths\(_lastCodecData,\s*pathsProp,\s*codecName,\s*categories\)",
+            HtmlContent);
     }
 
     [Fact]
@@ -175,9 +188,35 @@ public class CodecsHtmlTests : ConfigPageTestBase
     }
 
     [Fact]
-    public void Html_ContainsHelperFunctions()
+    public void Html_ContainsDonutTooltipFunctions()
     {
-        Assert.Contains("function getFileName", HtmlContent);
-        Assert.Contains("function getParentFolder", HtmlContent);
+        Assert.Contains("function showDonutTooltip", HtmlContent);
+        Assert.Contains("function hideDonutTooltip", HtmlContent);
+        Assert.Contains("function attachDonutHoverTooltips", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_ContainsDonutChartRenderer()
+    {
+        Assert.Contains("function renderDonutChart", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_ContainsDonutTooltipStateVariables()
+    {
+        Assert.Contains("_donutTooltipData", HtmlContent);
+        Assert.Contains("_activeTooltipSegmentId", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_ContainsDonutTooltipCssClass()
+    {
+        Assert.Contains("donut-tooltip", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_ContainsCodecRowTriggerForSegment()
+    {
+        Assert.Contains("function triggerCodecRowForSegment", HtmlContent);
     }
 }

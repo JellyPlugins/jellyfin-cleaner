@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.PluginPages;
@@ -107,8 +108,12 @@ public class HealthHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_HealthClickHandler_UsesCollectHealthPaths()
     {
-        // The health click handler should use collectHealthPaths to gather paths
-        Assert.Contains("collectHealthPaths(_lastScanData, mapping.prop)", HtmlContent);
+        // The health click handler should use collectHealthPaths inside renderContent (within attachHealthClickHandlers)
+        Assert.Matches(
+            new Regex(
+                @"function\s+attachHealthClickHandlers\s*\(\s*\)\s*\{[\s\S]*?renderContent\s*:\s*function[\s\S]*?collectHealthPaths\(\s*_lastScanResult\s*,\s*mapping\.prop\s*\)",
+                RegexOptions.Multiline),
+            HtmlContent);
     }
 
     [Fact]
@@ -139,30 +144,16 @@ public class HealthHtmlTests : ConfigPageTestBase
     }
 
     [Fact]
-    public void Html_ContainsSharedGetFileNameFunction()
-    {
-        // getFileName should be in shared.js (available to both Codecs + Health)
-        Assert.Contains("function getFileName", HtmlContent);
-    }
-
-    [Fact]
-    public void Html_ContainsSharedGetParentFolderFunction()
-    {
-        // getParentFolder should be in shared.js (available to both Codecs + Health)
-        Assert.Contains("function getParentFolder", HtmlContent);
-    }
-
-    [Fact]
     public void Html_ContainsSharedRenderFileTreeFunction()
     {
-        // renderFileTree should be in shared.js (available to both Codecs + Health)
+        // renderFileTree should be in Shared.js (available to both Codecs + Health)
         Assert.Contains("function renderFileTree", HtmlContent);
     }
 
     [Fact]
     public void Html_FileTreeCssInShared()
     {
-        // File tree CSS classes should be present (now in shared.css)
+        // File tree CSS classes should be present (now in Shared.css)
         Assert.Contains("file-tree-header", HtmlContent);
         Assert.Contains("file-tree-columns", HtmlContent);
         Assert.Contains("tree-view", HtmlContent);

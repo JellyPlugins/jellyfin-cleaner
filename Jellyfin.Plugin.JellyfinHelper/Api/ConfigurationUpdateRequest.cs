@@ -40,9 +40,29 @@ public class ConfigurationUpdateRequest
     public TaskMode OrphanedSubtitleTaskMode { get; init; } = TaskMode.DryRun;
 
     /// <summary>
-    ///     Gets the execution mode for the .strm File Repair task.
+    ///     Gets the execution mode for the Link Repair task (.strm files and symlinks).
     /// </summary>
-    public TaskMode StrmRepairTaskMode { get; init; } = TaskMode.DryRun;
+    public TaskMode LinkRepairTaskMode { get; init; } = TaskMode.DryRun;
+
+    /// <summary>
+    ///     Gets the execution mode for the Seerr Cleanup task.
+    /// </summary>
+    public TaskMode SeerrCleanupTaskMode { get; init; } = TaskMode.Deactivate;
+
+    /// <summary>
+    ///     Gets the maximum age in days for Seerr requests before they are cleaned up.
+    /// </summary>
+    public int SeerrCleanupAgeDays { get; init; } = 365;
+
+    /// <summary>
+    ///     Gets the base URL of the Jellyseerr/Overseerr/Seerr instance.
+    /// </summary>
+    public string SeerrUrl { get; init; } = string.Empty;
+
+    /// <summary>
+    ///     Gets the API key for the Jellyseerr/Overseerr/Seerr instance.
+    /// </summary>
+    public string SeerrApiKey { get; init; } = string.Empty;
 
     /// <summary>
     ///     Gets a value indicating whether to use a trash folder instead of permanently deleting files.

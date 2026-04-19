@@ -139,7 +139,17 @@ public static class BackupValidator
         ValidateStringField(result, backup.TrickplayTaskMode, "TrickplayTaskMode", MaxStringLength);
         ValidateStringField(result, backup.EmptyMediaFolderTaskMode, "EmptyMediaFolderTaskMode", MaxStringLength);
         ValidateStringField(result, backup.OrphanedSubtitleTaskMode, "OrphanedSubtitleTaskMode", MaxStringLength);
-        ValidateStringField(result, backup.StrmRepairTaskMode, "StrmRepairTaskMode", MaxStringLength);
+        ValidateStringField(result, backup.LinkRepairTaskMode, "LinkRepairTaskMode", MaxStringLength);
+        ValidateStringField(result, backup.SeerrCleanupTaskMode, "SeerrCleanupTaskMode", MaxStringLength);
+        ValidateStringField(result, backup.SeerrUrl, "SeerrUrl", MaxUrlLength);
+        ValidateStringField(result, backup.SeerrApiKey, "SeerrApiKey", MaxApiKeyLength);
+
+        if (!string.IsNullOrEmpty(backup.SeerrUrl) &&
+            (!Uri.TryCreate(backup.SeerrUrl, UriKind.Absolute, out var seerrUri) ||
+             (seerrUri.Scheme != Uri.UriSchemeHttp && seerrUri.Scheme != Uri.UriSchemeHttps)))
+        {
+            result.Errors.Add($"SeerrUrl is not a valid HTTP/HTTPS URL: '{backup.SeerrUrl}'.");
+        }
 
         // Enum validation
         if (!string.IsNullOrEmpty(backup.Language) && !ValidLanguages.Contains(backup.Language))
@@ -150,7 +160,8 @@ public static class BackupValidator
         ValidateTaskMode(result, backup.TrickplayTaskMode, "TrickplayTaskMode");
         ValidateTaskMode(result, backup.EmptyMediaFolderTaskMode, "EmptyMediaFolderTaskMode");
         ValidateTaskMode(result, backup.OrphanedSubtitleTaskMode, "OrphanedSubtitleTaskMode");
-        ValidateTaskMode(result, backup.StrmRepairTaskMode, "StrmRepairTaskMode");
+        ValidateTaskMode(result, backup.LinkRepairTaskMode, "LinkRepairTaskMode");
+        ValidateTaskMode(result, backup.SeerrCleanupTaskMode, "SeerrCleanupTaskMode", "Deactivate");
 
         if (!string.IsNullOrEmpty(backup.PluginLogLevel) && !ValidLogLevels.Contains(backup.PluginLogLevel))
         {
@@ -166,6 +177,13 @@ public static class BackupValidator
         if (backup.TrashRetentionDays < 0 || backup.TrashRetentionDays > MaxRetentionDays)
         {
             result.Errors.Add($"TrashRetentionDays out of range: {backup.TrashRetentionDays}. Must be 0–{MaxRetentionDays}.");
+        }
+
+        // Older backups do not contain this field and deserialize it as 0 — treat as absent.
+        if (backup.SeerrCleanupAgeDays != 0 &&
+            (backup.SeerrCleanupAgeDays < 1 || backup.SeerrCleanupAgeDays > MaxRetentionDays))
+        {
+            result.Errors.Add($"SeerrCleanupAgeDays out of range: {backup.SeerrCleanupAgeDays}. Must be 1–{MaxRetentionDays}.");
         }
 
         // Path traversal check for trash folder
@@ -214,11 +232,11 @@ public static class BackupValidator
         }
     }
 
-    private static void ValidateTaskMode(BackupValidationResult result, string? value, string fieldName)
+    private static void ValidateTaskMode(BackupValidationResult result, string? value, string fieldName, string fallback = "DryRun")
     {
         if (!string.IsNullOrEmpty(value) && !ValidTaskModes.Contains(value))
         {
-            result.Warnings.Add($"Unknown task mode '{value}' for {fieldName}. Will default to 'DryRun'.");
+            result.Warnings.Add($"Unknown task mode '{value}' for {fieldName}. Will default to '{fallback}'.");
         }
     }
 
@@ -276,13 +294,13 @@ public static class BackupValidator
         for (var i = 0; i < instances.Count; i++)
         {
             var instance = instances[i];
-            var prefix = $"{fieldName}[{i}]";
-
             if (instance == null)
             {
-                result.Errors.Add($"{prefix} is null.");
+                result.Errors.Add($"{fieldName}[{i}] is null.");
                 continue;
             }
+
+            var prefix = $"{fieldName}[{i}]";
 
             ValidateStringField(result, instance.Name, $"{prefix}.Name", MaxInstanceNameLength);
             ValidateStringField(result, instance.Url, $"{prefix}.Url", MaxUrlLength);
@@ -295,7 +313,7 @@ public static class BackupValidator
             }
 
             if (!Uri.TryCreate(instance.Url, UriKind.Absolute, out var uri) ||
-                (uri.Scheme != "http" && uri.Scheme != "https"))
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             {
                 result.Errors.Add($"{prefix}.Url is not a valid HTTP/HTTPS URL: '{instance.Url}'.");
             }

@@ -84,10 +84,10 @@ public class BackupData
     public string OrphanedSubtitleTaskMode { get; set; } = "DryRun";
 
     /// <summary>
-    ///     Gets or sets the .strm Repair task mode.
+    ///     Gets or sets the Link Repair task mode.
     /// </summary>
-    [JsonPropertyName("strmRepairTaskMode")]
-    public string StrmRepairTaskMode { get; set; } = "DryRun";
+    [JsonPropertyName("linkRepairTaskMode")]
+    public string LinkRepairTaskMode { get; set; } = "DryRun";
 
     // === Trash Settings ===
 
@@ -108,6 +108,32 @@ public class BackupData
     /// </summary>
     [JsonPropertyName("trashRetentionDays")]
     public int TrashRetentionDays { get; set; } = 30;
+
+    // === Seerr Settings ===
+
+    /// <summary>
+    ///     Gets or sets the Seerr Cleanup task mode.
+    /// </summary>
+    [JsonPropertyName("seerrCleanupTaskMode")]
+    public string SeerrCleanupTaskMode { get; set; } = "Deactivate";
+
+    /// <summary>
+    ///     Gets or sets the Seerr instance URL.
+    /// </summary>
+    [JsonPropertyName("seerrUrl")]
+    public string SeerrUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Gets or sets the Seerr API key.
+    /// </summary>
+    [JsonPropertyName("seerrApiKey")]
+    public string SeerrApiKey { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Gets or sets the Seerr cleanup age threshold in days.
+    /// </summary>
+    [JsonPropertyName("seerrCleanupAgeDays")]
+    public int SeerrCleanupAgeDays { get; set; } = 365;
 
     // === Arr Integration ===
 

@@ -11,7 +11,7 @@ public class SettingsHtmlTests : ConfigPageTestBase
     [InlineData("cfgTrickplayMode", "TrickplayTaskMode")]
     [InlineData("cfgEmptyFolderMode", "EmptyMediaFolderTaskMode")]
     [InlineData("cfgSubtitleMode", "OrphanedSubtitleTaskMode")]
-    [InlineData("cfgStrmMode", "StrmRepairTaskMode")]
+    [InlineData("cfgLinkMode", "LinkRepairTaskMode")]
     public void Html_SavesTaskModeFromSelectElement(string elementId, string configProperty)
     {
         var savePattern = configProperty + ": document.getElementById('" + elementId + "').value";
@@ -22,10 +22,11 @@ public class SettingsHtmlTests : ConfigPageTestBase
     [InlineData("cfgTrickplayMode")]
     [InlineData("cfgEmptyFolderMode")]
     [InlineData("cfgSubtitleMode")]
-    [InlineData("cfgStrmMode")]
+    [InlineData("cfgLinkMode")]
     public void Html_DefaultsToDryRunWhenConfigPropertyMissing(string elementId)
     {
-        var pattern = new Regex("renderTaskModeSelect\\s*\\(\\s*'" + Regex.Escape(elementId) + "'.*\\|\\|\\s*'DryRun'\\s*\\)");
+        var pattern = new Regex(
+            @"renderTaskModeSelect\s*\(\s*'" + Regex.Escape(elementId) + @"'.*\|\|\s*'DryRun'\s*\)");
         Assert.Matches(pattern, HtmlContent);
     }
 
@@ -35,14 +36,14 @@ public class SettingsHtmlTests : ConfigPageTestBase
         Assert.DoesNotContain("cfgDryRunTrickplay", HtmlContent);
         Assert.DoesNotContain("cfgDryRunEmptyFolders", HtmlContent);
         Assert.DoesNotContain("cfgDryRunSubtitles", HtmlContent);
-        Assert.DoesNotContain("cfgDryRunStrm", HtmlContent);
+        Assert.DoesNotContain("cfgDryRunLink", HtmlContent);
     }
 
     [Theory]
     [InlineData("Trickplay Folder Cleaner")]
     [InlineData("Empty Media Folder Cleaner")]
     [InlineData("Orphaned Subtitle Cleaner")]
-    [InlineData(".strm File Repair")]
+    [InlineData("Link Repair")]
     public void Html_ContainsTaskLabel(string label)
     {
         Assert.Contains(label, HtmlContent);
@@ -129,15 +130,13 @@ public class SettingsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_TrashDisableDialog_CallsGetTrashFoldersEndpoint()
     {
-        Assert.Matches(
-            new Regex(@"type\s*:\s*['""]GET['""].*JellyfinHelper/Trash/Folders", RegexOptions.Singleline),
-            HtmlContent);
+        Assert.Contains("apiGet('JellyfinHelper/Trash/Folders'", HtmlContent);
     }
 
     [Fact]
     public void Html_TrashDisableDialog_CallsDeleteTrashFoldersEndpoint()
     {
-        Assert.Contains("type: 'DELETE', url: apiClient.getUrl('JellyfinHelper/Trash/Folders')", HtmlContent);
+        Assert.Contains("apiDelete('JellyfinHelper/Trash/Folders'", HtmlContent);
     }
 
     [Fact]
@@ -187,22 +186,31 @@ public class SettingsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_DoSaveSettings_RebuildUIOnTrashChange()
     {
-        Assert.Contains("langChanged || trashChanged", HtmlContent);
+        Assert.Contains("if (trashChanged)", HtmlContent);
     }
 
     [Fact]
     public void Html_DoSaveSettings_TrashChangedBeforeUpdate()
     {
-        var trashChangedPos = HtmlContent.IndexOf("var trashChanged = (!!payload.UseTrash) !== _wasTrashEnabled", StringComparison.Ordinal);
-        var wasTrashUpdatePos = HtmlContent.IndexOf("_wasTrashEnabled = payload.UseTrash", trashChangedPos + 1, StringComparison.Ordinal);
+        var trashChangedPos = HtmlContent.IndexOf(
+            "var trashChanged = (!!payload.UseTrash) !== _wasTrashEnabled",
+            StringComparison.Ordinal);
+        var wasTrashUpdatePos = HtmlContent.IndexOf(
+            "_wasTrashEnabled = payload.UseTrash",
+            trashChangedPos + 1,
+            StringComparison.Ordinal);
         Assert.True(trashChangedPos >= 0, "trashChanged detection not found");
-        Assert.True(wasTrashUpdatePos > trashChangedPos, "_wasTrashEnabled must be updated AFTER trashChanged is computed");
+        Assert.True(
+            wasTrashUpdatePos > trashChangedPos,
+            "_wasTrashEnabled must be updated AFTER trashChanged is computed");
     }
 
     [Fact]
     public void Html_DoSaveSettings_LangChangedVariable()
     {
-        Assert.Contains("var langChanged = newLang !== _currentLang", HtmlContent);
+        // Language is now saved via auto-save dropdown, not in doSaveSettings.
+        // Verify auto-save handler updates _currentLang after language change.
+        Assert.Contains("_currentLang =", HtmlContent);
     }
 
     [Fact]
@@ -245,5 +253,112 @@ public class SettingsHtmlTests : ConfigPageTestBase
         {
             Assert.Contains(key, HtmlContent);
         }
+    }
+
+    // ===== Seerr settings UI tests =====
+
+    [Fact]
+    public void Html_ContainsSeerrSection()
+    {
+        Assert.Contains("settingsSeerrTitle", HtmlContent);
+        Assert.Contains("settingsSeerrHelp", HtmlContent);
+    }
+
+    [Theory]
+    [InlineData("cfgSeerrUrl")]
+    [InlineData("cfgSeerrApiKey")]
+    [InlineData("cfgSeerrAgeDays")]
+    [InlineData("cfgSeerrMode")]
+    public void Html_ContainsSeerrFormElement(string elementId)
+    {
+        Assert.Contains(elementId, HtmlContent);
+    }
+
+    [Fact]
+    public void Html_ContainsSeerrTestConnectionButton()
+    {
+        Assert.Contains("btnTestSeerr", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SavesSeerrUrlInPayload()
+    {
+        Assert.Contains("SeerrUrl:", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SavesSeerrApiKeyInPayload()
+    {
+        Assert.Contains("SeerrApiKey:", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SavesSeerrCleanupAgeDaysInPayload()
+    {
+        Assert.Contains("SeerrCleanupAgeDays:", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SeerrNotConfiguredWarningShown()
+    {
+        Assert.Contains("seerrNotConfigured", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SeerrCollapsibleSection()
+    {
+        Assert.Contains("arrCollapsibleSeerr", HtmlContent);
+        Assert.Contains("arrCountSeerr", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SeerrFillFieldsValidation()
+    {
+        Assert.Contains("seerrFillFields", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SeerrHasAllI18nKeys()
+    {
+        var expectedKeys = new[]
+        {
+            "seerrCleanup", "seerrNotConfigured", "settingsSeerrTitle", "settingsSeerrHelp",
+            "seerrInstance", "seerrUrl", "seerrApiKey",
+            "seerrCleanupAgeDays", "seerrCleanupAgeDaysHelp", "seerrFillFields"
+        };
+
+        foreach (var key in expectedKeys)
+        {
+            Assert.Contains(key, HtmlContent);
+        }
+    }
+
+    [Fact]
+    public void Html_SavesSeerrCleanupTaskModeWithFallback()
+    {
+        // Seerr uses a conditional pattern: cfgSeerrMode ? ...value : 'Deactivate'
+        Assert.Contains("SeerrCleanupTaskMode:", HtmlContent);
+        Assert.Contains("cfgSeerrMode", HtmlContent);
+        Assert.Contains("Deactivate", HtmlContent);
+
+        // Verify the actual ternary fallback logic exists (url && key && modeEl) ? value : 'Deactivate'
+        Assert.Contains("? modeEl.value : 'Deactivate'", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SeerrTestCallsCorrectEndpoint()
+    {
+        Assert.Contains("JellyfinHelper/Seerr/Test", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_SeerrWrapperElementsExist()
+    {
+        Assert.Contains("seerr-task-mode-wrapper", HtmlContent);
+        Assert.Contains("seerr-age-wrapper", HtmlContent);
+
+        // Verify disabled-state styling is tied to Seerr config checks
+        Assert.Contains("!seerrConfigured ? 'opacity:0.5;pointer-events:none;' : ''", HtmlContent);
+        Assert.Contains("!seerrHasCfg ? 'opacity:0.5;pointer-events:none;' : ''", HtmlContent);
     }
 }

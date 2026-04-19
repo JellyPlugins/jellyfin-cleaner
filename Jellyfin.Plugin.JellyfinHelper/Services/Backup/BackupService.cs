@@ -102,7 +102,13 @@ public class BackupService : IBackupService
             TrickplayTaskMode = config.TrickplayTaskMode.ToString(),
             EmptyMediaFolderTaskMode = config.EmptyMediaFolderTaskMode.ToString(),
             OrphanedSubtitleTaskMode = config.OrphanedSubtitleTaskMode.ToString(),
-            StrmRepairTaskMode = config.StrmRepairTaskMode.ToString(),
+            LinkRepairTaskMode = config.LinkRepairTaskMode.ToString(),
+            SeerrCleanupTaskMode = config.SeerrCleanupTaskMode.ToString(),
+
+            // Seerr settings
+            SeerrUrl = config.SeerrUrl,
+            SeerrApiKey = config.SeerrApiKey,
+            SeerrCleanupAgeDays = config.SeerrCleanupAgeDays,
 
             // Trash settings
             UseTrash = config.UseTrash,
@@ -258,7 +264,17 @@ public class BackupService : IBackupService
         config.TrickplayTaskMode = ParseTaskMode(backup.TrickplayTaskMode);
         config.EmptyMediaFolderTaskMode = ParseTaskMode(backup.EmptyMediaFolderTaskMode);
         config.OrphanedSubtitleTaskMode = ParseTaskMode(backup.OrphanedSubtitleTaskMode);
-        config.StrmRepairTaskMode = ParseTaskMode(backup.StrmRepairTaskMode);
+        config.LinkRepairTaskMode = ParseTaskMode(backup.LinkRepairTaskMode);
+        config.SeerrCleanupTaskMode = ParseTaskMode(backup.SeerrCleanupTaskMode, TaskMode.Deactivate);
+
+        // Seerr settings
+        config.SeerrUrl = BackupSanitizer.TruncateString(backup.SeerrUrl ?? string.Empty, BackupValidator.MaxUrlLength);
+        config.SeerrApiKey = BackupSanitizer.TruncateString(backup.SeerrApiKey ?? string.Empty, BackupValidator.MaxApiKeyLength);
+        if (backup.SeerrCleanupAgeDays != 0)
+        {
+            config.SeerrCleanupAgeDays = Math.Clamp(
+                backup.SeerrCleanupAgeDays, 1, BackupValidator.MaxRetentionDays);
+        }
 
         // Trash settings
         config.UseTrash = backup.UseTrash;
@@ -297,19 +313,19 @@ public class BackupService : IBackupService
         _pluginLog.LogInfo("Backup", "Configuration restored from backup.", _logger);
     }
 
-    private static TaskMode ParseTaskMode(string? value)
+    private static TaskMode ParseTaskMode(string? value, TaskMode fallback = TaskMode.DryRun)
     {
         if (string.IsNullOrEmpty(value))
         {
-            return TaskMode.DryRun;
+            return fallback;
         }
 
-        if (Enum.TryParse<TaskMode>(value, true, out var mode))
+        if (Enum.TryParse<TaskMode>(value, true, out var mode) && Enum.IsDefined(mode))
         {
             return mode;
         }
 
-        return TaskMode.DryRun;
+        return fallback;
     }
 
     private T? LoadJsonFile<T>(string filePath)
@@ -334,6 +350,7 @@ public class BackupService : IBackupService
 
     private bool SaveJsonFile<T>(string filePath, T data)
     {
+        var tempPath = filePath + ".tmp";
         try
         {
             var directory = Path.GetDirectoryName(filePath);
@@ -343,12 +360,25 @@ public class BackupService : IBackupService
             }
 
             var json = JsonSerializer.Serialize(data, JsonOptions);
-            File.WriteAllText(filePath, json);
+
+            // Atomic write: write to a temporary file first, then rename.
+            // This prevents data corruption if the process crashes mid-write.
+            File.WriteAllText(tempPath, json);
+            File.Move(tempPath, filePath, overwrite: true);
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _pluginLog.LogError("Backup", $"Could not save {filePath} during restore", ex, _logger);
+            try
+            {
+                File.Delete(tempPath);
+            }
+            catch (Exception)
+            {
+                // best-effort cleanup
+            }
+
             return false;
         }
     }

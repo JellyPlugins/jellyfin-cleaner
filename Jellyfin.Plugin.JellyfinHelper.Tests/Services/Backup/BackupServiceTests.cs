@@ -30,7 +30,8 @@ public class BackupServiceTests
             TrickplayTaskMode = "DryRun",
             EmptyMediaFolderTaskMode = "Activate",
             OrphanedSubtitleTaskMode = "Deactivate",
-            StrmRepairTaskMode = "DryRun",
+            LinkRepairTaskMode = "DryRun",
+            SeerrCleanupTaskMode = "DryRun",
             UseTrash = true,
             TrashFolderPath = ".jellyfin-trash",
             TrashRetentionDays = 30
@@ -168,7 +169,8 @@ public class BackupServiceTests
         backup.TrickplayTaskMode = mode;
         backup.EmptyMediaFolderTaskMode = mode;
         backup.OrphanedSubtitleTaskMode = mode;
-        backup.StrmRepairTaskMode = mode;
+        backup.LinkRepairTaskMode = mode;
+        backup.SeerrCleanupTaskMode = mode;
         var result = BackupValidator.Validate(backup);
 
         Assert.True(result.IsValid);

@@ -220,13 +220,26 @@ public class LogsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_DownloadUsesFetchApi()
     {
-        Assert.Contains("fetch(url", HtmlContent);
+        // Download now delegates to the shared apiFetchBlob helper (which uses fetch internally)
+        // Scoped to downloadLogs() to avoid false positives from other callers
+        Assert.Matches(
+            new Regex(
+                @"function\s+downloadLogs\s*\([^)]*\)\s*\{[\s\S]*?apiFetchBlob\s*\(",
+                RegexOptions.Multiline),
+            HtmlContent);
     }
 
     [Fact]
     public void Html_DownloadUsesAuthorizationHeader()
     {
-        Assert.Contains("apiClient.accessToken()", HtmlContent);
+        // Auth header is handled internally by apiFetchBlob in Shared.js;
+        // verify the shared helper carries the token via Authorization header
+        // Scoped to apiFetchBlob function body to avoid false positives from other helpers
+        Assert.Matches(
+            new Regex(
+                @"function\s+apiFetchBlob\s*\([^)]*\)\s*\{[\s\S]*?Authorization[\s\S]*?accessToken\(\)",
+                RegexOptions.Multiline),
+            HtmlContent);
     }
 
     [Fact]
@@ -252,7 +265,18 @@ public class LogsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_ClearLogs_RequiresConfirmation()
     {
-        Assert.Contains("confirm(T('logsClearConfirm'", HtmlContent);
+        // Finding 12: native confirm() replaced with custom dialog
+        // Scoped to clearLogs() to avoid false positives from other dialog usage
+        Assert.Matches(
+            new Regex(
+                @"function\s+clearLogs\s*\([^)]*\)\s*\{[\s\S]*?createDialogOverlay\s*\(",
+                RegexOptions.Multiline),
+            HtmlContent);
+        Assert.Matches(
+            new Regex(
+                @"function\s+clearLogs\s*\([^)]*\)\s*\{[\s\S]*?logsClearConfirm",
+                RegexOptions.Multiline),
+            HtmlContent);
     }
 
     // === CSS classes ===

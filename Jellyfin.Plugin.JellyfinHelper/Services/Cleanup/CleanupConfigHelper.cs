@@ -55,9 +55,9 @@ public class CleanupConfigHelper : ICleanupConfigHelper
     }
 
     /// <inheritdoc />
-    public TaskMode GetStrmRepairTaskMode()
+    public TaskMode GetLinkRepairTaskMode()
     {
-        return GetConfig().StrmRepairTaskMode;
+        return GetConfig().LinkRepairTaskMode;
     }
 
     /// <inheritdoc />
@@ -79,9 +79,9 @@ public class CleanupConfigHelper : ICleanupConfigHelper
     }
 
     /// <inheritdoc />
-    public bool IsDryRunStrmRepair()
+    public bool IsDryRunLinkRepair()
     {
-        return IsDryRun(GetConfig().StrmRepairTaskMode);
+        return IsDryRun(GetConfig().LinkRepairTaskMode);
     }
 
     /// <inheritdoc />

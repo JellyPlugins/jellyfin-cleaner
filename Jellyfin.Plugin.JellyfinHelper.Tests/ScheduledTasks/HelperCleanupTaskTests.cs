@@ -1,7 +1,8 @@
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
-using Jellyfin.Plugin.JellyfinHelper.Services.Strm;
+using Jellyfin.Plugin.JellyfinHelper.Services.Link;
+using Jellyfin.Plugin.JellyfinHelper.Services.Seerr;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Tasks;
@@ -17,6 +18,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.ScheduledTasks;
 public class HelperCleanupTaskTests : IDisposable
 {
     private readonly Mock<ILogger<HelperCleanupTask>> _loggerMock;
+    private readonly Mock<ISeerrIntegrationService> _seerrServiceMock;
     private readonly HelperCleanupTask _task;
     private readonly string _testDataPath;
     private PluginConfiguration _config;
@@ -25,10 +27,8 @@ public class HelperCleanupTaskTests : IDisposable
     {
         var libraryManagerMock = TestMockFactory.CreateLibraryManager();
         var fileSystemMock = TestMockFactory.CreateFileSystem();
-        var applicationPathsMock = TestMockFactory.CreateAppPaths();
         _testDataPath = Path.Join(Path.GetTempPath(), "JellyfinHelperTests_Data_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_testDataPath);
-        applicationPathsMock.Setup(p => p.DataPath).Returns(_testDataPath);
         var loggerFactoryMock = new Mock<ILoggerFactory>();
         _loggerMock = new Mock<ILogger<HelperCleanupTask>>();
 
@@ -55,7 +55,7 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Activate,
             EmptyMediaFolderTaskMode = TaskMode.Activate,
             OrphanedSubtitleTaskMode = TaskMode.Activate,
-            StrmRepairTaskMode = TaskMode.Activate
+            LinkRepairTaskMode = TaskMode.Activate
         };
 
         var configHelperMock = new Mock<ICleanupConfigHelper>();
@@ -63,14 +63,14 @@ public class HelperCleanupTaskTests : IDisposable
         configHelperMock.Setup(c => c.GetTrickplayTaskMode()).Returns(() => _config.TrickplayTaskMode);
         configHelperMock.Setup(c => c.GetEmptyMediaFolderTaskMode()).Returns(() => _config.EmptyMediaFolderTaskMode);
         configHelperMock.Setup(c => c.GetOrphanedSubtitleTaskMode()).Returns(() => _config.OrphanedSubtitleTaskMode);
-        configHelperMock.Setup(c => c.GetStrmRepairTaskMode()).Returns(() => _config.StrmRepairTaskMode);
+        configHelperMock.Setup(c => c.GetLinkRepairTaskMode()).Returns(() => _config.LinkRepairTaskMode);
         configHelperMock.Setup(c => c.IsDryRunTrickplay()).Returns(() => _config.TrickplayTaskMode == TaskMode.DryRun);
         configHelperMock.Setup(c => c.IsDryRunEmptyMediaFolders())
             .Returns(() => _config.EmptyMediaFolderTaskMode == TaskMode.DryRun);
         configHelperMock.Setup(c => c.IsDryRunOrphanedSubtitles())
             .Returns(() => _config.OrphanedSubtitleTaskMode == TaskMode.DryRun);
-        configHelperMock.Setup(c => c.IsDryRunStrmRepair())
-            .Returns(() => _config.StrmRepairTaskMode == TaskMode.DryRun);
+        configHelperMock.Setup(c => c.IsDryRunLinkRepair())
+            .Returns(() => _config.LinkRepairTaskMode == TaskMode.DryRun);
         configHelperMock.Setup(c => c.IsOldEnoughForDeletion(It.IsAny<string>())).Returns(true);
         configHelperMock.Setup(c => c.IsFileOldEnoughForDeletion(It.IsAny<string>())).Returns(true);
         configHelperMock.Setup(c => c.GetTrashPath(It.IsAny<string>()))
@@ -80,12 +80,20 @@ public class HelperCleanupTaskTests : IDisposable
 
         var trackingServiceMock = new Mock<ICleanupTrackingService>();
         var trashServiceMock = new Mock<ITrashService>();
-        var strmRepairServiceMock = new Mock<IStrmRepairService>();
+        var linkRepairServiceMock = new Mock<ILinkRepairService>();
+        _seerrServiceMock = new Mock<ISeerrIntegrationService>();
+        _seerrServiceMock
+            .Setup(s => s.CleanupExpiredRequestsAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SeerrCleanupResult());
 
         _task = new HelperCleanupTask(
             libraryManagerMock.Object,
             fileSystemMock.Object,
-            applicationPathsMock.Object,
             TestMockFactory.CreatePluginLogService(),
             loggerFactoryMock.Object,
             statisticsServiceMock.Object,
@@ -94,24 +102,29 @@ public class HelperCleanupTaskTests : IDisposable
             configHelperMock.Object,
             trackingServiceMock.Object,
             trashServiceMock.Object,
-            strmRepairServiceMock.Object);
+            linkRepairServiceMock.Object,
+            _seerrServiceMock.Object);
     }
 
     public void Dispose()
     {
-        if (Directory.Exists(_testDataPath))
-            try
-            {
-                Directory.Delete(_testDataPath, true);
-            }
-            catch (IOException)
-            {
-                /* best effort cleanup */
-            }
-            catch (UnauthorizedAccessException)
-            {
-                /* best effort cleanup */
-            }
+        if (!Directory.Exists(_testDataPath))
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.Delete(_testDataPath, true);
+        }
+        catch (IOException)
+        {
+            /* best effort cleanup */
+        }
+        catch (UnauthorizedAccessException)
+        {
+            /* best effort cleanup */
+        }
     }
 
     [Fact]
@@ -155,7 +168,8 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            StrmRepairTaskMode = TaskMode.Deactivate
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate
         };
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
@@ -163,7 +177,8 @@ public class HelperCleanupTaskTests : IDisposable
         VerifyLogContains("Skipping Trickplay Cleanup (deactivated in settings)", LogLevel.Information);
         VerifyLogContains("Skipping Empty Media Folder Cleanup (deactivated in settings)", LogLevel.Information);
         VerifyLogContains("Skipping Orphaned Subtitle Cleanup (deactivated in settings)", LogLevel.Information);
-        VerifyLogContains("Skipping STRM File Repair (deactivated in settings)", LogLevel.Information);
+        VerifyLogContains("Skipping Link Repair (deactivated in settings)", LogLevel.Information);
+        VerifyLogContains("Skipping Seerr Cleanup (deactivated in settings)", LogLevel.Information);
         VerifyLogContains("Helper Cleanup finished", LogLevel.Information);
     }
 
@@ -175,7 +190,10 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Activate,
             EmptyMediaFolderTaskMode = TaskMode.Activate,
             OrphanedSubtitleTaskMode = TaskMode.Activate,
-            StrmRepairTaskMode = TaskMode.Activate
+            LinkRepairTaskMode = TaskMode.Activate,
+            SeerrCleanupTaskMode = TaskMode.Activate,
+            SeerrUrl = "http://localhost:5055",
+            SeerrApiKey = "test-key"
         };
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
@@ -183,7 +201,8 @@ public class HelperCleanupTaskTests : IDisposable
         VerifyLogContains("Starting Trickplay Cleanup (Active)", LogLevel.Information);
         VerifyLogContains("Starting Empty Media Folder Cleanup (Active)", LogLevel.Information);
         VerifyLogContains("Starting Orphaned Subtitle Cleanup (Active)", LogLevel.Information);
-        VerifyLogContains("Starting STRM File Repair (Active)", LogLevel.Information);
+        VerifyLogContains("Starting Link Repair (Active)", LogLevel.Information);
+        VerifyLogContains("Starting Seerr Cleanup (Active)", LogLevel.Information);
         VerifyLogContains("Helper Cleanup finished", LogLevel.Information);
     }
 
@@ -195,7 +214,10 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.DryRun,
             EmptyMediaFolderTaskMode = TaskMode.DryRun,
             OrphanedSubtitleTaskMode = TaskMode.DryRun,
-            StrmRepairTaskMode = TaskMode.DryRun
+            LinkRepairTaskMode = TaskMode.DryRun,
+            SeerrCleanupTaskMode = TaskMode.DryRun,
+            SeerrUrl = "http://localhost:5055",
+            SeerrApiKey = "test-key"
         };
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
@@ -203,7 +225,8 @@ public class HelperCleanupTaskTests : IDisposable
         VerifyLogContains("Starting Trickplay Cleanup (Dry Run)", LogLevel.Information);
         VerifyLogContains("Starting Empty Media Folder Cleanup (Dry Run)", LogLevel.Information);
         VerifyLogContains("Starting Orphaned Subtitle Cleanup (Dry Run)", LogLevel.Information);
-        VerifyLogContains("Starting STRM File Repair (Dry Run)", LogLevel.Information);
+        VerifyLogContains("Starting Link Repair (Dry Run)", LogLevel.Information);
+        VerifyLogContains("Starting Seerr Cleanup (Dry Run)", LogLevel.Information);
     }
 
     [Fact]
@@ -214,7 +237,8 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Activate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.DryRun,
-            StrmRepairTaskMode = TaskMode.Deactivate
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate
         };
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
@@ -222,7 +246,7 @@ public class HelperCleanupTaskTests : IDisposable
         VerifyLogContains("Starting Trickplay Cleanup (Active)", LogLevel.Information);
         VerifyLogContains("Skipping Empty Media Folder Cleanup (deactivated in settings)", LogLevel.Information);
         VerifyLogContains("Starting Orphaned Subtitle Cleanup (Dry Run)", LogLevel.Information);
-        VerifyLogContains("Skipping STRM File Repair (deactivated in settings)", LogLevel.Information);
+        VerifyLogContains("Skipping Link Repair (deactivated in settings)", LogLevel.Information);
     }
 
     [Fact]
@@ -243,7 +267,8 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            StrmRepairTaskMode = TaskMode.Deactivate
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate
         };
 
         var reportedValues = new List<double>();
@@ -262,7 +287,8 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            StrmRepairTaskMode = TaskMode.Deactivate
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate
         };
 
         var reportedValues = new List<double>();
@@ -270,12 +296,13 @@ public class HelperCleanupTaskTests : IDisposable
 
         await _task.ExecuteAsync(progress, CancellationToken.None);
 
-        // 4 sub-tasks → progress at 25, 50, 75, 100
-        Assert.Equal(4, reportedValues.Count);
-        Assert.Equal(25.0, reportedValues[0]);
-        Assert.Equal(50.0, reportedValues[1]);
-        Assert.Equal(75.0, reportedValues[2]);
-        Assert.Equal(100.0, reportedValues[3]);
+        // 5 sub-tasks → progress at 20, 40, 60, 80, 100
+        Assert.Equal(5, reportedValues.Count);
+        Assert.Equal(20.0, reportedValues[0]);
+        Assert.Equal(40.0, reportedValues[1]);
+        Assert.Equal(60.0, reportedValues[2]);
+        Assert.Equal(80.0, reportedValues[3]);
+        Assert.Equal(100.0, reportedValues[4]);
     }
 
     [Fact]
@@ -286,7 +313,7 @@ public class HelperCleanupTaskTests : IDisposable
         VerifyLogContains("Finished Trickplay Cleanup", LogLevel.Information);
         VerifyLogContains("Finished Empty Media Folder Cleanup", LogLevel.Information);
         VerifyLogContains("Finished Orphaned Subtitle Cleanup", LogLevel.Information);
-        VerifyLogContains("Finished STRM File Repair", LogLevel.Information);
+        VerifyLogContains("Finished Link Repair", LogLevel.Information);
     }
 
     [Fact]
@@ -297,7 +324,8 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            StrmRepairTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate,
             UseTrash = true,
             TrashRetentionDays = 30,
             TrashFolderPath = ".jellyfin-trash"
@@ -317,7 +345,8 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            StrmRepairTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate,
             UseTrash = false,
             TrashRetentionDays = 30
         };
@@ -325,6 +354,112 @@ public class HelperCleanupTaskTests : IDisposable
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
         VerifyLogNeverContains("Running trash purge", LogLevel.Information);
+    }
+
+    // ===== Seerr-specific tests =====
+
+    [Fact]
+    public async Task ExecuteAsync_SeerrActivated_NotConfigured_LogsSkipped()
+    {
+        _config = new PluginConfiguration
+        {
+            TrickplayTaskMode = TaskMode.Deactivate,
+            EmptyMediaFolderTaskMode = TaskMode.Deactivate,
+            OrphanedSubtitleTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Activate,
+            SeerrUrl = "",
+            SeerrApiKey = ""
+        };
+
+        await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
+
+        VerifyLogContains("Seerr not configured", LogLevel.Information);
+        VerifySeerrNeverCalled();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_SeerrActivated_OnlyUrlSet_LogsSkipped()
+    {
+        _config = new PluginConfiguration
+        {
+            TrickplayTaskMode = TaskMode.Deactivate,
+            EmptyMediaFolderTaskMode = TaskMode.Deactivate,
+            OrphanedSubtitleTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Activate,
+            SeerrUrl = "http://localhost:5055",
+            SeerrApiKey = ""
+        };
+
+        await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
+
+        VerifyLogContains("Seerr not configured", LogLevel.Information);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_SeerrDryRun_Configured_LogsDryRunMode()
+    {
+        _config = new PluginConfiguration
+        {
+            TrickplayTaskMode = TaskMode.Deactivate,
+            EmptyMediaFolderTaskMode = TaskMode.Deactivate,
+            OrphanedSubtitleTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.DryRun,
+            SeerrUrl = "http://localhost:5055",
+            SeerrApiKey = "test-key",
+            SeerrCleanupAgeDays = 180
+        };
+
+        await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
+
+        VerifyLogContains("Starting Seerr Cleanup (Dry Run)", LogLevel.Information);
+        VerifyLogContains("Max age: 180 days", LogLevel.Information);
+        VerifySeerrCalledWith("http://localhost:5055", "test-key", 180, true);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_SeerrDeactivated_SkipsEvenIfConfigured()
+    {
+        _config = new PluginConfiguration
+        {
+            TrickplayTaskMode = TaskMode.Deactivate,
+            EmptyMediaFolderTaskMode = TaskMode.Deactivate,
+            OrphanedSubtitleTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate,
+            SeerrUrl = "http://localhost:5055",
+            SeerrApiKey = "test-key"
+        };
+
+        await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
+
+        VerifyLogContains("Skipping Seerr Cleanup (deactivated in settings)", LogLevel.Information);
+        VerifyLogNeverContains("Starting Seerr Cleanup", LogLevel.Information);
+        VerifySeerrNeverCalled();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_SeerrActivated_LogsFinishedSummary()
+    {
+        _config = new PluginConfiguration
+        {
+            TrickplayTaskMode = TaskMode.Deactivate,
+            EmptyMediaFolderTaskMode = TaskMode.Deactivate,
+            OrphanedSubtitleTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Activate,
+            SeerrUrl = "http://localhost:5055",
+            SeerrApiKey = "test-key",
+            SeerrCleanupAgeDays = 365
+        };
+
+        await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
+
+        VerifyLogContains("Starting Seerr Cleanup (Active)", LogLevel.Information);
+        VerifyLogContains("Task finished.", LogLevel.Information);
+        VerifySeerrCalledWith("http://localhost:5055", "test-key", 365, false);
     }
 
     [Fact]
@@ -335,7 +470,8 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Deactivate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
-            StrmRepairTaskMode = TaskMode.Deactivate,
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate,
             UseTrash = true,
             TrashRetentionDays = 0,
             TrashFolderPath = ".jellyfin-trash"
@@ -344,6 +480,22 @@ public class HelperCleanupTaskTests : IDisposable
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
 
         VerifyLogContains("Running trash purge (retention: 0 days)", LogLevel.Information);
+    }
+
+    private void VerifySeerrCalledWith(string url, string apiKey, int ageDays, bool dryRun)
+    {
+        _seerrServiceMock.Verify(
+            s => s.CleanupExpiredRequestsAsync(url, apiKey, ageDays, dryRun, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    private void VerifySeerrNeverCalled()
+    {
+        _seerrServiceMock.Verify(
+            s => s.CleanupExpiredRequestsAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     private void VerifyLogContains(string messagePart, LogLevel level)

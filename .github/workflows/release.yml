@@ -129,7 +129,7 @@ jobs:
 
     - name: Read version from manifest
       run: |
-        VERSION=$(jq -r '.[0].versions[0].version' manifest.json)
+        VERSION=$(jq -er '.[0].versions[0].version' manifest.json)
         echo "VERSION=$VERSION" >> $GITHUB_ENV
 
     - name: Check if tag already exists (remote)
@@ -158,9 +158,34 @@ jobs:
           -c Release \
           -o ./publish \
           -p:Version=${VERSION} \
-          -p:AssemblyVersion=${VERSION}.0 \
-          -p:FileVersion=${VERSION}.0 \
+          -p:AssemblyVersion=${VERSION} \
+          -p:FileVersion=${VERSION} \
           -p:InformationalVersion=${VERSION}
+
+    - name: Read metadata from manifest.json
+      if: env.TAG_EXISTS == 'false'
+      run: |
+        CHANGELOG=$(jq -er '.[0].versions[0].changelog' manifest.json)
+        DESCRIPTION=$(jq -er '.[0].description' manifest.json)
+        OVERVIEW=$(jq -er '.[0].overview' manifest.json)
+        DELIM_CL="EOF_${GITHUB_RUN_ID}_BUILD_CHANGELOG"
+        DELIM_DESC="EOF_${GITHUB_RUN_ID}_BUILD_DESCRIPTION"
+        DELIM_OV="EOF_${GITHUB_RUN_ID}_BUILD_OVERVIEW"
+        {
+          echo "BUILD_CHANGELOG<<$DELIM_CL"
+          echo "$CHANGELOG"
+          echo "$DELIM_CL"
+        } >> "$GITHUB_ENV"
+        {
+          echo "BUILD_DESCRIPTION<<$DELIM_DESC"
+          echo "$DESCRIPTION"
+          echo "$DELIM_DESC"
+        } >> "$GITHUB_ENV"
+        {
+          echo "BUILD_OVERVIEW<<$DELIM_OV"
+          echo "$OVERVIEW"
+          echo "$DELIM_OV"
+        } >> "$GITHUB_ENV"
 
     - name: Create release package
       if: env.TAG_EXISTS == 'false'
@@ -168,22 +193,31 @@ jobs:
         mkdir package
         cp publish/*.dll package/
         cp publish/logo.png package/ 2>/dev/null || cp media/logo.png package/
-        cat > package/meta.json <<METAEOF
-        {
-          "guid": "0c737645-5cbb-4bd8-80c7-d377b560aaa4",
-          "name": "Jellyfin Helper",
-          "description": "Automated cleanup (trickplay, empty folders, subtitles), media statistics, trash bin, Arr integration.",
-          "overview": "Automated cleanup, media statistics, trash bin, Arr integration.",
-          "owner": "JellyPlugins",
-          "category": "General",
-          "version": "${VERSION}.0",
-          "targetAbi": "${TARGET_ABI}",
-          "status": "Active",
-          "autoUpdate": true,
-          "imagePath": "logo.png",
-          "assembly": "Jellyfin.Plugin.JellyfinHelper.dll"
-        }
-        METAEOF
+        TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%S.0000000Z")
+        jq -n \
+          --arg changelog "$BUILD_CHANGELOG" \
+          --arg description "$BUILD_DESCRIPTION" \
+          --arg overview "$BUILD_OVERVIEW" \
+          --arg targetAbi "$TARGET_ABI" \
+          --arg timestamp "$TIMESTAMP" \
+          --arg version "$VERSION" \
+          '{
+            "category": "General",
+            "changelog": $changelog,
+            "description": $description,
+            "guid": "0c737645-5cbb-4bd8-80c7-d377b560aaa4",
+            "name": "Jellyfin Helper",
+            "overview": $overview,
+            "owner": "JellyPlugins",
+            "targetAbi": $targetAbi,
+            "timestamp": $timestamp,
+            "version": $version,
+            "status": "Active",
+            "autoUpdate": true,
+            "imageUrl": "https://raw.githubusercontent.com/JellyPlugins/jellyfin-helper/main/media/logo.png",
+            "imagePath": ("/config/plugins/Jellyfin Helper_" + $version + "/logo.png"),
+            "assemblies": []
+          }' > package/meta.json
         cd package
         zip ../${PLUGIN_NAME}_${VERSION}.zip *
 
@@ -208,7 +242,7 @@ jobs:
 
     - name: Read version from manifest
       run: |
-        VERSION=$(jq -r '.[0].versions[0].version' manifest.json)
+        VERSION=$(jq -er '.[0].versions[0].version' manifest.json)
         echo "VERSION=$VERSION" >> $GITHUB_ENV
 
     - name: Check if tag already exists (remote)
@@ -222,18 +256,30 @@ jobs:
 
     - name: Install jq and yq
       if: env.TAG_EXISTS == 'false'
+      env:
+        YQ_VERSION: v4.52.5
       run: |
         sudo apt-get update && sudo apt-get install -y jq
-        sudo wget -qO /usr/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-        sudo chmod +x /usr/bin/yq
+        TMP_DIR=$(mktemp -d)
+        trap 'rm -rf "$TMP_DIR"' EXIT
+        cd "$TMP_DIR"
+        wget -q https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64
+        wget -q https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/checksums
+        EXPECTED_HASH=$(awk '$2=="yq_linux_amd64"{print $1}' checksums | head -n1)
+        test -n "$EXPECTED_HASH"
+        echo "${EXPECTED_HASH}  yq_linux_amd64" | sha256sum -c -
+        sudo install -m 0755 yq_linux_amd64 /usr/bin/yq
 
     - name: Read changelog from manifest
       if: env.TAG_EXISTS == 'false'
       run: |
-        CHANGELOG=$(jq -r '.[0].versions[0].changelog' manifest.json)
-        echo "CHANGELOG<<EOF" >> $GITHUB_ENV
-        echo "$CHANGELOG" >> $GITHUB_ENV
-        echo "EOF" >> $GITHUB_ENV
+        CHANGELOG=$(jq -er '.[0].versions[0].changelog' manifest.json)
+        DELIM_CL="EOF_${GITHUB_RUN_ID}_CHANGELOG"
+        {
+          echo "CHANGELOG<<$DELIM_CL"
+          echo "$CHANGELOG"
+          echo "$DELIM_CL"
+        } >> "$GITHUB_ENV"
 
     - name: Download build artifact
       if: env.TAG_EXISTS == 'false'

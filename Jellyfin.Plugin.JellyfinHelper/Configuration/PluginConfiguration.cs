@@ -50,17 +50,37 @@ public class PluginConfiguration : BasePluginConfiguration
     public TaskMode OrphanedSubtitleTaskMode { get; set; } = TaskMode.DryRun;
 
     /// <summary>
-    ///     Gets or sets the execution mode for the .strm File Repair task.
+    ///     Gets or sets the execution mode for the Link Repair task (.strm files and symlinks).
     ///     Default is <see cref="TaskMode.DryRun" /> (safe mode).
     /// </summary>
-    public TaskMode StrmRepairTaskMode { get; set; } = TaskMode.DryRun;
+    public TaskMode LinkRepairTaskMode { get; set; } = TaskMode.DryRun;
+
+    /// <summary>
+    ///     Gets or sets the execution mode for the Seerr Cleanup task.
+    ///     Default is <see cref="TaskMode.Deactivate" /> because this task interacts with an external service.
+    /// </summary>
+    public TaskMode SeerrCleanupTaskMode { get; set; } = TaskMode.Deactivate;
+
+    /// <summary>
+    ///     Gets or sets the maximum age in days for Seerr requests before they are cleaned up.
+    ///     Default is 365 days (1 year).
+    /// </summary>
+    public int SeerrCleanupAgeDays { get; set; } = 365;
+
+    /// <summary>
+    ///     Gets or sets the base URL of the Jellyseerr/Overseerr/Seerr instance.
+    /// </summary>
+    public string SeerrUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Gets or sets the API key for the Jellyseerr/Overseerr/Seerr instance.
+    /// </summary>
+    public string SeerrApiKey { get; set; } = string.Empty;
 
     // ===== Config version for migration =====
 
     /// <summary>
-    ///     Gets or sets the configuration version. Used to detect and apply one-time migrations
-    ///     from legacy boolean properties to the new <see cref="TaskMode" /> properties.
-    ///     0 = pre-TaskMode (needs migration), 1 = TaskMode migrated.
+    ///     Gets or sets the configuration version for migration tracking.
     /// </summary>
     public int ConfigVersion { get; set; }
 
