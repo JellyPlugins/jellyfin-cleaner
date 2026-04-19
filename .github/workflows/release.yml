@@ -268,15 +268,15 @@ jobs:
           echo "::error::Failed to download yq binary ${YQ_VERSION}. Check if this version exists at https://github.com/mikefarah/yq/releases"
           exit 1
         }
-        curl -fsSL -o checksums "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/checksums" || {
-          echo "::error::Failed to download yq checksums for ${YQ_VERSION}."
+        curl -fsSL -o yq_linux_amd64.sha256 "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64.sha256" || {
+          echo "::error::Failed to download yq SHA256 checksum for ${YQ_VERSION}."
           exit 1
         }
-        echo "Checksums file content:"
-        cat checksums
-        EXPECTED_HASH=$(grep -w 'yq_linux_amd64' checksums | grep -v 'yq_linux_amd64.sig' | awk '{print $1}' | head -n1)
+        EXPECTED_HASH=$(cat yq_linux_amd64.sha256 | awk '{print $1}')
         if [ -z "$EXPECTED_HASH" ]; then
-          echo "::error::Could not extract checksum for yq_linux_amd64 from checksums file. Format may have changed."
+          echo "::error::SHA256 checksum file is empty or has unexpected format."
+          echo "File content:"
+          cat yq_linux_amd64.sha256
           exit 1
         fi
         echo "${EXPECTED_HASH}  yq_linux_amd64" | sha256sum -c - || {
