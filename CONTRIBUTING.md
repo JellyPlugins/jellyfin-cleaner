@@ -198,7 +198,7 @@ serviceCollection.AddSingleton<IArrIntegrationService, ArrIntegrationService>();
 serviceCollection.AddSingleton<ISeerrIntegrationService, SeerrIntegrationService>();
 ```
 
-Named `HttpClient` instances are configured for external API communication: `"ArrIntegration"` (Radarr/Sonarr, 15-second timeout) and `"SeerrIntegration"` (Overseerr/Jellyseerr).
+Named `HttpClient` instances are configured for external API communication: `"ArrIntegration"` (Radarr/Sonarr, 15-second timeout) and `"SeerrIntegration"` (Overseerr/Jellyseerr, 30-second timeout).
 
 ---
 
