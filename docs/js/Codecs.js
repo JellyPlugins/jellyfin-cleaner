@@ -1,4 +1,4 @@
-review// --- Codecs Tab ---
+// --- Codecs Tab ---
 
 // Store last scan data for codec detail clicks
 var _lastCodecData = null;
