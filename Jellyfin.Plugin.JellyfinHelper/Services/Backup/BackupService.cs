@@ -355,7 +355,12 @@ public class BackupService : IBackupService
             }
 
             var json = JsonSerializer.Serialize(data, JsonOptions);
-            File.WriteAllText(filePath, json);
+
+            // Atomic write: write to a temporary file first, then rename.
+            // This prevents data corruption if the process crashes mid-write.
+            var tempPath = filePath + ".tmp";
+            File.WriteAllText(tempPath, json);
+            File.Move(tempPath, filePath, overwrite: true);
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

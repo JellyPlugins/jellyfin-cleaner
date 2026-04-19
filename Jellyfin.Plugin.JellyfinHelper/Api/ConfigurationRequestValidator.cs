@@ -47,7 +47,7 @@ public static class ConfigurationRequestValidator
 
         // Seerr settings validation — only enforce range when Seerr is actually configured
         if (!string.IsNullOrWhiteSpace(request.SeerrUrl) &&
-            request.SeerrCleanupAgeDays is < 1 or > MaxDays)
+            request.SeerrCleanupAgeDays is (< 1 or > MaxDays))
         {
             return "SeerrCleanupAgeDays must be 1–3650.";
         }
@@ -80,8 +80,13 @@ public static class ConfigurationRequestValidator
     /// <param name="instances">The instances to validate.</param>
     /// <param name="typeName">The type name (Radarr/Sonarr) for error messages.</param>
     /// <returns>An error message string, or <c>null</c> if all instances are valid.</returns>
-    internal static string? ValidateArrInstances(IReadOnlyList<ArrInstanceConfig> instances, string typeName)
+    internal static string? ValidateArrInstances(IReadOnlyList<ArrInstanceConfig>? instances, string typeName)
     {
+        if (instances is null)
+        {
+            return null;
+        }
+
         for (var i = 0; i < instances.Count; i++)
         {
             var instance = instances[i];

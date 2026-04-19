@@ -457,29 +457,14 @@ public class SeerrIntegrationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Cleanup_MaxAgeDaysZero_AllExpired()
+    public async Task Cleanup_MaxAgeDaysZero_ThrowsArgumentOutOfRange()
     {
-        var requests = new List<(int, DateTimeOffset)>
-        {
-            (1, DateTimeOffset.UtcNow.AddDays(-1)),
-            (2, DateTimeOffset.UtcNow.AddMinutes(-5))
-        };
-        var page = MakeRequestPage(requests, 2);
-
-        var handler = CreateSequenceHandler(
-            (HttpStatusCode.OK, page),
-            (HttpStatusCode.OK, MakeMovieDetails("Movie 1")),
-            (HttpStatusCode.NoContent, ""),
-            (HttpStatusCode.OK, MakeMovieDetails("Movie 2")),
-            (HttpStatusCode.NoContent, ""));
-
+        var handler = CreateMockHandler(HttpStatusCode.OK, "{}");
         var service = CreateService(handler.Object, out _, out _);
-        var result = await service.CleanupExpiredRequestsAsync(
-            BaseUrl, ApiKey, 0, false, CancellationToken.None);
 
-        Assert.Equal(2, result.TotalChecked);
-        Assert.Equal(2, result.ExpiredFound);
-        Assert.Equal(2, result.Deleted);
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => service.CleanupExpiredRequestsAsync(
+                BaseUrl, ApiKey, 0, false, CancellationToken.None));
     }
 
     [Fact]

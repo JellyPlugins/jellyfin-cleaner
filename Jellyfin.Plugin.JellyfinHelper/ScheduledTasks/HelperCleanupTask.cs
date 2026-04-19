@@ -143,7 +143,7 @@ public class HelperCleanupTask : IScheduledTask
                 _pluginLog.LogWarning("HelperCleanup", $"Helper Cleanup was cancelled during {name}.", logger: _logger);
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
             {
                 _pluginLog.LogError(
                     "HelperCleanup",
@@ -215,7 +215,7 @@ public class HelperCleanupTask : IScheduledTask
                     logger: _logger);
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
             {
                 _pluginLog.LogError("HelperCleanup", "Error during trash purge. Continuing.", ex, _logger);
             }

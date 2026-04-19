@@ -88,9 +88,9 @@ public sealed class SeerrIntegrationService : ISeerrIntegrationService
         bool dryRun,
         CancellationToken cancellationToken)
     {
-        if (maxAgeDays < 0)
+        if (maxAgeDays < 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(maxAgeDays), "maxAgeDays must be greater than or equal to 0.");
+            throw new ArgumentOutOfRangeException(nameof(maxAgeDays), "maxAgeDays must be at least 1.");
         }
 
         var result = new SeerrCleanupResult { DryRun = dryRun };
