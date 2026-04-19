@@ -53,7 +53,7 @@ public class TaskModeTests
     }
 
     [Fact]
-    public void PluginConfiguration_DefaultTaskModes_AreDryRun()
+    public void PluginConfiguration_DefaultTaskModes_AreExpectedDefaults()
     {
         var config = new PluginConfiguration();
         Assert.Equal(TaskMode.DryRun, config.TrickplayTaskMode);

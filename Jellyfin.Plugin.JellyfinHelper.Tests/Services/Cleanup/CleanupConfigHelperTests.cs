@@ -107,6 +107,13 @@ public class CleanupConfigHelperTests
     }
 
     [Fact]
+    public void IsDryRunTrickplay_ReturnsTrue_WhenDeactivate()
+    {
+        var cfg = new PluginConfiguration { TrickplayTaskMode = TaskMode.Deactivate };
+        Assert.True(CreateHelper(cfg).IsDryRunTrickplay());
+    }
+
+    [Fact]
     public void IsDryRunEmptyMediaFolders_ReturnsTrue_WhenDryRun()
     {
         var cfg = new PluginConfiguration { EmptyMediaFolderTaskMode = TaskMode.DryRun };
@@ -118,6 +125,13 @@ public class CleanupConfigHelperTests
     {
         var cfg = new PluginConfiguration { EmptyMediaFolderTaskMode = TaskMode.Activate };
         Assert.False(CreateHelper(cfg).IsDryRunEmptyMediaFolders());
+    }
+
+    [Fact]
+    public void IsDryRunEmptyMediaFolders_ReturnsTrue_WhenDeactivate()
+    {
+        var cfg = new PluginConfiguration { EmptyMediaFolderTaskMode = TaskMode.Deactivate };
+        Assert.True(CreateHelper(cfg).IsDryRunEmptyMediaFolders());
     }
 
     [Fact]
@@ -135,6 +149,13 @@ public class CleanupConfigHelperTests
     }
 
     [Fact]
+    public void IsDryRunOrphanedSubtitles_ReturnsTrue_WhenDeactivate()
+    {
+        var cfg = new PluginConfiguration { OrphanedSubtitleTaskMode = TaskMode.Deactivate };
+        Assert.True(CreateHelper(cfg).IsDryRunOrphanedSubtitles());
+    }
+
+    [Fact]
     public void IsDryRunLinkRepair_ReturnsTrue_WhenDryRun()
     {
         var cfg = new PluginConfiguration { LinkRepairTaskMode = TaskMode.DryRun };
@@ -146,6 +167,13 @@ public class CleanupConfigHelperTests
     {
         var cfg = new PluginConfiguration { LinkRepairTaskMode = TaskMode.Activate };
         Assert.False(CreateHelper(cfg).IsDryRunLinkRepair());
+    }
+
+    [Fact]
+    public void IsDryRunLinkRepair_ReturnsTrue_WhenDeactivate()
+    {
+        var cfg = new PluginConfiguration { LinkRepairTaskMode = TaskMode.Deactivate };
+        Assert.True(CreateHelper(cfg).IsDryRunLinkRepair());
     }
 
     // ===== Static IsDryRun =====

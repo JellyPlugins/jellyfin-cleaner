@@ -237,7 +237,8 @@ public class HelperCleanupTaskTests : IDisposable
             TrickplayTaskMode = TaskMode.Activate,
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.DryRun,
-            LinkRepairTaskMode = TaskMode.Deactivate
+            LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate
         };
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
@@ -324,6 +325,7 @@ public class HelperCleanupTaskTests : IDisposable
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
             LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate,
             UseTrash = true,
             TrashRetentionDays = 30,
             TrashFolderPath = ".jellyfin-trash"
@@ -344,6 +346,7 @@ public class HelperCleanupTaskTests : IDisposable
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
             LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate,
             UseTrash = false,
             TrashRetentionDays = 30
         };
@@ -468,6 +471,7 @@ public class HelperCleanupTaskTests : IDisposable
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
             LinkRepairTaskMode = TaskMode.Deactivate,
+            SeerrCleanupTaskMode = TaskMode.Deactivate,
             UseTrash = true,
             TrashRetentionDays = 0,
             TrashFolderPath = ".jellyfin-trash"

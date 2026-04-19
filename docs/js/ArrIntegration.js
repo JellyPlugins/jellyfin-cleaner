@@ -127,6 +127,10 @@ function addArrInstance(type) {
     updateArrCollapsibleCount(type);
 }
 
+// Note: This function performs multiple sequential DOM queries and updates.
+// With MAX_ARR_INSTANCES = 3, layout thrashing is not a practical concern.
+// If the instance limit were ever raised significantly, consider batching
+// DOM reads and writes separately to avoid forced reflows.
 function removeArrInstance(type, index) {
     // Clear all pending test timers for this type to prevent stale callbacks after reindexing
     for (var key in _testTimers) {

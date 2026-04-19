@@ -468,6 +468,17 @@ public class SeerrIntegrationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Cleanup_MaxAgeDaysNegative_ThrowsArgumentOutOfRange()
+    {
+        var handler = CreateMockHandler(HttpStatusCode.OK, "{}");
+        var service = CreateService(handler.Object, out _, out _);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => service.CleanupExpiredRequestsAsync(
+                BaseUrl, ApiKey, -1, false, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Cleanup_EmptyResultsList_HandlesGracefully()
     {
         var json = JsonSerializer.Serialize(new

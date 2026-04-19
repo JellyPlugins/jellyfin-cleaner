@@ -39,6 +39,7 @@ public class MediaStatisticsControllerTests : IDisposable
     public void Dispose()
     {
         _cache.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     [Fact]

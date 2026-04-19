@@ -382,6 +382,12 @@ public class LinkRepairService : ILinkRepairService
 
     /// <summary>
     ///     Finds all media files (video files) in the given directory (non-recursive).
+    ///     <para>
+    ///         Note: This enumerates all files in the directory without a count limit.
+    ///         In edge cases with very large flat directories this could be slow, but
+    ///         it is only called for the parent directory of a broken link target, so
+    ///         the directory typically contains a small number of files.
+    ///     </para>
     /// </summary>
     /// <param name="directory">The directory to search.</param>
     /// <returns>A list of media file paths.</returns>

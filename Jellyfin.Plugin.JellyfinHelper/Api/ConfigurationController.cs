@@ -321,7 +321,9 @@ public class ConfigurationController : ControllerBase
         // Seerr settings
         config.SeerrUrl = request.SeerrUrl?.Trim() ?? string.Empty;
         config.SeerrApiKey = request.SeerrApiKey?.Trim() ?? string.Empty;
-        config.SeerrCleanupAgeDays = Math.Clamp(request.SeerrCleanupAgeDays, 1, 3650);
+        config.SeerrCleanupAgeDays = string.IsNullOrEmpty(config.SeerrUrl)
+            ? 0
+            : Math.Clamp(request.SeerrCleanupAgeDays, 1, 3650);
 
         // Validate and normalize log level (same rules as UpdateLogLevel endpoint)
         var validLevels = new[] { "DEBUG", "INFO", "WARN", "ERROR" };
@@ -334,14 +336,14 @@ public class ConfigurationController : ControllerBase
 
         // Update Radarr instances (clear + re-add from request)
         config.RadarrInstances.Clear();
-        foreach (var instance in request.RadarrInstances)
+        foreach (var instance in request.RadarrInstances ?? Array.Empty<ArrInstanceConfig>())
         {
             config.RadarrInstances.Add(instance);
         }
 
         // Update Sonarr instances (clear + re-add from request)
         config.SonarrInstances.Clear();
-        foreach (var instance in request.SonarrInstances)
+        foreach (var instance in request.SonarrInstances ?? Array.Empty<ArrInstanceConfig>())
         {
             config.SonarrInstances.Add(instance);
         }

@@ -498,6 +498,13 @@ function apiPostRaw(path, rawBody, contentType, onSuccess, onError) {
 /**
  * Perform a GET request where 204 No Content is a valid (expected) response.
  * Uses the native fetch API so we can inspect the HTTP status code.
+ *
+ * Note: If the server returns 200 OK with malformed JSON, response.json() will
+ * reject with a SyntaxError.  This is caught by errHandler alongside network
+ * errors.  For most callers the distinction is irrelevant; if finer-grained
+ * diagnostics are ever needed, the catch handler could inspect error.name
+ * ('SyntaxError' vs generic Error / TypeError for network failures).
+ *
  * @param {string} path - Relative API path.
  * @param {function} onSuccess - Callback with parsed JSON data (HTTP 200).
  * @param {function} onNoContent - Callback when server returns 204 (no data yet).

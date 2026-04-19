@@ -350,6 +350,7 @@ public class BackupService : IBackupService
 
     private bool SaveJsonFile<T>(string filePath, T data)
     {
+        var tempPath = filePath + ".tmp";
         try
         {
             var directory = Path.GetDirectoryName(filePath);
@@ -362,7 +363,6 @@ public class BackupService : IBackupService
 
             // Atomic write: write to a temporary file first, then rename.
             // This prevents data corruption if the process crashes mid-write.
-            var tempPath = filePath + ".tmp";
             File.WriteAllText(tempPath, json);
             File.Move(tempPath, filePath, overwrite: true);
             return true;
@@ -370,6 +370,15 @@ public class BackupService : IBackupService
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _pluginLog.LogError("Backup", $"Could not save {filePath} during restore", ex, _logger);
+            try
+            {
+                File.Delete(tempPath);
+            }
+            catch
+            {
+                // best-effort cleanup
+            }
+
             return false;
         }
     }

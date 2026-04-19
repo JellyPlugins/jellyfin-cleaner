@@ -410,8 +410,11 @@ public class LinkRepairServiceTests
         var result = _service.ProcessLinkFile(symlinkFile, _symlinkHandler, true);
 
         // The target is not a valid file path, so normalisation or file-exists check will fail.
-        // The key assertion: it must NOT return Valid (which would mean the URL was silently skipped).
-        Assert.NotEqual(LinkFileStatus.Valid, result.Status);
+        // A URL target must be treated as Broken (or InvalidContent), never as Valid
+        // (which would mean the URL was silently skipped despite SupportsUrlTargets == false).
+        Assert.True(
+            result.Status == LinkFileStatus.Broken || result.Status == LinkFileStatus.InvalidContent,
+            $"Expected Broken or InvalidContent but got {result.Status}");
     }
 
     [Fact]

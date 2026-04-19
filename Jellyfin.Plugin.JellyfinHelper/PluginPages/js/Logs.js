@@ -119,6 +119,9 @@ function loadLogLevelFromConfig(callback) {
         if (typeof _currentLogLevel !== 'undefined') {
             _currentLogLevel = level;
         }
+        if (typeof _logLevelLoaded !== 'undefined') {
+            _logLevelLoaded = true;
+        }
         var lf = document.getElementById('logsLevelFilter');
         if (lf) {
             lf.value = level;
