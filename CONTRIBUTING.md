@@ -78,6 +78,7 @@ Jellyfin.Plugin.JellyfinHelper/
 │   ├── ConfigurationRequestValidator.cs # Server-side config validation (numeric ranges, Arr instance URLs & API keys)
 │   ├── ConfigurationUpdateRequest.cs  # Request DTO for config updates
 │   ├── GrowthTimelineController.cs    # Growth timeline endpoint
+│   ├── LibraryInsightsController.cs   # Library insights endpoint (largest & recent items)
 │   ├── LogLevelUpdateRequest.cs       # Request DTO for log level updates
 │   ├── LogsController.cs             # Log viewer endpoints
 │   ├── MediaStatisticsController.cs   # Statistics & library scan endpoints (with caching)
@@ -153,14 +154,18 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   ├── LinkRepairResult.cs
 │   │   ├── LinkFileResult.cs
 │   │   └── LinkFileStatus.cs
-│   └── Timeline/                     # Growth timeline computation
+│   └── Timeline/                     # Growth timeline computation & library insights
 │       ├── IGrowthTimelineService.cs
 │       ├── GrowthTimelineService.cs  # Baseline diff + append-only snapshots
 │       ├── TimelineAggregator.cs     # Static aggregation logic (bucketing, granularity)
 │       ├── GrowthTimelineResult.cs
 │       ├── GrowthTimelinePoint.cs
 │       ├── GrowthTimelineBaseline.cs
-│       └── BaselineDirectoryEntry.cs
+│       ├── BaselineDirectoryEntry.cs
+│       ├── ILibraryInsightsService.cs  # Interface for library insights
+│       ├── LibraryInsightsService.cs   # Filesystem scanning: largest dirs & recent changes
+│       ├── LibraryInsightsResult.cs    # Result model (Largest, Recent, LibrarySizes)
+│       └── LibraryInsightEntry.cs      # Single directory entry model
 ├── ScheduledTasks/
 │   ├── BaseLibraryCleanupTask.cs     # Abstract base (Template Method pattern)
 │   ├── HelperCleanupTask.cs          # Master scheduled task (orchestrates sub-tasks)
@@ -188,6 +193,7 @@ serviceCollection.AddSingleton<IPluginLogService, PluginLogService>();
 serviceCollection.AddSingleton<IMediaStatisticsService, MediaStatisticsService>();
 serviceCollection.AddSingleton<IStatisticsCacheService, StatisticsCacheService>();
 serviceCollection.AddSingleton<IGrowthTimelineService, GrowthTimelineService>();
+serviceCollection.AddSingleton<ILibraryInsightsService, LibraryInsightsService>();
 serviceCollection.AddSingleton<IBackupService, BackupService>();
 serviceCollection.AddSingleton<IFileSystem, FileSystem>();
 serviceCollection.AddSingleton<ISymlinkHelper, SymlinkHelper>();
@@ -289,6 +295,12 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/JellyfinHelper/GrowthTimeline` | GET | Cumulative growth timeline with bucketing (`?granularity=daily\|weekly\|monthly\|quarterly\|yearly`) |
+
+### Library Insights
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/JellyfinHelper/LibraryInsights` | GET | Top-10 largest media dirs + recently added/changed items (last 30 days). 15-min in-memory cache. |
 
 ### Configuration
 
@@ -571,6 +583,7 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
 │   ├── ConfigurationControllerTests.cs
 │   ├── ConfigurationRequestValidatorTests.cs
 │   ├── GrowthTimelineControllerTests.cs
+│   ├── LibraryInsightsControllerTests.cs
 │   ├── MediaStatisticsControllerTests.cs
 │   ├── SeerrControllerTests.cs
 │   ├── LogsControllerTests.cs
@@ -632,7 +645,8 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
     └── Timeline/
         ├── GrowthTimelineModelTests.cs
         ├── GrowthTimelineServiceTests.cs
-        └── GrowthTimelinePerformanceTests.cs   # [Trait("Category", "Performance")]
+        ├── GrowthTimelinePerformanceTests.cs   # [Trait("Category", "Performance")]
+        └── LibraryInsightsServiceTests.cs
 ```
 
 ---

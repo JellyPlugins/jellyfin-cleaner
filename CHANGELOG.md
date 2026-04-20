@@ -8,12 +8,17 @@ and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin
 
 ## [1.2.1.0] — 2026-04-20
 
+### Added
+- **Library Insights** — New "Insights" section in the Trends tab showing the largest media directories and recently added/changed items (last 30 days). Includes summary cards with expandable tree views grouped by library, type badges, and change indicators. New backend service (`ILibraryInsightsService`, `LibraryInsightsService`) with filesystem scanning, new API endpoint (`GET /JellyfinHelper/LibraryInsights`) with 15-minute in-memory caching, and new data models (`LibraryInsightEntry`, `LibraryInsightsResult`).
+- **Dynamic Range Mock Data** — Added dynamic range mock data (`DynamicRanges`, `DynamicRangeSizes`, `DynamicRangePaths`) to the live demo for Movies and TV Shows libraries.
+- **Library Insights Mock Data** — Added library insights mock data and API route to the live demo.
+
 ### Changed
 - **Statistics Refactored to MediaStream** — Video codecs, audio codecs, resolutions, and dynamic range are now extracted from Jellyfin `MediaStream` metadata instead of filename parsing. Supports differentiated audio codecs (TrueHD Atmos, DTS-X, DTS-HD MA, EAC3 Atmos, etc.).
 - **Dynamic Range Detection** — New per-library dynamic range statistics (`HDR10`, `HDR10+`, `Dolby Vision`, `HLG`, `SDR`) with `VideoRangeType` → `VideoRange` fallback chain.
 - **Resolution Classification** — Extended to 8K, 4K, 1440p, 1080p, 720p, 576p, 480p, SD with width+height-based classification.
 - **Donut Chart Enhancements** — Added dynamic range donut chart, improved codec icon mapping, animation support for all donut charts.
-- **Documentation** — Updated CONTRIBUTING.md and README.md to reflect MediaStream-based extraction and dynamic range feature.
+- **Documentation** — Updated CONTRIBUTING.md and README.md to reflect MediaStream-based extraction, dynamic range feature, and library insights.
 
 ### Fixed
 - **Performance** — Video streams cached per-item to avoid redundant `GetMediaStreams()` calls during statistics scan.

@@ -191,4 +191,59 @@ public class TrendsHtmlTests : ConfigPageTestBase
         Assert.Contains("<polygon", HtmlContent);
         Assert.Contains("<circle", HtmlContent);
     }
+
+    // -- Insights section -------------------------------------------
+
+    [Fact]
+    public void Html_ContainsInsightsContainer()
+    {
+        Assert.Contains("id=\"insightsContainer\"", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_ContainsLoadInsightsFunction()
+    {
+        Assert.Contains("function loadInsights", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_ContainsRenderInsightCardsFunction()
+    {
+        Assert.Contains("function renderInsightCards", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_ContainsToggleInsightPanelFunction()
+    {
+        Assert.Contains("function toggleInsightPanel", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_LoadInsights_ReferencesCorrectApiEndpoint()
+    {
+        Assert.Contains("JellyfinHelper/LibraryInsights", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_Insights_UsesI18nKeys()
+    {
+        Assert.Contains("T('insightLargest'", HtmlContent);
+        Assert.Contains("T('insightRecent'", HtmlContent);
+        Assert.Contains("T('insightNoData'", HtmlContent);
+        Assert.Contains("T('insightsError'", HtmlContent);
+        Assert.Contains("T('loadingInsights'", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_Insights_ContainsInsightCardClass()
+    {
+        Assert.Contains("insight-card", HtmlContent);
+    }
+
+    [Fact]
+    public void Html_Insights_ContainsHelperFunctions()
+    {
+        Assert.Contains("function getInsightTypeBadge", HtmlContent);
+        Assert.Contains("function formatInsightDate", HtmlContent);
+    }
 }

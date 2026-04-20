@@ -134,6 +134,9 @@ public static class TestMockFactory
     /// <summary>Creates a new <see cref="Mock{IGrowthTimelineService}"/>.</summary>
     public static Mock<IGrowthTimelineService> CreateGrowthTimelineService() => new();
 
+    /// <summary>Creates a new <see cref="Mock{ILibraryInsightsService}"/>.</summary>
+    public static Mock<ILibraryInsightsService> CreateLibraryInsightsService() => new();
+
     /// <summary>
     /// Creates a new <see cref="Mock{IPluginConfigurationService}"/> with sensible defaults.
     /// Returns a fresh <see cref="PluginConfiguration"/> so tests don't depend on Plugin.Instance.
