@@ -24,6 +24,8 @@ function updateSeerrUIState(isConfigured) {
     }
     var count = document.getElementById('arrCountSeerr');
     if (count) count.textContent = isConfigured ? '✔' : '';
+    var hint = document.querySelector('.seerr-not-configured-hint');
+    if (hint) hint.style.display = isConfigured ? 'none' : '';
 }
 
 // Dirty-tracking: snapshot of settings payload after load/save
@@ -166,7 +168,7 @@ function loadSettings() {
         var seerrConfigured = !!(cfg.SeerrUrl && cfg.SeerrApiKey);
         h += '<div class="seerr-task-mode-wrapper" style="' + (!seerrConfigured ? 'opacity:0.5;pointer-events:none;' : '') + '">';
         h += renderTaskModeSelect('cfgSeerrMode', T('seerrCleanup', 'Seerr Cleanup'), cfg.SeerrCleanupTaskMode || 'Deactivate');
-        if (!seerrConfigured) h += '<div class="help-text">⚠️ ' + T('seerrNotConfigured', 'Configure Seerr below to enable this task.') + '</div>';
+        h += '<div class="help-text seerr-not-configured-hint" style="' + (seerrConfigured ? 'display:none;' : '') + '">⚠️ ' + T('seerrNotConfigured', 'Configure Seerr below to enable this task.') + '</div>';
         h += '</div>';
 
         h += '<div class="section-title">' + T('settingsTrashTitle', 'Trash settings') + '</div>';
