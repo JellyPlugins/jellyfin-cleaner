@@ -40,6 +40,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<IMediaStatisticsService, MediaStatisticsService>();
         serviceCollection.AddSingleton<IStatisticsCacheService, StatisticsCacheService>();
         serviceCollection.AddSingleton<IGrowthTimelineService, GrowthTimelineService>();
+        serviceCollection.AddSingleton<ILibraryInsightsService, LibraryInsightsService>();
         serviceCollection.AddSingleton<IBackupService, BackupService>();
         serviceCollection.AddSingleton<IFileSystem, FileSystem>();
         serviceCollection.AddSingleton<ISymlinkHelper, SymlinkHelper>();

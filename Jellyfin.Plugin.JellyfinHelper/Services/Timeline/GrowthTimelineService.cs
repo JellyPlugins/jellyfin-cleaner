@@ -367,7 +367,8 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
         var entries = new List<DirectoryEntry>();
         var locations = LibraryPathResolver.GetDistinctLibraryLocations(_libraryManager);
         var config = _configHelper.GetConfig();
-        var trashFolderName = config.TrashFolderPath;
+        var trashFolderName = (config.TrashFolderPath ?? string.Empty).Trim()
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
         foreach (var location in locations)
         {
@@ -375,6 +376,10 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
 
             try
             {
+                // Resolve the full trash path for this library root (handles both relative and absolute paths)
+                var fullTrashPath = Path.GetFullPath(_configHelper.GetTrashPath(location))
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
                 // Collect top-level subdirectories as media items
                 foreach (var subDir in _fileSystem.GetDirectories(location))
                 {
@@ -382,14 +387,8 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
 
                     var dirName = Path.GetFileName(subDir.FullName);
 
-                    // Skip trickplay and trash directories
-                    if (string.Equals(dirName, "trickplay", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    if (!string.IsNullOrEmpty(trashFolderName) &&
-                        string.Equals(dirName, trashFolderName, StringComparison.OrdinalIgnoreCase))
+                    // Skip .trickplay and trash directories
+                    if (ShouldSkipDirectory(subDir.FullName, dirName, trashFolderName, fullTrashPath))
                     {
                         continue;
                     }
@@ -402,7 +401,7 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
                     }
 
                     // Sum up all file sizes recursively within this directory
-                    var totalSize = GetDirectorySize(subDir.FullName, trashFolderName, cancellationToken);
+                    var totalSize = GetDirectorySize(subDir.FullName, trashFolderName, fullTrashPath, cancellationToken);
                     if (totalSize > 0)
                     {
                         entries.Add(
@@ -449,7 +448,7 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
                         });
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
                 _pluginLog.LogWarning("GrowthTimeline", $"Could not scan {location}", ex, _logger);
             }
@@ -459,9 +458,33 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
     }
 
     /// <summary>
+    ///     Determines whether a directory should be skipped during traversal.
+    ///     Matches .trickplay directories and trash directories by leaf name (relative paths)
+    ///     or resolved full path (absolute paths).
+    /// </summary>
+    private static bool ShouldSkipDirectory(string fullName, string dirName, string trashFolderName, string fullTrashPath)
+    {
+        if (dirName.EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(trashFolderName) &&
+            string.Equals(dirName, trashFolderName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var normalizedFullName = Path.GetFullPath(fullName)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return !string.IsNullOrEmpty(fullTrashPath) &&
+               string.Equals(normalizedFullName, fullTrashPath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     ///     Calculates the total size of all files within a directory (recursively).
     /// </summary>
-    private long GetDirectorySize(string directoryPath, string? trashFolderName, CancellationToken cancellationToken)
+    private long GetDirectorySize(string directoryPath, string trashFolderName, string fullTrashPath, CancellationToken cancellationToken)
     {
         long total = 0;
         try
@@ -477,19 +500,13 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
                 cancellationToken.ThrowIfCancellationRequested();
                 var dirName = Path.GetFileName(subDir.FullName);
 
-                // Skip trickplay and trash subdirectories
-                if (string.Equals(dirName, "trickplay", StringComparison.OrdinalIgnoreCase))
+                // Skip .trickplay and trash subdirectories
+                if (ShouldSkipDirectory(subDir.FullName, dirName, trashFolderName, fullTrashPath))
                 {
                     continue;
                 }
 
-                if (!string.IsNullOrEmpty(trashFolderName) &&
-                    string.Equals(dirName, trashFolderName, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                total += GetDirectorySize(subDir.FullName, trashFolderName, cancellationToken);
+                total += GetDirectorySize(subDir.FullName, trashFolderName, fullTrashPath, cancellationToken);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

@@ -115,12 +115,19 @@ public class MediaStatisticsResultTests
         var lib2 = new LibraryStatistics();
         lib2.Resolutions["1080p"] = 5;
         lib2.Resolutions["4K"] = 3;
+        var musicOnly = new LibraryStatistics();
+        musicOnly.Resolutions["8K"] = 99;
+
         result.Libraries.Add(lib1);
         result.Libraries.Add(lib2);
+        result.Libraries.Add(musicOnly);
+        result.Movies.Add(lib1);
+        result.Movies.Add(lib2);
 
         var totals = result.TotalResolutions;
         Assert.Equal(15, totals["1080p"]);
         Assert.Equal(3, totals["4K"]);
+        Assert.False(totals.ContainsKey("8K"), "Music-only entry must not appear in video-only TotalResolutions");
     }
 
     [Fact]
@@ -131,12 +138,19 @@ public class MediaStatisticsResultTests
         lib1.VideoCodecs["h264"] = 10;
         var lib2 = new LibraryStatistics();
         lib2.VideoCodecs["h265"] = 5;
+        var musicOnly = new LibraryStatistics();
+        musicOnly.VideoCodecs["vp9"] = 99;
+
         result.Libraries.Add(lib1);
         result.Libraries.Add(lib2);
+        result.Libraries.Add(musicOnly);
+        result.Movies.Add(lib1);
+        result.TvShows.Add(lib2);
 
         var totals = result.TotalVideoCodecs;
         Assert.Equal(10, totals["h264"]);
         Assert.Equal(5, totals["h265"]);
+        Assert.False(totals.ContainsKey("vp9"), "Music-only entry must not appear in video-only TotalVideoCodecs");
     }
 
     [Fact]
@@ -145,9 +159,15 @@ public class MediaStatisticsResultTests
         var result = new MediaStatisticsResult();
         var lib = new LibraryStatistics();
         lib.VideoAudioCodecs["aac"] = 7;
+        var musicOnly = new LibraryStatistics();
+        musicOnly.VideoAudioCodecs["opus"] = 99;
+
         result.Libraries.Add(lib);
+        result.Libraries.Add(musicOnly);
+        result.Movies.Add(lib);
 
         Assert.Equal(7, result.TotalVideoAudioCodecs["aac"]);
+        Assert.False(result.TotalVideoAudioCodecs.ContainsKey("opus"), "Music-only entry must not appear in video-only TotalVideoAudioCodecs");
     }
 
     [Fact]
@@ -181,9 +201,15 @@ public class MediaStatisticsResultTests
         var result = new MediaStatisticsResult();
         var lib = new LibraryStatistics();
         lib.ResolutionSizes["1080p"] = 5000000L;
+        var musicOnly = new LibraryStatistics();
+        musicOnly.ResolutionSizes["8K"] = 9999999L;
+
         result.Libraries.Add(lib);
+        result.Libraries.Add(musicOnly);
+        result.Movies.Add(lib);
 
         Assert.Equal(5000000L, result.TotalResolutionSizes["1080p"]);
+        Assert.False(result.TotalResolutionSizes.ContainsKey("8K"), "Music-only entry must not appear in video-only TotalResolutionSizes");
     }
 
     [Fact]
@@ -192,9 +218,15 @@ public class MediaStatisticsResultTests
         var result = new MediaStatisticsResult();
         var lib = new LibraryStatistics();
         lib.VideoCodecSizes["h264"] = 999L;
+        var musicOnly = new LibraryStatistics();
+        musicOnly.VideoCodecSizes["vp9"] = 9999999L;
+
         result.Libraries.Add(lib);
+        result.Libraries.Add(musicOnly);
+        result.TvShows.Add(lib);
 
         Assert.Equal(999L, result.TotalVideoCodecSizes["h264"]);
+        Assert.False(result.TotalVideoCodecSizes.ContainsKey("vp9"), "Music-only entry must not appear in video-only TotalVideoCodecSizes");
     }
 
     [Fact]
@@ -203,9 +235,15 @@ public class MediaStatisticsResultTests
         var result = new MediaStatisticsResult();
         var lib = new LibraryStatistics();
         lib.VideoAudioCodecSizes["aac"] = 500L;
+        var musicOnly = new LibraryStatistics();
+        musicOnly.VideoAudioCodecSizes["opus"] = 9999999L;
+
         result.Libraries.Add(lib);
+        result.Libraries.Add(musicOnly);
+        result.Other.Add(lib);
 
         Assert.Equal(500L, result.TotalVideoAudioCodecSizes["aac"]);
+        Assert.False(result.TotalVideoAudioCodecSizes.ContainsKey("opus"), "Music-only entry must not appear in video-only TotalVideoAudioCodecSizes");
     }
 
     [Fact]

@@ -52,7 +52,7 @@
   "hoursAgo": "saat önce",
   "dayAgo": "gün önce",
   "daysAgo": "gün önce",
-  "lastScan": "Son Tarama",
+  "lastScan": "Tarama",
   "items": "öğe",
   "trashContents": "Çöp kutusu içeriği",
   "trashItems": "çöp kutusundaki öğeler",
@@ -65,6 +65,7 @@
   "musicAudioCodecs": "Müzik Ses Kodekleri",
   "containerFormats": "Konteyner Formatları",
   "resolutions": "Çözünürlükler",
+  "dynamicRange": "Dinamik Aralık",
   "noData": "Veri yok",
   "healthChecks": "Kütüphane Sağlık Kontrolleri",
   "noSubtitles": "Altyazısız videolar",
@@ -201,5 +202,13 @@
   "unsavedChangesTitle": "Kaydedilmemiş Değişiklikler",
   "unsavedChangesMsg": "Kaydedilmemiş ayar değişiklikleriniz var. Ne yapmak istersiniz?",
   "discardChanges": "Değişiklikleri At",
-  "saveAndContinue": "Kaydet ve Devam Et"
+  "saveAndContinue": "Kaydet ve Devam Et",
+  "loadingInsights": "Bilgiler yükleniyor…",
+  "insightsError": "Bilgiler yüklenemedi.",
+  "insightLargest": "En Büyük",
+  "insightRecent": "Son",
+  "insightNoData": "Veri bulunamadı.",
+  "insightNoRecent": "Son değişiklik bulunamadı.",
+  "insightAdded": "eklendi",
+  "insightChanged": "değiştirildi"
 }

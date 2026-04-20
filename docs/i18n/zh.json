@@ -65,6 +65,7 @@
   "musicAudioCodecs": "音乐音频编解码器",
   "containerFormats": "容器格式",
   "resolutions": "分辨率",
+  "dynamicRange": "动态范围",
   "noData": "无数据",
   "healthChecks": "媒体库健康检查",
   "noSubtitles": "无字幕的视频",
@@ -201,5 +202,13 @@
   "unsavedChangesTitle": "未保存的更改",
   "unsavedChangesMsg": "您有未保存的设置更改。您想怎么做？",
   "discardChanges": "放弃更改",
-  "saveAndContinue": "保存并继续"
+  "saveAndContinue": "保存并继续",
+  "loadingInsights": "正在加载信息…",
+  "insightsError": "无法加载信息。",
+  "insightLargest": "最大",
+  "insightRecent": "最近",
+  "insightNoData": "没有可用数据。",
+  "insightNoRecent": "未找到最近的更改。",
+  "insightAdded": "已添加",
+  "insightChanged": "已更改"
 }

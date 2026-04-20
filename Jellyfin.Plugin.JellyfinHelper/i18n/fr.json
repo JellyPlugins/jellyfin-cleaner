@@ -52,7 +52,7 @@
   "hoursAgo": "heures",
   "dayAgo": "jour",
   "daysAgo": "jours",
-  "lastScan": "Dernier scan",
+  "lastScan": "Scan",
   "items": "éléments",
   "trashContents": "Contenu de la corbeille",
   "trashItems": "éléments dans la corbeille",
@@ -65,6 +65,7 @@
   "musicAudioCodecs": "Codecs audio musique",
   "containerFormats": "Formats conteneurs",
   "resolutions": "Résolutions",
+  "dynamicRange": "Plage Dynamique",
   "noData": "Aucune donnée",
   "healthChecks": "Vérifications de santé",
   "noSubtitles": "Vidéos sans sous-titres",
@@ -201,5 +202,13 @@
   "unsavedChangesTitle": "Modifications non enregistrées",
   "unsavedChangesMsg": "Vous avez des modifications non enregistrées. Que souhaitez-vous faire ?",
   "discardChanges": "Annuler les modifications",
-  "saveAndContinue": "Enregistrer et continuer"
+  "saveAndContinue": "Enregistrer et continuer",
+  "loadingInsights": "Chargement des aperçus…",
+  "insightsError": "Impossible de charger les aperçus.",
+  "insightLargest": "Plus volumineux",
+  "insightRecent": "Récemment",
+  "insightNoData": "Aucune donnée disponible.",
+  "insightNoRecent": "Aucun changement récent trouvé.",
+  "insightAdded": "ajouté",
+  "insightChanged": "modifié"
 }
