@@ -300,7 +300,7 @@ public class LibraryInsightsServiceTests
     {
         // Arrange — create a real temp directory so Directory.GetCreationTimeUtc works
         using var tempDir = new TempDirectory();
-        var movieDir = tempDir.CreateSubDirectory("My Movie (2025)");
+        tempDir.CreateSubDirectory("My Movie (2025)");
         tempDir.CreateFile("My Movie (2025)/movie.mkv", 500_000);
 
         var service = CreateServiceWithSingleLibrary(tempDir.Path, "Movies", CollectionTypeOptions.movies);
@@ -321,7 +321,7 @@ public class LibraryInsightsServiceTests
         using var tempDir = new TempDirectory();
         tempDir.CreateSubDirectory("trickplay");
         tempDir.CreateFile("trickplay/some.bin", 1000);
-        var movieDir = tempDir.CreateSubDirectory("Real Movie");
+        tempDir.CreateSubDirectory("Real Movie");
         tempDir.CreateFile("Real Movie/movie.mkv", 100_000);
 
         var service = CreateServiceWithSingleLibrary(tempDir.Path, "Movies", CollectionTypeOptions.movies);
@@ -377,7 +377,7 @@ public class LibraryInsightsServiceTests
         var pluginLog = TestMockFactory.CreatePluginLogService();
         var logger = TestMockFactory.CreateLogger<LibraryInsightsService>();
 
-        var fakeLocation = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        var fakeLocation = Path.Join(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
 
         libraryManager.Setup(lm => lm.GetVirtualFolders()).Returns(new List<VirtualFolderInfo>
         {
@@ -510,7 +510,7 @@ public class LibraryInsightsServiceTests
     {
         public TempDirectory()
         {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jfh-test-" + Guid.NewGuid().ToString("N"));
+            Path = System.IO.Path.Join(System.IO.Path.GetTempPath(), "jfh-test-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path);
         }
 
@@ -518,6 +518,16 @@ public class LibraryInsightsServiceTests
 
         public string CreateSubDirectory(string name)
         {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("Subdirectory name must be a non-empty relative path.", nameof(name));
+            }
+
+            if (System.IO.Path.IsPathRooted(name))
+            {
+                throw new ArgumentException("Subdirectory name must be a relative path.", nameof(name));
+            }
+
             var dir = System.IO.Path.Combine(Path, name);
             Directory.CreateDirectory(dir);
             return dir;
@@ -525,6 +535,16 @@ public class LibraryInsightsServiceTests
 
         public string CreateFile(string relativePath, long size)
         {
+            if (string.IsNullOrWhiteSpace(relativePath))
+            {
+                throw new ArgumentException("File path must be a non-empty relative path.", nameof(relativePath));
+            }
+
+            if (System.IO.Path.IsPathRooted(relativePath))
+            {
+                throw new ArgumentException("File path must be a relative path.", nameof(relativePath));
+            }
+
             var fullPath = System.IO.Path.Combine(Path, relativePath);
             var dir = System.IO.Path.GetDirectoryName(fullPath);
             if (dir != null && !Directory.Exists(dir))
@@ -551,7 +571,11 @@ public class LibraryInsightsServiceTests
                     Directory.Delete(Path, recursive: true);
                 }
             }
-            catch
+            catch (IOException)
+            {
+                // Best effort cleanup
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Best effort cleanup
             }
