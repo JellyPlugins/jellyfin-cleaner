@@ -153,6 +153,11 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
             var createdUtc = Directory.GetCreationTimeUtc(subDir.FullName);
             if (createdUtc == DateTime.MinValue || createdUtc.Year < 1990)
             {
+                createdUtc = Directory.GetLastWriteTimeUtc(subDir.FullName);
+            }
+
+            if (createdUtc == DateTime.MinValue || createdUtc.Year < 1990)
+            {
                 continue;
             }
 

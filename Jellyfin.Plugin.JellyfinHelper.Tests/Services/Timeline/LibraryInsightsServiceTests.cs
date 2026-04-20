@@ -301,7 +301,7 @@ public class LibraryInsightsServiceTests
         // Arrange — create a real temp directory so Directory.GetCreationTimeUtc works
         using var tempDir = new TempDirectory();
         var movieDir = tempDir.CreateSubDirectory("My Movie (2025)");
-        tempDir.CreateFile("My Movie (2025)/movie.mkv", 500_000_000);
+        tempDir.CreateFile("My Movie (2025)/movie.mkv", 500_000);
 
         var service = CreateServiceWithSingleLibrary(tempDir.Path, "Movies", CollectionTypeOptions.movies);
 
@@ -358,7 +358,7 @@ public class LibraryInsightsServiceTests
     {
         using var tempDir = new TempDirectory();
         tempDir.CreateSubDirectory("Album");
-        tempDir.CreateFile("Album/track.flac", 50_000_000);
+        tempDir.CreateFile("Album/track.flac", 50_000);
 
         var service = CreateServiceWithSingleLibrary(tempDir.Path, "Music", CollectionTypeOptions.music);
 
@@ -422,7 +422,7 @@ public class LibraryInsightsServiceTests
     public async Task ComputeInsightsAsync_CollectsLooseVideoFiles()
     {
         using var tempDir = new TempDirectory();
-        tempDir.CreateFile("standalone_movie.mp4", 200_000_000);
+        tempDir.CreateFile("standalone_movie.mp4", 200_000);
 
         var service = CreateServiceWithSingleLibrary(tempDir.Path, "Movies", CollectionTypeOptions.movies);
 

@@ -203,7 +203,7 @@ public class TrendsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_ContainsLoadInsightsFunction()
     {
-        Assert.Contains("function loadInsights", HtmlContent);
+        Assert.Contains("function loadInsightsData", HtmlContent);
     }
 
     [Fact]

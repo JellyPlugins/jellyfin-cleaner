@@ -499,14 +499,8 @@ function attachTrendInteraction(container) {
         hideTooltip();
     });
 
-    // Touch events — show tooltip on tap/drag, hide on release
-    var hideTimeoutId = null;
-
+    // Touch events — show tooltip on tap/drag, persist after release
     svgEl.addEventListener('touchstart', function (e) {
-        if (hideTimeoutId) {
-            clearTimeout(hideTimeoutId);
-            hideTimeoutId = null;
-        }
         if (e.touches.length === 1) {
             var idx = getPointIndex(e.touches[0].clientX);
             showTooltip(idx);
@@ -522,23 +516,10 @@ function attachTrendInteraction(container) {
         }
     }, {passive: true});
 
-    svgEl.addEventListener('touchend', function () {
-        // Keep tooltip visible briefly after touch ends, then hide
-        if (hideTimeoutId) {
-            clearTimeout(hideTimeoutId);
-        }
-        hideTimeoutId = setTimeout(function () {
-            hideTooltip();
-            hideTimeoutId = null;
-        }, 1500);
-    }, {passive: true});
+    // touchend: intentionally no-op — tooltip stays visible until next touch
 
     svgEl.addEventListener('touchcancel', function () {
-        if (hideTimeoutId) {
-            clearTimeout(hideTimeoutId);
-        }
         hideTooltip();
-        hideTimeoutId = null;
     }, {passive: true});
 }
 

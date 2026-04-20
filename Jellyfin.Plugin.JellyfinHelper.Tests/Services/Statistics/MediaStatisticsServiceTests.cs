@@ -2456,7 +2456,7 @@ public class MetadataExtractionTests
     }
 
     [Fact]
-    public void VideoWithDolbyVision_ClassifiedCorrectly()
+    public void VideoMetadata_DefaultsToSdr_WhenRangeTypeIsUnavailable()
     {
         var libraryPath = TestPath("media", "movies");
         var videoPath = TestPath("media", "movies", "DoVi.mkv");
@@ -2978,7 +2978,7 @@ public class MetadataExtractionTests
         mockItem.Object.Path = filePath;
         mockItem.Setup(i => i.GetMediaStreams()).Returns(
         [
-            new MediaStream { Type = MediaStreamType.Audio, Codec = "flac" }
+            new MediaStream { Type = MediaStreamType.Audio, Codec = "opus" }
         ]);
 
         _libraryManagerMock.Setup(m => m.FindByPath(filePath, false)).Returns(mockItem.Object);
@@ -2986,9 +2986,9 @@ public class MetadataExtractionTests
         var result = _service.CalculateStatistics();
         var stats = result.Libraries[0];
 
-        // Codec from Jellyfin streams via FindByPath fallback
-        Assert.Equal(1, stats.MusicAudioCodecs["FLAC"]);
-        Assert.Equal(40_000_000, stats.MusicAudioCodecSizes["FLAC"]);
+        // Codec from Jellyfin streams via FindByPath fallback (opus, NOT flac from extension)
+        Assert.Equal(1, stats.MusicAudioCodecs["Opus"]);
+        Assert.Equal(40_000_000, stats.MusicAudioCodecSizes["Opus"]);
     }
 
     [Fact]
