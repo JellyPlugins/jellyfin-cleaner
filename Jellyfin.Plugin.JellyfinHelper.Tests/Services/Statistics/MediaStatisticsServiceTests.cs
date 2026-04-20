@@ -2750,9 +2750,9 @@ public class MetadataExtractionTests
         var stats = result.Libraries[0];
 
         // DynamicRangePaths should be populated (VideoRangeType defaults to SDR on MediaStream)
-        Assert.True(stats.DynamicRangePaths.ContainsKey("SDR"));
-        Assert.Contains(hevcPath, stats.DynamicRangePaths["SDR"]);
-        Assert.Contains(sdrPath, stats.DynamicRangePaths["SDR"]);
+        Assert.True(stats.DynamicRangePaths.TryGetValue("SDR", out var sdrPaths));
+        Assert.Contains(hevcPath, sdrPaths);
+        Assert.Contains(sdrPath, sdrPaths);
 
         // DynamicRangeSizes should be tracked
         Assert.Equal(7_000_000_000, stats.DynamicRangeSizes["SDR"]);

@@ -528,7 +528,7 @@ public class LibraryInsightsServiceTests
                 throw new ArgumentException("Subdirectory name must be a relative path.", nameof(name));
             }
 
-            var dir = System.IO.Path.Combine(Path, name);
+            var dir = SafeCombinePath(name, nameof(name));
             Directory.CreateDirectory(dir);
             return dir;
         }
@@ -545,7 +545,7 @@ public class LibraryInsightsServiceTests
                 throw new ArgumentException("File path must be a relative path.", nameof(relativePath));
             }
 
-            var fullPath = System.IO.Path.Combine(Path, relativePath);
+            var fullPath = SafeCombinePath(relativePath, nameof(relativePath));
             var dir = System.IO.Path.GetDirectoryName(fullPath);
             if (dir != null && !Directory.Exists(dir))
             {
@@ -560,6 +560,23 @@ public class LibraryInsightsServiceTests
             }
 
             return fullPath;
+        }
+
+        private string SafeCombinePath(string relativePath, string paramName)
+        {
+            var basePath = System.IO.Path.GetFullPath(Path);
+            if (!basePath.EndsWith(System.IO.Path.DirectorySeparatorChar))
+            {
+                basePath += System.IO.Path.DirectorySeparatorChar;
+            }
+
+            var candidate = System.IO.Path.GetFullPath(System.IO.Path.Combine(Path, relativePath));
+            if (!candidate.StartsWith(basePath, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("Path must stay within the temp directory.", paramName);
+            }
+
+            return candidate;
         }
 
         public void Dispose()
