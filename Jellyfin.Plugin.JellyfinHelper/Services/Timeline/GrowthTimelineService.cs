@@ -382,8 +382,8 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
 
                     var dirName = Path.GetFileName(subDir.FullName);
 
-                    // Skip trickplay and trash directories
-                    if (string.Equals(dirName, "trickplay", StringComparison.OrdinalIgnoreCase))
+                    // Skip .trickplay and trash directories
+                    if (dirName.EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }
@@ -477,8 +477,8 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
                 cancellationToken.ThrowIfCancellationRequested();
                 var dirName = Path.GetFileName(subDir.FullName);
 
-                // Skip trickplay and trash subdirectories
-                if (string.Equals(dirName, "trickplay", StringComparison.OrdinalIgnoreCase))
+                // Skip .trickplay and trash subdirectories
+                if (dirName.EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }

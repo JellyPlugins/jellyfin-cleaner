@@ -267,11 +267,12 @@
 }
 
 .insight-panel.visible {
-    max-height: 800px;
+    max-height: min(70vh, 800px);
     opacity: 1;
     padding: 14px 16px;
     border-color: rgba(255, 255, 255, 0.08);
     margin-top: 8px;
+    overflow-y: auto;
 }
 
 /* Tree inside panels */
@@ -408,7 +409,7 @@
 
     .insight-panel.visible {
         padding: 10px 12px;
-        max-height: 600px;
+        max-height: min(60vh, 600px);
     }
 
     .insight-tree-item {

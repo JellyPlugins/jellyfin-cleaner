@@ -138,8 +138,8 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
 
             var dirName = Path.GetFileName(subDir.FullName);
 
-            // Skip trickplay and trash directories
-            if (string.Equals(dirName, "trickplay", StringComparison.OrdinalIgnoreCase))
+            // Skip .trickplay and trash directories
+            if (dirName.EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -339,7 +339,7 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
                 cancellationToken.ThrowIfCancellationRequested();
                 var dirName = Path.GetFileName(subDir.FullName);
 
-                if (string.Equals(dirName, "trickplay", StringComparison.OrdinalIgnoreCase))
+                if (dirName.EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }

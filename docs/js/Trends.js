@@ -535,6 +535,11 @@ function loadInsightsData() {
     var apiClient = ApiClient;
     var url = apiClient.getUrl('JellyfinHelper/LibraryInsights');
 
+    var container = document.getElementById('insightsContainer');
+    if (container) {
+        container.innerHTML = '<div class="trend-empty">' + T('loadingInsights', 'Loading insights…') + '</div>';
+    }
+
     apiClient.ajax({type: 'GET', url: url, dataType: 'json'}).then(function (data) {
         if (seq !== _insightsLoadSeq) return;
         renderInsightCards(data);

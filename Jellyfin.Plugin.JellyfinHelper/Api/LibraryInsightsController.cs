@@ -22,6 +22,7 @@ public class LibraryInsightsController : ControllerBase
 {
     internal const string InsightsCacheKey = "JellyfinHelper_LibraryInsights";
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(15);
+    private static readonly SemaphoreSlim CacheFillLock = new(1, 1);
 
     private readonly IMemoryCache _cache;
     private readonly ILibraryInsightsService _insightsService;
@@ -40,6 +41,8 @@ public class LibraryInsightsController : ControllerBase
     /// <summary>
     ///     Gets library insights including the largest media directories and recently added/changed items.
     ///     Results are cached for 15 minutes to avoid repeated filesystem scans.
+    ///     Uses double-check locking to prevent concurrent cache misses from triggering
+    ///     duplicate expensive filesystem scans.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The library insights result.</returns>
@@ -53,8 +56,22 @@ public class LibraryInsightsController : ControllerBase
             return Ok(cached);
         }
 
-        var result = await _insightsService.ComputeInsightsAsync(cancellationToken).ConfigureAwait(false);
-        _cache.Set(InsightsCacheKey, result, CacheDuration);
-        return Ok(result);
+        await CacheFillLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            // Double-check: another thread may have populated the cache while we waited
+            if (_cache.TryGetValue(InsightsCacheKey, out cached) && cached != null)
+            {
+                return Ok(cached);
+            }
+
+            var result = await _insightsService.ComputeInsightsAsync(cancellationToken).ConfigureAwait(false);
+            _cache.Set(InsightsCacheKey, result, CacheDuration);
+            return Ok(result);
+        }
+        finally
+        {
+            CacheFillLock.Release();
+        }
     }
 }

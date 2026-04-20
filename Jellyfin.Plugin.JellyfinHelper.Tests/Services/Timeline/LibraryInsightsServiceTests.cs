@@ -319,8 +319,8 @@ public class LibraryInsightsServiceTests
     public async Task ComputeInsightsAsync_SkipsTrickplayDirectories()
     {
         using var tempDir = new TempDirectory();
-        tempDir.CreateSubDirectory("trickplay");
-        tempDir.CreateFile("trickplay/some.bin", 1000);
+        tempDir.CreateSubDirectory("Movie.trickplay");
+        tempDir.CreateFile("Movie.trickplay/some.bin", 1000);
         tempDir.CreateSubDirectory("Real Movie");
         tempDir.CreateFile("Real Movie/movie.mkv", 100_000);
 
@@ -329,7 +329,7 @@ public class LibraryInsightsServiceTests
         var result = await service.ComputeInsightsAsync(CancellationToken.None);
 
         Assert.DoesNotContain(result.Largest, e =>
-            string.Equals(e.Name, "trickplay", StringComparison.OrdinalIgnoreCase));
+            e.Name.EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(result.Largest, e => e.Name == "Real Movie");
     }
 

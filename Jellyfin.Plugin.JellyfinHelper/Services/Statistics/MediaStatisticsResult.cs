@@ -105,19 +105,19 @@ public class MediaStatisticsResult
     public Dictionary<string, int> TotalContainerFormats => AggregateDictionaries(Libraries.Select(l => l.ContainerFormats));
 
     /// <summary>
-    /// Gets the aggregated resolution breakdown across all libraries.
+    /// Gets the aggregated resolution breakdown across video libraries only (Movies + TV Shows + Other).
     /// </summary>
-    public Dictionary<string, int> TotalResolutions => AggregateDictionaries(Libraries.Select(l => l.Resolutions));
+    public Dictionary<string, int> TotalResolutions => AggregateDictionaries(VideoLibraries.Select(l => l.Resolutions));
 
     /// <summary>
-    /// Gets the aggregated video codec breakdown across all libraries.
+    /// Gets the aggregated video codec breakdown across video libraries only (Movies + TV Shows + Other).
     /// </summary>
-    public Dictionary<string, int> TotalVideoCodecs => AggregateDictionaries(Libraries.Select(l => l.VideoCodecs));
+    public Dictionary<string, int> TotalVideoCodecs => AggregateDictionaries(VideoLibraries.Select(l => l.VideoCodecs));
 
     /// <summary>
-    /// Gets the aggregated video audio codec breakdown across all libraries.
+    /// Gets the aggregated video audio codec breakdown across video libraries only (Movies + TV Shows + Other).
     /// </summary>
-    public Dictionary<string, int> TotalVideoAudioCodecs => AggregateDictionaries(Libraries.Select(l => l.VideoAudioCodecs));
+    public Dictionary<string, int> TotalVideoAudioCodecs => AggregateDictionaries(VideoLibraries.Select(l => l.VideoAudioCodecs));
 
     /// <summary>
     /// Gets the aggregated music audio codec breakdown across all libraries.
@@ -130,19 +130,19 @@ public class MediaStatisticsResult
     public Dictionary<string, long> TotalContainerSizes => AggregateLongDictionaries(Libraries.Select(l => l.ContainerSizes));
 
     /// <summary>
-    /// Gets the aggregated resolution sizes across all libraries.
+    /// Gets the aggregated resolution sizes across video libraries only (Movies + TV Shows + Other).
     /// </summary>
-    public Dictionary<string, long> TotalResolutionSizes => AggregateLongDictionaries(Libraries.Select(l => l.ResolutionSizes));
+    public Dictionary<string, long> TotalResolutionSizes => AggregateLongDictionaries(VideoLibraries.Select(l => l.ResolutionSizes));
 
     /// <summary>
-    /// Gets the aggregated video codec sizes across all libraries.
+    /// Gets the aggregated video codec sizes across video libraries only (Movies + TV Shows + Other).
     /// </summary>
-    public Dictionary<string, long> TotalVideoCodecSizes => AggregateLongDictionaries(Libraries.Select(l => l.VideoCodecSizes));
+    public Dictionary<string, long> TotalVideoCodecSizes => AggregateLongDictionaries(VideoLibraries.Select(l => l.VideoCodecSizes));
 
     /// <summary>
-    /// Gets the aggregated video audio codec sizes across all libraries.
+    /// Gets the aggregated video audio codec sizes across video libraries only (Movies + TV Shows + Other).
     /// </summary>
-    public Dictionary<string, long> TotalVideoAudioCodecSizes => AggregateLongDictionaries(Libraries.Select(l => l.VideoAudioCodecSizes));
+    public Dictionary<string, long> TotalVideoAudioCodecSizes => AggregateLongDictionaries(VideoLibraries.Select(l => l.VideoAudioCodecSizes));
 
     /// <summary>
     /// Gets the aggregated music audio codec sizes across all libraries.

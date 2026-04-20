@@ -472,6 +472,8 @@ function fillCodecsData(data) {
     var hasVideoCodecs = Object.keys(videoCodecs).length > 0;
     var hasVideoAudio = Object.keys(videoAudioCodecs).length > 0;
     var hasMusicAudio = Object.keys(musicAudioCodecs).length > 0;
+    var hasAnyCharts = hasContainers || hasResolutions || hasDynamicRanges
+        || hasVideoCodecs || hasVideoAudio || hasMusicAudio;
 
     var codecsHtml = '<div class="charts-row">';
     if (hasContainers) {
@@ -505,6 +507,9 @@ function fillCodecsData(data) {
         codecsHtml += renderDonutChart(musicAudioCodecs, musicAudioCodecSizes, 'musicAudioCodecs', musicLibraries,
             'MusicAudioCodecs');
         codecsHtml += '</div>';
+    }
+    if (!hasAnyCharts) {
+        codecsHtml += '<div class="chart-box"><p style="opacity:0.5;">' + T('noData', 'No data') + '</p></div>';
     }
     codecsHtml += '</div>';
 

@@ -14,7 +14,7 @@ and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin
 - **Library Insights Mock Data** — Added library insights mock data and API route to the live demo.
 
 ### Changed
-- **Statistics Refactored to MediaStream** — Video codecs, audio codecs, resolutions, and dynamic range are now extracted from Jellyfin `MediaStream` metadata instead of filename parsing. Supports differentiated audio codecs (TrueHD Atmos, DTS-X, DTS-HD MA, EAC3 Atmos, etc.).
+- **Statistics Refactored to MediaStream** — Video codecs, resolutions, and dynamic range are now extracted from Jellyfin `MediaStream` metadata, while audio codec detection is `MediaStream`-first with filename/extension fallback where metadata is missing. Supports differentiated audio codecs (TrueHD Atmos, DTS-X, DTS-HD MA, EAC3 Atmos, etc.).
 - **Dynamic Range Detection** — New per-library dynamic range statistics (`HDR10`, `HDR10+`, `Dolby Vision`, `HLG`, `SDR`) with `VideoRangeType` → `VideoRange` fallback chain.
 - **Resolution Classification** — Extended to 8K, 4K, 1440p, 1080p, 720p, 576p, 480p, SD with width+height-based classification.
 - **Donut Chart Enhancements** — Added dynamic range donut chart, improved codec icon mapping, animation support for all donut charts.

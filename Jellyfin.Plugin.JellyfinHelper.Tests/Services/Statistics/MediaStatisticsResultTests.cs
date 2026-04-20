@@ -117,6 +117,8 @@ public class MediaStatisticsResultTests
         lib2.Resolutions["4K"] = 3;
         result.Libraries.Add(lib1);
         result.Libraries.Add(lib2);
+        result.Movies.Add(lib1);
+        result.Movies.Add(lib2);
 
         var totals = result.TotalResolutions;
         Assert.Equal(15, totals["1080p"]);
@@ -133,6 +135,8 @@ public class MediaStatisticsResultTests
         lib2.VideoCodecs["h265"] = 5;
         result.Libraries.Add(lib1);
         result.Libraries.Add(lib2);
+        result.Movies.Add(lib1);
+        result.TvShows.Add(lib2);
 
         var totals = result.TotalVideoCodecs;
         Assert.Equal(10, totals["h264"]);
@@ -146,6 +150,7 @@ public class MediaStatisticsResultTests
         var lib = new LibraryStatistics();
         lib.VideoAudioCodecs["aac"] = 7;
         result.Libraries.Add(lib);
+        result.Movies.Add(lib);
 
         Assert.Equal(7, result.TotalVideoAudioCodecs["aac"]);
     }
@@ -182,6 +187,7 @@ public class MediaStatisticsResultTests
         var lib = new LibraryStatistics();
         lib.ResolutionSizes["1080p"] = 5000000L;
         result.Libraries.Add(lib);
+        result.Movies.Add(lib);
 
         Assert.Equal(5000000L, result.TotalResolutionSizes["1080p"]);
     }
@@ -193,6 +199,7 @@ public class MediaStatisticsResultTests
         var lib = new LibraryStatistics();
         lib.VideoCodecSizes["h264"] = 999L;
         result.Libraries.Add(lib);
+        result.TvShows.Add(lib);
 
         Assert.Equal(999L, result.TotalVideoCodecSizes["h264"]);
     }
@@ -204,6 +211,7 @@ public class MediaStatisticsResultTests
         var lib = new LibraryStatistics();
         lib.VideoAudioCodecSizes["aac"] = 500L;
         result.Libraries.Add(lib);
+        result.Other.Add(lib);
 
         Assert.Equal(500L, result.TotalVideoAudioCodecSizes["aac"]);
     }

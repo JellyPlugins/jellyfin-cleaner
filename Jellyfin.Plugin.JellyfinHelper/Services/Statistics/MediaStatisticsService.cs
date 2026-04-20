@@ -707,7 +707,8 @@ public class MediaStatisticsService : IMediaStatisticsService
             "AAC" or "MP4A" => ClassifyAacProfile(upperProfile),
 
             "FLAC" => "FLAC",
-            "MP3" or "MP2" => "MP3",
+            "MP3" => "MP3",
+            "MP2" => "MP2",
             "OPUS" => "Opus",
             "VORBIS" => "Vorbis",
             "PCM_S16LE" or "PCM_S24LE" or "PCM_S32LE" or "PCM_F32LE" or "PCM" or "LPCM" => "PCM",

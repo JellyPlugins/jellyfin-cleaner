@@ -2327,7 +2327,7 @@ public class ClassifyMethodTests
     [InlineData("mp4a", null, "AAC")]
     [InlineData("flac", null, "FLAC")]
     [InlineData("mp3", null, "MP3")]
-    [InlineData("mp2", null, "MP3")]
+    [InlineData("mp2", null, "MP2")]
     [InlineData("opus", null, "Opus")]
     [InlineData("vorbis", null, "Vorbis")]
     [InlineData("pcm_s16le", null, "PCM")]
