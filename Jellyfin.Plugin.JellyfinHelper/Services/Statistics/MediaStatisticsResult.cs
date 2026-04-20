@@ -13,12 +13,6 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Statistics;
 public class MediaStatisticsResult
 {
     /// <summary>
-    /// Backing field for <see cref="VideoLibraries"/>.
-    /// Cached on first access to avoid re-computing the concatenation for each consumer.
-    /// </summary>
-    private IReadOnlyList<LibraryStatistics>? _videoLibraries;
-
-    /// <summary>
     /// Gets the list of all library statistics.
     /// </summary>
     public Collection<LibraryStatistics> Libraries { get; } = new();
@@ -98,9 +92,10 @@ public class MediaStatisticsResult
     /// <summary>
     /// Gets all video libraries (Movies + TV Shows + Other, excluding Music).
     /// Used for aggregations that only apply to video content.
+    /// Computed fresh on each access to avoid stale results if the underlying collections change.
     /// </summary>
-    private IReadOnlyList<LibraryStatistics> VideoLibraries =>
-        _videoLibraries ??= Movies.Concat(TvShows).Concat(Other).ToList();
+    private IEnumerable<LibraryStatistics> VideoLibraries =>
+        Movies.Concat(TvShows).Concat(Other);
 
     // === Aggregated Codec/Quality ===
 
