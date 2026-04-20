@@ -300,7 +300,7 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/JellyfinHelper/LibraryInsights` | GET | Top-10 largest media dirs + recently added/changed items (last 30 days). 15-min in-memory cache. |
+| `/JellyfinHelper/LibraryInsights` | GET | Largest media dirs (top 10 per collection type) + recently added/changed items (last 30 days). 15-min in-memory cache. |
 
 ### Configuration
 

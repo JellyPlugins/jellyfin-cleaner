@@ -84,12 +84,8 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
         var entries = new List<LibraryInsightEntry>();
         var virtualFolders = _libraryManager.GetVirtualFolders();
         var config = _configHelper.GetConfig();
-        var trashFolderName = string.IsNullOrWhiteSpace(config.TrashFolderPath)
-            ? null
-            : Path.GetFileName(
-                config.TrashFolderPath.TrimEnd(
-                    Path.DirectorySeparatorChar,
-                    Path.AltDirectorySeparatorChar));
+        var trashFolderName = (config.TrashFolderPath ?? string.Empty).Trim()
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
         foreach (var vf in virtualFolders)
         {
@@ -110,10 +106,14 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                // Resolve the full trash path for this library root (handles both relative and absolute paths)
+                var fullTrashPath = Path.GetFullPath(_configHelper.GetTrashPath(location))
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
                 try
                 {
                     CollectEntriesFromLocation(
-                        location, libraryName, collectionTypeStr, trashFolderName, entries, cancellationToken);
+                        location, libraryName, collectionTypeStr, trashFolderName, fullTrashPath, entries, cancellationToken);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
@@ -132,7 +132,8 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
         string location,
         string libraryName,
         string collectionType,
-        string? trashFolderName,
+        string trashFolderName,
+        string fullTrashPath,
         List<LibraryInsightEntry> entries,
         CancellationToken cancellationToken)
     {
@@ -143,14 +144,14 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
 
             var dirName = Path.GetFileName(subDir.FullName);
 
-            // Skip .trickplay and trash directories
+            // Skip .trickplay directories
             if (dirName.EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            if (!string.IsNullOrEmpty(trashFolderName) &&
-                string.Equals(dirName, trashFolderName, StringComparison.OrdinalIgnoreCase))
+            // Skip trash directories: match by leaf name (relative paths) or resolved full path (absolute paths)
+            if (ShouldSkipAsTrash(subDir.FullName, dirName, trashFolderName, fullTrashPath))
             {
                 continue;
             }
@@ -168,7 +169,7 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
 
             var modifiedUtc = Directory.GetLastWriteTimeUtc(subDir.FullName);
 
-            var totalSize = GetDirectorySize(subDir.FullName, trashFolderName, cancellationToken);
+            var totalSize = GetDirectorySize(subDir.FullName, trashFolderName, fullTrashPath, cancellationToken);
             if (totalSize <= 0)
             {
                 continue;
@@ -326,9 +327,27 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
     }
 
     /// <summary>
+    ///     Determines whether a subdirectory should be skipped as a trash folder,
+    ///     matching by leaf name (for relative trash paths) or resolved full path (for absolute trash paths).
+    /// </summary>
+    private static bool ShouldSkipAsTrash(string fullName, string dirName, string trashFolderName, string fullTrashPath)
+    {
+        if (!string.IsNullOrEmpty(trashFolderName) &&
+            string.Equals(dirName, trashFolderName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var normalizedFullName = Path.GetFullPath(fullName)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return !string.IsNullOrEmpty(fullTrashPath) &&
+               string.Equals(normalizedFullName, fullTrashPath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     ///     Calculates the total size of all files within a directory (recursively).
     /// </summary>
-    private long GetDirectorySize(string directoryPath, string? trashFolderName, CancellationToken cancellationToken)
+    private long GetDirectorySize(string directoryPath, string trashFolderName, string fullTrashPath, CancellationToken cancellationToken)
     {
         long total = 0;
         try
@@ -349,13 +368,12 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
                     continue;
                 }
 
-                if (!string.IsNullOrEmpty(trashFolderName) &&
-                    string.Equals(dirName, trashFolderName, StringComparison.OrdinalIgnoreCase))
+                if (ShouldSkipAsTrash(subDir.FullName, dirName, trashFolderName, fullTrashPath))
                 {
                     continue;
                 }
 
-                total += GetDirectorySize(subDir.FullName, trashFolderName, cancellationToken);
+                total += GetDirectorySize(subDir.FullName, trashFolderName, fullTrashPath, cancellationToken);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
