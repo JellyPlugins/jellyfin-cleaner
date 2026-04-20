@@ -84,7 +84,12 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
         var entries = new List<LibraryInsightEntry>();
         var virtualFolders = _libraryManager.GetVirtualFolders();
         var config = _configHelper.GetConfig();
-        var trashFolderName = config.TrashFolderPath;
+        var trashFolderName = string.IsNullOrWhiteSpace(config.TrashFolderPath)
+            ? null
+            : Path.GetFileName(
+                config.TrashFolderPath.TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar));
 
         foreach (var vf in virtualFolders)
         {
