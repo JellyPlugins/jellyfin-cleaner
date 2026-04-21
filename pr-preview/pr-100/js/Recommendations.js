@@ -1,11 +1,9 @@
 // --- Recommendations Tab (Smart Suggestions) ---
 
-var _recsLoaded = false;
 var _profileReqId = 0;
 var _activityReqId = 0;
 
 function initRecommendationsTab() {
-    if (_recsLoaded) return;
     loadRecommendations();
 }
 
@@ -18,10 +16,8 @@ function loadRecommendations() {
         + '<p>' + T('loadingRecommendations', 'Loading recommendations…') + '</p></div>';
 
     apiGet('JellyfinHelper/Recommendations', function (data) {
-        _recsLoaded = true;
         renderRecommendations(container, data);
     }, function (err) {
-        _recsLoaded = false;
         container.innerHTML = '<div class="error-msg">❌ '
             + T('recsError', 'Failed to load recommendations. Make sure the recommendation task has run at least once.')
             + '</div>';
@@ -321,8 +317,17 @@ function renderCompactActivityTable(container, items) {
         var statusClass = completionPct >= 90 ? 'activity-status-done'
             : completionPct > 0 ? 'activity-status-progress' : 'activity-status-new';
 
+        // Build display name: for episodes show "SeriesName – S01E03"
+        var displayName = it.ItemName || '—';
+        if (it.SeriesName) {
+            displayName = it.SeriesName;
+            if (it.EpisodeLabel) {
+                displayName += ' \u2013 ' + it.EpisodeLabel;
+            }
+        }
+
         html += '<tr>';
-        html += '<td class="activity-cell-title">' + escHtml(it.ItemName || '—') + '</td>';
+        html += '<td class="activity-cell-title">' + escHtml(displayName) + '</td>';
         html += '<td><span class="recs-tag recs-tag-type">' + escHtml(it.ItemType || '') + '</span></td>';
         html += '<td class="activity-cell-num">' + (it.TotalPlayCount || 0) + '</td>';
         html += '<td>' + (it.MostRecentWatch ? new Date(it.MostRecentWatch).toLocaleDateString() : '—') + '</td>';
