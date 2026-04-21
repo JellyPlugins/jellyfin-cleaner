@@ -204,7 +204,11 @@ function renderRecommendationCard(rec, rank) {
 
     html += '<div class="recs-item-reason">';
     html += '<span class="recs-reason-label">' + T('recsReason', 'Why') + ':</span> ';
-    html += escHtml(rec.Reason || T('recsReasonGeneric', 'Based on your viewing history'));
+    var reasonText = rec.ReasonKey ? T(rec.ReasonKey, rec.Reason || '') : (rec.Reason || T('recsReasonGeneric', 'Based on your viewing history'));
+    if (rec.RelatedItemName && reasonText.indexOf('{0}') !== -1) {
+        reasonText = reasonText.replace('{0}', rec.RelatedItemName);
+    }
+    html += escHtml(reasonText);
     html += '</div>';
 
     html += '<div class="recs-item-score ' + scoreClass + '">';

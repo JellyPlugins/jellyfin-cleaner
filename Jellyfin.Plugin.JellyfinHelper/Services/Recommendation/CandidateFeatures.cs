@@ -8,6 +8,11 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 /// </summary>
 public sealed class CandidateFeatures
 {
+    /// <summary>
+    ///     Normalization ceiling for genre count (items with ≥ this many genres map to 1.0).
+    /// </summary>
+    internal const double GenreCountNormalizationCeiling = 5.0;
+
     /// <summary>Gets or sets the genre similarity score (0–1).</summary>
     public double GenreSimilarity { get; set; }
 
@@ -43,7 +48,7 @@ public sealed class CandidateFeatures
             RatingScore,
             RecencyScore,
             YearProximityScore,
-            Math.Min(GenreCount / 5.0, 1.0), // normalize genre count
+            Math.Min(GenreCount / GenreCountNormalizationCeiling, 1.0),
             IsSeries ? 1.0 : 0.0
         ];
     }
