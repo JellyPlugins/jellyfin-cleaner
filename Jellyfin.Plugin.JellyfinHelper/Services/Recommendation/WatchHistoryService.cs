@@ -15,7 +15,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 /// <summary>
 ///     Collects watch history and user profiles from Jellyfin's user data manager.
 /// </summary>
-public class WatchHistoryService : IWatchHistoryService
+public sealed class WatchHistoryService : IWatchHistoryService
 {
     private readonly ILibraryManager _libraryManager;
     private readonly ILogger<WatchHistoryService> _logger;
@@ -114,7 +114,7 @@ public class WatchHistoryService : IWatchHistoryService
     /// <param name="user">The Jellyfin user entity.</param>
     /// <param name="allItems">Pre-loaded video items from the library (null to query on demand).</param>
     /// <returns>A populated watch profile for the user.</returns>
-    internal virtual UserWatchProfile BuildProfile(
+    internal UserWatchProfile BuildProfile(
         Jellyfin.Database.Implementations.Entities.User user,
         IReadOnlyList<BaseItem>? allItems = null)
     {

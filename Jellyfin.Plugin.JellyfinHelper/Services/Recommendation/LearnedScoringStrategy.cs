@@ -511,6 +511,17 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
                 _featureStdDevs = data.FeatureStdDevs;
                 _trainingGeneration = data.TrainingGeneration;
             }
+            else if (data is not null)
+            {
+                // Version mismatch or incompatible weights — reset to defaults.
+                // This is expected after feature vector changes (version bump).
+                _logger?.LogWarning(
+                    "LearnedScoringStrategy: Discarding persisted weights (file version={FileVersion}, "
+                    + "expected={ExpectedVersion}, featureCount={FeatureCount}). Resetting to defaults",
+                    data.Version,
+                    CurrentWeightsVersion,
+                    data.Weights?.Length ?? 0);
+            }
         }
         catch (IOException ex)
         {

@@ -14,7 +14,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 ///     Persists recommendation results to disk (JSON) following the same pattern
 ///     as <see cref="Statistics.StatisticsCacheService" />.
 /// </summary>
-public class RecommendationCacheService : IRecommendationCacheService
+public sealed class RecommendationCacheService : IRecommendationCacheService
 {
     private const string CacheFileName = "jellyfin-helper-recommendations-latest.json";
 

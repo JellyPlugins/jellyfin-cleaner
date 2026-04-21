@@ -426,4 +426,229 @@ public class RecommendationEngineTests
         Assert.Empty(map);
     }
 
+    // --- ComputeUserRatingScore tests ---
+
+    [Fact]
+    public void ComputeUserRatingScore_NullItem_ReturnsNeutral()
+    {
+        Assert.Equal(0.5, RecommendationEngine.ComputeUserRatingScore(null));
+    }
+
+    [Fact]
+    public void ComputeUserRatingScore_NoRating_ReturnsNeutral()
+    {
+        var item = new WatchedItemInfo { UserRating = null };
+        Assert.Equal(0.5, RecommendationEngine.ComputeUserRatingScore(item));
+    }
+
+    [Fact]
+    public void ComputeUserRatingScore_ZeroRating_ReturnsNeutral()
+    {
+        var item = new WatchedItemInfo { UserRating = 0 };
+        Assert.Equal(0.5, RecommendationEngine.ComputeUserRatingScore(item));
+    }
+
+    [Fact]
+    public void ComputeUserRatingScore_MaxRating_ReturnsOne()
+    {
+        var item = new WatchedItemInfo { UserRating = 10.0 };
+        Assert.Equal(1.0, RecommendationEngine.ComputeUserRatingScore(item));
+    }
+
+    [Fact]
+    public void ComputeUserRatingScore_MidRating_ReturnsHalf()
+    {
+        var item = new WatchedItemInfo { UserRating = 5.0 };
+        Assert.Equal(0.5, RecommendationEngine.ComputeUserRatingScore(item));
+    }
+
+    [Fact]
+    public void ComputeUserRatingScore_AboveTen_ClampedToOne()
+    {
+        var item = new WatchedItemInfo { UserRating = 15.0 };
+        Assert.Equal(1.0, RecommendationEngine.ComputeUserRatingScore(item));
+    }
+
+    // --- ComputeCompletionRatio tests ---
+
+    [Fact]
+    public void ComputeCompletionRatio_NullItem_ReturnsZero()
+    {
+        Assert.Equal(0.0, RecommendationEngine.ComputeCompletionRatio(null));
+    }
+
+    [Fact]
+    public void ComputeCompletionRatio_ZeroRuntime_ReturnsZero()
+    {
+        var item = new WatchedItemInfo { RuntimeTicks = 0, PlaybackPositionTicks = 100 };
+        Assert.Equal(0.0, RecommendationEngine.ComputeCompletionRatio(item));
+    }
+
+    [Fact]
+    public void ComputeCompletionRatio_HalfWatched_ReturnsHalf()
+    {
+        var item = new WatchedItemInfo { RuntimeTicks = 1000, PlaybackPositionTicks = 500 };
+        Assert.Equal(0.5, RecommendationEngine.ComputeCompletionRatio(item));
+    }
+
+    [Fact]
+    public void ComputeCompletionRatio_FullyWatched_ReturnsOne()
+    {
+        var item = new WatchedItemInfo { RuntimeTicks = 1000, PlaybackPositionTicks = 1000 };
+        Assert.Equal(1.0, RecommendationEngine.ComputeCompletionRatio(item));
+    }
+
+    [Fact]
+    public void ComputeCompletionRatio_OverWatched_ClampedToOne()
+    {
+        var item = new WatchedItemInfo { RuntimeTicks = 1000, PlaybackPositionTicks = 1500 };
+        Assert.Equal(1.0, RecommendationEngine.ComputeCompletionRatio(item));
+    }
+
+    // --- ComputeJaccardFromSets tests ---
+
+    [Fact]
+    public void ComputeJaccardFromSets_BothEmpty_ReturnsZero()
+    {
+        var a = new HashSet<string>();
+        var b = new HashSet<string>();
+        Assert.Equal(0.0, RecommendationEngine.ComputeJaccardFromSets(a, b));
+    }
+
+    [Fact]
+    public void ComputeJaccardFromSets_OneEmpty_ReturnsZero()
+    {
+        var a = new HashSet<string> { "Action" };
+        var b = new HashSet<string>();
+        Assert.Equal(0.0, RecommendationEngine.ComputeJaccardFromSets(a, b));
+    }
+
+    [Fact]
+    public void ComputeJaccardFromSets_Identical_ReturnsOne()
+    {
+        var a = new HashSet<string> { "Action", "Comedy" };
+        var b = new HashSet<string> { "Action", "Comedy" };
+        Assert.Equal(1.0, RecommendationEngine.ComputeJaccardFromSets(a, b));
+    }
+
+    [Fact]
+    public void ComputeJaccardFromSets_NoOverlap_ReturnsZero()
+    {
+        var a = new HashSet<string> { "Action" };
+        var b = new HashSet<string> { "Comedy" };
+        Assert.Equal(0.0, RecommendationEngine.ComputeJaccardFromSets(a, b));
+    }
+
+    [Fact]
+    public void ComputeJaccardFromSets_PartialOverlap_ReturnsExpected()
+    {
+        // intersection=1 (Action), union=3 (Action,Comedy,Drama)
+        var a = new HashSet<string> { "Action", "Comedy" };
+        var b = new HashSet<string> { "Action", "Drama" };
+        Assert.Equal(1.0 / 3.0, RecommendationEngine.ComputeJaccardFromSets(a, b), 4);
+    }
+
+    // --- Cold-start behavior tests ---
+
+    [Fact]
+    public void BuildGenrePreferenceVector_WithFavorites_BoostsGenres()
+    {
+        var profile = new UserWatchProfile
+        {
+            GenreDistribution = new Dictionary<string, int>
+            {
+                { "Action", 5 },
+                { "Comedy", 5 }
+            },
+            WatchedItems =
+            [
+                new WatchedItemInfo
+                {
+                    IsFavorite = true,
+                    Genres = new[] { "Action" },
+                    ItemId = Guid.NewGuid(),
+                    Played = true
+                }
+            ]
+        };
+
+        var vector = RecommendationEngine.BuildGenrePreferenceVector(profile);
+
+        // Action should be boosted (5 + 3.0 = 8.0) vs Comedy (5.0)
+        // Normalized: Action = 1.0, Comedy = 5.0/8.0 = 0.625
+        Assert.Equal(1.0, vector["Action"]);
+        Assert.True(vector["Comedy"] < 0.7, $"Comedy should be lower than Action, got {vector["Comedy"]}");
+    }
+
+    [Fact]
+    public void ComputeGenreSimilarity_CaseInsensitive()
+    {
+        var prefs = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "action", 1.0 }
+        };
+
+        var score = RecommendationEngine.ComputeGenreSimilarity(new[] { "Action" }, prefs);
+        Assert.Equal(1.0, score, 4);
+    }
+
+    [Fact]
+    public void ComputeRecencyScore_WithExplicitNow_Deterministic()
+    {
+        var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var oneYearAgo = now.AddDays(-365);
+
+        var score = RecommendationEngine.ComputeRecencyScore(oneYearAgo, now);
+        Assert.True(score > 0.4 && score < 0.6, $"Expected ~0.5 for 1-year decay, got {score}");
+    }
+
+    [Fact]
+    public void BuildCollaborativeMap_MultipleUsersAccumulateWeight()
+    {
+        var shared1 = Guid.NewGuid();
+        var shared2 = Guid.NewGuid();
+        var shared3 = Guid.NewGuid();
+        var uniqueItem = Guid.NewGuid();
+
+        var user = new UserWatchProfile
+        {
+            UserId = Guid.NewGuid(),
+            WatchedItems =
+            [
+                new WatchedItemInfo { ItemId = shared1, Played = true },
+                new WatchedItemInfo { ItemId = shared2, Played = true },
+                new WatchedItemInfo { ItemId = shared3, Played = true }
+            ]
+        };
+
+        var other1 = new UserWatchProfile
+        {
+            UserId = Guid.NewGuid(),
+            WatchedItems =
+            [
+                new WatchedItemInfo { ItemId = shared1, Played = true },
+                new WatchedItemInfo { ItemId = shared2, Played = true },
+                new WatchedItemInfo { ItemId = shared3, Played = true },
+                new WatchedItemInfo { ItemId = uniqueItem, Played = true }
+            ]
+        };
+
+        var other2 = new UserWatchProfile
+        {
+            UserId = Guid.NewGuid(),
+            WatchedItems =
+            [
+                new WatchedItemInfo { ItemId = shared1, Played = true },
+                new WatchedItemInfo { ItemId = shared2, Played = true },
+                new WatchedItemInfo { ItemId = shared3, Played = true },
+                new WatchedItemInfo { ItemId = uniqueItem, Played = true }
+            ]
+        };
+
+        var map = RecommendationEngine.BuildCollaborativeMap(user, [user, other1, other2]);
+
+        // uniqueItem should have accumulated Jaccard weight from both other users
+        Assert.True(map.ContainsKey(uniqueItem));
+        Assert.True(map[uniqueItem] > 0.75, $"Expected accumulated weight > 0.75 from two users, got {map[uniqueItem]}");
+    }
 }

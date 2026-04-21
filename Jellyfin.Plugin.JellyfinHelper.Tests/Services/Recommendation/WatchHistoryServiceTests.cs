@@ -79,14 +79,6 @@ public class WatchHistoryServiceTests
     [Fact]
     public void GetAllUserWatchProfiles_ExceptionInBuildProfile_SkipsUserAndContinues()
     {
-        // Use a testable subclass that overrides BuildProfile to throw for a specific user
-        var throwingService = new ThrowingWatchHistoryService(
-            _mockLibraryManager.Object,
-            _mockUserManager.Object,
-            _mockUserDataManager.Object,
-            _mockPluginLog.Object,
-            _mockLogger.Object);
-
         var user1 = CreateMockUser("alice");
         var user2 = CreateMockUser("bob-throws");
         var user3 = CreateMockUser("charlie");
@@ -95,13 +87,33 @@ public class WatchHistoryServiceTests
             .Setup(m => m.Users)
             .Returns(new[] { user1, user2, user3 }.AsQueryable());
 
+        // Return a single item so BuildProfile iterates
+        var movie = new Movie { Id = Guid.NewGuid(), Name = "Test Movie" };
         _mockLibraryManager
             .Setup(m => m.GetItemList(It.IsAny<InternalItemsQuery>()))
-            .Returns(new List<BaseItem>());
+            .Returns(new List<BaseItem> { movie });
 
-        var result = throwingService.GetAllUserWatchProfiles();
+        // For user2 ("bob-throws"), GetUserData throws an exception
+        _mockUserDataManager
+            .Setup(m => m.GetUserData(
+                It.Is<Jellyfin.Database.Implementations.Entities.User>(u => u.Username == "bob-throws"),
+                It.IsAny<BaseItem>()))
+            .Throws(new InvalidOperationException("Simulated failure for bob-throws"));
 
-        // user2 threw, so only user1 and user3 should be in results
+        // For other users, return null (no interaction — valid empty profile)
+        _mockUserDataManager
+            .Setup(m => m.GetUserData(
+                It.Is<Jellyfin.Database.Implementations.Entities.User>(u => u.Username != "bob-throws"),
+                It.IsAny<BaseItem>()))
+            .Returns((UserItemData?)null);
+
+        var result = _service.GetAllUserWatchProfiles();
+
+        // All 3 users should produce profiles — the exception from GetUserData is caught
+        // at the per-user level in GetAllUserWatchProfiles, but if the exception propagates
+        // from within BuildProfile it will be caught by the outer try/catch.
+        // With the current implementation: GetUserData throwing causes BuildProfile to throw,
+        // which is caught by the outer try/catch in GetAllUserWatchProfiles.
         Assert.Equal(2, result.Count);
         Assert.Contains(result, p => p.UserName == "alice");
         Assert.Contains(result, p => p.UserName == "charlie");
@@ -163,36 +175,4 @@ public class WatchHistoryServiceTests
         };
     }
 
-    /// <summary>
-    ///     Testable subclass that overrides BuildProfile to throw for users
-    ///     whose username contains "throws", allowing resilience testing.
-    /// </summary>
-    private sealed class ThrowingWatchHistoryService : WatchHistoryService
-    {
-        public ThrowingWatchHistoryService(
-            ILibraryManager libraryManager,
-            IUserManager userManager,
-            IUserDataManager userDataManager,
-            IPluginLogService pluginLog,
-            ILogger<WatchHistoryService> logger)
-            : base(libraryManager, userManager, userDataManager, pluginLog, logger)
-        {
-        }
-
-        internal override UserWatchProfile BuildProfile(
-            Jellyfin.Database.Implementations.Entities.User user,
-            IReadOnlyList<BaseItem>? allItems = null)
-        {
-            if (user.Username.Contains("throws", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException($"Simulated failure for {user.Username}");
-            }
-
-            return new UserWatchProfile
-            {
-                UserId = user.Id,
-                UserName = user.Username
-            };
-        }
-    }
 }
