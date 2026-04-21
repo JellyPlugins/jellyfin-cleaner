@@ -28,12 +28,30 @@ public sealed class RecommendationEngine : IRecommendationEngine
     /// <summary>
     ///     Minimum collaborative or genre score before a specific reason is shown.
     /// </summary>
-    internal const double ReasonScoreThreshold = 0.3;
+    internal const double ReasonScoreThreshold = 0.15;
 
     /// <summary>
     ///     Minimum rating score before "Highly rated" reason is shown.
     /// </summary>
     internal const double HighRatingThreshold = 0.7;
+
+    /// <summary>
+    ///     Genre similarity threshold below which items receive a penalty multiplier.
+    ///     Items with no meaningful genre overlap with the user's preferences are penalized.
+    /// </summary>
+    internal const double GenreMismatchThreshold = 0.1;
+
+    /// <summary>
+    ///     Penalty multiplier applied to items below the genre mismatch threshold.
+    ///     Strongly reduces the score of items that don't match the user's genre preferences.
+    /// </summary>
+    internal const double GenreMismatchPenalty = 0.15;
+
+    /// <summary>
+    ///     Boost factor applied to genres from favorited items when building preferences.
+    ///     Favorites count this many times more than regular watched items.
+    /// </summary>
+    internal const double FavoriteGenreBoostFactor = 3.0;
 
     /// <summary>
     ///     Exponential decay constant for recency scoring (~365 day half-life).
@@ -419,6 +437,7 @@ public sealed class RecommendationEngine : IRecommendationEngine
     /// <summary>
     ///     Builds a normalized genre preference vector from the user's watch history.
     ///     Each genre gets a weight based on how often the user has watched items of that genre.
+    ///     Genres from favorited items receive an additional boost to better reflect true preferences.
     /// </summary>
     /// <param name="profile">The user's watch profile.</param>
     /// <returns>A dictionary mapping genre names to normalized weights (0–1).</returns>
@@ -431,15 +450,45 @@ public sealed class RecommendationEngine : IRecommendationEngine
             return vector;
         }
 
-        var maxCount = (double)profile.GenreDistribution.Values.Max();
-        if (maxCount <= 0)
+        // Start with the base genre distribution
+        foreach (var (genre, count) in profile.GenreDistribution)
+        {
+            vector[genre] = count;
+        }
+
+        // Boost genres from favorited items — favorites signal strong preference
+        foreach (var item in profile.WatchedItems)
+        {
+            if (!item.IsFavorite || item.Genres is null)
+            {
+                continue;
+            }
+
+            foreach (var genre in item.Genres)
+            {
+                if (!string.IsNullOrWhiteSpace(genre))
+                {
+                    vector.TryGetValue(genre, out var current);
+                    vector[genre] = current + FavoriteGenreBoostFactor;
+                }
+            }
+        }
+
+        // Normalize to 0–1 range
+        if (vector.Count == 0)
         {
             return vector;
         }
 
-        foreach (var (genre, count) in profile.GenreDistribution)
+        var maxWeight = vector.Values.Max();
+        if (maxWeight <= 0)
         {
-            vector[genre] = count / maxCount; // Normalize to 0–1
+            return vector;
+        }
+
+        foreach (var genre in vector.Keys.ToList())
+        {
+            vector[genre] /= maxWeight;
         }
 
         return vector;
@@ -500,7 +549,8 @@ public sealed class RecommendationEngine : IRecommendationEngine
 
     /// <summary>
     ///     Computes genre similarity between a candidate item and the user's genre preference vector
-    ///     using a simplified cosine-similarity approach.
+    ///     using cosine similarity. This properly handles multi-genre items (e.g. Action + SciFi + Adventure)
+    ///     without penalizing them for having many genres.
     /// </summary>
     /// <param name="candidateGenres">The genres of the candidate item.</param>
     /// <param name="genrePreferences">The user's genre preference vector.</param>
@@ -514,17 +564,41 @@ public sealed class RecommendationEngine : IRecommendationEngine
             return 0;
         }
 
-        var score = 0.0;
+        // Cosine similarity: dot(candidate, user) / (|candidate| * |user|)
+        // Candidate vector: 1.0 for each genre present, 0.0 otherwise
+        // User vector: preference weight for each genre
+        var dotProduct = 0.0;
         foreach (var genre in candidateGenres)
         {
             if (genrePreferences.TryGetValue(genre, out var weight))
             {
-                score += weight;
+                dotProduct += weight; // candidate component is 1.0
             }
         }
 
-        // Normalize by the number of genres the candidate has
-        return Math.Min(score / candidateGenres.Length, 1.0);
+        if (dotProduct <= 0)
+        {
+            return 0;
+        }
+
+        // |candidate| = sqrt(number of genres) since each component is 1.0
+        var candidateNorm = Math.Sqrt(candidateGenres.Length);
+
+        // |user| = sqrt(sum of squared weights)
+        var userNormSq = 0.0;
+        foreach (var weight in genrePreferences.Values)
+        {
+            userNormSq += weight * weight;
+        }
+
+        var userNorm = Math.Sqrt(userNormSq);
+
+        if (candidateNorm <= 0 || userNorm <= 0)
+        {
+            return 0;
+        }
+
+        return Math.Min(dotProduct / (candidateNorm * userNorm), 1.0);
     }
 
     /// <summary>
