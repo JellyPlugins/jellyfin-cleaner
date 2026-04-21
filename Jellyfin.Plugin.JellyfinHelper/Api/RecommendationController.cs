@@ -101,19 +101,29 @@ public class RecommendationController : ControllerBase
 
         maxResults = Math.Clamp(maxResults, 1, 100);
 
-        // Try cache first
+        // Try cache first — return a copy to avoid mutating the cached object
         var cached = _cacheService.LoadResults();
         var cachedUser = cached?.FirstOrDefault(r => r.UserId == userId);
         if (cachedUser is not null)
         {
-            // Apply maxResults limit to cached results
-            if (cachedUser.Recommendations.Count > maxResults)
+            if (cachedUser.Recommendations.Count <= maxResults)
             {
-                cachedUser.Recommendations = new Collection<RecommendedItem>(
-                    cachedUser.Recommendations.Take(maxResults).ToList());
+                return Ok(cachedUser);
             }
 
-            return Ok(cachedUser);
+            // Return a trimmed copy without mutating the cache
+            var copy = new RecommendationResult
+            {
+                UserId = cachedUser.UserId,
+                UserName = cachedUser.UserName,
+                Profile = cachedUser.Profile,
+                ScoringStrategy = cachedUser.ScoringStrategy,
+                ScoringStrategyKey = cachedUser.ScoringStrategyKey,
+                GeneratedAt = cachedUser.GeneratedAt,
+                Recommendations = new Collection<RecommendedItem>(
+                    cachedUser.Recommendations.Take(maxResults).ToList())
+            };
+            return Ok(copy);
         }
 
         // Generate on demand
@@ -181,11 +191,11 @@ public class RecommendationController : ControllerBase
     }
 
     /// <summary>
-    ///     Trims each user's recommendation list to a maximum number of items.
+    ///     Creates a trimmed copy of each user's recommendation list without mutating the cache.
     /// </summary>
-    /// <param name="results">The full recommendation results.</param>
+    /// <param name="results">The full recommendation results (not modified).</param>
     /// <param name="maxPerUser">Maximum recommendations per user.</param>
-    /// <returns>A new list with trimmed recommendation counts.</returns>
+    /// <returns>A new collection with trimmed recommendation counts.</returns>
     private static Collection<RecommendationResult> TrimRecommendations(Collection<RecommendationResult> results, int maxPerUser)
     {
         var needsTrim = results.Any(r => r.Recommendations.Count > maxPerUser);
@@ -194,13 +204,30 @@ public class RecommendationController : ControllerBase
             return results;
         }
 
-        foreach (var r in results.Where(r => r.Recommendations.Count > maxPerUser))
+        var trimmed = new Collection<RecommendationResult>();
+        foreach (var r in results)
         {
-            r.Recommendations = new Collection<RecommendedItem>(
-                r.Recommendations.Take(maxPerUser).ToList());
+            if (r.Recommendations.Count > maxPerUser)
+            {
+                trimmed.Add(new RecommendationResult
+                {
+                    UserId = r.UserId,
+                    UserName = r.UserName,
+                    Profile = r.Profile,
+                    ScoringStrategy = r.ScoringStrategy,
+                    ScoringStrategyKey = r.ScoringStrategyKey,
+                    GeneratedAt = r.GeneratedAt,
+                    Recommendations = new Collection<RecommendedItem>(
+                        r.Recommendations.Take(maxPerUser).ToList())
+                });
+            }
+            else
+            {
+                trimmed.Add(r);
+            }
         }
 
-        return results;
+        return trimmed;
     }
 
     /// <summary>

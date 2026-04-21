@@ -508,13 +508,15 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
                 _trainingGeneration = data.TrainingGeneration;
             }
         }
-        catch (IOException)
+        catch (IOException ex)
         {
-            // Graceful fallback to default weights on I/O error
+            // Graceful fallback to default weights on I/O error — log for diagnostics
+            System.Diagnostics.Trace.WriteLine($"LearnedScoringStrategy: Failed to load weights: {ex.Message}");
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            // Graceful fallback to default weights on parse error
+            // Graceful fallback to default weights on parse error — log for diagnostics
+            System.Diagnostics.Trace.WriteLine($"LearnedScoringStrategy: Failed to parse weights: {ex.Message}");
         }
     }
 
@@ -557,13 +559,15 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
             File.WriteAllText(tempPath, json);
             File.Move(tempPath, _weightsPath, overwrite: true);
         }
-        catch (IOException)
+        catch (IOException ex)
         {
-            // Non-critical — silently ignore write failures
+            // Non-critical — log for diagnostics but don't fail
+            System.Diagnostics.Trace.WriteLine($"LearnedScoringStrategy: Failed to save weights: {ex.Message}");
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            // Non-critical — silently ignore serialization failures
+            // Non-critical — log for diagnostics but don't fail
+            System.Diagnostics.Trace.WriteLine($"LearnedScoringStrategy: Failed to serialize weights: {ex.Message}");
         }
     }
 

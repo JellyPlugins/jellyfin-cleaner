@@ -406,13 +406,15 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                 }
             }
         }
-        catch (IOException)
+        catch (IOException ex)
         {
-            // Graceful fallback to defaults on I/O error
+            // Graceful fallback to defaults on I/O error — log for diagnostics
+            System.Diagnostics.Trace.WriteLine($"EnsembleScoringStrategy: Failed to load state: {ex.Message}");
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            // Graceful fallback to defaults on parse error
+            // Graceful fallback to defaults on parse error — log for diagnostics
+            System.Diagnostics.Trace.WriteLine($"EnsembleScoringStrategy: Failed to parse state: {ex.Message}");
         }
     }
 
@@ -457,13 +459,15 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
             File.WriteAllText(tempPath, json);
             File.Move(tempPath, _statePath, overwrite: true);
         }
-        catch (IOException)
+        catch (IOException ex)
         {
-            // Non-critical — silently ignore write failures
+            // Non-critical — log for diagnostics but don't fail
+            System.Diagnostics.Trace.WriteLine($"EnsembleScoringStrategy: Failed to save state: {ex.Message}");
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            // Non-critical — silently ignore serialization failures
+            // Non-critical — log for diagnostics but don't fail
+            System.Diagnostics.Trace.WriteLine($"EnsembleScoringStrategy: Failed to serialize state: {ex.Message}");
         }
     }
 

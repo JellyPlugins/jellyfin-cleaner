@@ -176,6 +176,10 @@ public sealed class RecommendationEngine : IRecommendationEngine
                     || (watchedSeriesIds?.Contains(rec.ItemId) ?? false);
 
                 // Recompute features for this candidate (scores may have shifted)
+                // Look up user-specific signals (rating, completion) for training feature parity
+                var watchedItemForRec = userProfile.WatchedItems
+                    .FirstOrDefault(w => w.ItemId == rec.ItemId);
+
                 var features = new CandidateFeatures
                 {
                     GenreSimilarity = ComputeGenreSimilarity(rec.Genres ?? [], genrePreferences),
@@ -186,20 +190,27 @@ public sealed class RecommendationEngine : IRecommendationEngine
                         : 0.5, // fallback for legacy stored recommendations without PremiereDate
                     YearProximityScore = ComputeYearProximity(rec.Year, avgYear),
                     GenreCount = rec.Genres?.Length ?? 0,
-                    IsSeries = string.Equals(rec.ItemType, "Series", StringComparison.OrdinalIgnoreCase)
+                    IsSeries = string.Equals(rec.ItemType, "Series", StringComparison.OrdinalIgnoreCase),
+                    UserRatingScore = ComputeUserRatingScore(watchedItemForRec),
+                    CompletionRatio = ComputeCompletionRatio(watchedItemForRec)
                 };
 
-                // Soft labels: watched items get a positive label, unwatched items a softened negative.
+                // Soft labels with hard negative mining for abandoned items.
                 // NOTE: The label must NOT depend on the community rating — that would cause
                 // feature leakage because RatingScore is already a feature in the model.
-                // Using rating in the label causes the model to learn "high rating → high label"
-                // which is circular and doesn't reflect actual user engagement.
                 double label;
                 if (wasWatched)
                 {
                     // Binary engagement signal: the user chose to watch this item.
                     // We use 0.85 instead of 1.0 to leave headroom and reduce label noise.
                     label = 0.85;
+                }
+                else if (features.CompletionRatio > 0 && features.CompletionRatio < AbandonedCompletionThreshold)
+                {
+                    // Hard negative: user started watching but abandoned before 25% completion.
+                    // This is a stronger negative signal than simply not watching — the user
+                    // actively tried the content and chose not to continue.
+                    label = 0.0;
                 }
                 else
                 {
@@ -689,10 +700,14 @@ public sealed class RecommendationEngine : IRecommendationEngine
     ///     Newer items get a slight boost.
     /// </summary>
     /// <param name="itemDate">The item's premiere or creation date.</param>
+    /// <param name="now">
+    ///     Reference point for "now" (defaults to <see cref="DateTime.UtcNow"/>).
+    ///     Exposed for deterministic unit testing.
+    /// </param>
     /// <returns>A recency score between 0 and 1.</returns>
-    internal static double ComputeRecencyScore(DateTime itemDate)
+    internal static double ComputeRecencyScore(DateTime itemDate, DateTime? now = null)
     {
-        var ageInDays = (DateTime.UtcNow - itemDate).TotalDays;
+        var ageInDays = ((now ?? DateTime.UtcNow) - itemDate).TotalDays;
         if (ageInDays <= 0)
         {
             return 1.0;

@@ -106,8 +106,11 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
         if (string.Equals(strategy, "heuristic", StringComparison.OrdinalIgnoreCase))
         {
-            return (IScoringStrategy?)sp.GetService(typeof(HeuristicScoringStrategy))
-                ?? new HeuristicScoringStrategy();
+            // Create a standalone instance with full genre penalty (0.10) enabled.
+            // The DI-registered singleton uses genrePenaltyFloor=1.0 because it's used
+            // inside EnsembleScoringStrategy where the ensemble applies its own penalty.
+            var penaltyFloor = config?.EnsembleGenrePenaltyFloor ?? 0.10;
+            return new HeuristicScoringStrategy(genrePenaltyFloor: penaltyFloor);
         }
 
         if (string.Equals(strategy, "learned", StringComparison.OrdinalIgnoreCase))
