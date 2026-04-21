@@ -261,7 +261,9 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
             result.UserRatingContribution,
             result.RecencyContribution,
             result.YearProximityContribution,
-            result.InteractionContribution);
+            result.InteractionContribution,
+            result.PeopleContribution,
+            result.StudioContribution);
 
         return result;
     }
@@ -437,6 +439,9 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
 
     /// <summary>
     ///     Tries to persist current ensemble state to disk.
+    ///     Snapshot and serialization are performed under lock to ensure consistency
+    ///     with concurrent <see cref="Train"/> calls (analogous to
+    ///     <see cref="LearnedScoringStrategy.TrySaveWeights"/>).
     /// </summary>
     private void TrySaveState()
     {
@@ -453,25 +458,21 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                 Directory.CreateDirectory(dir);
             }
 
-            double alpha;
-            int exampleCount;
-            bool frozen;
+            // Snapshot and serialize under lock to ensure consistency with concurrent Train() calls
+            string json;
             lock (_syncRoot)
             {
-                alpha = _alpha;
-                exampleCount = _trainingExampleCount;
-                frozen = _qualityGateFrozen;
+                var data = new EnsembleStateData
+                {
+                    TrainingExampleCount = _trainingExampleCount,
+                    Alpha = _alpha,
+                    QualityGateFrozen = _qualityGateFrozen,
+                    UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)
+                };
+
+                json = JsonSerializer.Serialize(data, SerializerOptions);
             }
 
-            var data = new EnsembleStateData
-            {
-                TrainingExampleCount = exampleCount,
-                Alpha = alpha,
-                QualityGateFrozen = frozen,
-                UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)
-            };
-
-            var json = JsonSerializer.Serialize(data, SerializerOptions);
             var tempPath = _statePath + ".tmp";
             File.WriteAllText(tempPath, json);
             File.Move(tempPath, _statePath, overwrite: true);

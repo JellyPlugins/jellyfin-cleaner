@@ -212,7 +212,11 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
             effectiveWeights[i] = examples[i].ComputeEffectiveWeight(referenceTime);
         }
 
-        // Optional Z-score standardization
+        // Optional Z-score standardization.
+        // Thread-safety note: featureMeans/featureStdDevs are computed from local
+        // precomputedVectors (no shared state), then assigned to instance fields
+        // INSIDE the lock below. Score()/ScoreWithExplanation() read these fields
+        // under the same lock, so there is no race condition.
         double[]? featureMeans = null;
         double[]? featureStdDevs = null;
 

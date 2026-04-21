@@ -340,6 +340,10 @@ public sealed class RecommendationEngine : IRecommendationEngine
             {
                 results.Add(GenerateForUser(profile, allProfiles, candidates, peopleLookup, maxResultsPerUser, _strategy, cancellationToken));
             }
+            catch (OperationCanceledException)
+            {
+                throw; // Do not swallow cancellation — propagate to caller
+            }
             catch (Exception ex)
             {
                 _pluginLog.LogWarning(
@@ -1166,33 +1170,46 @@ public sealed class RecommendationEngine : IRecommendationEngine
 
         foreach (var candidate in candidates)
         {
-            var people = _libraryManager.GetPeople(candidate);
-            if (people is null || people.Count == 0)
+            try
             {
-                continue;
-            }
-
-            HashSet<string>? names = null;
-            foreach (var person in people)
-            {
-                if (string.IsNullOrWhiteSpace(person.Name))
+                var people = _libraryManager.GetPeople(candidate);
+                if (people is null || people.Count == 0)
                 {
                     continue;
                 }
 
-                // Only include actors and directors — other types add noise without predictive value
-                if (!Array.Exists(RelevantPersonKinds, k => k == person.Type))
+                HashSet<string>? names = null;
+                foreach (var person in people)
                 {
-                    continue;
+                    if (string.IsNullOrWhiteSpace(person.Name))
+                    {
+                        continue;
+                    }
+
+                    // Only include actors and directors — other types add noise without predictive value
+                    if (!Array.Exists(RelevantPersonKinds, k => k == person.Type))
+                    {
+                        continue;
+                    }
+
+                    names ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    names.Add(person.Name);
                 }
 
-                names ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                names.Add(person.Name);
+                if (names is { Count: > 0 })
+                {
+                    lookup[candidate.Id] = names;
+                }
             }
-
-            if (names is { Count: > 0 })
+            catch (OperationCanceledException)
             {
-                lookup[candidate.Id] = names;
+                throw; // Do not swallow cancellation — propagate to caller
+            }
+            catch (Exception ex)
+            {
+                // Graceful fallback: skip this candidate's people data rather than failing the entire lookup.
+                // Some item types or corrupted metadata may cause GetPeople to throw.
+                _logger.LogDebug(ex, "Failed to load people for candidate {ItemId}, skipping", candidate.Id);
             }
         }
 
@@ -1334,6 +1351,16 @@ public sealed class RecommendationEngine : IRecommendationEngine
             && explanation.InteractionContribution > ReasonScoreThreshold)
         {
             return ("Matches your viewing patterns", "reasonInteraction", null);
+        }
+
+        if (string.Equals(dominant, "People", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("Features actors/directors you enjoy", "reasonPeople", null);
+        }
+
+        if (string.Equals(dominant, "Studio", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("From a studio you enjoy", "reasonStudio", null);
         }
 
         return ("Recommended for you", "reasonDefault", null);

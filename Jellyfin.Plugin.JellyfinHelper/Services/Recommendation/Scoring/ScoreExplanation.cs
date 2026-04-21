@@ -34,6 +34,12 @@ public sealed class ScoreExplanation
     /// <summary>Gets or sets the score contribution from interaction terms.</summary>
     public double InteractionContribution { get; set; }
 
+    /// <summary>Gets or sets the score contribution from people similarity (actors/directors).</summary>
+    public double PeopleContribution { get; set; }
+
+    /// <summary>Gets or sets the score contribution from studio match.</summary>
+    public double StudioContribution { get; set; }
+
     /// <summary>Gets or sets the genre penalty multiplier applied (1.0 = no penalty).</summary>
     public double GenrePenaltyMultiplier { get; set; } = 1.0;
 
@@ -60,6 +66,8 @@ public sealed class ScoreExplanation
         var blendedYearProx = (oneMinusAlpha * YearProximityContribution) + (alpha * other.YearProximityContribution);
         var blendedUserRating = (oneMinusAlpha * UserRatingContribution) + (alpha * other.UserRatingContribution);
         var blendedInteraction = (oneMinusAlpha * InteractionContribution) + (alpha * other.InteractionContribution);
+        var blendedPeople = (oneMinusAlpha * PeopleContribution) + (alpha * other.PeopleContribution);
+        var blendedStudio = (oneMinusAlpha * StudioContribution) + (alpha * other.StudioContribution);
 
         return new ScoreExplanation
         {
@@ -71,8 +79,10 @@ public sealed class ScoreExplanation
             YearProximityContribution = blendedYearProx,
             UserRatingContribution = blendedUserRating,
             InteractionContribution = blendedInteraction,
+            PeopleContribution = blendedPeople,
+            StudioContribution = blendedStudio,
             GenrePenaltyMultiplier = 1.0, // Penalty is applied separately after blending
-            DominantSignal = DetermineDominantSignal(blendedGenre, blendedCollab, blendedRating, blendedUserRating, blendedRecency, blendedYearProx, blendedInteraction),
+            DominantSignal = DetermineDominantSignal(blendedGenre, blendedCollab, blendedRating, blendedUserRating, blendedRecency, blendedYearProx, blendedInteraction, blendedPeople, blendedStudio),
             StrategyName = StrategyName // Caller can override
         };
     }
@@ -95,6 +105,8 @@ public sealed class ScoreExplanation
             YearProximityContribution = YearProximityContribution * penaltyMultiplier,
             UserRatingContribution = UserRatingContribution * penaltyMultiplier,
             InteractionContribution = InteractionContribution * penaltyMultiplier,
+            PeopleContribution = PeopleContribution * penaltyMultiplier,
+            StudioContribution = StudioContribution * penaltyMultiplier,
             GenrePenaltyMultiplier = penaltyMultiplier,
             DominantSignal = DominantSignal,
             StrategyName = StrategyName
@@ -113,6 +125,8 @@ public sealed class ScoreExplanation
     /// <param name="recencyContrib">Recency contribution.</param>
     /// <param name="yearProxContrib">Year proximity contribution.</param>
     /// <param name="interactionContrib">Interaction terms contribution (genre×rating, genre×collab, genreCount, isSeries, completion).</param>
+    /// <param name="peopleContrib">People similarity contribution (actors/directors).</param>
+    /// <param name="studioContrib">Studio match contribution.</param>
     /// <returns>The name of the dominant signal.</returns>
     public static string DetermineDominantSignal(
         double genreContrib,
@@ -121,7 +135,9 @@ public sealed class ScoreExplanation
         double userRatingContrib,
         double recencyContrib,
         double yearProxContrib,
-        double interactionContrib = 0.0)
+        double interactionContrib = 0.0,
+        double peopleContrib = 0.0,
+        double studioContrib = 0.0)
     {
         // Allocation-free comparison — this runs per candidate in the scoring hot path.
         var bestName = "Genre";
@@ -166,6 +182,20 @@ public sealed class ScoreExplanation
         if (v > bestValue)
         {
             bestName = "Interaction";
+            bestValue = v;
+        }
+
+        v = Math.Abs(peopleContrib);
+        if (v > bestValue)
+        {
+            bestName = "People";
+            bestValue = v;
+        }
+
+        v = Math.Abs(studioContrib);
+        if (v > bestValue)
+        {
+            bestName = "Studio";
         }
 
         return bestName;
@@ -181,7 +211,8 @@ public sealed class ScoreExplanation
                $"(genre={GenreContribution:F3}, collab={CollaborativeContribution:F3}, " +
                $"rating={RatingContribution:F3}, recency={RecencyContribution:F3}, " +
                $"yearProx={YearProximityContribution:F3}, userRating={UserRatingContribution:F3}, " +
-               $"interact={InteractionContribution:F3}, penalty={GenrePenaltyMultiplier:F2}) " +
+               $"interact={InteractionContribution:F3}, people={PeopleContribution:F3}, " +
+               $"studio={StudioContribution:F3}, penalty={GenrePenaltyMultiplier:F2}) " +
                $"dominant={DominantSignal}";
     }
 }

@@ -77,7 +77,11 @@ internal static class ScoringHelper
         var yearProxContrib = vector[(int)FeatureIndex.YearProximityScore] * weights[(int)FeatureIndex.YearProximityScore];
         var userRatingContrib = vector[(int)FeatureIndex.UserRatingScore] * weights[(int)FeatureIndex.UserRatingScore];
 
-    // Interaction + minor features (genreCount, isSeries, genre×rating, genre×collab, completionRatio, isAbandoned, hasInteraction, peopleSimilarity, studioMatch)
+        // People and studio contributions tracked separately for dominant signal detection
+        var peopleContrib = vector[(int)FeatureIndex.PeopleSimilarity] * weights[(int)FeatureIndex.PeopleSimilarity];
+        var studioContrib = vector[(int)FeatureIndex.StudioMatch] * weights[(int)FeatureIndex.StudioMatch];
+
+        // Interaction + minor features (genreCount, isSeries, genre×rating, genre×collab, completionRatio, isAbandoned, hasInteraction)
         var interactionContrib =
             (vector[(int)FeatureIndex.GenreCountNormalized] * weights[(int)FeatureIndex.GenreCountNormalized]) +
             (vector[(int)FeatureIndex.IsSeries] * weights[(int)FeatureIndex.IsSeries]) +
@@ -85,9 +89,7 @@ internal static class ScoringHelper
             (vector[(int)FeatureIndex.GenreCollabInteraction] * weights[(int)FeatureIndex.GenreCollabInteraction]) +
             (vector[(int)FeatureIndex.CompletionRatio] * weights[(int)FeatureIndex.CompletionRatio]) +
             (vector[(int)FeatureIndex.IsAbandoned] * weights[(int)FeatureIndex.IsAbandoned]) +
-            (vector[(int)FeatureIndex.HasInteraction] * weights[(int)FeatureIndex.HasInteraction]) +
-            (vector[(int)FeatureIndex.PeopleSimilarity] * weights[(int)FeatureIndex.PeopleSimilarity]) +
-            (vector[(int)FeatureIndex.StudioMatch] * weights[(int)FeatureIndex.StudioMatch]);
+            (vector[(int)FeatureIndex.HasInteraction] * weights[(int)FeatureIndex.HasInteraction]);
 
         var rawScore = ComputeRawScore(vector, weights, bias);
         var score = Math.Clamp(rawScore, 0.0, 1.0);
@@ -102,9 +104,11 @@ internal static class ScoringHelper
             YearProximityContribution = yearProxContrib,
             UserRatingContribution = userRatingContrib,
             InteractionContribution = interactionContrib,
+            PeopleContribution = peopleContrib,
+            StudioContribution = studioContrib,
             GenrePenaltyMultiplier = 1.0, // No penalty in individual strategies — applied in Ensemble
             DominantSignal = ScoreExplanation.DetermineDominantSignal(
-                genreContrib, collabContrib, ratingContrib, userRatingContrib, recencyContrib, yearProxContrib, interactionContrib),
+                genreContrib, collabContrib, ratingContrib, userRatingContrib, recencyContrib, yearProxContrib, interactionContrib, peopleContrib, studioContrib),
             StrategyName = strategyName
         };
     }
