@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 
@@ -59,6 +60,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
     /// <summary>Cached JSON serializer options for weight persistence.</summary>
     private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
 
+    private readonly ILogger? _logger;
     private readonly object _syncRoot = new();
     private readonly string? _weightsPath;
     private double _bias;
@@ -82,9 +84,11 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
     ///     Optional file path for persisting learned weights.
     ///     If null, weights are kept in memory only.
     /// </param>
-    public LearnedScoringStrategy(string? weightsPath = null)
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    public LearnedScoringStrategy(string? weightsPath = null, ILogger? logger = null)
     {
         _weightsPath = weightsPath;
+        _logger = logger;
 
         // Initialize with genre-dominant weights — genre match is the strongest signal
         _weights = DefaultWeights.CreateWeightArray();
@@ -511,12 +515,12 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
         catch (IOException ex)
         {
             // Graceful fallback to default weights on I/O error — log for diagnostics
-            System.Diagnostics.Trace.WriteLine($"LearnedScoringStrategy: Failed to load weights: {ex.Message}");
+            _logger?.LogWarning(ex, "LearnedScoringStrategy: Failed to load weights");
         }
         catch (JsonException ex)
         {
             // Graceful fallback to default weights on parse error — log for diagnostics
-            System.Diagnostics.Trace.WriteLine($"LearnedScoringStrategy: Failed to parse weights: {ex.Message}");
+            _logger?.LogWarning(ex, "LearnedScoringStrategy: Failed to parse weights");
         }
     }
 
@@ -562,12 +566,12 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
         catch (IOException ex)
         {
             // Non-critical — log for diagnostics but don't fail
-            System.Diagnostics.Trace.WriteLine($"LearnedScoringStrategy: Failed to save weights: {ex.Message}");
+            _logger?.LogWarning(ex, "LearnedScoringStrategy: Failed to save weights");
         }
         catch (JsonException ex)
         {
             // Non-critical — log for diagnostics but don't fail
-            System.Diagnostics.Trace.WriteLine($"LearnedScoringStrategy: Failed to serialize weights: {ex.Message}");
+            _logger?.LogWarning(ex, "LearnedScoringStrategy: Failed to serialize weights");
         }
     }
 

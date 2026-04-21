@@ -11,6 +11,32 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 internal static class ScoringHelper
 {
     /// <summary>
+    ///     Default threshold for genre penalty ramp: genre similarity values at or above
+    ///     this threshold receive no penalty (multiplier = 1.0).
+    /// </summary>
+    internal const double DefaultGenrePenaltyThreshold = 0.3;
+
+    /// <summary>
+    ///     Computes a soft genre penalty multiplier that ramps linearly from <paramref name="floor"/>
+    ///     (at genreSimilarity = 0) to 1.0 (at genreSimilarity ≥ <paramref name="threshold"/>).
+    ///     Shared by <see cref="HeuristicScoringStrategy"/> and <see cref="EnsembleScoringStrategy"/>
+    ///     to ensure consistent genre penalty behaviour across all strategies.
+    /// </summary>
+    /// <param name="genreSimilarity">The genre similarity value (0–1).</param>
+    /// <param name="floor">The minimum penalty multiplier when genre similarity is 0.</param>
+    /// <param name="threshold">Genre similarity value at which penalty reaches 1.0 (no penalty).</param>
+    /// <returns>A penalty multiplier between <paramref name="floor"/> and 1.0.</returns>
+    internal static double ComputeSoftGenrePenalty(double genreSimilarity, double floor, double threshold = DefaultGenrePenaltyThreshold)
+    {
+        if (genreSimilarity >= threshold)
+        {
+            return 1.0;
+        }
+
+        return floor + ((genreSimilarity / threshold) * (1.0 - floor));
+    }
+
+    /// <summary>
     ///     Computes the raw linear score from a feature vector, weights, and bias.
     /// </summary>
     /// <param name="vector">The feature vector.</param>

@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Jellyfin.Plugin.JellyfinHelper.Api;
+using Jellyfin.Plugin.JellyfinHelper.Configuration;
+using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -13,6 +15,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 public class RecommendationControllerTests
 {
     private readonly Mock<IRecommendationCacheService> _mockCache;
+    private readonly Mock<IPluginConfigurationService> _mockConfigService;
     private readonly RecommendationController _controller;
     private readonly Mock<IRecommendationEngine> _mockEngine;
     private readonly Mock<IWatchHistoryService> _mockWatchHistory;
@@ -22,11 +25,17 @@ public class RecommendationControllerTests
         _mockEngine = new Mock<IRecommendationEngine>();
         _mockCache = new Mock<IRecommendationCacheService>();
         _mockWatchHistory = new Mock<IWatchHistoryService>();
+        _mockConfigService = new Mock<IPluginConfigurationService>();
+
+        // Default: recommendations enabled (Activate mode)
+        _mockConfigService.Setup(c => c.GetConfiguration())
+            .Returns(new PluginConfiguration { RecommendationsTaskMode = TaskMode.Activate });
 
         _controller = new RecommendationController(
             _mockEngine.Object,
             _mockCache.Object,
             _mockWatchHistory.Object,
+            _mockConfigService.Object,
             Mock.Of<ILogger<RecommendationController>>());
     }
 
@@ -151,6 +160,44 @@ public class RecommendationControllerTests
         var result = _controller.GetUserWatchProfile(userId);
 
         Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    // === 503 Disabled ===
+
+    [Fact]
+    public void GetAllRecommendations_Disabled_Returns503()
+    {
+        _mockConfigService.Setup(c => c.GetConfiguration())
+            .Returns(new PluginConfiguration { RecommendationsTaskMode = TaskMode.Deactivate });
+
+        var result = _controller.GetAllRecommendations();
+
+        var status = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(503, status.StatusCode);
+    }
+
+    [Fact]
+    public void GetUserRecommendations_Disabled_Returns503()
+    {
+        _mockConfigService.Setup(c => c.GetConfiguration())
+            .Returns(new PluginConfiguration { RecommendationsTaskMode = TaskMode.Deactivate });
+
+        var result = _controller.GetUserRecommendations(Guid.NewGuid());
+
+        var status = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(503, status.StatusCode);
+    }
+
+    [Fact]
+    public void GetAllWatchProfiles_Disabled_Returns503()
+    {
+        _mockConfigService.Setup(c => c.GetConfiguration())
+            .Returns(new PluginConfiguration { RecommendationsTaskMode = TaskMode.Deactivate });
+
+        var result = _controller.GetAllWatchProfiles();
+
+        var status = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(503, status.StatusCode);
     }
 
     // === GetAllWatchProfiles ===

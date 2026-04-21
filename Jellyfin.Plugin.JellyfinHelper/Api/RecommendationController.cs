@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net.Mime;
+using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -23,6 +24,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Api;
 public class RecommendationController : ControllerBase
 {
     private readonly IRecommendationCacheService _cacheService;
+    private readonly IPluginConfigurationService _configService;
     private readonly IRecommendationEngine _engine;
     private readonly ILogger<RecommendationController> _logger;
     private readonly IWatchHistoryService _watchHistoryService;
@@ -33,16 +35,19 @@ public class RecommendationController : ControllerBase
     /// <param name="engine">The recommendation engine.</param>
     /// <param name="cacheService">The recommendation cache service.</param>
     /// <param name="watchHistoryService">The watch history service.</param>
+    /// <param name="configService">The plugin configuration service.</param>
     /// <param name="logger">The logger instance.</param>
     public RecommendationController(
         IRecommendationEngine engine,
         IRecommendationCacheService cacheService,
         IWatchHistoryService watchHistoryService,
+        IPluginConfigurationService configService,
         ILogger<RecommendationController> logger)
     {
         _engine = engine;
         _cacheService = cacheService;
         _watchHistoryService = watchHistoryService;
+        _configService = configService;
         _logger = logger;
     }
 
@@ -235,9 +240,9 @@ public class RecommendationController : ControllerBase
     ///     Returns true when the task mode is not <see cref="Configuration.TaskMode.Deactivate" />.
     /// </summary>
     /// <returns>True if enabled (DryRun or Activate), false if deactivated.</returns>
-    private static bool IsRecommendationsEnabled()
+    private bool IsRecommendationsEnabled()
     {
-        var config = Plugin.Instance?.Configuration;
-        return config is null || config.RecommendationsTaskMode != Configuration.TaskMode.Deactivate;
+        var config = _configService.GetConfiguration();
+        return config.RecommendationsTaskMode != Configuration.TaskMode.Deactivate;
     }
 }

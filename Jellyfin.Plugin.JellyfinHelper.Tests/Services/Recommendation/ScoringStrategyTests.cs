@@ -1087,10 +1087,9 @@ public sealed class ScoringStrategyTests : IDisposable
         Assert.Equal(strategy.Score(features), explanation.FinalScore, 10);
         Assert.Equal("Heuristic (Fixed Weights)", explanation.StrategyName);
         Assert.False(string.IsNullOrEmpty(explanation.DominantSignal));
-        // With default genrePenaltyFloor=0.10 and GenreSimilarity=0.8:
-        // penalty = 0.10 + (0.90 × 0.8) = 0.82
-        var expectedPenalty = 0.10 + (0.90 * features.GenreSimilarity);
-        Assert.Equal(expectedPenalty, explanation.GenrePenaltyMultiplier, 10);
+        // Genre penalty is now applied at the Ensemble level only;
+        // individual strategies report GenrePenaltyMultiplier = 1.0
+        Assert.Equal(1.0, explanation.GenrePenaltyMultiplier, 10);
     }
 
     [Fact]

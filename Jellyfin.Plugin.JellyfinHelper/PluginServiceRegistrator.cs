@@ -115,13 +115,13 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
         if (string.Equals(strategy, "learned", StringComparison.OrdinalIgnoreCase))
         {
-            var ensembleForLearned =
-                (EnsembleScoringStrategy?)sp.GetService(typeof(EnsembleScoringStrategy));
-            return ensembleForLearned?.LearnedStrategy
-                ?? (IScoringStrategy)new LearnedScoringStrategy();
+            // Return the DI-registered LearnedScoringStrategy (which has the correct weights path)
+            // via the EnsembleScoringStrategy's internal reference so there's only one instance.
+            var ensemble = sp.GetRequiredService<EnsembleScoringStrategy>();
+            return ensemble.LearnedStrategy;
         }
 
-        return (IScoringStrategy?)sp.GetService(typeof(EnsembleScoringStrategy))
-            ?? new EnsembleScoringStrategy();
+        // Default: Ensemble strategy (resolved via DI with all config applied)
+        return sp.GetRequiredService<EnsembleScoringStrategy>();
     }
 }

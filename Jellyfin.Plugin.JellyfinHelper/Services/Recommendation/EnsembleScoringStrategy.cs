@@ -308,7 +308,8 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     ///     Computes a soft genre-mismatch penalty that ramps linearly from
     ///     <paramref name="penaltyFloor"/> (at GenreSimilarity = 0) to 1.0
     ///     (at GenreSimilarity ≥ <see cref="GenrePenaltyThreshold"/>).
-    ///     This avoids the hard cutoff of the previous implementation.
+    ///     Delegates to <see cref="ScoringHelper.ComputeSoftGenrePenalty"/> for consistency
+    ///     with <see cref="HeuristicScoringStrategy"/>.
     /// </summary>
     /// <param name="genreSimilarity">The candidate's genre similarity score (0–1).</param>
     /// <param name="penaltyFloor">
@@ -319,14 +320,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         double genreSimilarity,
         double penaltyFloor = DefaultGenrePenaltyFloor)
     {
-        if (genreSimilarity >= GenrePenaltyThreshold)
-        {
-            return 1.0;
-        }
-
-        // Linear ramp from penaltyFloor to 1.0 as genreSimilarity goes from 0 to GenrePenaltyThreshold
-        var t = genreSimilarity / GenrePenaltyThreshold;
-        return penaltyFloor + (t * (1.0 - penaltyFloor));
+        return ScoringHelper.ComputeSoftGenrePenalty(genreSimilarity, penaltyFloor, GenrePenaltyThreshold);
     }
 
     /// <summary>
@@ -409,12 +403,12 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         catch (IOException ex)
         {
             // Graceful fallback to defaults on I/O error — log for diagnostics
-            System.Diagnostics.Trace.WriteLine($"EnsembleScoringStrategy: Failed to load state: {ex.Message}");
+            _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to load state");
         }
         catch (JsonException ex)
         {
             // Graceful fallback to defaults on parse error — log for diagnostics
-            System.Diagnostics.Trace.WriteLine($"EnsembleScoringStrategy: Failed to parse state: {ex.Message}");
+            _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to parse state");
         }
     }
 
@@ -462,12 +456,12 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         catch (IOException ex)
         {
             // Non-critical — log for diagnostics but don't fail
-            System.Diagnostics.Trace.WriteLine($"EnsembleScoringStrategy: Failed to save state: {ex.Message}");
+            _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to save state");
         }
         catch (JsonException ex)
         {
             // Non-critical — log for diagnostics but don't fail
-            System.Diagnostics.Trace.WriteLine($"EnsembleScoringStrategy: Failed to serialize state: {ex.Message}");
+            _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to serialize state");
         }
     }
 

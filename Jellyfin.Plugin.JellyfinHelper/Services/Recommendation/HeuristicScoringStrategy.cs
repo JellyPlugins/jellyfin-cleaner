@@ -49,11 +49,10 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
         var raw = ScoringHelper.ComputeRawScore(vector, WeightsArray, bias: 0.0);
         var score = Math.Clamp(raw, 0.0, 1.0);
 
-        // Apply genre penalty when used standalone
+        // Apply genre penalty when used standalone (shared formula with EnsembleScoringStrategy)
         if (_genrePenaltyFloor < 1.0)
         {
-            var genreSim = features.GenreSimilarity;
-            var penalty = _genrePenaltyFloor + ((1.0 - _genrePenaltyFloor) * genreSim);
+            var penalty = ScoringHelper.ComputeSoftGenrePenalty(features.GenreSimilarity, _genrePenaltyFloor);
             score *= penalty;
         }
 
@@ -68,11 +67,10 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
 
         var explanation = ScoringHelper.BuildExplanation(vector, WeightsArray, bias: 0.0, Name);
 
-        // Apply genre penalty when used standalone
+        // Apply genre penalty when used standalone (shared formula with EnsembleScoringStrategy)
         if (_genrePenaltyFloor < 1.0)
         {
-            var genreSim = features.GenreSimilarity;
-            var penalty = _genrePenaltyFloor + ((1.0 - _genrePenaltyFloor) * genreSim);
+            var penalty = ScoringHelper.ComputeSoftGenrePenalty(features.GenreSimilarity, _genrePenaltyFloor);
             explanation.FinalScore *= penalty;
             explanation.GenrePenaltyMultiplier = penalty;
         }
