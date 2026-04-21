@@ -53,7 +53,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<IArrIntegrationService, ArrIntegrationService>();
         serviceCollection.AddSingleton<ISeerrIntegrationService, SeerrIntegrationService>();
         serviceCollection.AddSingleton<IWatchHistoryService, WatchHistoryService>();
-        serviceCollection.AddSingleton(_ =>
+        serviceCollection.AddSingleton(sp =>
         {
             var dataPath = Plugin.Instance?.DataFolderPath;
             string? weightsPath = null;
@@ -62,14 +62,32 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
                 weightsPath = Path.Join(dataPath, "ml_weights.json");
             }
 
+            return new LearnedScoringStrategy(weightsPath);
+        });
+        serviceCollection.AddSingleton(sp =>
+        {
+            // When used inside Ensemble, disable standalone genre penalty (penalty = 1.0)
+            return new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
+        });
+        serviceCollection.AddSingleton(sp =>
+        {
+            var dataPath = Plugin.Instance?.DataFolderPath;
+            string? statePath = null;
+            if (!string.IsNullOrEmpty(dataPath))
+            {
+                statePath = Path.Join(dataPath, "ensemble_state.json");
+            }
+
             var config = Plugin.Instance?.Configuration;
             var alphaMin = config?.EnsembleAlphaMin ?? 0.3;
             var alphaMax = config?.EnsembleAlphaMax ?? 0.8;
             var genrePenaltyFloor = config?.EnsembleGenrePenaltyFloor ?? 0.10;
 
-            return new EnsembleScoringStrategy(weightsPath, alphaMin, alphaMax, genrePenaltyFloor);
+            var learned = sp.GetRequiredService<LearnedScoringStrategy>();
+            var heuristic = sp.GetRequiredService<HeuristicScoringStrategy>();
+
+            return new EnsembleScoringStrategy(learned, heuristic, statePath, alphaMin, alphaMax, genrePenaltyFloor);
         });
-        serviceCollection.AddSingleton<HeuristicScoringStrategy>();
         serviceCollection.AddSingleton<IScoringStrategy>(ResolveScoringStrategy);
         serviceCollection.AddSingleton<IRecommendationEngine, RecommendationEngine>();
         serviceCollection.AddSingleton<IRecommendationCacheService, RecommendationCacheService>();

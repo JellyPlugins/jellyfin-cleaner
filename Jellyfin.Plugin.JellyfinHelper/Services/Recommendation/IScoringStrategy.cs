@@ -32,12 +32,18 @@ public interface IScoringStrategy
     /// <param name="features">The pre-computed feature signals for the candidate.</param>
     /// <returns>A detailed score explanation including per-feature contributions.</returns>
     ScoreExplanation ScoreWithExplanation(CandidateFeatures features);
+}
 
+/// <summary>
+///     Optional interface for scoring strategies that support learning from labelled examples.
+///     Separates the training concern from the scoring concern (Liskov Substitution Principle).
+/// </summary>
+public interface ITrainableStrategy
+{
     /// <summary>
-    ///     Optional: Train/update the strategy's internal weights from labelled examples.
-    ///     Strategies that do not support learning should return false.
+    ///     Train/update the strategy's internal weights from labelled examples.
     /// </summary>
     /// <param name="examples">Training examples (features + positive/negative label).</param>
-    /// <returns>True if training was performed, false if the strategy does not support learning.</returns>
+    /// <returns>True if training was performed, false if insufficient data.</returns>
     bool Train(IReadOnlyList<TrainingExample> examples);
 }

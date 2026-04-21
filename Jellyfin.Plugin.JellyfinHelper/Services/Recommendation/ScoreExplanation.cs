@@ -1,3 +1,5 @@
+using System;
+
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 
 /// <summary>
@@ -60,42 +62,43 @@ public sealed class ScoreExplanation
         double yearProxContrib,
         double interactionContrib = 0.0)
     {
-        var dominant = "genre";
-        var maxContrib = genreContrib;
+        // Use absolute values so that strong negative contributions are also detected
+        var dominant = "Genre";
+        var maxContrib = Math.Abs(genreContrib);
 
-        if (collabContrib > maxContrib)
+        if (Math.Abs(collabContrib) > maxContrib)
         {
-            dominant = "collaborative";
-            maxContrib = collabContrib;
+            dominant = "Collaborative";
+            maxContrib = Math.Abs(collabContrib);
         }
 
-        if (ratingContrib > maxContrib)
+        if (Math.Abs(ratingContrib) > maxContrib)
         {
-            dominant = "communityRating";
-            maxContrib = ratingContrib;
+            dominant = "Rating";
+            maxContrib = Math.Abs(ratingContrib);
         }
 
-        if (userRatingContrib > maxContrib)
+        if (Math.Abs(userRatingContrib) > maxContrib)
         {
-            dominant = "userRating";
-            maxContrib = userRatingContrib;
+            dominant = "UserRating";
+            maxContrib = Math.Abs(userRatingContrib);
         }
 
-        if (recencyContrib > maxContrib)
+        if (Math.Abs(recencyContrib) > maxContrib)
         {
-            dominant = "recency";
-            maxContrib = recencyContrib;
+            dominant = "Recency";
+            maxContrib = Math.Abs(recencyContrib);
         }
 
-        if (yearProxContrib > maxContrib)
+        if (Math.Abs(yearProxContrib) > maxContrib)
         {
-            dominant = "yearProximity";
-            maxContrib = yearProxContrib;
+            dominant = "YearProximity";
+            maxContrib = Math.Abs(yearProxContrib);
         }
 
-        if (interactionContrib > maxContrib)
+        if (Math.Abs(interactionContrib) > maxContrib)
         {
-            dominant = "interaction";
+            dominant = "Interaction";
         }
 
         return dominant;

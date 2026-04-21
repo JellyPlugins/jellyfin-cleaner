@@ -137,7 +137,8 @@ public sealed class ScoringStrategyTests : IDisposable
     [Fact]
     public void Heuristic_Score_AllOnes_ReturnsExpectedSum()
     {
-        var strategy = new HeuristicScoringStrategy();
+        // Use genrePenaltyFloor=1.0 to disable penalty for pure weight verification
+        var strategy = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
         var features = new CandidateFeatures
         {
             GenreSimilarity = 1.0,
@@ -153,7 +154,7 @@ public sealed class ScoringStrategyTests : IDisposable
 
         var score = strategy.Score(features);
 
-        // Sum of all weights = 1.00
+        // Sum of all weights = 1.00, genre penalty = 1.0 (disabled)
         Assert.Equal(1.00, score, 4);
     }
 
@@ -171,7 +172,8 @@ public sealed class ScoringStrategyTests : IDisposable
     [Fact]
     public void Heuristic_Score_GenreOnly()
     {
-        var strategy = new HeuristicScoringStrategy();
+        // Use genrePenaltyFloor=1.0 to disable penalty and test pure weight
+        var strategy = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
         var features = new CandidateFeatures { GenreSimilarity = 0.5, UserRatingScore = 0.0 };
 
         var score = strategy.Score(features);
@@ -182,7 +184,8 @@ public sealed class ScoringStrategyTests : IDisposable
     [Fact]
     public void Heuristic_Score_WeightedCombination()
     {
-        var strategy = new HeuristicScoringStrategy();
+        // Use genrePenaltyFloor=1.0 to disable penalty for pure weight verification
+        var strategy = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
         var features = new CandidateFeatures
         {
             GenreSimilarity = 0.8,
@@ -207,12 +210,39 @@ public sealed class ScoringStrategyTests : IDisposable
     }
 
     [Fact]
-    public void Heuristic_Score_GenreMismatch_NoPenaltyApplied()
+    public void Heuristic_Score_GenreMismatch_AppliesPenaltyByDefault()
     {
-        var strategy = new HeuristicScoringStrategy();
+        var strategy = new HeuristicScoringStrategy(); // default genrePenaltyFloor=0.10
         var features = new CandidateFeatures
         {
-            GenreSimilarity = 0.0, // no genre match
+            GenreSimilarity = 0.0, // no genre match → penalty floor = 0.10
+            CollaborativeScore = 0.5,
+            RatingScore = 0.8,
+            RecencyScore = 0.7,
+            YearProximityScore = 0.9,
+            UserRatingScore = 0.0,
+            CompletionRatio = 0.0
+        };
+
+        var rawExpected =
+            (0.0 * DefaultWeights.GenreSimilarity) +
+            (0.5 * DefaultWeights.CollaborativeScore) +
+            (0.8 * DefaultWeights.RatingScore) +
+            (0.7 * DefaultWeights.RecencyScore) +
+            (0.9 * DefaultWeights.YearProximityScore);
+
+        // With genrePenaltyFloor=0.10 and GenreSimilarity=0.0, penalty = 0.10
+        var expected = rawExpected * 0.10;
+        Assert.Equal(expected, strategy.Score(features), 4);
+    }
+
+    [Fact]
+    public void Heuristic_Score_GenreMismatch_NoPenaltyWhenDisabled()
+    {
+        var strategy = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 0.0, // no genre match, but penalty disabled
             CollaborativeScore = 0.5,
             RatingScore = 0.8,
             RecencyScore = 0.7,
@@ -265,19 +295,11 @@ public sealed class ScoringStrategyTests : IDisposable
     }
 
     [Fact]
-    public void Heuristic_Train_ReturnsFalse()
+    public void Heuristic_DoesNotImplementITrainableStrategy()
     {
         var strategy = new HeuristicScoringStrategy();
-        var examples = new List<TrainingExample>
-        {
-            new() { Features = new CandidateFeatures(), Label = 1.0 },
-            new() { Features = new CandidateFeatures(), Label = 0.0 },
-            new() { Features = new CandidateFeatures(), Label = 1.0 },
-            new() { Features = new CandidateFeatures(), Label = 0.0 },
-            new() { Features = new CandidateFeatures(), Label = 1.0 }
-        };
-
-        Assert.False(strategy.Train(examples));
+        // HeuristicScoringStrategy no longer implements ITrainableStrategy (ISP compliance)
+        Assert.False(strategy is ITrainableStrategy);
     }
 
     // ============================================================
@@ -755,8 +777,9 @@ public sealed class ScoringStrategyTests : IDisposable
     public void Ensemble_Score_IsBetweenLearnedAndHeuristic()
     {
         var ensemble = new EnsembleScoringStrategy();
-        var learned = new LearnedScoringStrategy();
-        var heuristic = new HeuristicScoringStrategy();
+        // Use penalty-disabled heuristic (same as Ensemble uses internally) for fair comparison
+        var learned = ensemble.LearnedStrategy;
+        var heuristic = ensemble.HeuristicStrategy;
 
         var features = new CandidateFeatures
         {
@@ -773,8 +796,13 @@ public sealed class ScoringStrategyTests : IDisposable
         var learnedScore = learned.Score(features);
         var heuristicScore = heuristic.Score(features);
 
-        var minScore = Math.Min(learnedScore, heuristicScore);
-        var maxScore = Math.Max(learnedScore, heuristicScore);
+        // Ensemble applies genre penalty centrally, so the blended score may be below both sub-scores.
+        // But for features with GenreSimilarity > threshold (0.15), penalty = 1.0 and the score
+        // should be between the two sub-strategy scores.
+        var penalty = EnsembleScoringStrategy.ComputeSoftGenrePenalty(
+            features.GenreSimilarity, EnsembleScoringStrategy.DefaultGenrePenaltyFloor);
+        var minScore = Math.Min(learnedScore, heuristicScore) * penalty;
+        var maxScore = Math.Max(learnedScore, heuristicScore) * penalty;
 
         Assert.InRange(ensembleScore, minScore - 0.001, maxScore + 0.001);
     }
@@ -1059,7 +1087,10 @@ public sealed class ScoringStrategyTests : IDisposable
         Assert.Equal(strategy.Score(features), explanation.FinalScore, 10);
         Assert.Equal("Heuristic (Fixed Weights)", explanation.StrategyName);
         Assert.False(string.IsNullOrEmpty(explanation.DominantSignal));
-        Assert.Equal(1.0, explanation.GenrePenaltyMultiplier);
+        // With default genrePenaltyFloor=0.10 and GenreSimilarity=0.8:
+        // penalty = 0.10 + (0.90 × 0.8) = 0.82
+        var expectedPenalty = 0.10 + (0.90 * features.GenreSimilarity);
+        Assert.Equal(expectedPenalty, explanation.GenrePenaltyMultiplier, 10);
     }
 
     [Fact]

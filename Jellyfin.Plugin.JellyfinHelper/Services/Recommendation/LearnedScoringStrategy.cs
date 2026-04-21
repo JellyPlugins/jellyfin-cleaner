@@ -22,7 +22,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 ///     (temporal decay), optional Z-score feature standardization, and early stopping.
 ///     Weights are persisted to disk so they survive server restarts.
 /// </remarks>
-public sealed class LearnedScoringStrategy : IScoringStrategy
+public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrategy
 {
     /// <summary>Default learning rate for gradient descent.</summary>
     internal const double DefaultLearningRate = 0.02;
@@ -63,7 +63,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
     private readonly object _syncRoot = new();
     private readonly string? _weightsPath;
     private double _bias;
-    private double _lastValidationLoss = double.MaxValue;
+    private double _lastValidationLoss = double.NaN;
     private double[] _weights;
 
     /// <summary>
@@ -80,7 +80,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
 
         // Initialize with genre-dominant weights — genre match is the strongest signal
         _weights = DefaultWeights.CreateWeightArray();
-        _bias = DefaultWeights.Bias; // slight positive bias so perfect matches approach 1.0
+        _bias = DefaultWeights.Bias; // positive bias; note raw score may exceed 1.0 with all features at max and is clamped
 
         // Try to load persisted weights
         TryLoadWeights();
@@ -95,7 +95,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
     /// <summary>
     ///     Gets the validation loss from the last training run.
     ///     Used by <see cref="EnsembleScoringStrategy"/> to gate alpha progression.
-    ///     Returns <see cref="double.MaxValue"/> if no training has been performed.
+    ///     Returns <see cref="double.NaN"/> if no training has been performed.
     /// </summary>
     internal double LastValidationLoss
     {
@@ -139,7 +139,14 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
     /// <inheritdoc />
     public double Score(CandidateFeatures features)
     {
-        return ScoreWithExplanation(features).FinalScore;
+        // Fast path: compute score directly without allocating a ScoreExplanation object
+        var vector = features.ToVector();
+        ValidateVectorLength(vector);
+
+        lock (_syncRoot)
+        {
+            return Math.Clamp(ScoringHelper.ComputeRawScore(vector, _weights, _bias), 0.0, 1.0);
+        }
     }
 
     /// <inheritdoc />
@@ -154,7 +161,11 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    ///     Trains the model weights from labelled examples using mini-batch gradient descent.
+    /// </summary>
+    /// <param name="examples">Training examples with features and labels.</param>
+    /// <returns>True if training was performed, false if insufficient data.</returns>
     public bool Train(IReadOnlyList<TrainingExample> examples)
     {
         if (examples.Count < MinTrainingExamples)
@@ -193,7 +204,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
             var useEarlyStopping = validationCount >= MinValidationExamples
                 && examples.Count - validationCount >= MinTrainingExamples;
 
-            var rng = new Random();
+            var rng = new Random(42);
 
             // Create shuffled index array for split
             var allIndices = new int[examples.Count];
@@ -499,24 +510,20 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
                 Directory.CreateDirectory(dir);
             }
 
-            double[] weightsSnapshot;
-            double biasSnapshot;
-
+            // Snapshot and serialize under lock to ensure consistency with concurrent Train() calls
+            string json;
             lock (_syncRoot)
             {
-                weightsSnapshot = (double[])_weights.Clone();
-                biasSnapshot = _bias;
+                var data = new WeightsData
+                {
+                    Weights = (double[])_weights.Clone(),
+                    Bias = _bias,
+                    UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
+                    Version = CurrentWeightsVersion
+                };
+                json = JsonSerializer.Serialize(data, SerializerOptions);
             }
 
-            var data = new WeightsData
-            {
-                Weights = weightsSnapshot,
-                Bias = biasSnapshot,
-                UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
-                Version = CurrentWeightsVersion
-            };
-
-            var json = JsonSerializer.Serialize(data, SerializerOptions);
             var tempPath = _weightsPath + ".tmp";
             File.WriteAllText(tempPath, json);
             File.Move(tempPath, _weightsPath, overwrite: true);

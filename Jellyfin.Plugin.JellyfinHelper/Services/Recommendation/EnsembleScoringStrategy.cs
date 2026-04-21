@@ -25,7 +25,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 ///     Genre penalty is applied to both the final score AND per-feature contributions
 ///     for consistency (sum of contributions ≈ finalScore).
 /// </remarks>
-public sealed class EnsembleScoringStrategy : IScoringStrategy
+public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrategy
 {
     /// <summary>Default minimum blending factor (heuristic dominates with no training data).</summary>
     internal const double DefaultAlphaMin = 0.3;
@@ -72,23 +72,19 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
     private int _trainingExampleCount;
 
     /// <summary>
-    ///     Initializes a new instance of the <see cref="EnsembleScoringStrategy" /> class.
+    ///     Initializes a new instance of the <see cref="EnsembleScoringStrategy" /> class
+    ///     with injected sub-strategies for testability and flexibility.
     /// </summary>
-    /// <param name="weightsPath">
-    ///     Optional file path for persisting learned weights.
-    ///     Passed through to the underlying <see cref="LearnedScoringStrategy" />.
-    /// </param>
-    /// <param name="alphaMin">
-    ///     Minimum blending factor (default: <see cref="DefaultAlphaMin" />).
-    /// </param>
-    /// <param name="alphaMax">
-    ///     Maximum blending factor (default: <see cref="DefaultAlphaMax" />).
-    /// </param>
-    /// <param name="genrePenaltyFloor">
-    ///     Minimum genre penalty multiplier (default: <see cref="DefaultGenrePenaltyFloor" />).
-    /// </param>
+    /// <param name="learned">The learned (adaptive ML) sub-strategy.</param>
+    /// <param name="heuristic">The heuristic (rule-based) sub-strategy.</param>
+    /// <param name="statePath">Optional file path for persisting ensemble state.</param>
+    /// <param name="alphaMin">Minimum blending factor.</param>
+    /// <param name="alphaMax">Maximum blending factor.</param>
+    /// <param name="genrePenaltyFloor">Minimum genre penalty multiplier.</param>
     public EnsembleScoringStrategy(
-        string? weightsPath = null,
+        LearnedScoringStrategy learned,
+        HeuristicScoringStrategy heuristic,
+        string? statePath = null,
         double alphaMin = DefaultAlphaMin,
         double alphaMax = DefaultAlphaMax,
         double genrePenaltyFloor = DefaultGenrePenaltyFloor)
@@ -98,23 +94,36 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
         _genrePenaltyFloor = Math.Clamp(genrePenaltyFloor, 0.0, 1.0);
         _alpha = _alphaMin;
 
-        _learned = new LearnedScoringStrategy(weightsPath);
-        _heuristic = new HeuristicScoringStrategy();
+        _learned = learned;
+        // Disable penalty in sub-strategies since ensemble applies it centrally
+        _heuristic = heuristic;
 
-        // Derive ensemble state path robustly from the learned weights path (Point 10)
-        if (!string.IsNullOrEmpty(weightsPath))
-        {
-            var directory = Path.GetDirectoryName(weightsPath);
-            if (string.IsNullOrEmpty(directory))
-            {
-                // weightsPath is just a filename — use the same directory (current working directory)
-                directory = ".";
-            }
-
-            _statePath = Path.Combine(directory, "ensemble_state.json");
-        }
-
+        _statePath = statePath;
         TryLoadState();
+    }
+
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="EnsembleScoringStrategy"/> class.
+    ///     Convenience constructor that creates sub-strategies internally.
+    ///     Kept for backward compatibility and simple usage scenarios.
+    /// </summary>
+    /// <param name="weightsPath">Optional file path for persisting learned weights.</param>
+    /// <param name="alphaMin">Minimum blending factor.</param>
+    /// <param name="alphaMax">Maximum blending factor.</param>
+    /// <param name="genrePenaltyFloor">Minimum genre penalty multiplier.</param>
+    public EnsembleScoringStrategy(
+        string? weightsPath = null,
+        double alphaMin = DefaultAlphaMin,
+        double alphaMax = DefaultAlphaMax,
+        double genrePenaltyFloor = DefaultGenrePenaltyFloor)
+        : this(
+            new LearnedScoringStrategy(weightsPath),
+            new HeuristicScoringStrategy(genrePenaltyFloor: 1.0), // disable penalty in sub-strategy
+            DeriveStatePath(weightsPath),
+            alphaMin,
+            alphaMax,
+            genrePenaltyFloor)
+    {
     }
 
     /// <inheritdoc />
@@ -233,16 +242,20 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
         };
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    ///     Delegates training to the learned strategy and updates the blending factor.
+    /// </summary>
+    /// <param name="examples">Training examples with features and labels.</param>
+    /// <returns>True if training was performed, false if insufficient data.</returns>
     public bool Train(IReadOnlyList<TrainingExample> examples)
     {
         var result = _learned.Train(examples);
 
         if (result)
         {
-            // Check validation loss quality gate (Point 5)
+            // Check validation loss quality gate
             var validationLoss = _learned.LastValidationLoss;
-            var qualityGatePassed = validationLoss <= ValidationLossThreshold;
+            var qualityGatePassed = !double.IsNaN(validationLoss) && validationLoss <= ValidationLossThreshold;
 
             lock (_syncRoot)
             {
@@ -259,6 +272,14 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
                 // This prevents the learned model from gaining more influence when
                 // its predictions are unreliable.
             }
+
+            // Log training quality metrics for transparency (Point 12)
+            System.Diagnostics.Trace.TraceInformation(
+                "[EnsembleScoringStrategy] Training complete: examples={0}, validationLoss={1:F6}, qualityGate={2}, alpha={3:F4}",
+                examples.Count,
+                validationLoss,
+                qualityGatePassed ? "passed" : "frozen",
+                _alpha);
 
             TrySaveState();
         }
@@ -310,6 +331,25 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
     {
         var exponent = -AlphaSigmoidK * (trainingExampleCount - AlphaSigmoidMidpoint);
         return alphaMin + ((alphaMax - alphaMin) / (1.0 + Math.Exp(exponent)));
+    }
+
+    /// <summary>
+    ///     Derives the ensemble state file path from the learned weights path.
+    /// </summary>
+    private static string? DeriveStatePath(string? weightsPath)
+    {
+        if (string.IsNullOrEmpty(weightsPath))
+        {
+            return null;
+        }
+
+        var directory = Path.GetDirectoryName(weightsPath);
+        if (string.IsNullOrEmpty(directory))
+        {
+            directory = ".";
+        }
+
+        return Path.Combine(directory, "ensemble_state.json");
     }
 
     /// <summary>

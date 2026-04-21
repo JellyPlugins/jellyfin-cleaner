@@ -221,7 +221,7 @@ public sealed class RecommendationEngine : IRecommendationEngine
             $"{examples.Count - positiveCount} negative) from {previousResults.Count} users.",
             _logger);
 
-        var trained = _strategy.Train(examples);
+        var trained = (_strategy is ITrainableStrategy trainable) && trainable.Train(examples);
 
         if (trained)
         {
@@ -803,6 +803,21 @@ public sealed class RecommendationEngine : IRecommendationEngine
         var selected = new List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>(count);
         var remaining = new List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>(pool);
 
+        // Cache genre HashSets to avoid repeated allocation per Jaccard call (Point 10)
+        var genreSetCache = new Dictionary<Guid, HashSet<string>>();
+        HashSet<string> GetOrCreateGenreSet(BaseItem item)
+        {
+            if (!genreSetCache.TryGetValue(item.Id, out var set))
+            {
+                set = item.Genres is { Length: > 0 }
+                    ? new HashSet<string>(item.Genres, StringComparer.OrdinalIgnoreCase)
+                    : [];
+                genreSetCache[item.Id] = set;
+            }
+
+            return set;
+        }
+
         while (selected.Count < count && remaining.Count > 0)
         {
             var bestIdx = -1;
@@ -811,12 +826,14 @@ public sealed class RecommendationEngine : IRecommendationEngine
             for (var i = 0; i < remaining.Count; i++)
             {
                 var relevance = remaining[i].Score;
+                var candidateSet = GetOrCreateGenreSet(remaining[i].Item);
 
                 // Compute max similarity to any already-selected item
                 var maxSimilarity = 0.0;
                 foreach (var sel in selected)
                 {
-                    var sim = ComputeGenreJaccard(remaining[i].Item.Genres, sel.Item.Genres);
+                    var selectedSet = GetOrCreateGenreSet(sel.Item);
+                    var sim = ComputeJaccardFromSets(candidateSet, selectedSet);
                     if (sim > maxSimilarity)
                     {
                         maxSimilarity = sim;
@@ -857,7 +874,36 @@ public sealed class RecommendationEngine : IRecommendationEngine
     }
 
     /// <summary>
-    ///     Computes Jaccard similarity between two genre sets.
+    ///     Computes Jaccard similarity from pre-built HashSets (avoids repeated allocation).
+    ///     Used by the MMR loop where genre sets are cached.
+    /// </summary>
+    /// <param name="setA">First genre set.</param>
+    /// <param name="setB">Second genre set.</param>
+    /// <returns>Jaccard similarity (0–1).</returns>
+    internal static double ComputeJaccardFromSets(HashSet<string> setA, HashSet<string> setB)
+    {
+        if (setA.Count == 0 || setB.Count == 0)
+        {
+            return 0;
+        }
+
+        var intersection = 0;
+        // Iterate over the smaller set for efficiency
+        var (smaller, larger) = setA.Count <= setB.Count ? (setA, setB) : (setB, setA);
+        foreach (var g in smaller)
+        {
+            if (larger.Contains(g))
+            {
+                intersection++;
+            }
+        }
+
+        var union = setA.Count + setB.Count - intersection;
+        return union > 0 ? (double)intersection / union : 0;
+    }
+
+    /// <summary>
+    ///     Computes Jaccard similarity between two genre arrays.
     /// </summary>
     /// <param name="genresA">First genre array.</param>
     /// <param name="genresB">Second genre array.</param>
