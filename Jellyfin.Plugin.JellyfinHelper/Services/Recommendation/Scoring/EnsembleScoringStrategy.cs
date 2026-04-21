@@ -5,7 +5,7 @@ using System.IO;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
-namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
+namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 
 /// <summary>
 ///     Ensemble scoring strategy that combines the learned (adaptive ML) strategy

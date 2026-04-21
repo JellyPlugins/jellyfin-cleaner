@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
+namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
 
 /// <summary>
 ///     Represents watch data for a single media item by a specific user.

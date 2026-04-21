@@ -1,7 +1,4 @@
-using System;
 using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 using MediaBrowser.Common.Configuration;

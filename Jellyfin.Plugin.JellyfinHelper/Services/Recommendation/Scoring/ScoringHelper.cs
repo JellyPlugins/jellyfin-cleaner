@@ -1,6 +1,6 @@
 using System;
 
-namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
+namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 
 /// <summary>
 ///     Shared scoring logic used by both <see cref="HeuristicScoringStrategy"/> and

@@ -1,4 +1,4 @@
-namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
+namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 
 /// <summary>
 ///     Centralized default feature weights for recommendation scoring strategies.

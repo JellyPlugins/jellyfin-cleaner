@@ -1,20 +1,15 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
 using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
-using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
+using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Model.Dto;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
-namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Recommendation;
+namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Recommendation.WatchHistory;
 
 public class WatchHistoryServiceTests
 {

@@ -1,6 +1,6 @@
 using System;
 
-namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
+namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 
 /// <summary>
 ///     Named indices for the feature vector produced by <see cref="CandidateFeatures.ToVector"/>.

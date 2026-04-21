@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 

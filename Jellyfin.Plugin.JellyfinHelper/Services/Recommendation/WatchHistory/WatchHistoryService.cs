@@ -10,7 +10,7 @@ using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Logging;
 
-namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
+namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
 
 /// <summary>
 ///     Collects watch history and user profiles from Jellyfin's user data manager.

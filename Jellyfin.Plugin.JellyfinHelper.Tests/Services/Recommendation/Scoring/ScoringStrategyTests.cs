@@ -1,10 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
+using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 using Xunit;
 
-namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Recommendation;
+namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Recommendation.Scoring;
 
 /// <summary>
 ///     Tests for <see cref="IScoringStrategy" /> implementations:

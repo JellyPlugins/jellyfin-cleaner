@@ -1,8 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
-namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
+namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
 
 /// <summary>
 ///     Collects watch history and user profiles from Jellyfin's user data.
