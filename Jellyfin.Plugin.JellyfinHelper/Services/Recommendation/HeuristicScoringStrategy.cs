@@ -6,16 +6,17 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 /// <summary>
 ///     Fixed-weight heuristic scoring strategy.
 ///     Uses hand-tuned weights with genre similarity as the dominant signal.
-///     Includes a genre-mismatch penalty to suppress items with no genre overlap.
+///     This strategy does not apply genre-mismatch penalties — that responsibility
+///     belongs to the ensemble layer to avoid double-penalization.
 ///     This strategy does not support learning — weights are constant.
 /// </summary>
 public sealed class HeuristicScoringStrategy : IScoringStrategy
 {
     /// <summary>Weight for genre similarity signal (dominant).</summary>
-    internal const double GenreWeight = 0.45;
+    internal const double GenreWeight = 0.40;
 
     /// <summary>Weight for collaborative filtering signal.</summary>
-    internal const double CollaborativeWeight = 0.20;
+    internal const double CollaborativeWeight = 0.15;
 
     /// <summary>Weight for community rating signal.</summary>
     internal const double RatingWeight = 0.10;
@@ -29,18 +30,14 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
     /// <summary>Weight for genre count signal (items with more genres = broader appeal).</summary>
     internal const double GenreCountWeight = 0.05;
 
-    /// <summary>Weight for series type signal (slight preference for series or movies).</summary>
-    internal const double IsSeriesWeight = 0.10;
+    /// <summary>Weight for series type signal (neutral — no inherent preference for series or movies).</summary>
+    internal const double IsSeriesWeight = 0.00;
 
-    /// <summary>
-    ///     Genre similarity threshold below which the genre mismatch penalty is applied.
-    /// </summary>
-    internal const double GenreMismatchThreshold = 0.1;
+    /// <summary>Weight for genre × rating interaction signal.</summary>
+    internal const double GenreRatingInteractionWeight = 0.10;
 
-    /// <summary>
-    ///     Penalty multiplier for items below the genre mismatch threshold.
-    /// </summary>
-    internal const double GenreMismatchPenalty = 0.15;
+    /// <summary>Weight for genre × collaborative interaction signal.</summary>
+    internal const double GenreCollabInteractionWeight = 0.10;
 
     /// <inheritdoc />
     public string Name => "Heuristic (Fixed Weights)";
@@ -51,26 +48,22 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
     /// <inheritdoc />
     public double Score(CandidateFeatures features)
     {
-        var normalizedGenreCount = Math.Clamp(
-            features.GenreCount / CandidateFeatures.GenreCountNormalizationCeiling, 0.0, 1.0);
+        var vector = features.ToVector();
 
+        // vector: [genre, collab, rating, recency, yearProx, genreCount_norm, isSeries, genre×rating, genre×collab]
         var score =
-            (features.GenreSimilarity * GenreWeight) +
-            (features.CollaborativeScore * CollaborativeWeight) +
-            (features.RatingScore * RatingWeight) +
-            (features.RecencyScore * RecencyWeight) +
-            (features.YearProximityScore * YearProximityWeight) +
-            (normalizedGenreCount * GenreCountWeight) +
-            ((features.IsSeries ? 1.0 : 0.0) * IsSeriesWeight);
+            (vector[0] * GenreWeight) +
+            (vector[1] * CollaborativeWeight) +
+            (vector[2] * RatingWeight) +
+            (vector[3] * RecencyWeight) +
+            (vector[4] * YearProximityWeight) +
+            (vector[5] * GenreCountWeight) +
+            (vector[6] * IsSeriesWeight) +
+            (vector[7] * GenreRatingInteractionWeight) +
+            (vector[8] * GenreCollabInteractionWeight);
 
-        // Apply genre-mismatch penalty: items with no meaningful genre overlap
-        // are strongly penalized to prevent irrelevant recommendations
-        if (features.GenreSimilarity < GenreMismatchThreshold)
-        {
-            score *= GenreMismatchPenalty;
-        }
-
-        return score;
+        // No genre-mismatch penalty here — applied centrally in the Ensemble strategy
+        return Math.Clamp(score, 0.0, 1.0);
     }
 
     /// <inheritdoc />

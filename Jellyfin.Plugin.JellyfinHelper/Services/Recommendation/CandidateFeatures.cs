@@ -36,11 +36,14 @@ public sealed class CandidateFeatures
 
     /// <summary>
     ///     Converts the features into a fixed-size double array for ML processing.
-    ///     Order: [genre, collab, rating, recency, yearProx, genreCount_norm, isSeries].
+    ///     Order: [genre, collab, rating, recency, yearProx, genreCount_norm, isSeries,
+    ///             genre×rating (interaction), genre×collab (interaction)].
     /// </summary>
-    /// <returns>A 7-element feature vector.</returns>
+    /// <returns>A 9-element feature vector.</returns>
     public double[] ToVector()
     {
+        var normalizedGenreCount = Math.Clamp(GenreCount / GenreCountNormalizationCeiling, 0.0, 1.0);
+
         return
         [
             GenreSimilarity,
@@ -48,8 +51,11 @@ public sealed class CandidateFeatures
             RatingScore,
             RecencyScore,
             YearProximityScore,
-            Math.Clamp(GenreCount / GenreCountNormalizationCeiling, 0.0, 1.0),
-            IsSeries ? 1.0 : 0.0
+            normalizedGenreCount,
+            IsSeries ? 1.0 : 0.0,
+            // Interaction features — capture non-linear relationships
+            GenreSimilarity * RatingScore, // high genre match + high rating = extra boost
+            GenreSimilarity * CollaborativeScore // high genre match + popular with similar users = extra boost
         ];
     }
 }

@@ -358,7 +358,8 @@ public class RecommendationEngineTests
 
         var map = RecommendationEngine.BuildCollaborativeMap(user, [user, other]);
         Assert.Single(map);
-        Assert.Equal(1, map[uniqueToOther]);
+        // Jaccard-weighted: overlap=3, union=3+4-3=4, weight=round(3/4*10)=8
+        Assert.Equal(8, map[uniqueToOther]);
     }
 
     [Fact]

@@ -38,7 +38,7 @@ public sealed class ScoringStrategyTests : IDisposable
     // ============================================================
 
     [Fact]
-    public void CandidateFeatures_ToVector_Returns7Elements()
+    public void CandidateFeatures_ToVector_Returns9Elements()
     {
         var features = new CandidateFeatures
         {
@@ -53,14 +53,16 @@ public sealed class ScoringStrategyTests : IDisposable
 
         var vector = features.ToVector();
 
-        Assert.Equal(7, vector.Length);
-        Assert.Equal(0.8, vector[0]);
-        Assert.Equal(0.5, vector[1]);
-        Assert.Equal(0.7, vector[2]);
-        Assert.Equal(0.3, vector[3]);
-        Assert.Equal(0.9, vector[4]);
-        Assert.Equal(0.6, vector[5]); // 3/5 = 0.6
+        Assert.Equal(9, vector.Length);
+        Assert.Equal(0.8, vector[0]); // genre
+        Assert.Equal(0.5, vector[1]); // collab
+        Assert.Equal(0.7, vector[2]); // rating
+        Assert.Equal(0.3, vector[3]); // recency
+        Assert.Equal(0.9, vector[4]); // yearProx
+        Assert.Equal(0.6, vector[5]); // 3/5 = 0.6 (genreCount normalized)
         Assert.Equal(0.0, vector[6]); // not a series
+        Assert.Equal(0.8 * 0.7, vector[7], 10); // genre × rating interaction
+        Assert.Equal(0.8 * 0.5, vector[8], 10); // genre × collab interaction
     }
 
     [Fact]
@@ -178,19 +180,21 @@ public sealed class ScoringStrategyTests : IDisposable
         };
 
         // GenreCount=0 → normalized 0, IsSeries=false → 0
+        // Includes interaction terms: genre×rating = 0.56, genre×collab = 0.48
         var expected =
-            (0.8 * 0.45) +
-            (0.6 * 0.20) +
-            (0.7 * 0.10) +
-            (0.5 * 0.05) +
-            (0.9 * 0.05);
-        // Genre >= threshold, so no penalty
+            (0.8 * HeuristicScoringStrategy.GenreWeight) +
+            (0.6 * HeuristicScoringStrategy.CollaborativeWeight) +
+            (0.7 * HeuristicScoringStrategy.RatingWeight) +
+            (0.5 * HeuristicScoringStrategy.RecencyWeight) +
+            (0.9 * HeuristicScoringStrategy.YearProximityWeight) +
+            (0.8 * 0.7 * HeuristicScoringStrategy.GenreRatingInteractionWeight) +
+            (0.8 * 0.6 * HeuristicScoringStrategy.GenreCollabInteractionWeight);
 
         Assert.Equal(expected, strategy.Score(features), 4);
     }
 
     [Fact]
-    public void Heuristic_Score_GenreMismatch_AppliesPenalty()
+    public void Heuristic_Score_GenreMismatch_NoPenaltyApplied()
     {
         var strategy = new HeuristicScoringStrategy();
         var features = new CandidateFeatures
@@ -202,15 +206,14 @@ public sealed class ScoringStrategyTests : IDisposable
             YearProximityScore = 0.9
         };
 
-        // GenreCount=0 → normalized 0, IsSeries=false → 0
-        var baseScore =
-            (0.0 * 0.45) +
-            (0.5 * 0.20) +
-            (0.8 * 0.10) +
-            (0.7 * 0.05) +
-            (0.9 * 0.05);
-
-        var expected = baseScore * HeuristicScoringStrategy.GenreMismatchPenalty;
+        // Genre penalty is now applied centrally in Ensemble, not in Heuristic.
+        // With GenreSimilarity=0, interaction terms are also 0.
+        var expected =
+            (0.0 * HeuristicScoringStrategy.GenreWeight) +
+            (0.5 * HeuristicScoringStrategy.CollaborativeWeight) +
+            (0.8 * HeuristicScoringStrategy.RatingWeight) +
+            (0.7 * HeuristicScoringStrategy.RecencyWeight) +
+            (0.9 * HeuristicScoringStrategy.YearProximityWeight);
 
         Assert.Equal(expected, strategy.Score(features), 4);
     }
@@ -300,8 +303,8 @@ public sealed class ScoringStrategyTests : IDisposable
         var score = strategy.Score(features);
 
         // With bias = 0.05, all features = 0 → rawScore = 0.05
-        // Genre < threshold → penalty: 0.05 * 0.15 ≈ 0.0075
-        Assert.InRange(score, 0.0, 0.02);
+        // Genre penalty is now in Ensemble, not Learned, so score = 0.05
+        Assert.InRange(score, 0.0, 0.10);
     }
 
     [Fact]
@@ -358,9 +361,11 @@ public sealed class ScoringStrategyTests : IDisposable
         var weights = strategy.CurrentWeights;
 
         Assert.Equal(LearnedScoringStrategy.FeatureCount, weights.Length);
-        Assert.Equal(0.50, weights[0]); // genre (dominant)
-        Assert.Equal(0.20, weights[1]); // collaborative
+        Assert.Equal(0.40, weights[0]); // genre (dominant)
+        Assert.Equal(0.15, weights[1]); // collaborative
         Assert.Equal(0.10, weights[2]); // rating
+        Assert.Equal(0.10, weights[7]); // genre × rating interaction
+        Assert.Equal(0.10, weights[8]); // genre × collab interaction
     }
 
     [Fact]
@@ -598,7 +603,7 @@ public sealed class ScoringStrategyTests : IDisposable
         var weights = strategy.CurrentWeights;
 
         Assert.Equal(LearnedScoringStrategy.FeatureCount, weights.Length);
-        Assert.Equal(0.50, weights[0]); // default genre weight (updated from 0.40)
+        Assert.Equal(0.40, weights[0]); // default genre weight
     }
 
     [Fact]
@@ -639,6 +644,9 @@ public sealed class ScoringStrategyTests : IDisposable
     public void Heuristic_GenreMismatch_ChuckyVsMarvel_MarvelWins()
     {
         // Simulates: user likes Action/SciFi/Superhero, candidate is Horror (Chucky) vs Action (Marvel)
+        // Note: Heuristic no longer applies genre penalty — that's in the Ensemble.
+        // But Marvel still scores much higher because genre similarity dominates the weights
+        // and interaction terms (genre×rating, genre×collab) amplify genre-matching items.
         var strategy = new HeuristicScoringStrategy();
 
         var marvelFeatures = new CandidateFeatures
@@ -665,14 +673,17 @@ public sealed class ScoringStrategyTests : IDisposable
         var chuckyScore = strategy.Score(chuckyFeatures);
 
         Assert.True(marvelScore > 0.5, $"Marvel should score high: {marvelScore:F4}");
-        Assert.True(chuckyScore < 0.05, $"Chucky should score very low: {chuckyScore:F4}");
-        Assert.True(marvelScore > chuckyScore * 10,
-            $"Marvel should be >10x higher than Chucky: Marvel={marvelScore:F4}, Chucky={chuckyScore:F4}");
+        // Without penalty, Chucky gets a modest score from non-genre signals
+        Assert.True(chuckyScore < 0.20, $"Chucky should score low (no genre overlap): {chuckyScore:F4}");
+        Assert.True(marvelScore > chuckyScore * 3,
+            $"Marvel should be significantly higher than Chucky: Marvel={marvelScore:F4}, Chucky={chuckyScore:F4}");
     }
 
     [Fact]
     public void Learned_GenreMismatch_ChuckyVsMarvel_MarvelWins()
     {
+        // Learned strategy no longer applies genre penalty — that's in the Ensemble.
+        // But Marvel still scores higher due to genre weight dominance + interaction terms.
         var strategy = new LearnedScoringStrategy();
 
         var marvelFeatures = new CandidateFeatures
@@ -699,9 +710,10 @@ public sealed class ScoringStrategyTests : IDisposable
         var chuckyScore = strategy.Score(chuckyFeatures);
 
         Assert.True(marvelScore > 0.5, $"Marvel should score high: {marvelScore:F4}");
-        Assert.True(chuckyScore < 0.05, $"Chucky should score very low: {chuckyScore:F4}");
-        Assert.True(marvelScore > chuckyScore * 10,
-            $"Marvel should be >10x higher than Chucky: Marvel={marvelScore:F4}, Chucky={chuckyScore:F4}");
+        // Without penalty, Chucky gets a modest score from non-genre signals + bias
+        Assert.True(chuckyScore < 0.25, $"Chucky should score low (no genre overlap): {chuckyScore:F4}");
+        Assert.True(marvelScore > chuckyScore * 2,
+            $"Marvel should be significantly higher than Chucky: Marvel={marvelScore:F4}, Chucky={chuckyScore:F4}");
     }
 
     // ============================================================
@@ -745,23 +757,26 @@ public sealed class ScoringStrategyTests : IDisposable
     }
 
     [Fact]
-    public void Ensemble_DefaultAlpha_Is03()
+    public void Ensemble_DefaultAlpha_IsAlphaMin()
     {
         var strategy = new EnsembleScoringStrategy();
-        Assert.Equal(EnsembleScoringStrategy.AlphaLow, strategy.CurrentAlpha);
+        // Default alpha is AlphaMin before any training occurs
+        Assert.Equal(EnsembleScoringStrategy.AlphaMin, strategy.CurrentAlpha, 4);
     }
 
     [Fact]
     public void Ensemble_Train_IncreasesAlpha_MediumData()
     {
         var strategy = new EnsembleScoringStrategy();
+        var initialAlpha = strategy.CurrentAlpha;
 
-        // Generate 25 training examples (above MediumDataThreshold of 20)
+        // Generate 25 training examples
         var examples = GenerateTrainingExamples(25);
         var result = strategy.Train(examples);
 
         Assert.True(result);
-        Assert.Equal(EnsembleScoringStrategy.AlphaMedium, strategy.CurrentAlpha);
+        Assert.Equal(EnsembleScoringStrategy.ComputeSigmoidAlpha(25), strategy.CurrentAlpha, 4);
+        Assert.True(strategy.CurrentAlpha > initialAlpha, "Alpha should increase with training data");
         Assert.Equal(25, strategy.TrainingExampleCount);
     }
 
@@ -772,11 +787,13 @@ public sealed class ScoringStrategyTests : IDisposable
 
         // Train with 50 examples first
         strategy.Train(GenerateTrainingExamples(50));
-        Assert.Equal(EnsembleScoringStrategy.AlphaMedium, strategy.CurrentAlpha);
+        var alphaAfter50 = strategy.CurrentAlpha;
+        Assert.Equal(EnsembleScoringStrategy.ComputeSigmoidAlpha(50), alphaAfter50, 4);
 
-        // Train with 60 more examples (total = 110, above HighDataThreshold of 100)
+        // Train with 60 more examples (total = 110)
         strategy.Train(GenerateTrainingExamples(60));
-        Assert.Equal(EnsembleScoringStrategy.AlphaHigh, strategy.CurrentAlpha);
+        Assert.Equal(EnsembleScoringStrategy.ComputeSigmoidAlpha(110), strategy.CurrentAlpha, 4);
+        Assert.True(strategy.CurrentAlpha > alphaAfter50, "Alpha should increase with more data");
         Assert.Equal(110, strategy.TrainingExampleCount);
     }
 
@@ -788,7 +805,11 @@ public sealed class ScoringStrategyTests : IDisposable
         var examples = GenerateTrainingExamples(10);
         strategy.Train(examples);
 
-        Assert.Equal(EnsembleScoringStrategy.AlphaLow, strategy.CurrentAlpha);
+        // With few examples, alpha should still be close to AlphaMin
+        var expectedAlpha = EnsembleScoringStrategy.ComputeSigmoidAlpha(10);
+        Assert.Equal(expectedAlpha, strategy.CurrentAlpha, 4);
+        Assert.True(strategy.CurrentAlpha < (EnsembleScoringStrategy.AlphaMin + EnsembleScoringStrategy.AlphaMax) / 2.0,
+            "With few examples, alpha should be below the midpoint");
         Assert.Equal(10, strategy.TrainingExampleCount);
     }
 

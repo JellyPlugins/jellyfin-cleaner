@@ -67,4 +67,9 @@ public sealed class RecommendedItem
     ///     Gets or sets the official rating (e.g. "PG-13", "R").
     /// </summary>
     public string? OfficialRating { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the premiere date (used for recency scoring during training).
+    /// </summary>
+    public DateTime? PremiereDate { get; set; }
 }

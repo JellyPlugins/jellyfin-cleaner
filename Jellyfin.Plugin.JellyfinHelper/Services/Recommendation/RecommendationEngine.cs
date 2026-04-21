@@ -56,6 +56,12 @@ public sealed class RecommendationEngine : IRecommendationEngine
     /// </summary>
     internal const int MaxRecommendationsPerUser = 100;
 
+    /// <summary>
+    ///     MMR diversity trade-off parameter (0 = pure diversity, 1 = pure relevance).
+    ///     A value of 0.7 gives strong relevance with meaningful diversity.
+    /// </summary>
+    internal const double MmrLambda = 0.7;
+
     private readonly ILibraryManager _libraryManager;
     private readonly ILogger<RecommendationEngine> _logger;
     private readonly IPluginLogService _pluginLog;
@@ -171,16 +177,35 @@ public sealed class RecommendationEngine : IRecommendationEngine
                     GenreSimilarity = ComputeGenreSimilarity(rec.Genres ?? [], genrePreferences),
                     CollaborativeScore = ComputeCollaborativeScore(rec.ItemId, coOccurrence, collaborativeMax),
                     RatingScore = NormalizeRating(rec.CommunityRating),
-                    RecencyScore = 0.5, // no premiere date available from stored recommendations
+                    RecencyScore = rec.PremiereDate.HasValue
+                        ? ComputeRecencyScore(rec.PremiereDate.Value)
+                        : 0.5, // fallback for legacy stored recommendations without PremiereDate
                     YearProximityScore = ComputeYearProximity(rec.Year, avgYear),
                     GenreCount = rec.Genres?.Length ?? 0,
                     IsSeries = string.Equals(rec.ItemType, "Series", StringComparison.OrdinalIgnoreCase)
                 };
 
+                // Soft labels: watched items get a confidence-weighted label
+                // instead of hard 0/1 to improve gradient quality.
+                // - Watched + high rating → close to 1.0 (strong positive signal)
+                // - Watched + low/no rating → moderate positive (0.6–0.8)
+                // - Not watched → 0.0 (negative signal)
+                double label;
+                if (wasWatched)
+                {
+                    var ratingConfidence = NormalizeRating(rec.CommunityRating);
+                    // Scale from 0.6 (low-rated watched) to 1.0 (high-rated watched)
+                    label = 0.6 + (0.4 * ratingConfidence);
+                }
+                else
+                {
+                    label = 0.0;
+                }
+
                 examples.Add(new TrainingExample
                 {
                     Features = features,
-                    Label = wasWatched ? 1.0 : 0.0
+                    Label = label
                 });
             }
         }
@@ -362,10 +387,10 @@ public sealed class RecommendationEngine : IRecommendationEngine
             scored.Add((candidate, totalScore, reason, reasonKey, relatedItem));
         }
 
-        // Take top results
-        var topItems = scored
-            .OrderByDescending(s => s.Score)
-            .Take(maxResults)
+        // Apply MMR (Maximal Marginal Relevance) diversity re-ranking.
+        // This balances relevance with diversity to avoid recommending too many
+        // similar items (e.g., all from the same genre cluster).
+        var topItems = ApplyDiversityReranking(scored, maxResults)
             .Select(s => new RecommendedItem
             {
                 ItemId = s.Item.Id,
@@ -379,6 +404,7 @@ public sealed class RecommendationEngine : IRecommendationEngine
                 Year = s.Item.ProductionYear,
                 CommunityRating = s.Item.CommunityRating,
                 OfficialRating = s.Item.OfficialRating,
+                PremiereDate = s.Item.PremiereDate,
                 PrimaryImageTag = s.Item.HasImage(MediaBrowser.Model.Entities.ImageType.Primary)
                     ? s.Item.Id.ToString("N")
                     : null
@@ -465,10 +491,12 @@ public sealed class RecommendationEngine : IRecommendationEngine
     /// <summary>
     ///     Builds a collaborative co-occurrence map: for each unwatched item,
     ///     how many OTHER users who share watch overlap with this user also watched it.
+    ///     Uses Jaccard-inspired overlap weighting so users with stronger similarity
+    ///     contribute more to the co-occurrence score.
     /// </summary>
     /// <param name="userProfile">The target user's watch profile.</param>
     /// <param name="allProfiles">All user watch profiles.</param>
-    /// <returns>A dictionary mapping item IDs to co-occurrence counts.</returns>
+    /// <returns>A dictionary mapping item IDs to weighted co-occurrence counts.</returns>
     internal static Dictionary<Guid, int> BuildCollaborativeMap(
         UserWatchProfile userProfile,
         Collection<UserWatchProfile> allProfiles)
@@ -501,13 +529,19 @@ public sealed class RecommendationEngine : IRecommendationEngine
                 continue;
             }
 
-            // For each item the other user watched that this user hasn't, add co-occurrence
+            // Weight by overlap strength: users with more shared items are more similar.
+            // Jaccard-inspired weighting: overlap / union gives similarity 0–1,
+            // then scale to integer weight (minimum 1 per qualifying user).
+            var union = userWatchedIds.Count + otherWatchedIds.Count - overlap;
+            var weight = union > 0 ? Math.Max(1, (int)Math.Round((double)overlap / union * 10)) : 1;
+
+            // Accumulate weighted co-occurrence counts for items the other user watched but we haven't
             foreach (var itemId in otherWatchedIds)
             {
                 if (!userWatchedIds.Contains(itemId))
                 {
                     coOccurrence.TryGetValue(itemId, out var count);
-                    coOccurrence[itemId] = count + 1;
+                    coOccurrence[itemId] = count + weight;
                 }
             }
         }
@@ -651,6 +685,95 @@ public sealed class RecommendationEngine : IRecommendationEngine
             .ToList();
 
         return years.Count > 0 ? years.Average() : 0;
+    }
+
+    /// <summary>
+    ///     Applies MMR (Maximal Marginal Relevance) re-ranking to balance relevance with diversity.
+    ///     This greedily selects items that maximize: λ × relevance - (1 - λ) × max_similarity_to_selected.
+    ///     Genre-set Jaccard similarity is used as the inter-item similarity measure.
+    /// </summary>
+    /// <param name="candidates">All scored candidates.</param>
+    /// <param name="count">Number of items to select.</param>
+    /// <returns>The diversity-reranked top items.</returns>
+    internal static List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>
+        ApplyDiversityReranking(
+            List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)> candidates,
+            int count)
+    {
+        if (candidates.Count <= count)
+        {
+            return candidates.OrderByDescending(c => c.Score).ToList();
+        }
+
+        // Pre-filter to top 3× candidates for efficiency (MMR is O(n×k))
+        var pool = candidates.OrderByDescending(c => c.Score).Take(count * 3).ToList();
+        var selected = new List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>(count);
+        var remaining = new List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>(pool);
+
+        while (selected.Count < count && remaining.Count > 0)
+        {
+            var bestIdx = -1;
+            var bestMmrScore = double.MinValue;
+
+            for (var i = 0; i < remaining.Count; i++)
+            {
+                var relevance = remaining[i].Score;
+
+                // Compute max similarity to any already-selected item
+                var maxSimilarity = 0.0;
+                foreach (var sel in selected)
+                {
+                    var sim = ComputeGenreJaccard(remaining[i].Item.Genres, sel.Item.Genres);
+                    if (sim > maxSimilarity)
+                    {
+                        maxSimilarity = sim;
+                    }
+                }
+
+                // MMR score: λ × relevance - (1 - λ) × max_similarity
+                var mmrScore = (MmrLambda * relevance) - ((1.0 - MmrLambda) * maxSimilarity);
+
+                if (mmrScore > bestMmrScore)
+                {
+                    bestMmrScore = mmrScore;
+                    bestIdx = i;
+                }
+            }
+
+            if (bestIdx >= 0)
+            {
+                selected.Add(remaining[bestIdx]);
+                remaining.RemoveAt(bestIdx);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return selected;
+    }
+
+    /// <summary>
+    ///     Computes Jaccard similarity between two genre sets.
+    /// </summary>
+    /// <param name="genresA">First genre array.</param>
+    /// <param name="genresB">Second genre array.</param>
+    /// <returns>Jaccard similarity (0–1).</returns>
+    internal static double ComputeGenreJaccard(string[]? genresA, string[]? genresB)
+    {
+        if (genresA is null or { Length: 0 } || genresB is null or { Length: 0 })
+        {
+            return 0;
+        }
+
+        var setA = new HashSet<string>(genresA, StringComparer.OrdinalIgnoreCase);
+        var setB = new HashSet<string>(genresB, StringComparer.OrdinalIgnoreCase);
+
+        var intersection = setA.Count(g => setB.Contains(g));
+        var union = setA.Count + setB.Count - intersection;
+
+        return union > 0 ? (double)intersection / union : 0;
     }
 
     /// <summary>
