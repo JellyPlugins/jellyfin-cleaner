@@ -130,14 +130,16 @@ public sealed class ScoringStrategyTests : IDisposable
             CollaborativeScore = 1.0,
             RatingScore = 1.0,
             RecencyScore = 1.0,
-            YearProximityScore = 1.0
+            YearProximityScore = 1.0,
+            GenreCount = 5, // normalizes to 1.0
+            IsSeries = true // 1.0
         };
 
         var score = strategy.Score(features);
 
-        // 0.50 + 0.20 + 0.10 + 0.05 + 0.05 = 0.90
+        // 0.45 + 0.20 + 0.10 + 0.05 + 0.05 + 0.05 + 0.10 = 1.00
         // Genre >= threshold, so no penalty
-        Assert.Equal(0.90, score, 4);
+        Assert.Equal(1.00, score, 4);
     }
 
     [Fact]
@@ -175,8 +177,9 @@ public sealed class ScoringStrategyTests : IDisposable
             YearProximityScore = 0.9
         };
 
+        // GenreCount=0 → normalized 0, IsSeries=false → 0
         var expected =
-            (0.8 * 0.50) +
+            (0.8 * 0.45) +
             (0.6 * 0.20) +
             (0.7 * 0.10) +
             (0.5 * 0.05) +
@@ -199,8 +202,9 @@ public sealed class ScoringStrategyTests : IDisposable
             YearProximityScore = 0.9
         };
 
+        // GenreCount=0 → normalized 0, IsSeries=false → 0
         var baseScore =
-            (0.0 * 0.50) +
+            (0.0 * 0.45) +
             (0.5 * 0.20) +
             (0.8 * 0.10) +
             (0.7 * 0.05) +

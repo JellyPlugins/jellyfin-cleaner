@@ -425,11 +425,4 @@ public class RecommendationEngineTests
         Assert.Empty(map);
     }
 
-    [Fact]
-    public void ResolveStrategy_AlwaysReturnsEnsembleStrategy()
-    {
-        // Strategy is always Ensemble (combines adaptive ML + heuristic rules)
-        var strategy = RecommendationEngine.ResolveStrategy();
-        Assert.IsType<EnsembleScoringStrategy>(strategy);
-    }
 }
