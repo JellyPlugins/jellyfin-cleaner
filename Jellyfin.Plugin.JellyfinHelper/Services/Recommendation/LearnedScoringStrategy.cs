@@ -141,10 +141,29 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
 
         lock (_lock)
         {
+            // Create a mutable index list for Fisher-Yates shuffling each epoch.
+            // Shuffling prevents order-dependent bias in stochastic gradient descent
+            // (last examples in a fixed order would disproportionately influence weights).
+            var indices = new int[examples.Count];
+            for (var j = 0; j < indices.Length; j++)
+            {
+                indices[j] = j;
+            }
+
+            var rng = new Random();
+
             for (var epoch = 0; epoch < TrainingEpochs; epoch++)
             {
-                foreach (var example in examples)
+                // Fisher-Yates shuffle for this epoch
+                for (var j = indices.Length - 1; j > 0; j--)
                 {
+                    var k = rng.Next(j + 1);
+                    (indices[j], indices[k]) = (indices[k], indices[j]);
+                }
+
+                foreach (var idx in indices)
+                {
+                    var example = examples[idx];
                     var vector = example.Features.ToVector();
 
                     // Forward pass — linear model (no sigmoid)

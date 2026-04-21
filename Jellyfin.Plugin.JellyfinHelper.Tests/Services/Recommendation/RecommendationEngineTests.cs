@@ -148,47 +148,47 @@ public class RecommendationEngineTests
     public void ComputeCollaborativeScore_EmptyMap_ReturnsZero()
     {
         Assert.Equal(0, RecommendationEngine.ComputeCollaborativeScore(
-            Guid.NewGuid(), new Dictionary<Guid, int>(), 0));
+            Guid.NewGuid(), new Dictionary<Guid, double>(), 0));
     }
 
     [Fact]
     public void ComputeCollaborativeScore_ItemNotInMap_ReturnsZero()
     {
-        var map = new Dictionary<Guid, int> { { Guid.NewGuid(), 5 } };
-        Assert.Equal(0, RecommendationEngine.ComputeCollaborativeScore(Guid.NewGuid(), map, 5));
+        var map = new Dictionary<Guid, double> { { Guid.NewGuid(), 5.0 } };
+        Assert.Equal(0, RecommendationEngine.ComputeCollaborativeScore(Guid.NewGuid(), map, 5.0));
     }
 
     [Fact]
     public void ComputeCollaborativeScore_MaxItem_ReturnsOne()
     {
         var itemId = Guid.NewGuid();
-        var map = new Dictionary<Guid, int>
+        var map = new Dictionary<Guid, double>
         {
-            { itemId, 10 },
-            { Guid.NewGuid(), 5 }
+            { itemId, 1.5 },
+            { Guid.NewGuid(), 0.75 }
         };
 
-        Assert.Equal(1.0, RecommendationEngine.ComputeCollaborativeScore(itemId, map, 10));
+        Assert.Equal(1.0, RecommendationEngine.ComputeCollaborativeScore(itemId, map, 1.5));
     }
 
     [Fact]
     public void ComputeCollaborativeScore_HalfMax_ReturnsHalf()
     {
         var itemId = Guid.NewGuid();
-        var map = new Dictionary<Guid, int>
+        var map = new Dictionary<Guid, double>
         {
-            { Guid.NewGuid(), 10 },
-            { itemId, 5 }
+            { Guid.NewGuid(), 1.0 },
+            { itemId, 0.5 }
         };
 
-        Assert.Equal(0.5, RecommendationEngine.ComputeCollaborativeScore(itemId, map, 10));
+        Assert.Equal(0.5, RecommendationEngine.ComputeCollaborativeScore(itemId, map, 1.0));
     }
 
     [Fact]
     public void ComputeCollaborativeScore_ZeroMax_ReturnsZero()
     {
         var itemId = Guid.NewGuid();
-        var map = new Dictionary<Guid, int> { { itemId, 5 } };
+        var map = new Dictionary<Guid, double> { { itemId, 0.5 } };
         Assert.Equal(0, RecommendationEngine.ComputeCollaborativeScore(itemId, map, 0));
     }
 
@@ -358,8 +358,8 @@ public class RecommendationEngineTests
 
         var map = RecommendationEngine.BuildCollaborativeMap(user, [user, other]);
         Assert.Single(map);
-        // Jaccard-weighted: overlap=3, union=3+4-3=4, weight=round(3/4*10)=8
-        Assert.Equal(8, map[uniqueToOther]);
+        // Jaccard similarity: overlap=3, union=3+4-3=4, weight=3/4=0.75
+        Assert.Equal(0.75, map[uniqueToOther], 4);
     }
 
     [Fact]

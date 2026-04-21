@@ -199,7 +199,10 @@ public sealed class RecommendationEngine : IRecommendationEngine
                 }
                 else
                 {
-                    label = 0.0;
+                    // Exposure bias mitigation: items that were recommended but not watched
+                    // get a softened negative label (0.1 instead of 0.0) because "not watched"
+                    // doesn't necessarily mean "not interested" — the user may not have seen it yet.
+                    label = 0.1;
                 }
 
                 examples.Add(new TrainingExample
@@ -490,18 +493,18 @@ public sealed class RecommendationEngine : IRecommendationEngine
 
     /// <summary>
     ///     Builds a collaborative co-occurrence map: for each unwatched item,
-    ///     how many OTHER users who share watch overlap with this user also watched it.
-    ///     Uses Jaccard-inspired overlap weighting so users with stronger similarity
-    ///     contribute more to the co-occurrence score.
+    ///     accumulates Jaccard-weighted similarity from OTHER users who share watch
+    ///     overlap with this user. Uses true Jaccard similarity (0–1) instead of
+    ///     discretized integer weights for better precision.
     /// </summary>
     /// <param name="userProfile">The target user's watch profile.</param>
     /// <param name="allProfiles">All user watch profiles.</param>
-    /// <returns>A dictionary mapping item IDs to weighted co-occurrence counts.</returns>
-    internal static Dictionary<Guid, int> BuildCollaborativeMap(
+    /// <returns>A dictionary mapping item IDs to accumulated Jaccard-weighted scores.</returns>
+    internal static Dictionary<Guid, double> BuildCollaborativeMap(
         UserWatchProfile userProfile,
         Collection<UserWatchProfile> allProfiles)
     {
-        var coOccurrence = new Dictionary<Guid, int>();
+        var coOccurrence = new Dictionary<Guid, double>();
         var userWatchedIds = new HashSet<Guid>(
             userProfile.WatchedItems.Where(w => w.Played).Select(w => w.ItemId));
 
@@ -529,19 +532,19 @@ public sealed class RecommendationEngine : IRecommendationEngine
                 continue;
             }
 
-            // Weight by overlap strength: users with more shared items are more similar.
-            // Jaccard-inspired weighting: overlap / union gives similarity 0–1,
-            // then scale to integer weight (minimum 1 per qualifying user).
+            // Weight by Jaccard similarity: overlap / union gives similarity 0–1.
+            // Using true double precision instead of discretized integers avoids
+            // information loss (e.g., Jaccard 0.31 and 0.39 are now distinguishable).
             var union = userWatchedIds.Count + otherWatchedIds.Count - overlap;
-            var weight = union > 0 ? Math.Max(1, (int)Math.Round((double)overlap / union * 10)) : 1;
+            var weight = union > 0 ? (double)overlap / union : 0.0;
 
-            // Accumulate weighted co-occurrence counts for items the other user watched but we haven't
+            // Accumulate Jaccard-weighted co-occurrence for items the other user watched but we haven't
             foreach (var itemId in otherWatchedIds)
             {
                 if (!userWatchedIds.Contains(itemId))
                 {
-                    coOccurrence.TryGetValue(itemId, out var count);
-                    coOccurrence[itemId] = count + weight;
+                    coOccurrence.TryGetValue(itemId, out var current);
+                    coOccurrence[itemId] = current + weight;
                 }
             }
         }
@@ -610,7 +613,7 @@ public sealed class RecommendationEngine : IRecommendationEngine
     /// <param name="coOccurrence">The collaborative co-occurrence map.</param>
     /// <param name="maxCoOccurrence">The pre-computed maximum co-occurrence value.</param>
     /// <returns>A normalized score between 0 and 1.</returns>
-    internal static double ComputeCollaborativeScore(Guid itemId, Dictionary<Guid, int> coOccurrence, double maxCoOccurrence)
+    internal static double ComputeCollaborativeScore(Guid itemId, Dictionary<Guid, double> coOccurrence, double maxCoOccurrence)
     {
         if (maxCoOccurrence <= 0 || !coOccurrence.TryGetValue(itemId, out var count))
         {
