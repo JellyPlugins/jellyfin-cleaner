@@ -49,6 +49,7 @@ public sealed class ScoreExplanation
     /// <param name="userRatingContrib">User personal rating contribution.</param>
     /// <param name="recencyContrib">Recency contribution.</param>
     /// <param name="yearProxContrib">Year proximity contribution.</param>
+    /// <param name="interactionContrib">Interaction terms contribution (genre×rating, genre×collab, genreCount, isSeries, completion).</param>
     /// <returns>The name of the dominant signal.</returns>
     public static string DetermineDominantSignal(
         double genreContrib,
@@ -56,7 +57,8 @@ public sealed class ScoreExplanation
         double ratingContrib,
         double userRatingContrib,
         double recencyContrib,
-        double yearProxContrib)
+        double yearProxContrib,
+        double interactionContrib = 0.0)
     {
         var dominant = "genre";
         var maxContrib = genreContrib;
@@ -88,6 +90,12 @@ public sealed class ScoreExplanation
         if (yearProxContrib > maxContrib)
         {
             dominant = "yearProximity";
+            maxContrib = yearProxContrib;
+        }
+
+        if (interactionContrib > maxContrib)
+        {
+            dominant = "interaction";
         }
 
         return dominant;

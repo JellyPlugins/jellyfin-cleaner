@@ -5,7 +5,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
-using System.Threading;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 
@@ -19,7 +18,8 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 /// <remarks>
 ///     Architecture: 11 input features → 11 weights + 1 bias → clamp(0,1) → score (0–1).
 ///     Features include 2 interaction terms (genre×rating, genre×collab).
-///     Training uses mean squared error (MSE) loss with L2 regularization and early stopping.
+///     Training uses mean squared error (MSE) loss with L2 regularization, sample weighting
+///     (temporal decay), optional Z-score feature standardization, and early stopping.
 ///     Weights are persisted to disk so they survive server restarts.
 /// </remarks>
 public sealed class LearnedScoringStrategy : IScoringStrategy
@@ -45,12 +45,25 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
     /// <summary>Minimum number of validation examples required for early stopping.</summary>
     internal const int MinValidationExamples = 2;
 
+    /// <summary>
+    ///     Minimum number of examples before Z-score standardization is applied.
+    ///     Below this threshold, raw features are used to avoid unstable statistics.
+    /// </summary>
+    internal const int MinExamplesForStandardization = 10;
+
+    /// <summary>
+    ///     Current schema version for persisted weights. Increment when the feature set or
+    ///     weight semantics change so that stale weights are discarded on load.
+    /// </summary>
+    internal const int CurrentWeightsVersion = 5;
+
     /// <summary>Cached JSON serializer options for weight persistence.</summary>
     private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
 
-    private readonly Lock _lock = new();
+    private readonly object _syncRoot = new();
     private readonly string? _weightsPath;
     private double _bias;
+    private double _lastValidationLoss = double.MaxValue;
     private double[] _weights;
 
     /// <summary>
@@ -66,8 +79,8 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
         _weightsPath = weightsPath;
 
         // Initialize with genre-dominant weights — genre match is the strongest signal
-        _weights = CreateDefaultWeights();
-        _bias = 0.05; // slight positive bias so perfect matches approach 1.0
+        _weights = DefaultWeights.CreateWeightArray();
+        _bias = DefaultWeights.Bias; // slight positive bias so perfect matches approach 1.0
 
         // Try to load persisted weights
         TryLoadWeights();
@@ -80,13 +93,29 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
     public string NameKey => "strategyLearned";
 
     /// <summary>
+    ///     Gets the validation loss from the last training run.
+    ///     Used by <see cref="EnsembleScoringStrategy"/> to gate alpha progression.
+    ///     Returns <see cref="double.MaxValue"/> if no training has been performed.
+    /// </summary>
+    internal double LastValidationLoss
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _lastValidationLoss;
+            }
+        }
+    }
+
+    /// <summary>
     ///     Gets a copy of the current weights (for testing/debugging).
     /// </summary>
     internal double[] CurrentWeights
     {
         get
         {
-            lock (_lock)
+            lock (_syncRoot)
             {
                 return (double[])_weights.Clone();
             }
@@ -100,7 +129,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
     {
         get
         {
-            lock (_lock)
+            lock (_syncRoot)
             {
                 return _bias;
             }
@@ -110,13 +139,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
     /// <inheritdoc />
     public double Score(CandidateFeatures features)
     {
-        var vector = features.ToVector();
-        ValidateVectorLength(vector);
-
-        lock (_lock)
-        {
-            return Math.Clamp(ComputeRawScore(vector, _weights, _bias), 0.0, 1.0);
-        }
+        return ScoreWithExplanation(features).FinalScore;
     }
 
     /// <inheritdoc />
@@ -125,51 +148,10 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
         var vector = features.ToVector();
         ValidateVectorLength(vector);
 
-        double genreContrib, collabContrib, ratingContrib, recencyContrib;
-        double yearProxContrib, userRatingContrib, interactionContrib;
-        double rawScore;
-
-        lock (_lock)
+        lock (_syncRoot)
         {
-            rawScore = _bias;
-
-            // Compute individual contributions using named indices
-            genreContrib = vector[(int)FeatureIndex.GenreSimilarity] * _weights[(int)FeatureIndex.GenreSimilarity];
-            collabContrib = vector[(int)FeatureIndex.CollaborativeScore] * _weights[(int)FeatureIndex.CollaborativeScore];
-            ratingContrib = vector[(int)FeatureIndex.RatingScore] * _weights[(int)FeatureIndex.RatingScore];
-            recencyContrib = vector[(int)FeatureIndex.RecencyScore] * _weights[(int)FeatureIndex.RecencyScore];
-            yearProxContrib = vector[(int)FeatureIndex.YearProximityScore] * _weights[(int)FeatureIndex.YearProximityScore];
-            userRatingContrib = vector[(int)FeatureIndex.UserRatingScore] * _weights[(int)FeatureIndex.UserRatingScore];
-
-            // Interaction + minor features (genreCount, isSeries, genre×rating, genre×collab, completionRatio)
-            interactionContrib = 0;
-            interactionContrib += vector[(int)FeatureIndex.GenreCountNormalized] * _weights[(int)FeatureIndex.GenreCountNormalized];
-            interactionContrib += vector[(int)FeatureIndex.IsSeries] * _weights[(int)FeatureIndex.IsSeries];
-            interactionContrib += vector[(int)FeatureIndex.GenreRatingInteraction] * _weights[(int)FeatureIndex.GenreRatingInteraction];
-            interactionContrib += vector[(int)FeatureIndex.GenreCollabInteraction] * _weights[(int)FeatureIndex.GenreCollabInteraction];
-            interactionContrib += vector[(int)FeatureIndex.CompletionRatio] * _weights[(int)FeatureIndex.CompletionRatio];
-
-            rawScore += genreContrib + collabContrib + ratingContrib + recencyContrib
-                + yearProxContrib + userRatingContrib + interactionContrib;
+            return ScoringHelper.BuildExplanation(vector, _weights, _bias, Name);
         }
-
-        var score = Math.Clamp(rawScore, 0.0, 1.0);
-
-        return new ScoreExplanation
-        {
-            FinalScore = score,
-            GenreContribution = genreContrib,
-            CollaborativeContribution = collabContrib,
-            RatingContribution = ratingContrib,
-            RecencyContribution = recencyContrib,
-            YearProximityContribution = yearProxContrib,
-            UserRatingContribution = userRatingContrib,
-            InteractionContribution = interactionContrib,
-            GenrePenaltyMultiplier = 1.0, // No penalty in Learned — applied in Ensemble
-            DominantSignal = ScoreExplanation.DetermineDominantSignal(
-                genreContrib, collabContrib, ratingContrib, userRatingContrib, recencyContrib, yearProxContrib),
-            StrategyName = Name
-        };
     }
 
     /// <inheritdoc />
@@ -180,7 +162,28 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
             return false;
         }
 
-        lock (_lock)
+        // Pre-compute all feature vectors ONCE before training (Point 4)
+        // Also pre-compute effective weights for temporal decay (Point 6)
+        var precomputedVectors = new double[examples.Count][];
+        var effectiveWeights = new double[examples.Count];
+
+        for (var i = 0; i < examples.Count; i++)
+        {
+            precomputedVectors[i] = examples[i].Features.ToVector();
+            effectiveWeights[i] = examples[i].ComputeEffectiveWeight();
+        }
+
+        // Optional Z-score standardization (Point 7)
+        double[]? featureMeans = null;
+        double[]? featureStdDevs = null;
+
+        if (examples.Count >= MinExamplesForStandardization)
+        {
+            (featureMeans, featureStdDevs) = ComputeFeatureStatistics(precomputedVectors);
+            StandardizeVectors(precomputedVectors, featureMeans, featureStdDevs);
+        }
+
+        lock (_syncRoot)
         {
             // Split into training and validation sets for early stopping
             var validationCount = Math.Max(MinValidationExamples, (int)(examples.Count * ValidationSplitRatio));
@@ -238,15 +241,21 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
 
                 foreach (var idx in trainIndices)
                 {
-                    var example = examples[idx];
-                    var vector = example.Features.ToVector();
+                    var vector = precomputedVectors[idx];
+                    var sampleWeight = effectiveWeights[idx];
+
+                    // Skip examples with negligible weight (very old data)
+                    if (sampleWeight < 0.01)
+                    {
+                        continue;
+                    }
 
                     // Forward pass — linear model
-                    var z = ComputeRawScore(vector, _weights, _bias);
+                    var z = ScoringHelper.ComputeRawScore(vector, _weights, _bias);
                     var predicted = Math.Clamp(z, 0.0, 1.0);
 
-                    // Error = predicted - label (gradient of MSE loss)
-                    var error = predicted - example.Label;
+                    // Error = predicted - label (gradient of MSE loss), weighted by sample importance
+                    var error = (predicted - examples[idx].Label) * sampleWeight;
 
                     // Only update if not clamped (sub-gradient: skip when at boundary moving wrong way)
                     if ((z <= 0 && error < 0) || (z >= 1 && error > 0))
@@ -271,7 +280,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
                 // Early stopping: evaluate on validation set
                 if (useEarlyStopping && valIndices.Length > 0)
                 {
-                    var valLoss = ComputeMseLoss(examples, valIndices, _weights, _bias);
+                    var valLoss = ComputeMseLoss(examples, precomputedVectors, effectiveWeights, valIndices, _weights, _bias);
 
                     if (valLoss < bestLoss - 1e-6)
                     {
@@ -293,6 +302,9 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
                     }
                 }
             }
+
+            // Store validation loss for ensemble alpha gating (Point 5)
+            _lastValidationLoss = bestLoss < double.MaxValue ? bestLoss : ComputeTrainingLoss(examples, precomputedVectors, effectiveWeights, _weights, _bias);
         }
 
         // Persist updated weights
@@ -301,59 +313,119 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
     }
 
     /// <summary>
-    ///     Creates the default weight array with genre-dominant initial weights.
+    ///     Computes Z-score statistics (mean, stddev) for each feature across all training vectors.
     /// </summary>
-    private static double[] CreateDefaultWeights()
+    /// <param name="vectors">The pre-computed feature vectors.</param>
+    /// <returns>A tuple of (means, stdDevs) arrays indexed by feature.</returns>
+    internal static (double[] Means, double[] StdDevs) ComputeFeatureStatistics(double[][] vectors)
     {
-        var weights = new double[CandidateFeatures.FeatureCount];
-        weights[(int)FeatureIndex.GenreSimilarity] = 0.35;      // dominant signal
-        weights[(int)FeatureIndex.CollaborativeScore] = 0.12;
-        weights[(int)FeatureIndex.RatingScore] = 0.08;
-        weights[(int)FeatureIndex.RecencyScore] = 0.05;
-        weights[(int)FeatureIndex.YearProximityScore] = 0.05;
-        weights[(int)FeatureIndex.GenreCountNormalized] = 0.05;
-        weights[(int)FeatureIndex.IsSeries] = 0.00;              // neutral start
-        weights[(int)FeatureIndex.GenreRatingInteraction] = 0.08;
-        weights[(int)FeatureIndex.GenreCollabInteraction] = 0.08;
-        weights[(int)FeatureIndex.UserRatingScore] = 0.10;
-        weights[(int)FeatureIndex.CompletionRatio] = 0.04;
-        return weights;
-    }
+        var featureCount = CandidateFeatures.FeatureCount;
+        var means = new double[featureCount];
+        var stdDevs = new double[featureCount];
+        var n = vectors.Length;
 
-    /// <summary>
-    ///     Computes the raw linear score from a feature vector, weights, and bias.
-    /// </summary>
-    private static double ComputeRawScore(double[] vector, double[] weights, double bias)
-    {
-        var score = bias;
-        var len = Math.Min(vector.Length, weights.Length);
-        for (var i = 0; i < len; i++)
+        if (n == 0)
         {
-            score += vector[i] * weights[i];
+            return (means, stdDevs);
         }
 
-        return score;
+        // Compute means
+        for (var i = 0; i < n; i++)
+        {
+            for (var f = 0; f < featureCount; f++)
+            {
+                means[f] += vectors[i][f];
+            }
+        }
+
+        for (var f = 0; f < featureCount; f++)
+        {
+            means[f] /= n;
+        }
+
+        // Compute standard deviations
+        for (var i = 0; i < n; i++)
+        {
+            for (var f = 0; f < featureCount; f++)
+            {
+                var diff = vectors[i][f] - means[f];
+                stdDevs[f] += diff * diff;
+            }
+        }
+
+        for (var f = 0; f < featureCount; f++)
+        {
+            stdDevs[f] = Math.Sqrt(stdDevs[f] / n);
+        }
+
+        return (means, stdDevs);
     }
 
     /// <summary>
-    ///     Computes the mean squared error loss on a subset of examples.
+    ///     Standardizes feature vectors in-place using Z-score normalization.
+    ///     Features with zero or near-zero standard deviation are left unchanged.
+    /// </summary>
+    /// <param name="vectors">The feature vectors to standardize (modified in-place).</param>
+    /// <param name="means">The per-feature means.</param>
+    /// <param name="stdDevs">The per-feature standard deviations.</param>
+    internal static void StandardizeVectors(double[][] vectors, double[] means, double[] stdDevs)
+    {
+        var featureCount = means.Length;
+        for (var i = 0; i < vectors.Length; i++)
+        {
+            for (var f = 0; f < featureCount; f++)
+            {
+                if (stdDevs[f] > 1e-8)
+                {
+                    vectors[i][f] = (vectors[i][f] - means[f]) / stdDevs[f];
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Computes the weighted mean squared error loss on a subset of examples.
     /// </summary>
     private static double ComputeMseLoss(
         IReadOnlyList<TrainingExample> examples,
+        double[][] precomputedVectors,
+        double[] effectiveWeights,
         int[] indices,
         double[] weights,
         double bias)
     {
         var totalLoss = 0.0;
+        var totalWeight = 0.0;
+
         foreach (var idx in indices)
         {
-            var vector = examples[idx].Features.ToVector();
-            var predicted = Math.Clamp(ComputeRawScore(vector, weights, bias), 0.0, 1.0);
+            var predicted = Math.Clamp(ScoringHelper.ComputeRawScore(precomputedVectors[idx], weights, bias), 0.0, 1.0);
             var error = predicted - examples[idx].Label;
-            totalLoss += error * error;
+            var w = effectiveWeights[idx];
+            totalLoss += w * error * error;
+            totalWeight += w;
         }
 
-        return totalLoss / indices.Length;
+        return totalWeight > 0 ? totalLoss / totalWeight : 0.0;
+    }
+
+    /// <summary>
+    ///     Computes the weighted training loss across all examples (used when no validation split).
+    /// </summary>
+    private static double ComputeTrainingLoss(
+        IReadOnlyList<TrainingExample> examples,
+        double[][] precomputedVectors,
+        double[] effectiveWeights,
+        double[] weights,
+        double bias)
+    {
+        var allIndices = new int[examples.Count];
+        for (var i = 0; i < allIndices.Length; i++)
+        {
+            allIndices[i] = i;
+        }
+
+        return ComputeMseLoss(examples, precomputedVectors, effectiveWeights, allIndices, weights, bias);
     }
 
     /// <summary>
@@ -392,7 +464,8 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
         {
             var json = File.ReadAllText(_weightsPath);
             var data = JsonSerializer.Deserialize<WeightsData>(json);
-            if (data?.Weights is { Length: CandidateFeatures.FeatureCount })
+            if (data?.Weights is { Length: CandidateFeatures.FeatureCount }
+                && data.Version == CurrentWeightsVersion)
             {
                 _weights = data.Weights;
                 _bias = data.Bias;
@@ -426,12 +499,21 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
                 Directory.CreateDirectory(dir);
             }
 
+            double[] weightsSnapshot;
+            double biasSnapshot;
+
+            lock (_syncRoot)
+            {
+                weightsSnapshot = (double[])_weights.Clone();
+                biasSnapshot = _bias;
+            }
+
             var data = new WeightsData
             {
-                Weights = (double[])_weights.Clone(),
-                Bias = _bias,
+                Weights = weightsSnapshot,
+                Bias = biasSnapshot,
                 UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
-                Version = 4
+                Version = CurrentWeightsVersion
             };
 
             var json = JsonSerializer.Serialize(data, SerializerOptions);

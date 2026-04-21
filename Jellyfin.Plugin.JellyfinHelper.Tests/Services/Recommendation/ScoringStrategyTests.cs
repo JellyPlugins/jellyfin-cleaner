@@ -176,7 +176,7 @@ public sealed class ScoringStrategyTests : IDisposable
 
         var score = strategy.Score(features);
 
-        Assert.Equal(0.5 * HeuristicScoringStrategy.GenreWeight, score, 4);
+        Assert.Equal(0.5 * DefaultWeights.GenreSimilarity, score, 4);
     }
 
     [Fact]
@@ -195,13 +195,13 @@ public sealed class ScoringStrategyTests : IDisposable
         };
 
         var expected =
-            (0.8 * HeuristicScoringStrategy.GenreWeight) +
-            (0.6 * HeuristicScoringStrategy.CollaborativeWeight) +
-            (0.7 * HeuristicScoringStrategy.RatingWeight) +
-            (0.5 * HeuristicScoringStrategy.RecencyWeight) +
-            (0.9 * HeuristicScoringStrategy.YearProximityWeight) +
-            (0.8 * 0.7 * HeuristicScoringStrategy.GenreRatingInteractionWeight) +
-            (0.8 * 0.6 * HeuristicScoringStrategy.GenreCollabInteractionWeight);
+            (0.8 * DefaultWeights.GenreSimilarity) +
+            (0.6 * DefaultWeights.CollaborativeScore) +
+            (0.7 * DefaultWeights.RatingScore) +
+            (0.5 * DefaultWeights.RecencyScore) +
+            (0.9 * DefaultWeights.YearProximityScore) +
+            (0.8 * 0.7 * DefaultWeights.GenreRatingInteraction) +
+            (0.8 * 0.6 * DefaultWeights.GenreCollabInteraction);
 
         Assert.Equal(expected, strategy.Score(features), 4);
     }
@@ -222,11 +222,11 @@ public sealed class ScoringStrategyTests : IDisposable
         };
 
         var expected =
-            (0.0 * HeuristicScoringStrategy.GenreWeight) +
-            (0.5 * HeuristicScoringStrategy.CollaborativeWeight) +
-            (0.8 * HeuristicScoringStrategy.RatingWeight) +
-            (0.7 * HeuristicScoringStrategy.RecencyWeight) +
-            (0.9 * HeuristicScoringStrategy.YearProximityWeight);
+            (0.0 * DefaultWeights.GenreSimilarity) +
+            (0.5 * DefaultWeights.CollaborativeScore) +
+            (0.8 * DefaultWeights.RatingScore) +
+            (0.7 * DefaultWeights.RecencyScore) +
+            (0.9 * DefaultWeights.YearProximityScore);
 
         Assert.Equal(expected, strategy.Score(features), 4);
     }

@@ -7,7 +7,17 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 /// </summary>
 public sealed class TrainingExample
 {
+    /// <summary>
+    ///     Half-life for temporal decay weighting in days (~90 days).
+    ///     Examples older than this receive exponentially less weight during training.
+    /// </summary>
+    internal const double TemporalDecayHalfLifeDays = 90.0;
+
+    /// <summary>Decay constant derived from half-life: ln(2) / halfLife.</summary>
+    internal static readonly double TemporalDecayConstant = Math.Log(2.0) / TemporalDecayHalfLifeDays;
+
     private double _label;
+    private double _sampleWeight = 1.0;
 
     /// <summary>Gets or sets the feature signals for this example.</summary>
     public required CandidateFeatures Features { get; set; }
@@ -20,5 +30,48 @@ public sealed class TrainingExample
     {
         get => _label;
         set => _label = Math.Clamp(value, 0.0, 1.0);
+    }
+
+    /// <summary>
+    ///     Gets or sets the sample weight for this training example (0–1).
+    ///     Higher weights mean the example has more influence during training.
+    ///     Default is 1.0. Values are clamped to [0, 1].
+    /// </summary>
+    public double SampleWeight
+    {
+        get => _sampleWeight;
+        set => _sampleWeight = Math.Clamp(value, 0.0, 1.0);
+    }
+
+    /// <summary>
+    ///     Gets or sets the UTC timestamp when the recommendation that produced this example was generated.
+    ///     Used for temporal decay weighting — newer examples are more relevant.
+    /// </summary>
+    public DateTime GeneratedAtUtc { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    ///     Computes a temporal decay weight based on the age of this example.
+    ///     Newer examples get weight closer to 1.0, older examples decay exponentially.
+    /// </summary>
+    /// <returns>A decay weight between 0 and 1.</returns>
+    public double ComputeTemporalWeight()
+    {
+        var ageDays = (DateTime.UtcNow - GeneratedAtUtc).TotalDays;
+        if (ageDays <= 0)
+        {
+            return 1.0;
+        }
+
+        return Math.Exp(-TemporalDecayConstant * ageDays);
+    }
+
+    /// <summary>
+    ///     Computes the effective weight for this example, combining the explicit sample weight
+    ///     with the temporal decay weight.
+    /// </summary>
+    /// <returns>The effective weight between 0 and 1.</returns>
+    public double ComputeEffectiveWeight()
+    {
+        return SampleWeight * ComputeTemporalWeight();
     }
 }

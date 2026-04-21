@@ -208,7 +208,8 @@ public sealed class RecommendationEngine : IRecommendationEngine
                 examples.Add(new TrainingExample
                 {
                     Features = features,
-                    Label = label
+                    Label = label,
+                    GeneratedAtUtc = prevResult.GeneratedAt
                 });
             }
         }
@@ -324,6 +325,13 @@ public sealed class RecommendationEngine : IRecommendationEngine
         int maxResults,
         IScoringStrategy strategy)
     {
+        // Build a lookup of watched items by ID for O(1) access in scoring methods
+        var watchedItemLookup = new Dictionary<Guid, WatchedItemInfo>(userProfile.WatchedItems.Count);
+        foreach (var w in userProfile.WatchedItems)
+        {
+            watchedItemLookup.TryAdd(w.ItemId, w);
+        }
+
         // Build the set of already-watched item IDs for this user (movies + episodes)
         var watchedIds = new HashSet<Guid>(
             userProfile.WatchedItems.Where(w => w.Played).Select(w => w.ItemId));
@@ -369,9 +377,10 @@ public sealed class RecommendationEngine : IRecommendationEngine
             var recencyScore = ComputeRecencyScore(candidate.PremiereDate ?? candidate.DateCreated);
             var yearScore = ComputeYearProximity(candidate.ProductionYear, avgYear);
 
-            // Compute user-specific signals for this candidate
-            var userRatingScore = ComputeUserRatingScore(candidate.Id, userProfile);
-            var completionRatio = ComputeCompletionRatio(candidate.Id, userProfile);
+            // Compute user-specific signals for this candidate (O(1) via lookup)
+            watchedItemLookup.TryGetValue(candidate.Id, out var watchedItem);
+            var userRatingScore = ComputeUserRatingScore(watchedItem);
+            var completionRatio = ComputeCompletionRatio(watchedItem);
 
             // Build feature vector and delegate scoring to strategy
             var features = new CandidateFeatures
@@ -396,9 +405,10 @@ public sealed class RecommendationEngine : IRecommendationEngine
                 $"Score for '{candidate.Name}': {explanation}",
                 _logger);
 
-            // Determine the primary reason
+            // Determine the primary reason using the dominant signal from the explanation
+            // This ensures the reason matches what actually drove the score (Point 9)
             var (reason, reasonKey, relatedItem) = DetermineReason(
-                candidate, genreScore, collabScore, ratingScore, genrePreferences);
+                candidate, explanation, genrePreferences);
 
             scored.Add((candidate, totalScore, reason, reasonKey, relatedItem));
         }
@@ -725,19 +735,17 @@ public sealed class RecommendationEngine : IRecommendationEngine
     ///     Computes a normalized user rating score (0–1) for a candidate item.
     ///     If the user has not rated this item, returns 0.5 (neutral).
     /// </summary>
-    /// <param name="candidateId">The candidate item ID.</param>
-    /// <param name="profile">The user's watch profile.</param>
+    /// <param name="watchedItem">The watched item entry, or null if the user hasn't interacted with it.</param>
     /// <returns>A normalized user rating between 0 and 1.</returns>
-    internal static double ComputeUserRatingScore(Guid candidateId, UserWatchProfile profile)
+    internal static double ComputeUserRatingScore(WatchedItemInfo? watchedItem)
     {
-        var item = profile.WatchedItems.FirstOrDefault(w => w.ItemId == candidateId);
-        if (item?.UserRating is null or <= 0)
+        if (watchedItem?.UserRating is null or <= 0)
         {
             return 0.5; // neutral default — no user rating available
         }
 
         // User ratings are typically 0–10, normalize to 0–1
-        return Math.Clamp(item.UserRating.Value / 10.0, 0.0, 1.0);
+        return Math.Clamp(watchedItem.UserRating.Value / 10.0, 0.0, 1.0);
     }
 
     /// <summary>
@@ -745,18 +753,16 @@ public sealed class RecommendationEngine : IRecommendationEngine
     ///     Returns 0 if the user has never started the item (new candidate),
     ///     or a ratio of played ticks to runtime ticks for partially watched items.
     /// </summary>
-    /// <param name="candidateId">The candidate item ID.</param>
-    /// <param name="profile">The user's watch profile.</param>
+    /// <param name="watchedItem">The watched item entry, or null if the user hasn't interacted with it.</param>
     /// <returns>A completion ratio between 0 and 1.</returns>
-    internal static double ComputeCompletionRatio(Guid candidateId, UserWatchProfile profile)
+    internal static double ComputeCompletionRatio(WatchedItemInfo? watchedItem)
     {
-        var item = profile.WatchedItems.FirstOrDefault(w => w.ItemId == candidateId);
-        if (item is null || item.RuntimeTicks <= 0)
+        if (watchedItem is null || watchedItem.RuntimeTicks <= 0)
         {
             return 0.0; // not started or no runtime info — neutral for candidates
         }
 
-        return Math.Clamp((double)item.PlaybackPositionTicks / item.RuntimeTicks, 0.0, 1.0);
+        return Math.Clamp((double)watchedItem.PlaybackPositionTicks / watchedItem.RuntimeTicks, 0.0, 1.0);
     }
 
     /// <summary>
@@ -873,23 +879,25 @@ public sealed class RecommendationEngine : IRecommendationEngine
     }
 
     /// <summary>
-    ///     Determines the most relevant human-readable reason for a recommendation.
+    ///     Determines the most relevant human-readable reason for a recommendation
+    ///     based on the dominant signal from the score explanation.
     /// </summary>
     private static (string Reason, string ReasonKey, string? RelatedItem) DetermineReason(
         BaseItem candidate,
-        double genreScore,
-        double collabScore,
-        double ratingScore,
+        ScoreExplanation explanation,
         Dictionary<string, double> genrePreferences)
     {
-        // If collaborative score dominates
-        if (collabScore > genreScore && collabScore > ReasonScoreThreshold)
+        var dominant = explanation.DominantSignal;
+
+        if (string.Equals(dominant, "Collaborative", StringComparison.OrdinalIgnoreCase)
+            && explanation.CollaborativeContribution > ReasonScoreThreshold)
         {
             return ("Popular with similar viewers", "reasonCollaborative", null);
         }
 
-        // If genre score dominates, find the top matching genre
-        if (genreScore > ReasonScoreThreshold && candidate.Genres is { Length: > 0 })
+        if (string.Equals(dominant, "Genre", StringComparison.OrdinalIgnoreCase)
+            && explanation.GenreContribution > ReasonScoreThreshold
+            && candidate.Genres is { Length: > 0 })
         {
             var topGenre = candidate.Genres
                 .Where(g => genrePreferences.ContainsKey(g))
@@ -902,13 +910,22 @@ public sealed class RecommendationEngine : IRecommendationEngine
             }
         }
 
-        // If high rating
-        if (ratingScore > HighRatingThreshold)
+        if (string.Equals(dominant, "Rating", StringComparison.OrdinalIgnoreCase)
+            && explanation.RatingContribution > HighRatingThreshold)
         {
             return ("Highly rated", "reasonHighlyRated", null);
         }
 
-        // Default
+        if (string.Equals(dominant, "UserRating", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("Matches your personal ratings", "reasonUserRating", null);
+        }
+
+        if (string.Equals(dominant, "Recency", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("Recently released", "reasonRecent", null);
+        }
+
         return ("Recommended for you", "reasonDefault", null);
     }
 

@@ -124,24 +124,44 @@ public sealed class CandidateFeatures
     /// <summary>
     ///     Converts the features into a fixed-size double array for ML processing.
     ///     Order is defined by <see cref="FeatureIndex"/>.
+    ///     Note: This allocates a new array on each call. For hot paths, prefer
+    ///     <see cref="WriteToVector(double[])"/> with a reusable buffer.
     /// </summary>
     /// <returns>An <see cref="FeatureCount"/>-element feature vector.</returns>
     public double[] ToVector()
     {
+        var vector = new double[FeatureCount];
+        WriteToVector(vector);
+        return vector;
+    }
+
+    /// <summary>
+    ///     Writes the feature values into an existing buffer to avoid allocation.
+    ///     The buffer must have at least <see cref="FeatureCount"/> elements.
+    /// </summary>
+    /// <param name="buffer">A pre-allocated array with at least <see cref="FeatureCount"/> elements.</param>
+    /// <exception cref="ArgumentException">Thrown when the buffer is too small.</exception>
+    public void WriteToVector(double[] buffer)
+    {
+        if (buffer.Length < FeatureCount)
+        {
+            throw new ArgumentException(
+                $"Buffer too small: need {FeatureCount} elements, got {buffer.Length}",
+                nameof(buffer));
+        }
+
         var normalizedGenreCount = Math.Clamp(GenreCount / GenreCountNormalizationCeiling, 0.0, 1.0);
 
-        var vector = new double[FeatureCount];
-        vector[(int)FeatureIndex.GenreSimilarity] = GenreSimilarity;
-        vector[(int)FeatureIndex.CollaborativeScore] = CollaborativeScore;
-        vector[(int)FeatureIndex.RatingScore] = RatingScore;
-        vector[(int)FeatureIndex.RecencyScore] = RecencyScore;
-        vector[(int)FeatureIndex.YearProximityScore] = YearProximityScore;
-        vector[(int)FeatureIndex.GenreCountNormalized] = normalizedGenreCount;
-        vector[(int)FeatureIndex.IsSeries] = IsSeries ? 1.0 : 0.0;
-        vector[(int)FeatureIndex.GenreRatingInteraction] = GenreSimilarity * RatingScore;
-        vector[(int)FeatureIndex.GenreCollabInteraction] = GenreSimilarity * CollaborativeScore;
-        vector[(int)FeatureIndex.UserRatingScore] = UserRatingScore;
-        vector[(int)FeatureIndex.CompletionRatio] = CompletionRatio;
-        return vector;
+        buffer[(int)FeatureIndex.GenreSimilarity] = GenreSimilarity;
+        buffer[(int)FeatureIndex.CollaborativeScore] = CollaborativeScore;
+        buffer[(int)FeatureIndex.RatingScore] = RatingScore;
+        buffer[(int)FeatureIndex.RecencyScore] = RecencyScore;
+        buffer[(int)FeatureIndex.YearProximityScore] = YearProximityScore;
+        buffer[(int)FeatureIndex.GenreCountNormalized] = normalizedGenreCount;
+        buffer[(int)FeatureIndex.IsSeries] = IsSeries ? 1.0 : 0.0;
+        buffer[(int)FeatureIndex.GenreRatingInteraction] = GenreSimilarity * RatingScore;
+        buffer[(int)FeatureIndex.GenreCollabInteraction] = GenreSimilarity * CollaborativeScore;
+        buffer[(int)FeatureIndex.UserRatingScore] = UserRatingScore;
+        buffer[(int)FeatureIndex.CompletionRatio] = CompletionRatio;
     }
 }

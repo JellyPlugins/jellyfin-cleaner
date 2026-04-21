@@ -4,7 +4,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
-using System.Threading;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 
@@ -13,12 +12,15 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 ///     with the heuristic (rule-based) strategy for more robust recommendations.
 ///     Uses a dynamic blending factor (α) that smoothly shifts weight toward the learned
 ///     model as more training data becomes available via a sigmoid function.
+///     Alpha progression is gated by validation loss quality — if the learned model
+///     generalizes poorly, alpha will not advance further.
 ///     Applies the genre-mismatch penalty centrally (once) after blending to avoid
 ///     double-penalization that would occur if each sub-strategy applied it independently.
 /// </summary>
 /// <remarks>
 ///     Architecture: score = (α × Learned.Score + (1 - α) × Heuristic.Score) × softPenalty(genreSimilarity)
 ///     where α is computed via sigmoid: α = αMin + (αMax - αMin) / (1 + e^(-k × (n - midpoint)))
+///     but capped if the learned model's validation loss exceeds <see cref="ValidationLossThreshold"/>.
 ///     Training delegates to the learned strategy; the heuristic strategy is static.
 ///     Genre penalty is applied to both the final score AND per-feature contributions
 ///     for consistency (sum of contributions ≈ finalScore).
@@ -49,12 +51,19 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
     /// </summary>
     internal const double DefaultGenrePenaltyFloor = 0.10;
 
+    /// <summary>
+    ///     Maximum acceptable validation loss before alpha progression is frozen.
+    ///     If the learned model's validation loss exceeds this threshold, alpha
+    ///     will not increase beyond its current value (quality gate).
+    /// </summary>
+    internal const double ValidationLossThreshold = 0.15;
+
     /// <summary>Cached JSON serializer options for ensemble state persistence.</summary>
     private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
 
     private readonly HeuristicScoringStrategy _heuristic;
     private readonly LearnedScoringStrategy _learned;
-    private readonly Lock _lock = new();
+    private readonly object _syncRoot = new();
     private readonly double _alphaMax;
     private readonly double _alphaMin;
     private readonly double _genrePenaltyFloor;
@@ -92,12 +101,17 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
         _learned = new LearnedScoringStrategy(weightsPath);
         _heuristic = new HeuristicScoringStrategy();
 
-        // Derive ensemble state path from the learned weights path
+        // Derive ensemble state path robustly from the learned weights path (Point 10)
         if (!string.IsNullOrEmpty(weightsPath))
         {
-            _statePath = Path.Combine(
-                Path.GetDirectoryName(weightsPath) ?? string.Empty,
-                "ensemble_state.json");
+            var directory = Path.GetDirectoryName(weightsPath);
+            if (string.IsNullOrEmpty(directory))
+            {
+                // weightsPath is just a filename — use the same directory (current working directory)
+                directory = ".";
+            }
+
+            _statePath = Path.Combine(directory, "ensemble_state.json");
         }
 
         TryLoadState();
@@ -117,7 +131,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
     {
         get
         {
-            lock (_lock)
+            lock (_syncRoot)
             {
                 return _alpha;
             }
@@ -131,7 +145,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
     {
         get
         {
-            lock (_lock)
+            lock (_syncRoot)
             {
                 return _trainingExampleCount;
             }
@@ -155,7 +169,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
         var heuristicScore = _heuristic.Score(features);
 
         double alpha;
-        lock (_lock)
+        lock (_syncRoot)
         {
             alpha = _alpha;
         }
@@ -172,7 +186,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
         var heuristicExplanation = _heuristic.ScoreWithExplanation(features);
 
         double alpha;
-        lock (_lock)
+        lock (_syncRoot)
         {
             alpha = _alpha;
         }
@@ -214,7 +228,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
             InteractionContribution = interactionContrib,
             GenrePenaltyMultiplier = penalty,
             DominantSignal = ScoreExplanation.DetermineDominantSignal(
-                genreContrib, collabContrib, ratingContrib, userRatingContrib, recencyContrib, yearProxContrib),
+                genreContrib, collabContrib, ratingContrib, userRatingContrib, recencyContrib, yearProxContrib, interactionContrib),
             StrategyName = Name
         };
     }
@@ -226,11 +240,24 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
 
         if (result)
         {
-            lock (_lock)
+            // Check validation loss quality gate (Point 5)
+            var validationLoss = _learned.LastValidationLoss;
+            var qualityGatePassed = validationLoss <= ValidationLossThreshold;
+
+            lock (_syncRoot)
             {
-                // Track cumulative training examples to adjust blending factor
+                // Always track cumulative examples
                 _trainingExampleCount += examples.Count;
-                _alpha = ComputeSigmoidAlpha(_trainingExampleCount, _alphaMin, _alphaMax);
+
+                if (qualityGatePassed)
+                {
+                    // Good generalization — let alpha progress normally
+                    _alpha = ComputeSigmoidAlpha(_trainingExampleCount, _alphaMin, _alphaMax);
+                }
+
+                // If quality gate failed, alpha stays at its current value (frozen)
+                // This prevents the learned model from gaining more influence when
+                // its predictions are unreliable.
             }
 
             TrySaveState();
@@ -305,7 +332,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
             var data = JsonSerializer.Deserialize<EnsembleStateData>(json);
             if (data is not null && data.TrainingExampleCount > 0)
             {
-                lock (_lock)
+                lock (_syncRoot)
                 {
                     _trainingExampleCount = data.TrainingExampleCount;
                     _alpha = ComputeSigmoidAlpha(_trainingExampleCount, _alphaMin, _alphaMax);
@@ -335,14 +362,14 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
         try
         {
             var dir = Path.GetDirectoryName(_statePath);
-            if (!string.IsNullOrEmpty(dir))
+            if (!string.IsNullOrEmpty(dir) && dir != ".")
             {
                 Directory.CreateDirectory(dir);
             }
 
             double alpha;
             int exampleCount;
-            lock (_lock)
+            lock (_syncRoot)
             {
                 alpha = _alpha;
                 exampleCount = _trainingExampleCount;
