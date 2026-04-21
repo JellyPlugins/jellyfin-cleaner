@@ -89,6 +89,8 @@ public class UserActivityController : ControllerBase
                 ItemId = s.ItemId,
                 ItemName = s.ItemName,
                 ItemType = s.ItemType,
+                SeriesName = s.SeriesName,
+                EpisodeLabel = s.EpisodeLabel,
                 Year = s.Year,
                 Genres = s.Genres,
                 CommunityRating = s.CommunityRating,

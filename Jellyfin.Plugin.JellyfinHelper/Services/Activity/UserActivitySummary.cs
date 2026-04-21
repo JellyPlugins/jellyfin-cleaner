@@ -26,6 +26,16 @@ public sealed class UserActivitySummary
     public string ItemType { get; set; } = string.Empty;
 
     /// <summary>
+    ///     Gets or sets the parent series name (only for episodes).
+    /// </summary>
+    public string? SeriesName { get; set; }
+
+    /// <summary>
+    ///     Gets or sets a short season/episode label like "S01E03" (only for episodes).
+    /// </summary>
+    public string? EpisodeLabel { get; set; }
+
+    /// <summary>
     ///     Gets or sets the production year.
     /// </summary>
     public int? Year { get; set; }

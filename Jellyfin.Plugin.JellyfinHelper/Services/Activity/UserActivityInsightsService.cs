@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Logging;
 
@@ -145,11 +147,31 @@ public class UserActivityInsightsService : IUserActivityInsightsService
                 continue;
             }
 
+            string? seriesName = null;
+            string? episodeLabel = null;
+
+            if (item is Episode episode)
+            {
+                seriesName = episode.SeriesName;
+                var season = episode.ParentIndexNumber;
+                var epNum = episode.IndexNumber;
+                if (season.HasValue && epNum.HasValue)
+                {
+                    episodeLabel = string.Format(
+                        CultureInfo.InvariantCulture,
+                        "S{0:D2}E{1:D2}",
+                        season.Value,
+                        epNum.Value);
+                }
+            }
+
             var summary = new UserActivitySummary
             {
                 ItemId = item.Id,
                 ItemName = item.Name ?? string.Empty,
                 ItemType = item.GetType().Name,
+                SeriesName = seriesName,
+                EpisodeLabel = episodeLabel,
                 Year = item.ProductionYear,
                 Genres = item.Genres ?? [],
                 CommunityRating = item.CommunityRating,
