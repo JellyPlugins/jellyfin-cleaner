@@ -1,5 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.IO;
+using System.Text.Json;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 
@@ -34,8 +38,12 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
     /// <summary>Training example count threshold for transitioning from medium to high alpha.</summary>
     internal const int HighDataThreshold = 100;
 
+    /// <summary>Cached JSON serializer options for ensemble state persistence.</summary>
+    private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
+
     private readonly HeuristicScoringStrategy _heuristic;
     private readonly LearnedScoringStrategy _learned;
+    private readonly string? _statePath;
     private double _alpha = AlphaLow;
     private int _trainingExampleCount;
 
@@ -50,6 +58,16 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
     {
         _learned = new LearnedScoringStrategy(weightsPath);
         _heuristic = new HeuristicScoringStrategy();
+
+        // Derive ensemble state path from the learned weights path
+        if (!string.IsNullOrEmpty(weightsPath))
+        {
+            _statePath = Path.Combine(
+                Path.GetDirectoryName(weightsPath) ?? string.Empty,
+                "ensemble_state.json");
+        }
+
+        TryLoadState();
     }
 
     /// <inheritdoc />
@@ -104,8 +122,100 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy
                 >= MediumDataThreshold => AlphaMedium,
                 _ => AlphaLow
             };
+
+            TrySaveState();
         }
 
         return result;
+    }
+
+    /// <summary>
+    ///     Tries to load persisted ensemble state (alpha, training count) from disk.
+    /// </summary>
+    [SuppressMessage(
+        "Design",
+        "CA1031:DoNotCatchGeneralExceptionTypes",
+        Justification = "Graceful fallback to defaults on any I/O or parse error")]
+    private void TryLoadState()
+    {
+        if (string.IsNullOrEmpty(_statePath) || !File.Exists(_statePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var json = File.ReadAllText(_statePath);
+            var data = JsonSerializer.Deserialize<EnsembleStateData>(json);
+            if (data is not null && data.TrainingExampleCount > 0)
+            {
+                _trainingExampleCount = data.TrainingExampleCount;
+                _alpha = _trainingExampleCount switch
+                {
+                    >= HighDataThreshold => AlphaHigh,
+                    >= MediumDataThreshold => AlphaMedium,
+                    _ => AlphaLow
+                };
+            }
+        }
+        catch (Exception)
+        {
+            // Silently fall back to defaults
+        }
+    }
+
+    /// <summary>
+    ///     Tries to persist current ensemble state to disk.
+    /// </summary>
+    [SuppressMessage(
+        "Design",
+        "CA1031:DoNotCatchGeneralExceptionTypes",
+        Justification = "Non-critical persistence — silently ignore write failures")]
+    private void TrySaveState()
+    {
+        if (string.IsNullOrEmpty(_statePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var dir = Path.GetDirectoryName(_statePath);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            var data = new EnsembleStateData
+            {
+                TrainingExampleCount = _trainingExampleCount,
+                Alpha = _alpha,
+                UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)
+            };
+
+            var json = JsonSerializer.Serialize(data, SerializerOptions);
+            var tempPath = _statePath + ".tmp";
+            File.WriteAllText(tempPath, json);
+            File.Move(tempPath, _statePath, overwrite: true);
+        }
+        catch (Exception)
+        {
+            // Non-critical — silently ignore
+        }
+    }
+
+    /// <summary>
+    ///     Serializable container for persisted ensemble state.
+    /// </summary>
+    internal sealed class EnsembleStateData
+    {
+        /// <summary>Gets or sets the cumulative number of training examples seen.</summary>
+        public int TrainingExampleCount { get; set; }
+
+        /// <summary>Gets or sets the current blending factor alpha.</summary>
+        public double Alpha { get; set; }
+
+        /// <summary>Gets or sets the ISO 8601 timestamp of the last update.</summary>
+        public string UpdatedAt { get; set; } = string.Empty;
     }
 }

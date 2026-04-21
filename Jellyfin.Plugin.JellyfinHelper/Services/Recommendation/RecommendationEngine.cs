@@ -36,18 +36,6 @@ public sealed class RecommendationEngine : IRecommendationEngine
     internal const double HighRatingThreshold = 0.7;
 
     /// <summary>
-    ///     Genre similarity threshold below which items receive a penalty multiplier.
-    ///     Items with no meaningful genre overlap with the user's preferences are penalized.
-    /// </summary>
-    internal const double GenreMismatchThreshold = 0.1;
-
-    /// <summary>
-    ///     Penalty multiplier applied to items below the genre mismatch threshold.
-    ///     Strongly reduces the score of items that don't match the user's genre preferences.
-    /// </summary>
-    internal const double GenreMismatchPenalty = 0.15;
-
-    /// <summary>
     ///     Boost factor applied to genres from favorited items when building preferences.
     ///     Favorites count this many times more than regular watched items.
     /// </summary>
@@ -71,6 +59,7 @@ public sealed class RecommendationEngine : IRecommendationEngine
     private readonly ILibraryManager _libraryManager;
     private readonly ILogger<RecommendationEngine> _logger;
     private readonly IPluginLogService _pluginLog;
+    private readonly EnsembleScoringStrategy _strategy;
     private readonly IWatchHistoryService _watchHistoryService;
 
     /// <summary>
@@ -90,6 +79,16 @@ public sealed class RecommendationEngine : IRecommendationEngine
         _libraryManager = libraryManager;
         _pluginLog = pluginLog;
         _logger = logger;
+
+        // Create the ensemble strategy once — it persists learned weights and alpha across calls
+        var dataPath = Plugin.Instance?.DataFolderPath;
+        string? weightsPath = null;
+        if (!string.IsNullOrEmpty(dataPath))
+        {
+            weightsPath = System.IO.Path.Join(dataPath, "ml_weights.json");
+        }
+
+        _strategy = new EnsembleScoringStrategy(weightsPath);
     }
 
     /// <inheritdoc />
@@ -105,14 +104,12 @@ public sealed class RecommendationEngine : IRecommendationEngine
 
         // Load candidates once
         var candidates = LoadCandidateItems();
-        var strategy = ResolveStrategy();
-        return GenerateForUser(userProfile, allProfiles, candidates, maxResults, strategy);
+        return GenerateForUser(userProfile, allProfiles, candidates, maxResults, _strategy);
     }
 
     /// <inheritdoc />
     public bool TrainStrategy(Collection<RecommendationResult> previousResults)
     {
-        var strategy = ResolveStrategy();
         if (previousResults.Count == 0)
         {
             _pluginLog.LogInfo("Recommendations", "Training skipped — no previous recommendations available.", _logger);
@@ -174,9 +171,7 @@ public sealed class RecommendationEngine : IRecommendationEngine
                     GenreSimilarity = ComputeGenreSimilarity(rec.Genres ?? [], genrePreferences),
                     CollaborativeScore = ComputeCollaborativeScore(rec.ItemId, coOccurrence, collaborativeMax),
                     RatingScore = NormalizeRating(rec.CommunityRating),
-                    RecencyScore = rec.Year.HasValue
-                        ? ComputeYearProximity(rec.Year, avgYear)
-                        : 0.5,
+                    RecencyScore = 0.5, // no premiere date available from stored recommendations
                     YearProximityScore = ComputeYearProximity(rec.Year, avgYear),
                     GenreCount = rec.Genres?.Length ?? 0,
                     IsSeries = string.Equals(rec.ItemType, "Series", StringComparison.OrdinalIgnoreCase)
@@ -197,20 +192,20 @@ public sealed class RecommendationEngine : IRecommendationEngine
             $"{examples.Count - positiveCount} negative) from {previousResults.Count} users.",
             _logger);
 
-        var trained = strategy.Train(examples);
+        var trained = _strategy.Train(examples);
 
         if (trained)
         {
             _pluginLog.LogInfo(
                 "Recommendations",
-                $"Strategy '{strategy.Name}' training completed successfully.",
+                $"Strategy '{_strategy.Name}' training completed successfully.",
                 _logger);
         }
         else
         {
             _pluginLog.LogInfo(
                 "Recommendations",
-                $"Strategy '{strategy.Name}' training skipped (insufficient training data).",
+                $"Strategy '{_strategy.Name}' training skipped (insufficient training data).",
                 _logger);
         }
 
@@ -226,18 +221,17 @@ public sealed class RecommendationEngine : IRecommendationEngine
 
         // Load candidates once for ALL users (performance optimization)
         var candidates = LoadCandidateItems();
-        var strategy = ResolveStrategy();
 
         _pluginLog.LogInfo(
             "Recommendations",
-            $"Starting recommendation generation for {allProfiles.Count} users using strategy '{strategy.Name}'...",
+            $"Starting recommendation generation for {allProfiles.Count} users using strategy '{_strategy.Name}'...",
             _logger);
 
         foreach (var profile in allProfiles)
         {
             try
             {
-                results.Add(GenerateForUser(profile, allProfiles, candidates, maxResultsPerUser, strategy));
+                results.Add(GenerateForUser(profile, allProfiles, candidates, maxResultsPerUser, _strategy));
             }
             catch (Exception ex)
             {
@@ -256,34 +250,6 @@ public sealed class RecommendationEngine : IRecommendationEngine
             _logger);
 
         return results;
-    }
-
-    /// <summary>
-    ///     Resolves the scoring strategy. Uses an ensemble strategy that combines
-    ///     the adaptive learned (ML) model with the rule-based heuristic model
-    ///     for more robust and accurate recommendations.
-    /// </summary>
-    /// <returns>The ensemble scoring strategy.</returns>
-    internal static IScoringStrategy ResolveStrategy()
-    {
-        return CreateEnsembleStrategy();
-    }
-
-    /// <summary>
-    ///     Creates an <see cref="EnsembleScoringStrategy"/> with the appropriate weights path.
-    ///     The ensemble combines learned (adaptive ML) and heuristic (rule-based) scoring.
-    /// </summary>
-    /// <returns>A configured ensemble scoring strategy.</returns>
-    internal static EnsembleScoringStrategy CreateEnsembleStrategy()
-    {
-        var dataPath = Plugin.Instance?.DataFolderPath;
-        string? weightsPath = null;
-        if (!string.IsNullOrEmpty(dataPath))
-        {
-            weightsPath = System.IO.Path.Join(dataPath, "ml_weights.json");
-        }
-
-        return new EnsembleScoringStrategy(weightsPath);
     }
 
     /// <summary>

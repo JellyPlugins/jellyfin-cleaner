@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
@@ -11,7 +12,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 public sealed class HeuristicScoringStrategy : IScoringStrategy
 {
     /// <summary>Weight for genre similarity signal (dominant).</summary>
-    internal const double GenreWeight = 0.50;
+    internal const double GenreWeight = 0.45;
 
     /// <summary>Weight for collaborative filtering signal.</summary>
     internal const double CollaborativeWeight = 0.20;
@@ -24,6 +25,12 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
 
     /// <summary>Weight for year proximity signal.</summary>
     internal const double YearProximityWeight = 0.05;
+
+    /// <summary>Weight for genre count signal (items with more genres = broader appeal).</summary>
+    internal const double GenreCountWeight = 0.05;
+
+    /// <summary>Weight for series type signal (slight preference for series or movies).</summary>
+    internal const double IsSeriesWeight = 0.10;
 
     /// <summary>
     ///     Genre similarity threshold below which the genre mismatch penalty is applied.
@@ -44,12 +51,17 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
     /// <inheritdoc />
     public double Score(CandidateFeatures features)
     {
+        var normalizedGenreCount = Math.Clamp(
+            features.GenreCount / CandidateFeatures.GenreCountNormalizationCeiling, 0.0, 1.0);
+
         var score =
             (features.GenreSimilarity * GenreWeight) +
             (features.CollaborativeScore * CollaborativeWeight) +
             (features.RatingScore * RatingWeight) +
             (features.RecencyScore * RecencyWeight) +
-            (features.YearProximityScore * YearProximityWeight);
+            (features.YearProximityScore * YearProximityWeight) +
+            (normalizedGenreCount * GenreCountWeight) +
+            ((features.IsSeries ? 1.0 : 0.0) * IsSeriesWeight);
 
         // Apply genre-mismatch penalty: items with no meaningful genre overlap
         // are strongly penalized to prevent irrelevant recommendations
