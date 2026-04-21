@@ -241,7 +241,9 @@ public sealed class ScoringStrategyTests : IDisposable
         {
             GenreSimilarity = 0.8,
             RatingScore = 0.6,
-            RecencyScore = 0.5
+            RecencyScore = 0.5,
+            UserRatingScore = 0.0,
+            CompletionRatio = 0.0
         };
 
         // No genre match but same other features
@@ -249,14 +251,16 @@ public sealed class ScoringStrategyTests : IDisposable
         {
             GenreSimilarity = 0.0,
             RatingScore = 0.6,
-            RecencyScore = 0.5
+            RecencyScore = 0.5,
+            UserRatingScore = 0.0,
+            CompletionRatio = 0.0
         };
 
         var goodScore = strategy.Score(goodFeatures);
         var badScore = strategy.Score(badFeatures);
 
-        // Bad score should be MUCH lower than good score (at least 5x difference)
-        Assert.True(goodScore > badScore * 5,
+        // Bad score should be MUCH lower than good score (at least 3x difference)
+        Assert.True(goodScore > badScore * 3,
             $"Genre mismatch should be strongly penalized: good={goodScore:F4}, bad={badScore:F4}");
     }
 
@@ -350,20 +354,24 @@ public sealed class ScoringStrategyTests : IDisposable
         {
             GenreSimilarity = 0.8,
             RatingScore = 0.7,
-            RecencyScore = 0.5
+            RecencyScore = 0.5,
+            UserRatingScore = 0.0,
+            CompletionRatio = 0.0
         };
 
         var badFeatures = new CandidateFeatures
         {
             GenreSimilarity = 0.0,
             RatingScore = 0.7,
-            RecencyScore = 0.5
+            RecencyScore = 0.5,
+            UserRatingScore = 0.0,
+            CompletionRatio = 0.0
         };
 
         var goodScore = strategy.Score(goodFeatures);
         var badScore = strategy.Score(badFeatures);
 
-        Assert.True(goodScore > badScore * 3,
+        Assert.True(goodScore > badScore * 2,
             $"Genre mismatch penalty should create large gap: good={goodScore:F4}, bad={badScore:F4}");
     }
 
@@ -374,11 +382,13 @@ public sealed class ScoringStrategyTests : IDisposable
         var weights = strategy.CurrentWeights;
 
         Assert.Equal(LearnedScoringStrategy.FeatureCount, weights.Length);
-        Assert.Equal(0.40, weights[0]); // genre (dominant)
-        Assert.Equal(0.15, weights[1]); // collaborative
-        Assert.Equal(0.10, weights[2]); // rating
-        Assert.Equal(0.10, weights[7]); // genre × rating interaction
-        Assert.Equal(0.10, weights[8]); // genre × collab interaction
+        Assert.Equal(0.35, weights[0]); // genre (dominant)
+        Assert.Equal(0.12, weights[1]); // collaborative
+        Assert.Equal(0.08, weights[2]); // rating
+        Assert.Equal(0.08, weights[7]); // genre × rating interaction
+        Assert.Equal(0.08, weights[8]); // genre × collab interaction
+        Assert.Equal(0.10, weights[9]); // user rating
+        Assert.Equal(0.04, weights[10]); // completion ratio
     }
 
     [Fact]
@@ -616,7 +626,7 @@ public sealed class ScoringStrategyTests : IDisposable
         var weights = strategy.CurrentWeights;
 
         Assert.Equal(LearnedScoringStrategy.FeatureCount, weights.Length);
-        Assert.Equal(0.40, weights[0]); // default genre weight
+        Assert.Equal(0.35, weights[0]); // default genre weight
     }
 
     [Fact]
