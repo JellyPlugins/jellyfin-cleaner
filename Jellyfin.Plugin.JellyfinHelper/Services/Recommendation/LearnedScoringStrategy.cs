@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 
@@ -37,7 +38,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
     /// <summary>Cached JSON serializer options for weight persistence.</summary>
     private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
 
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private readonly string? _weightsPath;
     private double _bias;
     private double[] _weights;
@@ -251,7 +252,9 @@ public sealed class LearnedScoringStrategy : IScoringStrategy
             };
 
             var json = JsonSerializer.Serialize(data, SerializerOptions);
-            File.WriteAllText(_weightsPath, json);
+            var tempPath = _weightsPath + ".tmp";
+            File.WriteAllText(tempPath, json);
+            File.Move(tempPath, _weightsPath, overwrite: true);
         }
         catch
         {

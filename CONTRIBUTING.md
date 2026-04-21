@@ -85,7 +85,9 @@ Jellyfin.Plugin.JellyfinHelper/
 │   ├── SeerrController.cs             # Seerr integration API endpoints (connection test)
 │   ├── SeerrTestRequest.cs            # Request DTO for Seerr connection tests
 │   ├── TranslationsController.cs      # UI translation endpoint (anonymous access)
-│   └── TrashController.cs            # Trash management endpoints
+│   ├── TrashController.cs            # Trash management endpoints
+│   ├── RecommendationController.cs    # Smart recommendations API (per-user, watch profiles)
+│   └── UserActivityController.cs      # User activity insights API (latest, per-user)
 ├── Configuration/
 │   ├── PluginConfiguration.cs   # Settings model with legacy migration (ConfigVersion)
 │   ├── ArrInstanceConfig.cs     # Radarr/Sonarr instance model
@@ -133,6 +135,30 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   ├── StatisticsCacheService.cs # IMemoryCache wrapper (5-min TTL)
 │   │   ├── MediaStatisticsResult.cs
 │   │   └── LibraryStatistics.cs
+│   ├── Activity/                      # User activity insights
+│   │   ├── IUserActivityInsightsService.cs  # Interface for activity aggregation
+│   │   ├── UserActivityInsightsService.cs   # Aggregates play counts, completion, favorites
+│   │   ├── IUserActivityCacheService.cs     # Interface for activity cache
+│   │   ├── UserActivityCacheService.cs      # Disk-persisted cache (user_activity_cache.json)
+│   │   ├── UserActivityResult.cs            # Result DTO
+│   │   ├── UserActivitySummary.cs           # Per-user activity summary
+│   │   └── UserItemActivity.cs              # Per-item activity record
+│   ├── Recommendation/                # ML-powered smart recommendations
+│   │   ├── IRecommendationEngine.cs         # Interface for recommendation generation
+│   │   ├── RecommendationEngine.cs          # Orchestrates scoring and result generation
+│   │   ├── IWatchHistoryService.cs          # Interface for watch history analysis
+│   │   ├── WatchHistoryService.cs           # Builds per-user watch profiles
+│   │   ├── IScoringStrategy.cs              # Strategy interface for candidate scoring
+│   │   ├── HeuristicScoringStrategy.cs      # Rule-based scoring
+│   │   ├── LearnedScoringStrategy.cs        # Gradient-descent ML scoring
+│   │   ├── CandidateFeatures.cs             # Feature vector struct for ML
+│   │   ├── TrainingExample.cs               # Labeled training example
+│   │   ├── IRecommendationCacheService.cs   # Cache interface
+│   │   ├── RecommendationCacheService.cs    # Disk-persisted cache
+│   │   ├── RecommendationResult.cs          # Result DTO
+│   │   ├── RecommendedItem.cs               # Single recommendation with score
+│   │   ├── UserWatchProfile.cs              # Per-user affinity profile
+│   │   └── WatchedItemInfo.cs               # Watched item record
 │   ├── Seerr/                         # Overseerr/Jellyseerr integration
 │   │   ├── ISeerrIntegrationService.cs
 │   │   ├── SeerrIntegrationService.cs # HTTP client for Seerr API communication & cleanup
@@ -176,8 +202,8 @@ Jellyfin.Plugin.JellyfinHelper/
 └── PluginPages/
     ├── configPage.template.html # HTML shell (build-time composition)
     ├── configPage.html          # Generated output (do not edit)
-    ├── css/                     # Per-tab CSS modules
-    └── js/                      # Per-tab JS modules + .eslintrc.json
+    ├── css/                     # Per-tab CSS modules (incl. Recommendations.css)
+    └── js/                      # Per-tab JS modules (incl. Recommendations.js) + .eslintrc.json
 ```
 
 ### Service Registration
@@ -202,6 +228,11 @@ serviceCollection.AddSingleton<ILinkHandler, SymlinkHandler>();
 serviceCollection.AddSingleton<ILinkRepairService, LinkRepairService>();
 serviceCollection.AddSingleton<IArrIntegrationService, ArrIntegrationService>();
 serviceCollection.AddSingleton<ISeerrIntegrationService, SeerrIntegrationService>();
+serviceCollection.AddSingleton<IWatchHistoryService, WatchHistoryService>();
+serviceCollection.AddSingleton<IRecommendationEngine, RecommendationEngine>();
+serviceCollection.AddSingleton<IRecommendationCacheService, RecommendationCacheService>();
+serviceCollection.AddSingleton<IUserActivityInsightsService, UserActivityInsightsService>();
+serviceCollection.AddSingleton<IUserActivityCacheService, UserActivityCacheService>();
 ```
 
 Named `HttpClient` instances are configured for external API communication: `"ArrIntegration"` (Radarr/Sonarr, 15-second timeout) and `"SeerrIntegration"` (Overseerr/Jellyseerr, 30-second timeout).
@@ -214,7 +245,7 @@ Named `HttpClient` instances are configured for external API communication: `"Ar
 |---------|-----------|-------------|
 | **Template Method** | `BaseLibraryCleanupTask` | Abstract base class orchestrates the cleanup lifecycle (config → log → iterate → process → summary → record). Concrete subclasses only implement `ProcessLocation()`. |
 | **Interface Segregation** | All services | Every service has a dedicated `I*Service` interface enabling mock-based testing and loose coupling. |
-| **Strategy** | `TaskMode` enum | Each cleanup task can be independently set to `Activate`, `DryRun`, or `Deactivate`. |
+| **Strategy** | `TaskMode` enum, `IScoringStrategy` | Each cleanup task can be independently set to `Activate`, `DryRun`, or `Deactivate`. Recommendation scoring uses interchangeable strategies (Heuristic vs Learned). |
 | **Singleton Lifetime** | DI registration | All plugin services are registered with singleton lifetime; services with shared mutable state (caches, tracking, ring buffer) still need explicit thread-safety. |
 | **Configuration Abstraction** | `IPluginConfigurationService` | Decouples all services from the static `Plugin.Instance` singleton. Services receive configuration via DI, enabling isolated unit tests without shared mutable state. |
 | **Build-time Composition** | UI pipeline | CSS/JS modules concatenated into a single `configPage.html` at build time (MSBuild target). |
@@ -226,8 +257,8 @@ Named `HttpClient` instances are configured for external API communication: `"Ar
 
 ### Key Design Decisions
 
-- **Domain-organized Controllers** — Each API domain has its own controller (Configuration, Statistics, Arr, Logs, Backup, Trash, Cleanup, Seerr, Timeline, Translations)
-- **Domain-organized Services** — Services grouped by domain (Arr, Backup, Cleanup, Link, PluginLog, Seerr, Statistics, Timeline)
+- **Domain-organized Controllers** — Each API domain has its own controller (Configuration, Statistics, Arr, Logs, Backup, Trash, Cleanup, Seerr, Timeline, Translations, Recommendations, UserActivity)
+- **Domain-organized Services** — Services grouped by domain (Activity, Arr, Backup, Cleanup, Link, PluginLog, Recommendation, Seerr, Statistics, Timeline)
 - **Build-time UI composition** — CSS and JS modules are concatenated into `configPage.html` at build time (no runtime bundler needed)
 - **Persisted scan results** — Latest statistics are saved to disk and survive server restarts
 - **5-minute cache** — `IMemoryCache` prevents redundant scans; `?forceRefresh=true` bypasses it
@@ -350,6 +381,22 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 |----------|--------|-------------|
 | `/JellyfinHelper/Seerr/Test` | POST | Test Overseerr/Jellyseerr connection |
 
+### Recommendations
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/JellyfinHelper/Recommendations` | GET | All cached recommendations (all users) |
+| `/JellyfinHelper/Recommendations/{userId}` | GET | Recommendations for a specific user |
+| `/JellyfinHelper/Recommendations/WatchProfile/{userId}` | GET | Watch profile for a user |
+| `/JellyfinHelper/Recommendations/WatchProfiles` | GET | All user watch profiles |
+
+### User Activity
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/JellyfinHelper/UserActivity/Latest` | GET | Latest cached user activity data |
+| `/JellyfinHelper/UserActivity/User/{userId}` | GET | Activity data for a specific user |
+
 ---
 
 ## ⚙️ Configuration Options
@@ -374,6 +421,8 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 | **Seerr URL** | Overseerr / Jellyseerr base URL | Empty |
 | **Seerr API Key** | API key for Seerr cleanup / test connection | Empty |
 | **Seerr Cleanup Age (days)** | Max request age before deletion | 365 |
+| **Recommendations Task Mode** | Activate / DryRun / Deactivate | DryRun |
+| **Recommendation Count** | Max recommendations per user | 20 |
 
 Configuration is automatically migrated from legacy formats via `ConfigVersion`.
 
@@ -392,9 +441,11 @@ Sub-tasks executed in order (each respecting its configured task mode):
 3. Orphaned Subtitle Cleanup
 4. Link Repair (.strm files & symlinks)
 5. Seerr Cleanup (removes unavailable Overseerr/Jellyseerr media requests)
-6. Trash Purge (if enabled)
-7. Post-Cleanup Statistics Scan (auto-refreshes and persists stats)
-8. Growth Timeline Recomputation (independent of statistics scan)
+6. Smart Recommendations Generation (ML-based per-user recommendations)
+7. User Activity Aggregation (play counts, completion, favorites, genre distribution)
+8. Trash Purge (if enabled)
+9. Post-Cleanup Statistics Scan (auto-refreshes and persists stats)
+10. Growth Timeline Recomputation (independent of statistics scan)
 
 ---
 
@@ -475,6 +526,23 @@ Sub-tasks executed in order (each respecting its configured task mode):
 - Validation includes: version checks, size limits (10 MB), XSS/injection detection, path traversal prevention, enum validation, numeric range checks
 - Restore summary shows what was imported (config, timeline, baseline)
 
+### Smart Recommendations
+
+- **ML-powered per-user recommendations** using dual scoring strategy
+- **Heuristic scoring** — Rule-based scoring using genre overlap, actor/director/studio match, community rating, recency, and popularity
+- **Learned scoring** — Gradient-descent trained linear model that learns per-user weights from positive (watched) and implicit negative (skipped) examples
+- **Watch profile analysis** — Aggregates per-user genre, actor, director, and studio frequencies from Jellyfin playback data
+- **Candidate filtering** — Excludes already-watched items; scores all unwatched candidates against the user's profile
+- **Configurable** — `RecommendationsTaskMode` (DryRun/Activate/Deactivate) and `RecommendationCount` (default: 20)
+- **Disk-persisted cache** — Results cached to `recommendations_cache.json` and served from cache until next scheduled run
+
+### User Activity Insights
+
+- **Per-user activity summaries** with total play count, unique items watched, favorite items, and genre distribution
+- **Per-item activity** tracking play count, completion percentage, last played date, and favorite flag
+- **Disk-persisted cache** — Results cached to `user_activity_cache.json`
+- **Discover tab** — Combined recommendation + activity view with user selector, recommendation cards, and genre distribution charts
+
 ### Security
 
 - **Path traversal protection** with null-byte detection and base directory validation (`PathValidator`)
@@ -506,7 +574,7 @@ Sub-tasks executed in order (each respecting its configured task mode):
 
 The project includes a **comprehensive automated test suite** covering:
 
-- All services (cleanup, statistics, path validation, Arr integration, backup/restore, growth timeline, link repair, Seerr integration)
+- All services (cleanup, statistics, path validation, Arr integration, backup/restore, growth timeline, link repair, Seerr integration, recommendation engine, watch history, scoring strategies, user activity)
 - API endpoints (controller tests with mocked dependencies)
 - Configuration migration (legacy format → current)
 - UI structure (HTML element presence, tab structure)
@@ -588,7 +656,9 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
 │   ├── SeerrControllerTests.cs
 │   ├── LogsControllerTests.cs
 │   ├── TranslationsControllerTests.cs
-│   └── TrashControllerTests.cs
+│   ├── TrashControllerTests.cs
+│   ├── RecommendationControllerTests.cs  # Recommendation API tests
+│   └── UserActivityControllerTests.cs    # User activity API tests
 ├── Configuration/          # Config migration & serialization tests
 │   ├── PluginConfigurationSerializationTests.cs
 │   └── TaskModeTests.cs
@@ -639,6 +709,15 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
     │   ├── LinkRepairSecurityTests.cs          # [Trait("Category", "Security")]
     │   ├── StrmLinkHandlerTests.cs
     │   └── SymlinkHandlerTests.cs
+    ├── Recommendation/
+    │   ├── RecommendationEngineTests.cs         # Engine orchestration tests
+    │   ├── WatchHistoryServiceTests.cs          # Watch profile building tests
+    │   ├── ScoringStrategyTests.cs              # Heuristic & learned scoring tests
+    │   ├── RecommendationCacheServiceTests.cs   # Cache persistence tests
+    │   └── RecommendationDtoTests.cs            # DTO serialization tests
+    ├── Activity/
+    │   ├── UserActivityCacheServiceTests.cs     # Activity cache tests
+    │   └── UserActivityInsightsServiceTests.cs  # Activity aggregation tests
     ├── Seerr/
     │   ├── SeerrIntegrationServiceTests.cs
     │   └── SeerrMediaDetailsTests.cs

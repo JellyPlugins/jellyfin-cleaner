@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin plugin ecosystem.
 
 
+## [1.2.2.0] — 2026-04-21
+
+### Added
+- **Discover Tab** — New 8th dashboard tab "Discover" combining ML-powered smart recommendations and user activity insights in a single view. Includes `Recommendations.js`, `Recommendations.css` frontend modules with user selector, recommendation cards, activity summaries, and genre distribution charts.
+- **Smart Recommendation Engine** — ML-based per-user recommendation system (`Services/Recommendation/`) with dual scoring strategy.
+- **Recommendations Configuration** — New plugin settings: `RecommendationsTaskMode` (DryRun/Activate/Deactivate, default: DryRun), `RecommendationCount` (20).
+- **Recommendations Scheduled Task** — Integrated into `HelperCleanupTask` to generate recommendations and activity data on the weekly cleanup schedule.
+- **Tests** — New test classes: `RecommendationControllerTests`, `UserActivityControllerTests`, `RecommendationEngineTests`, `WatchHistoryServiceTests`, `ScoringStrategyTests`, `RecommendationCacheServiceTests`, `RecommendationDtoTests`, `UserActivityCacheServiceTests`, `UserActivityInsightsServiceTests`.
+
+### Changed
+- **8-Tab Dashboard** — Dashboard expanded from 7 to 8 tabs: Overview, Codecs, Health, Trends, **Discover**, Settings, Arr, Logs.
+- **Service Registration** — `PluginServiceRegistrator` registers 6 new services: `IWatchHistoryService`, `IRecommendationEngine`, `IRecommendationCacheService`, `IUserActivityInsightsService`, `IUserActivityCacheService`.
+- **HelperCleanupTask** — Extended to run recommendation generation and user activity aggregation alongside existing cleanup tasks.
+- **i18n** — All 7 language files (en, de, fr, es, pt, zh, tr) updated with Discover tab translations (tab label, recommendation cards, activity summaries, empty states).
+- **Documentation** — Updated README.md, CONTRIBUTING.md, manifest.json, build.yaml, and CHANGELOG.md for the new Discover tab and all associated features.
+
+---
+
 ## [1.2.1.0] — 2026-04-20
 
 ### Added

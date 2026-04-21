@@ -149,6 +149,7 @@ public class HelperCleanupTask : IScheduledTask
             var modeLabel = mode == TaskMode.DryRun ? "Dry Run" : "Active";
             _pluginLog.LogInfo("HelperCleanup", $"Starting {name} ({modeLabel})...", _logger);
 
+            var succeeded = true;
             try
             {
                 // Create a sub-progress that maps to our segment of the overall progress
@@ -165,6 +166,7 @@ public class HelperCleanupTask : IScheduledTask
             }
             catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
             {
+                succeeded = false;
                 _pluginLog.LogError(
                     "HelperCleanup",
                     $"Error executing {name}. Continuing with next task.",
@@ -172,7 +174,10 @@ public class HelperCleanupTask : IScheduledTask
                     _logger);
             }
 
-            _pluginLog.LogInfo("HelperCleanup", $"Finished {name}.", _logger);
+            _pluginLog.LogInfo(
+                "HelperCleanup",
+                succeeded ? $"Finished {name}." : $"Finished {name} (with errors).",
+                _logger);
             progress.Report((double)(i + 1) / totalTasks * 100);
         }
 

@@ -219,7 +219,7 @@ public class BackupService : IBackupService
     }
 
     /// <summary>
-    ///     Deserializes a JSON string to back up data.
+    ///     Deserializes a JSON string to backup data.
     ///     Returns null if the JSON is invalid.
     /// </summary>
     /// <param name="json">The JSON string.</param>

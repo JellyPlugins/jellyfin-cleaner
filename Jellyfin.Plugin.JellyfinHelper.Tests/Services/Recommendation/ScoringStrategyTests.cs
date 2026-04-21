@@ -89,6 +89,15 @@ public sealed class ScoringStrategyTests : IDisposable
         }
     }
 
+    [Fact]
+    public void CandidateFeatures_ToVector_Length_MatchesLearnedStrategyFeatureCount()
+    {
+        // Guard: if a new feature is added to ToVector() but FeatureCount is not updated
+        // (or vice versa), training and scoring will silently produce wrong results.
+        var vector = new CandidateFeatures().ToVector();
+        Assert.Equal(LearnedScoringStrategy.FeatureCount, vector.Length);
+    }
+
     // ============================================================
     // HeuristicScoringStrategy Tests
     // ============================================================

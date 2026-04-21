@@ -2,7 +2,7 @@
 
 ![Jellyfin Helper Logo](media/logo.png)
 
-A [Jellyfin](https://jellyfin.org/) plugin that provides automated cleanup tasks, media library statistics, health checks, and Arr stack integration — all from a single, multi-tab dashboard.
+A [Jellyfin](https://jellyfin.org/) plugin that provides automated cleanup tasks, media library statistics, ML-powered smart recommendations, user activity insights, health checks, and Arr stack integration — all from a single, multi-tab dashboard.
 
 [![GitHub Release](https://img.shields.io/github/v/release/JellyPlugins/jellyfin-helper?style=flat-square)](https://github.com/JellyPlugins/jellyfin-helper/releases)
 [![Tests](https://img.shields.io/badge/tests-comprehensive%20suite-brightgreen?style=flat-square)](Jellyfin.Plugin.JellyfinHelper.Tests/)
@@ -12,7 +12,7 @@ A [Jellyfin](https://jellyfin.org/) plugin that provides automated cleanup tasks
 
 **[Try the interactive demo →](https://jellyplugins.github.io/jellyfin-helper/)**
 
-Explore the full 7-tab dashboard with realistic sample data — no Jellyfin server required.
+Explore the full 8-tab dashboard with realistic sample data — no Jellyfin server required.
 
 ---
 
@@ -20,7 +20,7 @@ Explore the full 7-tab dashboard with realistic sample data — no Jellyfin serv
 
 | Feature | Description                                                                                                                                                                                 |
 |---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **📊 7-Tab Dashboard** | Overview, Codecs, Health, Trends, Settings, Arr, Logs — all accessible directly from the Jellyfin sidebar as a single plugin page                                                           |
+| **📊 8-Tab Dashboard** | Overview, Codecs, Health, Trends, Discover, Settings, Arr, Logs — all accessible directly from the Jellyfin sidebar as a single plugin page                                                |
 | **🧹 Trickplay Cleaner** | Automatically finds and removes orphaned `.trickplay` folders whose corresponding media file no longer exists. Frees disk space from stale image extraction data                            |
 | **📁 Empty Folder Cleaner** | Deletes now-empty media folders that no longer contain video files (e.g. after manual cleanup). Skips known placeholder folders (Radarr/Sonarr), metadata-only folders, and music libraries |
 | **🧹 Subtitle Cleaner** | Detects and removes orphaned `.srt`/`.ass`/`.vtt` subtitle files that no longer have a matching video. Uses ISO 639 language-code detection to avoid false positives                        |
@@ -35,6 +35,8 @@ Explore the full 7-tab dashboard with realistic sample data — no Jellyfin serv
 | **📋 Log Viewer** | Plugin-specific logs with level/source filtering, auto-refresh (10s), and download as `.log` file. Isolated from Jellyfin's main log to reduce noise                                        |
 | **🗑️ Trash / Recycle Bin** | Cleanup tasks move files to a timestamped trash folder instead of permanently deleting them. Configurable retention period auto-purges expired items                                        |
 | **🌐 7 Languages** | Full UI translations: English, German, French, Spanish, Portuguese, Chinese, Turkish                                                                                                        |
+| **🤖 Smart Recommendations** | ML-powered per-user recommendations with dual scoring strategy (heuristic + learned). Analyses watch history to build genre, actor, director & studio affinity profiles and scores unwatched candidates |
+| **👥 User Activity** | Per-item and per-user watch activity tracking with play count, completion percentage, favorites detection, and genre distribution — displayed in the new Discover tab                        |
 | **🔐 Security** | 5-min statistics cache, 30s rate limiting, path traversal protection, XSS escaping, backup payload validation with size limits and injection detection                                      |
 | **🛡️ Unsaved Settings Alert** | Warns before navigating away when the settings form has unsaved changes (dirty-tracking via snapshot comparison), with Discard / Save & Continue / Cancel options                           |
 
