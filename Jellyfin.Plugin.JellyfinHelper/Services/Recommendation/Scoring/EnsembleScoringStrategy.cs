@@ -297,13 +297,30 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         var heuristicExplanation = _heuristic.ScoreWithExplanation(features);
 
         double alpha;
+        double beta;
         lock (_syncRoot)
         {
             alpha = _alpha;
+            beta = _neuralBeta;
         }
 
-        // Blend sub-strategy explanations using the Blend helper, then apply centralized penalty
-        var blended = heuristicExplanation.Blend(learnedExplanation, alpha);
+        // When neural is active and beta > 0, blend learned + neural into an ML explanation first,
+        // then blend the ML explanation with heuristic. This matches the Score() method's logic:
+        // mlScore = (1-β) × learned + β × neural; final = α × ml + (1-α) × heuristic
+        ScoreExplanation mlExplanation;
+        if (_neural is not null && beta > 0)
+        {
+            var neuralExplanation = _neural.ScoreWithExplanation(features);
+            // Blend learned + neural: result = (1-β) × learned + β × neural
+            mlExplanation = learnedExplanation.Blend(neuralExplanation, beta);
+        }
+        else
+        {
+            mlExplanation = learnedExplanation;
+        }
+
+        // Blend heuristic + ML: result = (1-α) × heuristic + α × ML
+        var blended = heuristicExplanation.Blend(mlExplanation, alpha);
         var penalty = ComputeSoftGenrePenalty(features.GenreSimilarity, _genrePenaltyFloor);
         var result = blended.WithPenalty(penalty);
 
@@ -505,6 +522,12 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                     {
                         _alpha = ComputeSigmoidAlpha(_trainingExampleCount, _alphaMin, _alphaMax);
                     }
+
+                    // Restore neural beta so it survives server restarts (Point 6)
+                    if (data.NeuralBeta >= 0 && data.NeuralBeta <= NeuralMaxBetaFraction)
+                    {
+                        _neuralBeta = data.NeuralBeta;
+                    }
                 }
             }
         }
@@ -549,6 +572,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                 {
                     TrainingExampleCount = _trainingExampleCount,
                     Alpha = _alpha,
+                    NeuralBeta = _neuralBeta,
                     QualityGateFrozen = _qualityGateFrozen,
                     UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)
                 };
@@ -582,6 +606,9 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
 
         /// <summary>Gets or sets the current blending factor alpha.</summary>
         public double Alpha { get; set; }
+
+        /// <summary>Gets or sets the current neural blending factor beta.</summary>
+        public double NeuralBeta { get; set; }
 
         /// <summary>Gets or sets a value indicating whether the quality gate has frozen alpha progression.</summary>
         public bool QualityGateFrozen { get; set; }

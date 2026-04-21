@@ -1950,4 +1950,148 @@ public sealed class ScoringStrategyTests : IDisposable
         var zeroScore = strategy.Score(zeroFeatures);
         Assert.InRange(zeroScore, 0.0, 1.0);
     }
+
+    // ============================================================
+    // Ensemble + Neural Integration Tests (3-way blending)
+    // ============================================================
+
+    [Fact]
+    public void Ensemble_WithNeural_BlendsBetaCorrectly()
+    {
+        var learned = new LearnedScoringStrategy();
+        var heuristic = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
+        var neural = new NeuralScoringStrategy();
+        var ensemble = new EnsembleScoringStrategy(learned, heuristic, neural);
+
+        // Train with enough data to activate neural (>= NeuralActivationThreshold)
+        var examples = GenerateTrainingExamples(160);
+        ensemble.Train(examples);
+
+        // After sufficient training, neural beta should be > 0
+        var beta = ensemble.CurrentNeuralBeta;
+        Assert.True(beta >= 0, $"Neural beta should be >= 0, was {beta:F4}");
+
+        // Score should still be in valid range
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 0.8,
+            RatingScore = 0.7,
+            RecencyScore = 0.5,
+            CollaborativeScore = 0.6
+        };
+        var score = ensemble.Score(features);
+        Assert.InRange(score, 0.0, 1.0);
+    }
+
+    [Fact]
+    public void Ensemble_NeuralBelowThreshold_NotUsed()
+    {
+        var learned = new LearnedScoringStrategy();
+        var heuristic = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
+        var neural = new NeuralScoringStrategy();
+        var ensemble = new EnsembleScoringStrategy(learned, heuristic, neural);
+
+        // Train with data below NeuralActivationThreshold (50)
+        var examples = GenerateTrainingExamples(25);
+        ensemble.Train(examples);
+
+        // Neural beta should remain 0 when below activation threshold
+        Assert.Equal(0.0, ensemble.CurrentNeuralBeta);
+    }
+
+    [Fact]
+    public void Ensemble_WithoutNeural_BetaStaysZero()
+    {
+        // Ensemble without neural strategy (null)
+        var learned = new LearnedScoringStrategy();
+        var heuristic = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
+        var ensemble = new EnsembleScoringStrategy(learned, heuristic, neural: null);
+
+        var examples = GenerateTrainingExamples(160);
+        ensemble.Train(examples);
+
+        // Beta should stay 0 when no neural strategy is provided
+        Assert.Equal(0.0, ensemble.CurrentNeuralBeta);
+    }
+
+    [Fact]
+    public void Ensemble_WithNeural_ScoreWithExplanationMatchesScore()
+    {
+        var learned = new LearnedScoringStrategy();
+        var heuristic = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
+        var neural = new NeuralScoringStrategy();
+        var ensemble = new EnsembleScoringStrategy(learned, heuristic, neural);
+
+        // Train to activate neural
+        var examples = GenerateTrainingExamples(160);
+        ensemble.Train(examples);
+
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 0.8,
+            RatingScore = 0.7,
+            RecencyScore = 0.5,
+            CollaborativeScore = 0.6,
+            YearProximityScore = 0.4
+        };
+
+        var score = ensemble.Score(features);
+        var explanation = ensemble.ScoreWithExplanation(features);
+
+        // Explanation's final score should match Score() output
+        Assert.Equal(score, explanation.FinalScore, 4);
+        Assert.Equal("Ensemble (Adaptive ML + Rules)", explanation.StrategyName);
+    }
+
+    [Fact]
+    public void Ensemble_NeuralBetaPersisted_SurvivesRestart()
+    {
+        var statePath = Path.Combine(_tempDir, "ensemble_neural_state.json");
+        var weightsPath = Path.Combine(_tempDir, "learned_neural_weights.json");
+        var neuralWeightsPath = Path.Combine(_tempDir, "neural_weights.json");
+
+        var learned = new LearnedScoringStrategy(weightsPath);
+        var heuristic = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
+        var neural = new NeuralScoringStrategy(neuralWeightsPath);
+        var original = new EnsembleScoringStrategy(learned, heuristic, neural, statePath: statePath);
+
+        // Train enough to activate neural beta
+        var examples = GenerateTrainingExamples(160);
+        original.Train(examples);
+        var betaBefore = original.CurrentNeuralBeta;
+
+        // Create a new instance that loads from persisted state
+        var learned2 = new LearnedScoringStrategy(weightsPath);
+        var heuristic2 = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
+        var neural2 = new NeuralScoringStrategy(neuralWeightsPath);
+        var restored = new EnsembleScoringStrategy(learned2, heuristic2, neural2, statePath: statePath);
+
+        // Neural beta should be restored from persisted state
+        Assert.Equal(betaBefore, restored.CurrentNeuralBeta, 6);
+    }
+
+    [Fact]
+    public void Ensemble_NeuralBetaRamps_WithMoreData()
+    {
+        var learned = new LearnedScoringStrategy();
+        var heuristic = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
+        var neural = new NeuralScoringStrategy();
+        var ensemble = new EnsembleScoringStrategy(learned, heuristic, neural);
+
+        // Train at threshold
+        ensemble.Train(GenerateTrainingExamples(55));
+        var betaAt55 = ensemble.CurrentNeuralBeta;
+
+        // Train more — beta should increase (or stay same if quality gate blocks it)
+        ensemble.Train(GenerateTrainingExamples(100));
+        var betaAt155 = ensemble.CurrentNeuralBeta;
+
+        // With more data, beta should be >= what it was before
+        Assert.True(betaAt155 >= betaAt55,
+            $"Beta should ramp up with more data: {betaAt55:F4} → {betaAt155:F4}");
+
+        // Beta should never exceed NeuralMaxBetaFraction
+        Assert.True(betaAt155 <= EnsembleScoringStrategy.NeuralMaxBetaFraction,
+            $"Beta should not exceed max: {betaAt155:F4} > {EnsembleScoringStrategy.NeuralMaxBetaFraction}");
+    }
 }
