@@ -26,8 +26,8 @@ public interface IRecommendationEngine
     /// <summary>
     ///     Trains the active scoring strategy using implicit feedback from previous recommendations.
     ///     Compares previously recommended items against current watch data:
-    ///     items that were recommended and subsequently watched get label 1.0 (positive),
-    ///     items that were recommended but remain unwatched get label 0.0 (negative).
+    ///     items that were recommended and subsequently watched get label 0.85 (positive),
+    ///     items that were recommended but remain unwatched get label 0.1 (negative/soft).
     /// </summary>
     /// <param name="previousResults">
     ///     The recommendation results from the previous run (loaded from cache).

@@ -17,12 +17,6 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
     /// </summary>
     private static readonly double[] WeightsArray = DefaultWeights.CreateWeightArray();
 
-    /// <summary>
-    ///     Thread-local reusable buffer to avoid allocating a new vector per Score() call.
-    /// </summary>
-    [ThreadStatic]
-    private static double[]? _vectorBuffer;
-
     private readonly double _genrePenaltyFloor;
 
     /// <summary>
@@ -47,11 +41,12 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
     /// <inheritdoc />
     public double Score(CandidateFeatures features)
     {
-        // Reuse thread-local buffer to avoid per-call allocation (Point 1)
-        _vectorBuffer ??= new double[CandidateFeatures.FeatureCount];
-        features.WriteToVector(_vectorBuffer);
+        // Allocate a fresh vector to avoid thread-safety issues with shared buffers
+        // across async continuations on the same thread.
+        var vector = new double[CandidateFeatures.FeatureCount];
+        features.WriteToVector(vector);
 
-        var raw = ScoringHelper.ComputeRawScore(_vectorBuffer, WeightsArray, bias: 0.0);
+        var raw = ScoringHelper.ComputeRawScore(vector, WeightsArray, bias: 0.0);
         var score = Math.Clamp(raw, 0.0, 1.0);
 
         // Apply genre penalty when used standalone
@@ -68,10 +63,10 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
     /// <inheritdoc />
     public ScoreExplanation ScoreWithExplanation(CandidateFeatures features)
     {
-        _vectorBuffer ??= new double[CandidateFeatures.FeatureCount];
-        features.WriteToVector(_vectorBuffer);
+        var vector = new double[CandidateFeatures.FeatureCount];
+        features.WriteToVector(vector);
 
-        var explanation = ScoringHelper.BuildExplanation(_vectorBuffer, WeightsArray, bias: 0.0, Name);
+        var explanation = ScoringHelper.BuildExplanation(vector, WeightsArray, bias: 0.0, Name);
 
         // Apply genre penalty when used standalone
         if (_genrePenaltyFloor < 1.0)

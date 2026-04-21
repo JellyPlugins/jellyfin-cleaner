@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net.Mime;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Api;
 
@@ -22,6 +24,7 @@ public class RecommendationController : ControllerBase
 {
     private readonly IRecommendationCacheService _cacheService;
     private readonly IRecommendationEngine _engine;
+    private readonly ILogger<RecommendationController> _logger;
     private readonly IWatchHistoryService _watchHistoryService;
 
     /// <summary>
@@ -30,14 +33,17 @@ public class RecommendationController : ControllerBase
     /// <param name="engine">The recommendation engine.</param>
     /// <param name="cacheService">The recommendation cache service.</param>
     /// <param name="watchHistoryService">The watch history service.</param>
+    /// <param name="logger">The logger instance.</param>
     public RecommendationController(
         IRecommendationEngine engine,
         IRecommendationCacheService cacheService,
-        IWatchHistoryService watchHistoryService)
+        IWatchHistoryService watchHistoryService,
+        ILogger<RecommendationController> logger)
     {
         _engine = engine;
         _cacheService = cacheService;
         _watchHistoryService = watchHistoryService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -63,9 +69,9 @@ public class RecommendationController : ControllerBase
         var cached = _cacheService.LoadResults();
         if (cached is not null)
         {
-            // Cache returns the full result set from the scheduled task;
-            // maxPerUser is only applied during on-demand generation below.
-            return Ok(cached);
+            // Apply maxPerUser limit to cached results as well
+            var trimmed = TrimRecommendations(cached, maxPerUser);
+            return Ok(trimmed);
         }
 
         // No cache available — generate on demand
@@ -95,12 +101,18 @@ public class RecommendationController : ControllerBase
 
         maxResults = Math.Clamp(maxResults, 1, 100);
 
-        // Try cache first — cached results contain the full recommendation set
-        // from the scheduled task; maxResults is only applied during on-demand generation below.
+        // Try cache first
         var cached = _cacheService.LoadResults();
         var cachedUser = cached?.FirstOrDefault(r => r.UserId == userId);
         if (cachedUser is not null)
         {
+            // Apply maxResults limit to cached results
+            if (cachedUser.Recommendations.Count > maxResults)
+            {
+                cachedUser.Recommendations = new Collection<RecommendedItem>(
+                    cachedUser.Recommendations.Take(maxResults).ToList());
+            }
+
             return Ok(cachedUser);
         }
 
@@ -166,6 +178,29 @@ public class RecommendationController : ControllerBase
         }).ToList();
 
         return Ok(lean);
+    }
+
+    /// <summary>
+    ///     Trims each user's recommendation list to a maximum number of items.
+    /// </summary>
+    /// <param name="results">The full recommendation results.</param>
+    /// <param name="maxPerUser">Maximum recommendations per user.</param>
+    /// <returns>A new list with trimmed recommendation counts.</returns>
+    private static Collection<RecommendationResult> TrimRecommendations(Collection<RecommendationResult> results, int maxPerUser)
+    {
+        var needsTrim = results.Any(r => r.Recommendations.Count > maxPerUser);
+        if (!needsTrim)
+        {
+            return results;
+        }
+
+        foreach (var r in results.Where(r => r.Recommendations.Count > maxPerUser))
+        {
+            r.Recommendations = new Collection<RecommendedItem>(
+                r.Recommendations.Take(maxPerUser).ToList());
+        }
+
+        return results;
     }
 
     /// <summary>

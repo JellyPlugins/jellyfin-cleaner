@@ -536,7 +536,7 @@ Sub-tasks executed in order (each respecting its configured task mode):
 - **Learned scoring** — Gradient-descent trained linear model that learns per-user weights from positive (watched) and implicit negative (skipped) examples
 - **Watch profile analysis** — Aggregates per-user genre frequencies from Jellyfin playback data
 - **Candidate filtering** — Excludes already-watched items; scores all unwatched candidates against the user's profile
-- **Configurable** — `RecommendationsTaskMode` (DryRun/Activate/Deactivate); generates up to 20 recommendations per user (fixed)
+- **Configurable** — `RecommendationsTaskMode` (DryRun/Activate/Deactivate); defaults to 20 recommendations per user (API accepts 1–100 via `maxResults` query parameter)
 - **Disk-persisted cache** — Results cached to `recommendations_cache.json` and served from cache until next scheduled run
 
 ### User Activity Insights

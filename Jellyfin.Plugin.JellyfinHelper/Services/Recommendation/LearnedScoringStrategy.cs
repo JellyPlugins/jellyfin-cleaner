@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 
@@ -60,12 +58,6 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
 
     /// <summary>Cached JSON serializer options for weight persistence.</summary>
     private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
-
-    /// <summary>
-    ///     Thread-local reusable buffer to avoid allocating a new vector per Score() call.
-    /// </summary>
-    [ThreadStatic]
-    private static double[]? _vectorBuffer;
 
     private readonly object _syncRoot = new();
     private readonly string? _weightsPath;
@@ -155,37 +147,38 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
     /// <inheritdoc />
     public double Score(CandidateFeatures features)
     {
-        // Reuse thread-local buffer to avoid per-call allocation (Point 1)
-        _vectorBuffer ??= new double[CandidateFeatures.FeatureCount];
-        features.WriteToVector(_vectorBuffer);
+        // Allocate a fresh vector to avoid thread-safety issues with shared buffers
+        // across async continuations on the same thread.
+        var vector = new double[CandidateFeatures.FeatureCount];
+        features.WriteToVector(vector);
 
         lock (_syncRoot)
         {
-            // Apply Z-score standardization if statistics are available (Point 2)
+            // Apply Z-score standardization if statistics are available
             if (_featureMeans is not null && _featureStdDevs is not null)
             {
-                StandardizeSingleVector(_vectorBuffer, _featureMeans, _featureStdDevs);
+                StandardizeSingleVector(vector, _featureMeans, _featureStdDevs);
             }
 
-            return Math.Clamp(ScoringHelper.ComputeRawScore(_vectorBuffer, _weights, _bias), 0.0, 1.0);
+            return Math.Clamp(ScoringHelper.ComputeRawScore(vector, _weights, _bias), 0.0, 1.0);
         }
     }
 
     /// <inheritdoc />
     public ScoreExplanation ScoreWithExplanation(CandidateFeatures features)
     {
-        _vectorBuffer ??= new double[CandidateFeatures.FeatureCount];
-        features.WriteToVector(_vectorBuffer);
+        var vector = new double[CandidateFeatures.FeatureCount];
+        features.WriteToVector(vector);
 
         lock (_syncRoot)
         {
-            // Apply Z-score standardization if statistics are available (Point 2)
+            // Apply Z-score standardization if statistics are available
             if (_featureMeans is not null && _featureStdDevs is not null)
             {
-                StandardizeSingleVector(_vectorBuffer, _featureMeans, _featureStdDevs);
+                StandardizeSingleVector(vector, _featureMeans, _featureStdDevs);
             }
 
-            return ScoringHelper.BuildExplanation(_vectorBuffer, _weights, _bias, Name);
+            return ScoringHelper.BuildExplanation(vector, _weights, _bias, Name);
         }
     }
 
@@ -201,11 +194,11 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
             return false;
         }
 
-        // Capture a consistent reference time for temporal decay within this batch (Point 12)
+        // Capture a consistent reference time for temporal decay within this batch
         var referenceTime = DateTime.UtcNow;
 
-        // Pre-compute all feature vectors ONCE before training (Point 4)
-        // Also pre-compute effective weights for temporal decay (Point 6)
+        // Pre-compute all feature vectors ONCE before training
+        // Also pre-compute effective weights for temporal decay
         var precomputedVectors = new double[examples.Count][];
         var effectiveWeights = new double[examples.Count];
 
@@ -215,7 +208,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
             effectiveWeights[i] = examples[i].ComputeEffectiveWeight(referenceTime);
         }
 
-        // Optional Z-score standardization (Point 7)
+        // Optional Z-score standardization
         double[]? featureMeans = null;
         double[]? featureStdDevs = null;
 
@@ -236,7 +229,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
                 && examples.Count - validationCount >= MinTrainingExamples;
 
             // Use a varying seed based on training generation to avoid always placing
-            // the same examples in validation (Point 7). Still deterministic per generation.
+            // the same examples in validation. Still deterministic per generation.
             var rng = new Random(42 + _trainingGeneration);
             _trainingGeneration++;
 
@@ -348,21 +341,22 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
                 }
             }
 
-            // Store validation loss for ensemble alpha gating (Point 5)
+            // Store validation loss for ensemble alpha gating
             _lastValidationLoss = bestLoss < double.MaxValue ? bestLoss : ComputeTrainingLoss(examples, precomputedVectors, effectiveWeights, _weights, _bias);
 
-            // Persist Z-score statistics so scoring uses the same standardization (Point 2)
+            // Persist Z-score statistics so scoring uses the same standardization
             _featureMeans = featureMeans;
             _featureStdDevs = featureStdDevs;
         }
 
-        // Persist updated weights synchronously to guarantee file exists after Train() returns (Point 11)
-        TrySaveWeightsAsync().GetAwaiter().GetResult();
+        // Persist updated weights synchronously
+        TrySaveWeights();
         return true;
     }
 
     /// <summary>
     ///     Computes Z-score statistics (mean, stddev) for each feature across all training vectors.
+    ///     Uses Bessel's correction (n-1 denominator) for unbiased sample standard deviation.
     /// </summary>
     /// <param name="vectors">The pre-computed feature vectors.</param>
     /// <returns>A tuple of (means, stdDevs) arrays indexed by feature.</returns>
@@ -404,7 +398,8 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
 
         for (var f = 0; f < featureCount; f++)
         {
-            stdDevs[f] = Math.Sqrt(stdDevs[f] / n);
+            // Use Bessel's correction (n-1) for unbiased sample standard deviation
+            stdDevs[f] = n > 1 ? Math.Sqrt(stdDevs[f] / (n - 1)) : 0.0;
         }
 
         return (means, stdDevs);
@@ -419,7 +414,6 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
     /// <param name="stdDevs">The per-feature standard deviations.</param>
     internal static void StandardizeVectors(double[][] vectors, double[] means, double[] stdDevs)
     {
-        var featureCount = means.Length;
         for (var i = 0; i < vectors.Length; i++)
         {
             StandardizeSingleVector(vectors[i], means, stdDevs);
@@ -493,10 +487,6 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
     /// <summary>
     ///     Tries to load persisted weights from disk.
     /// </summary>
-    [SuppressMessage(
-        "Design",
-        "CA1031:DoNotCatchGeneralExceptionTypes",
-        Justification = "Graceful fallback to default weights on any I/O or parse error")]
     private void TryLoadWeights()
     {
         if (string.IsNullOrEmpty(_weightsPath) || !File.Exists(_weightsPath))
@@ -518,20 +508,20 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
                 _trainingGeneration = data.TrainingGeneration;
             }
         }
-        catch (Exception)
+        catch (IOException)
         {
-            // Silently fall back to default weights
+            // Graceful fallback to default weights on I/O error
+        }
+        catch (JsonException)
+        {
+            // Graceful fallback to default weights on parse error
         }
     }
 
     /// <summary>
-    ///     Asynchronously persists current weights to disk using non-blocking I/O (Point 11).
+    ///     Persists current weights to disk synchronously.
     /// </summary>
-    [SuppressMessage(
-        "Design",
-        "CA1031:DoNotCatchGeneralExceptionTypes",
-        Justification = "Non-critical persistence — silently ignore write failures")]
-    private async Task TrySaveWeightsAsync()
+    private void TrySaveWeights()
     {
         if (string.IsNullOrEmpty(_weightsPath))
         {
@@ -564,12 +554,16 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
             }
 
             var tempPath = _weightsPath + ".tmp";
-            await File.WriteAllTextAsync(tempPath, json).ConfigureAwait(false);
+            File.WriteAllText(tempPath, json);
             File.Move(tempPath, _weightsPath, overwrite: true);
         }
-        catch (Exception)
+        catch (IOException)
         {
-            // Non-critical — silently ignore
+            // Non-critical — silently ignore write failures
+        }
+        catch (JsonException)
+        {
+            // Non-critical — silently ignore serialization failures
         }
     }
 

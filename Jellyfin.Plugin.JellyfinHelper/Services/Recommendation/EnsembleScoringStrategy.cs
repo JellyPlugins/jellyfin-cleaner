@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 
@@ -27,34 +27,51 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 /// </remarks>
 public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrategy
 {
-    /// <summary>Default minimum blending factor (heuristic dominates with no training data).</summary>
+    /// <summary>
+    ///     Default minimum blending factor (heuristic dominates with no training data).
+    ///     Set to 0.3 so that even without ML data, the learned strategy contributes 30%
+    ///     (using its default genre-dominant weights) for a smoother cold-start experience.
+    /// </summary>
     internal const double DefaultAlphaMin = 0.3;
 
-    /// <summary>Default maximum blending factor (learned dominates with abundant data).</summary>
+    /// <summary>
+    ///     Default maximum blending factor (learned dominates with abundant data).
+    ///     Capped at 0.8 instead of 1.0 so that heuristic rules always contribute at least
+    ///     20% — this guards against overfitting when the ML model has limited diversity.
+    /// </summary>
     internal const double DefaultAlphaMax = 0.8;
 
-    /// <summary>Sigmoid steepness for alpha transition.</summary>
+    /// <summary>
+    ///     Sigmoid steepness for alpha transition.
+    ///     k=0.05 yields a gentle S-curve that transitions over ~80 examples (from ~10 to ~90).
+    /// </summary>
     internal const double AlphaSigmoidK = 0.05;
 
-    /// <summary>Sigmoid midpoint (number of examples where alpha = (αMin + αMax) / 2).</summary>
+    /// <summary>
+    ///     Sigmoid midpoint (number of examples where alpha = (αMin + αMax) / 2).
+    ///     50 examples is a reasonable threshold for a typical user's first few weeks of activity.
+    /// </summary>
     internal const double AlphaSigmoidMidpoint = 50.0;
 
     /// <summary>
     ///     Genre similarity threshold below which the soft penalty ramps down.
     ///     Items above this threshold receive no penalty (multiplier = 1.0).
+    ///     0.15 means items sharing at least ~15% of the user's preferred genres are unpenalized.
     /// </summary>
     internal const double GenrePenaltyThreshold = 0.15;
 
     /// <summary>
     ///     Default minimum penalty multiplier for items with zero genre overlap.
-    ///     Items with GenreSimilarity = 0 get score × this value.
+    ///     Items with GenreSimilarity = 0 get score × 0.10 (a 90% penalty).
+    ///     This is aggressive enough to deprioritize completely unrelated items
+    ///     while still allowing them to surface if other signals are very strong.
     /// </summary>
     internal const double DefaultGenrePenaltyFloor = 0.10;
 
     /// <summary>
-    ///     Maximum acceptable validation loss before alpha progression is frozen.
-    ///     If the learned model's validation loss exceeds this threshold, alpha
-    ///     will not increase beyond its current value (quality gate).
+    ///     Maximum acceptable validation loss (MSE) before alpha progression is frozen.
+    ///     0.15 corresponds to an average prediction error of ~0.39 on a 0–1 scale,
+    ///     which is the threshold above which the ML model's predictions are considered unreliable.
     /// </summary>
     internal const double ValidationLossThreshold = 0.15;
 
@@ -63,12 +80,14 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
 
     private readonly HeuristicScoringStrategy _heuristic;
     private readonly LearnedScoringStrategy _learned;
+    private readonly ILogger? _logger;
     private readonly object _syncRoot = new();
     private readonly double _alphaMax;
     private readonly double _alphaMin;
     private readonly double _genrePenaltyFloor;
     private readonly string? _statePath;
     private double _alpha;
+    private bool _qualityGateFrozen;
     private int _trainingExampleCount;
 
     /// <summary>
@@ -81,13 +100,15 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     /// <param name="alphaMin">Minimum blending factor.</param>
     /// <param name="alphaMax">Maximum blending factor.</param>
     /// <param name="genrePenaltyFloor">Minimum genre penalty multiplier.</param>
+    /// <param name="logger">Optional logger for training diagnostics.</param>
     public EnsembleScoringStrategy(
         LearnedScoringStrategy learned,
         HeuristicScoringStrategy heuristic,
         string? statePath = null,
         double alphaMin = DefaultAlphaMin,
         double alphaMax = DefaultAlphaMax,
-        double genrePenaltyFloor = DefaultGenrePenaltyFloor)
+        double genrePenaltyFloor = DefaultGenrePenaltyFloor,
+        ILogger? logger = null)
     {
         _alphaMin = Math.Clamp(alphaMin, 0.0, 1.0);
         _alphaMax = Math.Clamp(alphaMax, _alphaMin, 1.0);
@@ -97,6 +118,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         _learned = learned;
         // Disable penalty in sub-strategies since ensemble applies it centrally
         _heuristic = heuristic;
+        _logger = logger;
 
         _statePath = statePath;
         TryLoadState();
@@ -157,6 +179,20 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
             lock (_syncRoot)
             {
                 return _trainingExampleCount;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Gets a value indicating whether alpha progression is currently frozen by the quality gate (for testing/debugging).
+    /// </summary>
+    internal bool IsQualityGateFrozen
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _qualityGateFrozen;
             }
         }
     }
@@ -242,16 +278,21 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                 {
                     // Good generalization — let alpha progress normally
                     _alpha = ComputeSigmoidAlpha(_trainingExampleCount, _alphaMin, _alphaMax);
+                    _qualityGateFrozen = false;
                 }
-
-                // If quality gate failed, alpha stays at its current value (frozen)
-                // This prevents the learned model from gaining more influence when
-                // its predictions are unreliable.
+                else
+                {
+                    // Quality gate failed — freeze alpha at its current value.
+                    // This prevents the learned model from gaining more influence when
+                    // its predictions are unreliable. State is persisted so freeze
+                    // survives server restarts.
+                    _qualityGateFrozen = true;
+                }
             }
 
-            // Log training quality metrics for transparency (Point 12)
-            System.Diagnostics.Trace.TraceInformation(
-                "[EnsembleScoringStrategy] Training complete: examples={0}, validationLoss={1:F6}, qualityGate={2}, alpha={3:F4}",
+            // Log training quality metrics for transparency using structured logging
+            _logger?.LogInformation(
+                "Training complete: examples={ExampleCount}, validationLoss={ValidationLoss:F6}, qualityGate={QualityGate}, alpha={Alpha:F4}",
                 examples.Count,
                 validationLoss,
                 qualityGatePassed ? "passed" : "frozen",
@@ -329,12 +370,10 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     }
 
     /// <summary>
-    ///     Tries to load persisted ensemble state (alpha, training count) from disk.
+    ///     Tries to load persisted ensemble state (alpha, training count, quality gate) from disk.
+    ///     Restores the persisted alpha value directly instead of recomputing via sigmoid,
+    ///     so that the quality-gate freeze state is preserved across server restarts.
     /// </summary>
-    [SuppressMessage(
-        "Design",
-        "CA1031:DoNotCatchGeneralExceptionTypes",
-        Justification = "Graceful fallback to defaults on any I/O or parse error")]
     private void TryLoadState()
     {
         if (string.IsNullOrEmpty(_statePath) || !File.Exists(_statePath))
@@ -351,23 +390,35 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                 lock (_syncRoot)
                 {
                     _trainingExampleCount = data.TrainingExampleCount;
-                    _alpha = ComputeSigmoidAlpha(_trainingExampleCount, _alphaMin, _alphaMax);
+                    _qualityGateFrozen = data.QualityGateFrozen;
+
+                    // Restore persisted alpha directly instead of recomputing via sigmoid,
+                    // so that the quality-gate freeze state is preserved across restarts.
+                    // Only recompute if the persisted alpha is outside the valid range.
+                    if (data.Alpha >= _alphaMin && data.Alpha <= _alphaMax)
+                    {
+                        _alpha = data.Alpha;
+                    }
+                    else
+                    {
+                        _alpha = ComputeSigmoidAlpha(_trainingExampleCount, _alphaMin, _alphaMax);
+                    }
                 }
             }
         }
-        catch (Exception)
+        catch (IOException)
         {
-            // Silently fall back to defaults
+            // Graceful fallback to defaults on I/O error
+        }
+        catch (JsonException)
+        {
+            // Graceful fallback to defaults on parse error
         }
     }
 
     /// <summary>
     ///     Tries to persist current ensemble state to disk.
     /// </summary>
-    [SuppressMessage(
-        "Design",
-        "CA1031:DoNotCatchGeneralExceptionTypes",
-        Justification = "Non-critical persistence — silently ignore write failures")]
     private void TrySaveState()
     {
         if (string.IsNullOrEmpty(_statePath))
@@ -385,16 +436,19 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
 
             double alpha;
             int exampleCount;
+            bool frozen;
             lock (_syncRoot)
             {
                 alpha = _alpha;
                 exampleCount = _trainingExampleCount;
+                frozen = _qualityGateFrozen;
             }
 
             var data = new EnsembleStateData
             {
                 TrainingExampleCount = exampleCount,
                 Alpha = alpha,
+                QualityGateFrozen = frozen,
                 UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)
             };
 
@@ -403,9 +457,13 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
             File.WriteAllText(tempPath, json);
             File.Move(tempPath, _statePath, overwrite: true);
         }
-        catch (Exception)
+        catch (IOException)
         {
-            // Non-critical — silently ignore
+            // Non-critical — silently ignore write failures
+        }
+        catch (JsonException)
+        {
+            // Non-critical — silently ignore serialization failures
         }
     }
 
@@ -419,6 +477,9 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
 
         /// <summary>Gets or sets the current blending factor alpha.</summary>
         public double Alpha { get; set; }
+
+        /// <summary>Gets or sets a value indicating whether the quality gate has frozen alpha progression.</summary>
+        public bool QualityGateFrozen { get; set; }
 
         /// <summary>Gets or sets the ISO 8601 timestamp of the last update.</summary>
         public string UpdatedAt { get; set; } = string.Empty;

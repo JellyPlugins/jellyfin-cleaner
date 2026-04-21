@@ -26,14 +26,18 @@ public sealed class RecommendationEngine : IRecommendationEngine
     internal const int MinCollaborativeOverlap = 3;
 
     /// <summary>
-    ///     Minimum collaborative or genre score before a specific reason is shown.
+    ///     Minimum weighted contribution before a specific reason (genre, collaborative) is shown.
+    ///     Must be low enough to work across strategies whose weights differ
+    ///     (e.g. collaborative weight 0.12–0.15 → max contribution 0.12–0.15).
     /// </summary>
-    internal const double ReasonScoreThreshold = 0.15;
+    internal const double ReasonScoreThreshold = 0.05;
 
     /// <summary>
-    ///     Minimum rating score before "Highly rated" reason is shown.
+    ///     Minimum weighted rating contribution before "Highly rated" reason is shown.
+    ///     Rating weights are typically 0.08–0.10, so a threshold of 0.04 requires
+    ///     the normalised community rating to be at least ~0.5 (i.e. ≥ 5.0/10).
     /// </summary>
-    internal const double HighRatingThreshold = 0.7;
+    internal const double HighRatingThreshold = 0.04;
 
     /// <summary>
     ///     Boost factor applied to genres from favorited items when building preferences.
