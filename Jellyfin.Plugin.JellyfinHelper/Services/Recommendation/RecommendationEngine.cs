@@ -98,6 +98,20 @@ public sealed class RecommendationEngine : IRecommendationEngine
     /// </summary>
     internal const int CandidateCountWarningThreshold = 5000;
 
+    /// <summary>
+    ///     Batch size for cancellation token checks inside the candidate scoring loop.
+    ///     Checking every single iteration is wasteful; checking every N items balances
+    ///     responsiveness with overhead.
+    /// </summary>
+    internal const int CancellationCheckBatchSize = 200;
+
+    /// <summary>
+    ///     Minimum number of genres a user must have in their preference vector
+    ///     before genre pre-filtering is applied. Below this threshold, the user's
+    ///     taste profile is too sparse for reliable filtering.
+    /// </summary>
+    internal const int GenrePreFilterMinPreferences = 3;
+
     private readonly ILibraryManager _libraryManager;
     private readonly ILogger<RecommendationEngine> _logger;
     private readonly IPluginLogService _pluginLog;
@@ -140,7 +154,7 @@ public sealed class RecommendationEngine : IRecommendationEngine
 
         // Load candidates once
         var candidates = LoadCandidateItems();
-        return GenerateForUser(userProfile, allProfiles, candidates, maxResults, _strategy);
+        return GenerateForUser(userProfile, allProfiles, candidates, maxResults, _strategy, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -309,7 +323,7 @@ public sealed class RecommendationEngine : IRecommendationEngine
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                results.Add(GenerateForUser(profile, allProfiles, candidates, maxResultsPerUser, _strategy));
+                results.Add(GenerateForUser(profile, allProfiles, candidates, maxResultsPerUser, _strategy, cancellationToken));
             }
             catch (Exception ex)
             {
@@ -377,13 +391,15 @@ public sealed class RecommendationEngine : IRecommendationEngine
     /// <param name="allCandidates">Pre-loaded candidate items from the library.</param>
     /// <param name="maxResults">Maximum number of recommendations to return.</param>
     /// <param name="strategy">The scoring strategy to use.</param>
+    /// <param name="cancellationToken">Cancellation token for cooperative cancellation in large libraries.</param>
     /// <returns>A recommendation result for the user.</returns>
     internal RecommendationResult GenerateForUser(
         UserWatchProfile userProfile,
         Collection<UserWatchProfile> allProfiles,
         List<BaseItem> allCandidates,
         int maxResults,
-        IScoringStrategy strategy)
+        IScoringStrategy strategy,
+        CancellationToken cancellationToken = default)
     {
         // Build a lookup of watched items by ID for O(1) access in scoring methods
         var watchedItemLookup = new Dictionary<Guid, WatchedItemInfo>(userProfile.WatchedItems.Count);
@@ -421,6 +437,13 @@ public sealed class RecommendationEngine : IRecommendationEngine
         // Build the user's genre preference vector (normalized TF)
         var genrePreferences = BuildGenrePreferenceVector(userProfile);
 
+        // Build O(1) candidate lookup by ID — shared across studio preference and future people lookups
+        var candidateLookup = new Dictionary<Guid, BaseItem>(allCandidates.Count);
+        foreach (var c in allCandidates)
+        {
+            candidateLookup.TryAdd(c.Id, c);
+        }
+
         // Build the collaborative co-occurrence map
         var coOccurrence = BuildCollaborativeMap(userProfile, allProfiles);
 
@@ -431,13 +454,20 @@ public sealed class RecommendationEngine : IRecommendationEngine
         var avgYear = ComputeAverageYear(userProfile);
 
         // Build user's preferred studios set from watched items for StudioMatch feature (Fix #5)
-        var preferredStudios = BuildStudioPreferenceSet(userProfile, allCandidates, watchedIds, watchedSeriesIds);
+        var preferredStudios = BuildStudioPreferenceSet(userProfile, candidateLookup, watchedIds, watchedSeriesIds);
 
         // Score each candidate that the user has NOT watched
         var scored = new List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>();
+        var candidateIndex = 0;
 
         foreach (var candidate in allCandidates)
         {
+            // Periodically check cancellation to stay responsive for large libraries
+            if (++candidateIndex % CancellationCheckBatchSize == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             // Skip items the user has already watched directly
             if (watchedIds.Contains(candidate.Id))
             {
@@ -1041,27 +1071,20 @@ public sealed class RecommendationEngine : IRecommendationEngine
 
     /// <summary>
     ///     Builds a set of studio names the user prefers, derived from their watched items.
-    ///     Looks up the actual BaseItem objects from the candidate pool to access Studios metadata.
+    ///     Looks up the actual BaseItem objects from the candidate lookup to access Studios metadata.
     /// </summary>
     /// <param name="userProfile">The user's watch profile.</param>
-    /// <param name="allCandidates">All candidate items (used to look up studio metadata).</param>
+    /// <param name="candidateLookup">Pre-built candidate lookup by item ID (shared across calls for performance).</param>
     /// <param name="watchedIds">Set of item IDs the user has watched.</param>
     /// <param name="watchedSeriesIds">Set of series IDs the user has watched episodes of.</param>
     /// <returns>A HashSet of preferred studio names (case-insensitive).</returns>
     internal static HashSet<string> BuildStudioPreferenceSet(
         UserWatchProfile userProfile,
-        List<BaseItem> allCandidates,
+        Dictionary<Guid, BaseItem> candidateLookup,
         HashSet<Guid> watchedIds,
         HashSet<Guid> watchedSeriesIds)
     {
         var studios = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        // Build a quick lookup from candidates by ID
-        var candidateLookup = new Dictionary<Guid, BaseItem>(allCandidates.Count);
-        foreach (var c in allCandidates)
-        {
-            candidateLookup.TryAdd(c.Id, c);
-        }
 
         // Collect studios from watched movies and series
         foreach (var w in userProfile.WatchedItems)
@@ -1146,6 +1169,12 @@ public sealed class RecommendationEngine : IRecommendationEngine
         if (string.Equals(dominant, "Recency", StringComparison.OrdinalIgnoreCase))
         {
             return ("Recently released", "reasonRecent", null);
+        }
+
+        if (string.Equals(dominant, "Interaction", StringComparison.OrdinalIgnoreCase)
+            && explanation.InteractionContribution > ReasonScoreThreshold)
+        {
+            return ("Matches your viewing patterns", "reasonInteraction", null);
         }
 
         return ("Recommended for you", "reasonDefault", null);

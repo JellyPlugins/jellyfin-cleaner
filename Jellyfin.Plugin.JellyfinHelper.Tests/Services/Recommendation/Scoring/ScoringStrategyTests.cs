@@ -434,11 +434,14 @@ public sealed class ScoringStrategyTests : IDisposable
         Assert.Equal(0.33, weights[0]); // genre (dominant)
         Assert.Equal(0.12, weights[1]); // collaborative
         Assert.Equal(0.08, weights[2]); // rating
-        Assert.Equal(0.08, weights[7]); // genre × rating interaction
-        Assert.Equal(0.08, weights[8]); // genre × collab interaction
+        Assert.Equal(0.06, weights[7]); // genre × rating interaction
+        Assert.Equal(0.06, weights[8]); // genre × collab interaction
         Assert.Equal(0.10, weights[9]); // user rating
         Assert.Equal(0.08, weights[10]); // completion ratio
         Assert.Equal(-0.04, weights[11]); // isAbandoned
+        Assert.Equal(0.02, weights[12]); // novelty
+        Assert.Equal(0.05, weights[13]); // people similarity
+        Assert.Equal(0.02, weights[14]); // studio match
     }
 
     [Fact]

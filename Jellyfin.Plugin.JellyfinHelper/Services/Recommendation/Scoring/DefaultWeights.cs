@@ -30,10 +30,10 @@ public static class DefaultWeights
     public const double IsSeries = 0.00;
 
     /// <summary>Weight for genre × rating interaction signal.</summary>
-    public const double GenreRatingInteraction = 0.08;
+    public const double GenreRatingInteraction = 0.06;
 
     /// <summary>Weight for genre × collaborative interaction signal.</summary>
-    public const double GenreCollabInteraction = 0.08;
+    public const double GenreCollabInteraction = 0.06;
 
     /// <summary>Weight for user personal rating signal (stronger than community rating).</summary>
     public const double UserRatingScore = 0.10;
@@ -62,16 +62,16 @@ public static class DefaultWeights
 
     /// <summary>
     ///     Weight for people (cast/director) similarity signal.
-    ///     Items featuring actors or directors from the user's watched content get a small boost.
-    ///     Currently set to 0 because PeopleSimilarity data is not yet populated (requires batch People loading).
+    ///     Items featuring actors or directors from the user's watched content get a boost.
+    ///     Cast/director overlap is a strong content-based signal for user preference.
     /// </summary>
-    public const double PeopleSimilarity = 0.00;
+    public const double PeopleSimilarity = 0.05;
 
     /// <summary>
     ///     Weight for studio match signal.
     ///     Items from studios the user has watched before get a small positive boost.
     /// </summary>
-    public const double StudioMatch = 0.03;
+    public const double StudioMatch = 0.02;
 
     /// <summary>Default bias term for the learned strategy.</summary>
     public const double Bias = 0.05;

@@ -58,7 +58,10 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     ///     Items above this threshold receive no penalty (multiplier = 1.0).
     ///     0.15 means items sharing at least ~15% of the user's preferred genres are unpenalized.
     /// </summary>
-    internal const double GenrePenaltyThreshold = 0.15;
+    /// <remarks>
+    ///     References the shared constant to stay consistent with <see cref="HeuristicScoringStrategy"/>.
+    /// </remarks>
+    internal const double GenrePenaltyThreshold = ScoringHelper.DefaultGenrePenaltyThreshold;
 
     /// <summary>
     ///     Default minimum penalty multiplier for items with zero genre overlap.
