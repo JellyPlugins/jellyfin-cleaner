@@ -20,7 +20,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 /// <remarks>
 ///     Architecture: score = (α × Learned.Score + (1 - α) × Heuristic.Score) × softPenalty(genreSimilarity)
 ///     where α is computed via sigmoid: α = αMin + (αMax - αMin) / (1 + e^(-k × (n - midpoint)))
-///     but capped if the learned model's validation loss exceeds <see cref="ValidationLossThreshold"/>.
+///     but soft-dampened when the learned model's validation loss exceeds <see cref="ValidationLossThreshold"/>.
 ///     Training delegates to the learned strategy; the heuristic strategy is static.
 ///     Genre penalty is applied to both the final score AND per-feature contributions
 ///     for consistency (sum of contributions ≈ finalScore).
@@ -72,11 +72,20 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     internal const double DefaultGenrePenaltyFloor = 0.10;
 
     /// <summary>
-    ///     Maximum acceptable validation loss (MSE) before alpha progression is frozen.
-    ///     0.15 corresponds to an average prediction error of ~0.39 on a 0–1 scale,
-    ///     which is the threshold above which the ML model's predictions are considered unreliable.
+    ///     Validation loss (MSE) threshold for full alpha progression.
+    ///     Below this threshold, alpha advances at full sigmoid rate.
+    ///     Above it, alpha is soft-dampened proportionally (not hard-frozen).
+    ///     0.30 corresponds to an average prediction error of ~0.55 on a 0–1 scale,
+    ///     which allows the ML model to contribute even with noisy small-sample training data.
     /// </summary>
-    internal const double ValidationLossThreshold = 0.15;
+    internal const double ValidationLossThreshold = 0.30;
+
+    /// <summary>
+    ///     Upper bound for soft damping. When validation loss reaches this value (2× threshold),
+    ///     alpha is fully dampened back to <see cref="DefaultAlphaMin"/>.
+    ///     Between <see cref="ValidationLossThreshold"/> and this value, alpha is linearly interpolated.
+    /// </summary>
+    internal const double ValidationLossCeiling = ValidationLossThreshold * 2.0;
 
     /// <summary>Cached JSON serializer options for ensemble state persistence.</summary>
     private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
@@ -277,19 +286,30 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                 // Always track cumulative examples
                 _trainingExampleCount += examples.Count;
 
+                // Compute the target alpha from the sigmoid curve
+                var sigmoidAlpha = ComputeSigmoidAlpha(_trainingExampleCount, _alphaMin, _alphaMax);
+
                 if (qualityGatePassed)
                 {
-                    // Good generalization — let alpha progress normally
-                    _alpha = ComputeSigmoidAlpha(_trainingExampleCount, _alphaMin, _alphaMax);
+                    // Good generalization — let alpha progress at full sigmoid rate
+                    _alpha = sigmoidAlpha;
                     _qualityGateFrozen = false;
                 }
                 else
                 {
-                    // Quality gate failed — freeze alpha at its current value.
-                    // This prevents the learned model from gaining more influence when
-                    // its predictions are unreliable. State is persisted so freeze
-                    // survives server restarts.
-                    _qualityGateFrozen = true;
+                    // Soft damping: alpha still advances but is proportionally dampened
+                    // based on how far the validation loss exceeds the threshold.
+                    // qualityFactor = 1.0 at threshold, 0.0 at 2× threshold (ceiling).
+                    var qualityFactor = double.IsNaN(validationLoss)
+                        ? 0.5 // NaN (no validation split) → use half progression
+                        : Math.Clamp(
+                            1.0 - ((validationLoss - ValidationLossThreshold)
+                                   / (ValidationLossCeiling - ValidationLossThreshold)),
+                            0.0,
+                            1.0);
+
+                    _alpha = _alphaMin + ((sigmoidAlpha - _alphaMin) * qualityFactor);
+                    _qualityGateFrozen = qualityFactor < 0.01;
                 }
             }
 
@@ -298,7 +318,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                 "Training complete: examples={ExampleCount}, validationLoss={ValidationLoss:F6}, qualityGate={QualityGate}, alpha={Alpha:F4}",
                 examples.Count,
                 validationLoss,
-                qualityGatePassed ? "passed" : "frozen",
+                qualityGatePassed ? "passed" : "dampened",
                 _alpha);
 
             TrySaveState();
