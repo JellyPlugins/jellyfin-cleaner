@@ -40,6 +40,9 @@ public enum FeatureIndex
 
     /// <summary>Watch completion ratio (0–1).</summary>
     CompletionRatio = 10,
+
+    /// <summary>Abandoned flag (1 if CompletionRatio &lt; 25%, else 0). Penalizes items the user started but stopped watching early.</summary>
+    IsAbandoned = 11,
 }
 
 /// <summary>
@@ -51,12 +54,19 @@ public sealed class CandidateFeatures
     /// <summary>
     ///     The number of features produced by <see cref="ToVector"/>.
     /// </summary>
-    public const int FeatureCount = 11;
+    public const int FeatureCount = 12;
 
     /// <summary>
     ///     Normalization ceiling for genre count (items with ≥ this many genres map to 1.0).
     /// </summary>
     internal const double GenreCountNormalizationCeiling = 5.0;
+
+    /// <summary>
+    ///     Watch completion ratio below which an item is considered "abandoned".
+    ///     Items with CompletionRatio &lt; this threshold have IsAbandoned = 1 in the feature vector,
+    ///     which applies a negative weight penalty during scoring.
+    /// </summary>
+    internal const double AbandonedThreshold = 0.25;
 
     private double _genreSimilarity;
     private double _collaborativeScore;
@@ -163,5 +173,6 @@ public sealed class CandidateFeatures
         buffer[(int)FeatureIndex.GenreCollabInteraction] = GenreSimilarity * CollaborativeScore;
         buffer[(int)FeatureIndex.UserRatingScore] = UserRatingScore;
         buffer[(int)FeatureIndex.CompletionRatio] = CompletionRatio;
+        buffer[(int)FeatureIndex.IsAbandoned] = CompletionRatio < AbandonedThreshold ? 1.0 : 0.0;
     }
 }

@@ -38,11 +38,20 @@ public static class DefaultWeights
     /// <summary>Weight for user personal rating signal (stronger than community rating).</summary>
     public const double UserRatingScore = 0.10;
 
-    /// <summary>Weight for watch completion ratio (penalizes abandoned items).</summary>
-    // TODO: CompletionRatio acts as a positive signal but items ~80% completed get boosted
-    // rather than penalized. Consider adding an explicit "abandoned" feature (< 25% completion)
-    // with a negative weight, or changing CompletionRatio semantics to penalize partial views.
-    public const double CompletionRatio = 0.04;
+    /// <summary>
+    ///     Weight for watch completion ratio (positive signal — rewards fully watched items).
+    ///     Increased from 0.04 to 0.08 to strengthen the reward for completed items while
+    ///     the companion <see cref="IsAbandoned"/> feature penalizes abandoned ones.
+    /// </summary>
+    public const double CompletionRatio = 0.08;
+
+    /// <summary>
+    ///     Negative weight for abandoned items (CompletionRatio &lt; 25%).
+    ///     Penalizes items the user started but stopped watching early, which is a strong
+    ///     signal that the user didn't enjoy the content. The negative weight ensures these
+    ///     items are deprioritized in recommendations.
+    /// </summary>
+    public const double IsAbandoned = -0.04;
 
     /// <summary>Default bias term for the learned strategy.</summary>
     public const double Bias = 0.05;
@@ -65,6 +74,7 @@ public static class DefaultWeights
         weights[(int)FeatureIndex.GenreCollabInteraction] = GenreCollabInteraction;
         weights[(int)FeatureIndex.UserRatingScore] = UserRatingScore;
         weights[(int)FeatureIndex.CompletionRatio] = CompletionRatio;
+        weights[(int)FeatureIndex.IsAbandoned] = IsAbandoned;
         return weights;
     }
 }

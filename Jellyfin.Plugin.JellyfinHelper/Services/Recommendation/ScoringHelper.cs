@@ -77,13 +77,14 @@ internal static class ScoringHelper
         var yearProxContrib = vector[(int)FeatureIndex.YearProximityScore] * weights[(int)FeatureIndex.YearProximityScore];
         var userRatingContrib = vector[(int)FeatureIndex.UserRatingScore] * weights[(int)FeatureIndex.UserRatingScore];
 
-        // Interaction + minor features (genreCount, isSeries, genre×rating, genre×collab, completionRatio)
+        // Interaction + minor features (genreCount, isSeries, genre×rating, genre×collab, completionRatio, isAbandoned)
         var interactionContrib =
             (vector[(int)FeatureIndex.GenreCountNormalized] * weights[(int)FeatureIndex.GenreCountNormalized]) +
             (vector[(int)FeatureIndex.IsSeries] * weights[(int)FeatureIndex.IsSeries]) +
             (vector[(int)FeatureIndex.GenreRatingInteraction] * weights[(int)FeatureIndex.GenreRatingInteraction]) +
             (vector[(int)FeatureIndex.GenreCollabInteraction] * weights[(int)FeatureIndex.GenreCollabInteraction]) +
-            (vector[(int)FeatureIndex.CompletionRatio] * weights[(int)FeatureIndex.CompletionRatio]);
+            (vector[(int)FeatureIndex.CompletionRatio] * weights[(int)FeatureIndex.CompletionRatio]) +
+            (vector[(int)FeatureIndex.IsAbandoned] * weights[(int)FeatureIndex.IsAbandoned]);
 
         var rawScore = ComputeRawScore(vector, weights, bias);
         var score = Math.Clamp(rawScore, 0.0, 1.0);
