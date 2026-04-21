@@ -65,7 +65,6 @@ public class WatchHistoryServiceTests
             .Setup(m => m.Users)
             .Returns(Enumerable.Empty<Jellyfin.Database.Implementations.Entities.User>().AsQueryable());
 
-        // Library returns empty item list
         _mockLibraryManager
             .Setup(m => m.GetItemList(It.IsAny<InternalItemsQuery>()))
             .Returns(new List<BaseItem>());
@@ -87,20 +86,17 @@ public class WatchHistoryServiceTests
             .Setup(m => m.Users)
             .Returns(new[] { user1, user2, user3 }.AsQueryable());
 
-        // Return a single item so BuildProfile iterates
         var movie = new Movie { Id = Guid.NewGuid(), Name = "Test Movie" };
         _mockLibraryManager
             .Setup(m => m.GetItemList(It.IsAny<InternalItemsQuery>()))
             .Returns(new List<BaseItem> { movie });
 
-        // For user2 ("bob-throws"), GetUserData throws an exception
         _mockUserDataManager
             .Setup(m => m.GetUserData(
                 It.Is<Jellyfin.Database.Implementations.Entities.User>(u => u.Username == "bob-throws"),
                 It.IsAny<BaseItem>()))
             .Throws(new InvalidOperationException("Simulated failure for bob-throws"));
 
-        // For other users, return null (no interaction — valid empty profile)
         _mockUserDataManager
             .Setup(m => m.GetUserData(
                 It.Is<Jellyfin.Database.Implementations.Entities.User>(u => u.Username != "bob-throws"),
@@ -109,11 +105,6 @@ public class WatchHistoryServiceTests
 
         var result = _service.GetAllUserWatchProfiles();
 
-        // All 3 users should produce profiles — the exception from GetUserData is caught
-        // at the per-user level in GetAllUserWatchProfiles, but if the exception propagates
-        // from within BuildProfile it will be caught by the outer try/catch.
-        // With the current implementation: GetUserData throwing causes BuildProfile to throw,
-        // which is caught by the outer try/catch in GetAllUserWatchProfiles.
         Assert.Equal(2, result.Count);
         Assert.Contains(result, p => p.UserName == "alice");
         Assert.Contains(result, p => p.UserName == "charlie");
@@ -134,7 +125,6 @@ public class WatchHistoryServiceTests
             .Setup(m => m.GetItemList(It.IsAny<InternalItemsQuery>()))
             .Returns(new List<BaseItem>());
 
-        // UserData returns null for all items (no interaction)
         _mockUserDataManager
             .Setup(m => m.GetUserData(It.IsAny<Jellyfin.Database.Implementations.Entities.User>(), It.IsAny<BaseItem>()))
             .Returns((UserItemData?)null);
@@ -164,15 +154,190 @@ public class WatchHistoryServiceTests
         Assert.False(capturedQuery.IsFolder);
     }
 
+    // --- BuildProfile Tests ---
+
+    [Fact]
+    public void BuildProfile_MoviePlayed_IncrementsMovieCount()
+    {
+        var user = CreateMockUser("alice");
+
+        _mockUserManager
+            .Setup(m => m.GetUserById(user.Id))
+            .Returns(user);
+
+        var movie = new Movie
+        {
+            Id = Guid.NewGuid(),
+            Name = "Test Movie",
+            Genres = new[] { "Action", "Thriller" },
+            CommunityRating = 7.5f,
+            ProductionYear = 2023,
+            RunTimeTicks = TimeSpan.FromMinutes(120).Ticks
+        };
+
+        _mockLibraryManager
+            .Setup(m => m.GetItemList(It.IsAny<InternalItemsQuery>()))
+            .Returns(new List<BaseItem> { movie });
+
+        _mockUserDataManager
+            .Setup(m => m.GetUserData(user, movie))
+            .Returns(new UserItemData
+            {
+                Key = "movie-key",
+                Played = true,
+                PlayCount = 1,
+                LastPlayedDate = DateTime.UtcNow
+            });
+
+        var profile = _service.GetUserWatchProfile(user.Id);
+
+        Assert.NotNull(profile);
+        Assert.Equal(1, profile!.WatchedMovieCount);
+        Assert.Equal(0, profile.WatchedEpisodeCount);
+        Assert.Equal(0, profile.WatchedSeriesCount);
+        Assert.Single(profile.WatchedItems);
+        Assert.Equal("Test Movie", profile.WatchedItems[0].Name);
+        Assert.True(profile.TotalWatchTimeTicks > 0);
+    }
+
+    [Fact]
+    public void BuildProfile_EpisodesFromSameSeries_CountsSeriesOnce()
+    {
+        var user = CreateMockUser("bob");
+
+        _mockUserManager
+            .Setup(m => m.GetUserById(user.Id))
+            .Returns(user);
+
+        var seriesId = Guid.NewGuid();
+        var ep1 = new Episode
+        {
+            Id = Guid.NewGuid(),
+            Name = "Episode 1",
+            SeriesId = seriesId,
+            Genres = new[] { "Drama" },
+            RunTimeTicks = TimeSpan.FromMinutes(45).Ticks
+        };
+        var ep2 = new Episode
+        {
+            Id = Guid.NewGuid(),
+            Name = "Episode 2",
+            SeriesId = seriesId,
+            Genres = new[] { "Drama" },
+            RunTimeTicks = TimeSpan.FromMinutes(45).Ticks
+        };
+
+        _mockLibraryManager
+            .Setup(m => m.GetItemList(It.IsAny<InternalItemsQuery>()))
+            .Returns(new List<BaseItem> { ep1, ep2 });
+
+        _mockUserDataManager
+            .Setup(m => m.GetUserData(user, It.IsAny<BaseItem>()))
+            .Returns(new UserItemData
+            {
+                Key = "episode-key",
+                Played = true,
+                PlayCount = 1,
+                LastPlayedDate = DateTime.UtcNow
+            });
+
+        var profile = _service.GetUserWatchProfile(user.Id);
+
+        Assert.NotNull(profile);
+        Assert.Equal(2, profile!.WatchedEpisodeCount);
+        Assert.Equal(1, profile.WatchedSeriesCount);
+        Assert.Equal(0, profile.WatchedMovieCount);
+    }
+
+    [Fact]
+    public void BuildProfile_GenreDistribution_CountsCorrectly()
+    {
+        var user = CreateMockUser("charlie");
+
+        _mockUserManager
+            .Setup(m => m.GetUserById(user.Id))
+            .Returns(user);
+
+        var movie1 = new Movie
+        {
+            Id = Guid.NewGuid(),
+            Name = "Action Movie",
+            Genres = new[] { "Action", "Thriller" }
+        };
+        var movie2 = new Movie
+        {
+            Id = Guid.NewGuid(),
+            Name = "Action Comedy",
+            Genres = new[] { "Action", "Comedy" }
+        };
+
+        _mockLibraryManager
+            .Setup(m => m.GetItemList(It.IsAny<InternalItemsQuery>()))
+            .Returns(new List<BaseItem> { movie1, movie2 });
+
+        _mockUserDataManager
+            .Setup(m => m.GetUserData(user, It.IsAny<BaseItem>()))
+            .Returns(new UserItemData
+            {
+                Key = "genre-key",
+                Played = true,
+                PlayCount = 1,
+                LastPlayedDate = DateTime.UtcNow
+            });
+
+        var profile = _service.GetUserWatchProfile(user.Id);
+
+        Assert.NotNull(profile);
+        Assert.Equal(2, profile!.GenreDistribution["Action"]);
+        Assert.Equal(1, profile.GenreDistribution["Thriller"]);
+        Assert.Equal(1, profile.GenreDistribution["Comedy"]);
+    }
+
+    [Fact]
+    public void BuildProfile_UnplayedItems_AreExcluded()
+    {
+        var user = CreateMockUser("dave");
+
+        _mockUserManager
+            .Setup(m => m.GetUserById(user.Id))
+            .Returns(user);
+
+        var movie = new Movie
+        {
+            Id = Guid.NewGuid(),
+            Name = "Unwatched Movie",
+            Genres = new[] { "Horror" }
+        };
+
+        _mockLibraryManager
+            .Setup(m => m.GetItemList(It.IsAny<InternalItemsQuery>()))
+            .Returns(new List<BaseItem> { movie });
+
+        _mockUserDataManager
+            .Setup(m => m.GetUserData(user, movie))
+            .Returns(new UserItemData
+            {
+                Key = "unplayed-key",
+                Played = false,
+                PlayCount = 0,
+                PlaybackPositionTicks = 0,
+                IsFavorite = false
+            });
+
+        var profile = _service.GetUserWatchProfile(user.Id);
+
+        Assert.NotNull(profile);
+        Assert.Empty(profile!.WatchedItems);
+        Assert.Equal(0, profile.WatchedMovieCount);
+    }
+
     // --- Helpers ---
 
     private static Jellyfin.Database.Implementations.Entities.User CreateMockUser(string username)
     {
-        // Create user entity directly — it's a simple POCO in Jellyfin
         return new Jellyfin.Database.Implementations.Entities.User(username, "default", "default")
         {
             Id = Guid.NewGuid()
         };
     }
-
 }

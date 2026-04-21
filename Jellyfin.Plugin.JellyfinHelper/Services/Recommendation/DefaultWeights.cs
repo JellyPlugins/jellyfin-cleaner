@@ -9,7 +9,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 public static class DefaultWeights
 {
     /// <summary>Weight for genre similarity signal (dominant).</summary>
-    public const double GenreSimilarity = 0.35;
+    public const double GenreSimilarity = 0.33;
 
     /// <summary>Weight for collaborative filtering signal.</summary>
     public const double CollaborativeScore = 0.12;
@@ -24,7 +24,7 @@ public static class DefaultWeights
     public const double YearProximityScore = 0.05;
 
     /// <summary>Weight for normalized genre count signal.</summary>
-    public const double GenreCountNormalized = 0.05;
+    public const double GenreCountNormalized = 0.03;
 
     /// <summary>Weight for series type signal (neutral — no inherent preference).</summary>
     public const double IsSeries = 0.00;
@@ -53,6 +53,13 @@ public static class DefaultWeights
     /// </summary>
     public const double IsAbandoned = -0.04;
 
+    /// <summary>
+    ///     Weight for novelty/serendipity signal (1 − GenreSimilarity).
+    ///     A small positive weight that gently nudges recommendations towards items
+    ///     outside the user's usual genre preferences, promoting discovery of new content.
+    /// </summary>
+    public const double NoveltyScore = 0.04;
+
     /// <summary>Default bias term for the learned strategy.</summary>
     public const double Bias = 0.05;
 
@@ -75,6 +82,7 @@ public static class DefaultWeights
         weights[(int)FeatureIndex.UserRatingScore] = UserRatingScore;
         weights[(int)FeatureIndex.CompletionRatio] = CompletionRatio;
         weights[(int)FeatureIndex.IsAbandoned] = IsAbandoned;
+        weights[(int)FeatureIndex.NoveltyScore] = NoveltyScore;
         return weights;
     }
 }

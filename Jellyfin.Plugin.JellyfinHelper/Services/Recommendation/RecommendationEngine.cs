@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using MediaBrowser.Controller.Entities;
@@ -89,6 +90,12 @@ public sealed class RecommendationEngine : IRecommendationEngine
     /// </summary>
     internal const double ExposureLabel = 0.1;
 
+    /// <summary>
+    ///     Maximum candidate count before a performance warning is emitted.
+    ///     Libraries with more items than this threshold may experience slower on-demand scoring.
+    /// </summary>
+    internal const int CandidateCountWarningThreshold = 5000;
+
     private readonly ILibraryManager _libraryManager;
     private readonly ILogger<RecommendationEngine> _logger;
     private readonly IPluginLogService _pluginLog;
@@ -118,8 +125,9 @@ public sealed class RecommendationEngine : IRecommendationEngine
     }
 
     /// <inheritdoc />
-    public RecommendationResult? GetRecommendations(Guid userId, int maxResults = 20)
+    public RecommendationResult? GetRecommendations(Guid userId, int maxResults = 20, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         maxResults = Math.Clamp(maxResults, 1, MaxRecommendationsPerUser);
         var allProfiles = _watchHistoryService.GetAllUserWatchProfiles();
         var userProfile = allProfiles.FirstOrDefault(p => p.UserId == userId);
@@ -134,7 +142,7 @@ public sealed class RecommendationEngine : IRecommendationEngine
     }
 
     /// <inheritdoc />
-    public bool TrainStrategy(Collection<RecommendationResult> previousResults)
+    public bool TrainStrategy(IReadOnlyList<RecommendationResult> previousResults)
     {
         if (previousResults.Count == 0)
         {
@@ -205,7 +213,7 @@ public sealed class RecommendationEngine : IRecommendationEngine
                         ? ComputeRecencyScore(rec.PremiereDate.Value)
                         : 0.5, // fallback for legacy stored recommendations without PremiereDate
                     YearProximityScore = ComputeYearProximity(rec.Year, avgYear),
-                    GenreCount = rec.Genres?.Length ?? 0,
+                    GenreCount = rec.Genres?.Count ?? 0,
                     IsSeries = string.Equals(rec.ItemType, "Series", StringComparison.OrdinalIgnoreCase),
                     UserRatingScore = ComputeUserRatingScore(watchedItemForRec),
                     CompletionRatio = ComputeCompletionRatio(watchedItemForRec)
@@ -273,8 +281,9 @@ public sealed class RecommendationEngine : IRecommendationEngine
     }
 
     /// <inheritdoc />
-    public Collection<RecommendationResult> GetAllRecommendations(int maxResultsPerUser = 20)
+    public IReadOnlyList<RecommendationResult> GetAllRecommendations(int maxResultsPerUser = 20, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         maxResultsPerUser = Math.Clamp(maxResultsPerUser, 1, MaxRecommendationsPerUser);
         var allProfiles = _watchHistoryService.GetAllUserWatchProfiles();
         var results = new Collection<RecommendationResult>();
@@ -289,6 +298,7 @@ public sealed class RecommendationEngine : IRecommendationEngine
 
         foreach (var profile in allProfiles)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 results.Add(GenerateForUser(profile, allProfiles, candidates, maxResultsPerUser, _strategy));
@@ -334,7 +344,18 @@ public sealed class RecommendationEngine : IRecommendationEngine
             IsFolder = true
         });
 
-        var candidates = new List<BaseItem>(movies.Count + series.Count);
+        var totalCount = movies.Count + series.Count;
+
+        if (totalCount > CandidateCountWarningThreshold)
+        {
+            _pluginLog.LogWarning(
+                "Recommendations",
+                $"Large candidate set: {totalCount} items ({movies.Count} movies, {series.Count} series). " +
+                "Consider using the scheduled task instead of on-demand generation for better performance.",
+                logger: _logger);
+        }
+
+        var candidates = new List<BaseItem>(totalCount);
         candidates.AddRange(movies);
         candidates.AddRange(series);
         return candidates;
@@ -634,10 +655,10 @@ public sealed class RecommendationEngine : IRecommendationEngine
     /// <param name="genrePreferences">The user's genre preference vector.</param>
     /// <returns>A similarity score between 0 and 1.</returns>
     internal static double ComputeGenreSimilarity(
-        string[] candidateGenres,
+        IReadOnlyList<string> candidateGenres,
         Dictionary<string, double> genrePreferences)
     {
-        if (candidateGenres.Length == 0 || genrePreferences.Count == 0)
+        if (candidateGenres.Count == 0 || genrePreferences.Count == 0)
         {
             return 0;
         }
@@ -660,7 +681,7 @@ public sealed class RecommendationEngine : IRecommendationEngine
         }
 
         // |candidate| = sqrt(number of genres) since each component is 1.0
-        var candidateNorm = Math.Sqrt(candidateGenres.Length);
+        var candidateNorm = Math.Sqrt(candidateGenres.Count);
 
         // |user| = sqrt(sum of squared weights)
         var userNormSq = 0.0;

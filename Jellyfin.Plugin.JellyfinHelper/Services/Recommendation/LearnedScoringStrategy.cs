@@ -55,7 +55,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
     ///     Current schema version for persisted weights. Increment when the feature set or
     ///     weight semantics change so that stale weights are discarded on load.
     /// </summary>
-    internal const int CurrentWeightsVersion = 7;
+    internal const int CurrentWeightsVersion = 8;
 
     /// <summary>Cached JSON serializer options for weight persistence.</summary>
     private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
@@ -274,6 +274,9 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
 
             for (var epoch = 0; epoch < maxEpochs; epoch++)
             {
+                // Cosine annealing learning rate decay: lr decreases from DefaultLearningRate to ~0
+                var lr = DefaultLearningRate * 0.5 * (1.0 + Math.Cos(Math.PI * epoch / maxEpochs));
+
                 // Fisher-Yates shuffle training indices each epoch
                 for (var j = trainIndices.Length - 1; j > 0; j--)
                 {
@@ -305,17 +308,17 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
                         continue;
                     }
 
-                    // Update weights with gradient descent + L2 regularization
+                    // Update weights with gradient descent + L2 regularization + LR decay
                     var len = Math.Min(vector.Length, _weights.Length);
                     for (var i = 0; i < len; i++)
                     {
                         var gradient = (error * vector[i]) + (L2Lambda * _weights[i]);
-                        _weights[i] -= DefaultLearningRate * gradient;
+                        _weights[i] -= lr * gradient;
                         _weights[i] = Math.Clamp(_weights[i], -2.0, 2.0);
                     }
 
                     // Update bias (no regularization on bias)
-                    _bias -= DefaultLearningRate * error;
+                    _bias -= lr * error;
                     _bias = Math.Clamp(_bias, -1.0, 1.0);
                 }
 

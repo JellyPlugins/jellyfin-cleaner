@@ -55,7 +55,7 @@ public sealed class ScoringStrategyTests : IDisposable
 
         var vector = features.ToVector();
 
-        Assert.Equal(12, vector.Length);
+        Assert.Equal(13, vector.Length);
         Assert.Equal(0.8, vector[0]); // genre
         Assert.Equal(0.5, vector[1]); // collab
         Assert.Equal(0.7, vector[2]); // rating
@@ -68,6 +68,7 @@ public sealed class ScoringStrategyTests : IDisposable
         Assert.Equal(0.6, vector[9]); // userRating
         Assert.Equal(0.75, vector[10]); // completionRatio
         Assert.Equal(0.0, vector[11]); // isAbandoned (0.75 >= 0.25 → not abandoned)
+        Assert.Equal(0.2, vector[12], 10); // novelty = 1.0 - 0.8 (genre similarity)
     }
 
     [Fact]
@@ -109,6 +110,10 @@ public sealed class ScoringStrategyTests : IDisposable
                 Assert.Equal(0.5, vector[i]);
             }
             else if (i == 11) // IsAbandoned = 1.0 (CompletionRatio 0.0 < 0.25)
+            {
+                Assert.Equal(1.0, vector[i]);
+            }
+            else if (i == 12) // NoveltyScore = 1.0 - 0.0 (GenreSimilarity) = 1.0
             {
                 Assert.Equal(1.0, vector[i]);
             }
@@ -185,7 +190,9 @@ public sealed class ScoringStrategyTests : IDisposable
         var score = strategy.Score(features);
 
         // Default CompletionRatio=0.0 → IsAbandoned=1.0, so abandoned penalty applies
-        var expected = (0.5 * DefaultWeights.GenreSimilarity) + (1.0 * DefaultWeights.IsAbandoned);
+        // NoveltyScore = 1.0 - 0.5 = 0.5
+        var expected = (0.5 * DefaultWeights.GenreSimilarity) + (1.0 * DefaultWeights.IsAbandoned)
+            + (0.5 * DefaultWeights.NoveltyScore);
         Assert.Equal(expected, score, 4);
     }
 
@@ -214,7 +221,8 @@ public sealed class ScoringStrategyTests : IDisposable
             (0.9 * DefaultWeights.YearProximityScore) +
             (0.8 * 0.7 * DefaultWeights.GenreRatingInteraction) +
             (0.8 * 0.6 * DefaultWeights.GenreCollabInteraction) +
-            (1.0 * DefaultWeights.IsAbandoned);
+            (1.0 * DefaultWeights.IsAbandoned) +
+            (0.2 * DefaultWeights.NoveltyScore); // NoveltyScore = 1.0 - 0.8
 
         Assert.Equal(expected, strategy.Score(features), 4);
     }
@@ -241,7 +249,8 @@ public sealed class ScoringStrategyTests : IDisposable
             (0.8 * DefaultWeights.RatingScore) +
             (0.7 * DefaultWeights.RecencyScore) +
             (0.9 * DefaultWeights.YearProximityScore) +
-            (1.0 * DefaultWeights.IsAbandoned);
+            (1.0 * DefaultWeights.IsAbandoned) +
+            (1.0 * DefaultWeights.NoveltyScore); // NoveltyScore = 1.0 - 0.0
 
         // With genrePenaltyFloor=0.10 and GenreSimilarity=0.0, penalty = 0.10
         var expected = rawExpected * 0.10;
@@ -270,7 +279,8 @@ public sealed class ScoringStrategyTests : IDisposable
             (0.8 * DefaultWeights.RatingScore) +
             (0.7 * DefaultWeights.RecencyScore) +
             (0.9 * DefaultWeights.YearProximityScore) +
-            (1.0 * DefaultWeights.IsAbandoned);
+            (1.0 * DefaultWeights.IsAbandoned) +
+            (1.0 * DefaultWeights.NoveltyScore); // NoveltyScore = 1.0 - 0.0
 
         Assert.Equal(expected, strategy.Score(features), 4);
     }
@@ -418,7 +428,7 @@ public sealed class ScoringStrategyTests : IDisposable
         var weights = strategy.CurrentWeights;
 
         Assert.Equal(CandidateFeatures.FeatureCount, weights.Length);
-        Assert.Equal(0.35, weights[0]); // genre (dominant)
+        Assert.Equal(0.33, weights[0]); // genre (dominant)
         Assert.Equal(0.12, weights[1]); // collaborative
         Assert.Equal(0.08, weights[2]); // rating
         Assert.Equal(0.08, weights[7]); // genre × rating interaction
@@ -663,7 +673,7 @@ public sealed class ScoringStrategyTests : IDisposable
         var weights = strategy.CurrentWeights;
 
         Assert.Equal(CandidateFeatures.FeatureCount, weights.Length);
-        Assert.Equal(0.35, weights[0]); // default genre weight
+        Assert.Equal(0.33, weights[0]); // default genre weight
     }
 
     [Fact]
@@ -1318,6 +1328,62 @@ public sealed class ScoringStrategyTests : IDisposable
         Assert.Equal(0.7, blended.GenreContribution, 10);
         Assert.Equal(0.3, blended.CollaborativeContribution, 10);
         Assert.Equal("Genre", blended.DominantSignal); // 0.7 > 0.3
+    }
+
+    // ============================================================
+    // ScoreExplanation.WithPenalty Tests
+    // ============================================================
+
+    [Fact]
+    public void ScoreExplanation_WithPenalty_ScalesAllContributions()
+    {
+        var original = new ScoreExplanation
+        {
+            FinalScore = 0.80,
+            GenreContribution = 0.30,
+            CollaborativeContribution = 0.20,
+            RatingContribution = 0.10,
+            RecencyContribution = 0.05,
+            YearProximityContribution = 0.05,
+            UserRatingContribution = 0.08,
+            InteractionContribution = 0.02,
+            GenrePenaltyMultiplier = 1.0,
+            DominantSignal = "Genre",
+            StrategyName = "Heuristic"
+        };
+
+        var penalized = original.WithPenalty(0.5);
+
+        Assert.Equal(0.40, penalized.FinalScore, 10);
+        Assert.Equal(0.15, penalized.GenreContribution, 10);
+        Assert.Equal(0.10, penalized.CollaborativeContribution, 10);
+        Assert.Equal(0.05, penalized.RatingContribution, 10);
+        Assert.Equal(0.025, penalized.RecencyContribution, 10);
+        Assert.Equal(0.025, penalized.YearProximityContribution, 10);
+        Assert.Equal(0.04, penalized.UserRatingContribution, 10);
+        Assert.Equal(0.01, penalized.InteractionContribution, 10);
+        Assert.Equal(0.5, penalized.GenrePenaltyMultiplier, 10);
+        Assert.Equal("Genre", penalized.DominantSignal);
+        Assert.Equal("Heuristic", penalized.StrategyName);
+    }
+
+    [Fact]
+    public void ScoreExplanation_WithPenalty_ClampsScoreToZeroOne()
+    {
+        var original = new ScoreExplanation
+        {
+            FinalScore = 0.90,
+            GenreContribution = 0.90
+        };
+
+        // Penalty > 1 would push score above 1.0 without clamping
+        var penalized = original.WithPenalty(1.5);
+        Assert.True(penalized.FinalScore <= 1.0, "FinalScore should be clamped to max 1.0");
+
+        // Penalty of 0 should yield 0
+        var zeroed = original.WithPenalty(0.0);
+        Assert.Equal(0.0, zeroed.FinalScore, 10);
+        Assert.Equal(0.0, zeroed.GenreContribution, 10);
     }
 
     // ============================================================

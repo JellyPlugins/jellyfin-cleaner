@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net.Mime;
+using System.Threading;
 using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 using Microsoft.AspNetCore.Authorization;
@@ -52,12 +53,14 @@ public class RecommendationController : ControllerBase
     ///     If no cache exists, generates fresh recommendations on the fly.
     /// </summary>
     /// <param name="maxPerUser">Maximum recommendations per user (default: 20, max: 100).</param>
+    /// <param name="cancellationToken">Token to cancel the request.</param>
     /// <returns>A list of recommendation results, one per user.</returns>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult<List<RecommendationResult>> GetAllRecommendations(
-        [FromQuery] int maxPerUser = 20)
+        [FromQuery] int maxPerUser = 20,
+        CancellationToken cancellationToken = default)
     {
         if (!IsRecommendationsEnabled())
         {
@@ -75,7 +78,7 @@ public class RecommendationController : ControllerBase
         }
 
         // No cache available — generate on demand
-        var results = _engine.GetAllRecommendations(maxPerUser);
+        var results = _engine.GetAllRecommendations(maxPerUser, cancellationToken);
         _cacheService.SaveResults(results);
         return Ok(results);
     }
@@ -85,6 +88,7 @@ public class RecommendationController : ControllerBase
     /// </summary>
     /// <param name="userId">The Jellyfin user ID.</param>
     /// <param name="maxResults">Maximum number of recommendations (default: 20, max: 100).</param>
+    /// <param name="cancellationToken">Token to cancel the request.</param>
     /// <returns>The recommendation result for the user.</returns>
     [HttpGet("{userId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -92,7 +96,8 @@ public class RecommendationController : ControllerBase
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult<RecommendationResult> GetUserRecommendations(
         Guid userId,
-        [FromQuery] int maxResults = 20)
+        [FromQuery] int maxResults = 20,
+        CancellationToken cancellationToken = default)
     {
         if (!IsRecommendationsEnabled())
         {
@@ -127,7 +132,7 @@ public class RecommendationController : ControllerBase
         }
 
         // Generate on demand
-        var result = _engine.GetRecommendations(userId, maxResults);
+        var result = _engine.GetRecommendations(userId, maxResults, cancellationToken);
         if (result is null)
         {
             return NotFound();
@@ -196,7 +201,7 @@ public class RecommendationController : ControllerBase
     /// <param name="results">The full recommendation results (not modified).</param>
     /// <param name="maxPerUser">Maximum recommendations per user.</param>
     /// <returns>A new collection with trimmed recommendation counts.</returns>
-    private static Collection<RecommendationResult> TrimRecommendations(Collection<RecommendationResult> results, int maxPerUser)
+    private static IReadOnlyList<RecommendationResult> TrimRecommendations(IReadOnlyList<RecommendationResult> results, int maxPerUser)
     {
         var needsTrim = results.Any(r => r.Recommendations.Count > maxPerUser);
         if (!needsTrim)
@@ -204,7 +209,7 @@ public class RecommendationController : ControllerBase
             return results;
         }
 
-        var trimmed = new Collection<RecommendationResult>();
+        var trimmed = new List<RecommendationResult>();
         foreach (var r in results)
         {
             if (r.Recommendations.Count > maxPerUser)

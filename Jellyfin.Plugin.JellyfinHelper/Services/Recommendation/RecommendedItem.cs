@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 
@@ -45,8 +46,7 @@ public sealed class RecommendedItem
     /// <summary>
     ///     Gets or sets the genres associated with this item.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "DTO for JSON serialization")]
-    public string[] Genres { get; set; } = [];
+    public IReadOnlyList<string> Genres { get; set; } = [];
 
     /// <summary>
     ///     Gets or sets the production year.

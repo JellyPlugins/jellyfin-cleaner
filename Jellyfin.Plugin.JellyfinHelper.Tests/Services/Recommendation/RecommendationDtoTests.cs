@@ -132,7 +132,7 @@ public class RecommendationDtoTests
         Assert.Equal(lastPlayed, item.LastPlayedDate);
         Assert.Equal(3, item.PlayCount);
         Assert.Equal(2024, item.Year);
-        Assert.Equal(2, item.Genres.Length);
+        Assert.Equal(2, item.Genres.Count);
         Assert.Equal(8.5f, item.CommunityRating);
         Assert.True(item.IsFavorite);
     }

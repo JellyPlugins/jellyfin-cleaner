@@ -456,7 +456,7 @@ public class HelperCleanupTask : IScheduledTask
         cancellationToken.ThrowIfCancellationRequested();
 
         const int maxPerUser = 20;
-        var results = _recsEngine.GetAllRecommendations(maxPerUser);
+        var results = _recsEngine.GetAllRecommendations(maxPerUser, cancellationToken);
 
         progress.Report(80);
         cancellationToken.ThrowIfCancellationRequested();

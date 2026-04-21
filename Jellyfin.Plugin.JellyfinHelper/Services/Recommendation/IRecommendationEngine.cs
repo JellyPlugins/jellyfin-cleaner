@@ -1,5 +1,6 @@
 using System;
-using System.Collections.ObjectModel;
+using System.Collections.Generic;
+using System.Threading;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 
@@ -13,15 +14,17 @@ public interface IRecommendationEngine
     /// </summary>
     /// <param name="userId">The Jellyfin user ID.</param>
     /// <param name="maxResults">Maximum number of recommendations to return.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <returns>The recommendation result, or null if the user was not found.</returns>
-    RecommendationResult? GetRecommendations(Guid userId, int maxResults = 20);
+    RecommendationResult? GetRecommendations(Guid userId, int maxResults = 20, CancellationToken cancellationToken = default);
 
     /// <summary>
     ///     Generates recommendations for all users.
     /// </summary>
     /// <param name="maxResultsPerUser">Maximum number of recommendations per user.</param>
-    /// <returns>A list of recommendation results, one per user.</returns>
-    Collection<RecommendationResult> GetAllRecommendations(int maxResultsPerUser = 20);
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>A read-only list of recommendation results, one per user.</returns>
+    IReadOnlyList<RecommendationResult> GetAllRecommendations(int maxResultsPerUser = 20, CancellationToken cancellationToken = default);
 
     /// <summary>
     ///     Trains the active scoring strategy using implicit feedback from previous recommendations.
@@ -33,5 +36,5 @@ public interface IRecommendationEngine
     ///     The recommendation results from the previous run (loaded from cache).
     /// </param>
     /// <returns>True if training was performed, false if skipped (insufficient training data).</returns>
-    bool TrainStrategy(Collection<RecommendationResult> previousResults);
+    bool TrainStrategy(IReadOnlyList<RecommendationResult> previousResults);
 }

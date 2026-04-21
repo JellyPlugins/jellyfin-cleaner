@@ -101,7 +101,7 @@ public class HelperCleanupTaskTests : IDisposable
         var userActivityCacheMock = new Mock<IUserActivityCacheService>();
         var recsEngineMock = new Mock<IRecommendationEngine>();
         recsEngineMock
-            .Setup(e => e.GetAllRecommendations(It.IsAny<int>()))
+            .Setup(e => e.GetAllRecommendations(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .Returns(new Collection<RecommendationResult>());
         var recsCacheMock = new Mock<IRecommendationCacheService>();
 

@@ -43,6 +43,9 @@ public enum FeatureIndex
 
     /// <summary>Abandoned flag (1 if CompletionRatio &lt; 25%, else 0). Penalizes items the user started but stopped watching early.</summary>
     IsAbandoned = 11,
+
+    /// <summary>Novelty score (1 − GenreSimilarity). Rewards items outside the user's usual genre preferences to promote serendipity.</summary>
+    NoveltyScore = 12,
 }
 
 /// <summary>
@@ -54,7 +57,7 @@ public sealed class CandidateFeatures
     /// <summary>
     ///     The number of features produced by <see cref="ToVector"/>.
     /// </summary>
-    public const int FeatureCount = 12;
+    public const int FeatureCount = 13;
 
     /// <summary>
     ///     Normalization ceiling for genre count (items with ≥ this many genres map to 1.0).
@@ -174,5 +177,6 @@ public sealed class CandidateFeatures
         buffer[(int)FeatureIndex.UserRatingScore] = UserRatingScore;
         buffer[(int)FeatureIndex.CompletionRatio] = CompletionRatio;
         buffer[(int)FeatureIndex.IsAbandoned] = CompletionRatio < AbandonedThreshold ? 1.0 : 0.0;
+        buffer[(int)FeatureIndex.NoveltyScore] = 1.0 - GenreSimilarity;
     }
 }

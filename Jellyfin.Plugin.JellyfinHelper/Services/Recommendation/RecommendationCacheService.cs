@@ -41,7 +41,7 @@ public sealed class RecommendationCacheService : IRecommendationCacheService
     }
 
     /// <inheritdoc />
-    public void SaveResults(Collection<RecommendationResult> results)
+    public void SaveResults(IReadOnlyList<RecommendationResult> results)
     {
         lock (_fileLock)
         {
@@ -75,7 +75,7 @@ public sealed class RecommendationCacheService : IRecommendationCacheService
     }
 
     /// <inheritdoc />
-    public Collection<RecommendationResult>? LoadResults()
+    public IReadOnlyList<RecommendationResult>? LoadResults()
     {
         lock (_fileLock)
         {
@@ -87,8 +87,7 @@ public sealed class RecommendationCacheService : IRecommendationCacheService
                 }
 
                 var json = File.ReadAllText(_cacheFilePath);
-                var list = JsonSerializer.Deserialize<List<RecommendationResult>>(json, JsonOptions);
-                return list is not null ? new Collection<RecommendationResult>(list) : null;
+                return JsonSerializer.Deserialize<List<RecommendationResult>>(json, JsonOptions);
             }
             catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
             {

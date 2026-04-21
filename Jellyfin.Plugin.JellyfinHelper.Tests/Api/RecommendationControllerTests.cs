@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Threading;
 using Jellyfin.Plugin.JellyfinHelper.Api;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
@@ -53,7 +54,7 @@ public class RecommendationControllerTests
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var data = Assert.IsAssignableFrom<Collection<RecommendationResult>>(ok.Value);
         Assert.Single(data);
-        _mockEngine.Verify(e => e.GetAllRecommendations(It.IsAny<int>()), Times.Never);
+        _mockEngine.Verify(e => e.GetAllRecommendations(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -65,7 +66,7 @@ public class RecommendationControllerTests
         {
             new() { UserId = Guid.NewGuid(), UserName = "Bob" }
         };
-        _mockEngine.Setup(e => e.GetAllRecommendations(20)).Returns(generated);
+        _mockEngine.Setup(e => e.GetAllRecommendations(20, It.IsAny<CancellationToken>())).Returns(generated);
 
         var result = _controller.GetAllRecommendations();
 
@@ -77,13 +78,13 @@ public class RecommendationControllerTests
     public void GetAllRecommendations_ClampsMaxPerUser()
     {
         _mockCache.Setup(c => c.LoadResults()).Returns((Collection<RecommendationResult>?)null);
-        _mockEngine.Setup(e => e.GetAllRecommendations(It.IsAny<int>()))
+        _mockEngine.Setup(e => e.GetAllRecommendations(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .Returns(new Collection<RecommendationResult>());
 
         // maxPerUser=200 should be clamped to 100
         _controller.GetAllRecommendations(200);
 
-        _mockEngine.Verify(e => e.GetAllRecommendations(100), Times.Once);
+        _mockEngine.Verify(e => e.GetAllRecommendations(100, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // === GetUserRecommendations ===
@@ -104,7 +105,7 @@ public class RecommendationControllerTests
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var data = Assert.IsType<RecommendationResult>(ok.Value);
         Assert.Equal("Alice", data.UserName);
-        _mockEngine.Verify(e => e.GetRecommendations(It.IsAny<Guid>(), It.IsAny<int>()), Times.Never);
+        _mockEngine.Verify(e => e.GetRecommendations(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -114,7 +115,7 @@ public class RecommendationControllerTests
         _mockCache.Setup(c => c.LoadResults()).Returns((Collection<RecommendationResult>?)null);
 
         var generated = new RecommendationResult { UserId = userId, UserName = "Alice" };
-        _mockEngine.Setup(e => e.GetRecommendations(userId, 20)).Returns(generated);
+        _mockEngine.Setup(e => e.GetRecommendations(userId, 20, It.IsAny<CancellationToken>())).Returns(generated);
 
         var result = _controller.GetUserRecommendations(userId);
 
@@ -127,7 +128,7 @@ public class RecommendationControllerTests
     {
         var userId = Guid.NewGuid();
         _mockCache.Setup(c => c.LoadResults()).Returns((Collection<RecommendationResult>?)null);
-        _mockEngine.Setup(e => e.GetRecommendations(userId, 20)).Returns((RecommendationResult?)null);
+        _mockEngine.Setup(e => e.GetRecommendations(userId, 20, It.IsAny<CancellationToken>())).Returns((RecommendationResult?)null);
 
         var result = _controller.GetUserRecommendations(userId);
 
