@@ -68,6 +68,17 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         });
         serviceCollection.AddSingleton(sp =>
         {
+            var dataPath = Plugin.Instance?.DataFolderPath;
+            string? neuralWeightsPath = null;
+            if (!string.IsNullOrEmpty(dataPath))
+            {
+                neuralWeightsPath = Path.Join(dataPath, "neural_weights.json");
+            }
+
+            return new NeuralScoringStrategy(neuralWeightsPath);
+        });
+        serviceCollection.AddSingleton(sp =>
+        {
             // When used inside Ensemble, disable standalone genre penalty (penalty = 1.0)
             return new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
         });
@@ -99,7 +110,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
     /// <summary>
     ///     Resolves the active <see cref="IScoringStrategy"/> based on plugin configuration.
-    ///     Valid strategy values: "ensemble" (default), "heuristic", "learned".
+    ///     Valid strategy values: "ensemble" (default), "heuristic", "learned", "neural".
     /// </summary>
     private static IScoringStrategy ResolveScoringStrategy(IServiceProvider sp)
     {
@@ -121,6 +132,11 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             // via the EnsembleScoringStrategy's internal reference so there's only one instance.
             var ensemble = sp.GetRequiredService<EnsembleScoringStrategy>();
             return ensemble.LearnedStrategy;
+        }
+
+        if (string.Equals(strategy, "neural", StringComparison.OrdinalIgnoreCase))
+        {
+            return sp.GetRequiredService<NeuralScoringStrategy>();
         }
 
         // Default: Ensemble strategy (resolved via DI with all config applied)

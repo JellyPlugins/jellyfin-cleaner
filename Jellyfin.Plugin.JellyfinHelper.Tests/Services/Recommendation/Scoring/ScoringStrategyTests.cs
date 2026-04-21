@@ -1652,4 +1652,302 @@ public sealed class ScoringStrategyTests : IDisposable
         Assert.Equal(EnsembleScoringStrategy.DefaultAlphaMin, strategy.CurrentAlpha, 4);
         Assert.Equal(0, strategy.TrainingExampleCount);
     }
+
+    // ============================================================
+    // NeuralScoringStrategy Tests
+    // ============================================================
+
+    [Fact]
+    public void Neural_Name_ReturnsExpectedValue()
+    {
+        var strategy = new NeuralScoringStrategy();
+        Assert.Equal("Neural (Adaptive MLP)", strategy.Name);
+    }
+
+    [Fact]
+    public void Neural_Score_ReturnsValueBetweenZeroAndOne()
+    {
+        var strategy = new NeuralScoringStrategy();
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 0.8,
+            CollaborativeScore = 0.5,
+            RatingScore = 0.7,
+            RecencyScore = 0.3,
+            YearProximityScore = 0.9,
+            GenreCount = 3,
+            IsSeries = true
+        };
+
+        var score = strategy.Score(features);
+        Assert.InRange(score, 0.0, 1.0);
+    }
+
+    [Fact]
+    public void Neural_Score_AllZeros_ReturnsBaselineScore()
+    {
+        var strategy = new NeuralScoringStrategy();
+        var features = new CandidateFeatures();
+
+        var score = strategy.Score(features);
+
+        // Neural network with sigmoid activation and bias produces ~0.5 for zero input
+        Assert.InRange(score, 0.0, 0.60);
+    }
+
+    [Fact]
+    public void Neural_Score_HighGenreMatch_ReturnsHighScore()
+    {
+        var strategy = new NeuralScoringStrategy();
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 0.9,
+            CollaborativeScore = 0.5,
+            RatingScore = 0.8,
+            RecencyScore = 0.5,
+            YearProximityScore = 0.7,
+            GenreCount = 3,
+            IsSeries = false
+        };
+
+        var score = strategy.Score(features);
+
+        Assert.True(score > 0.4, $"High genre match should yield meaningful score, got {score:F4}");
+    }
+
+    [Fact]
+    public void Neural_Score_AfterTraining_GenreMatchBeatsNoGenre()
+    {
+        var strategy = new NeuralScoringStrategy();
+
+        // Train the network to learn genre importance
+        var examples = new List<TrainingExample>();
+        for (var i = 0; i < 30; i++)
+        {
+            examples.Add(new TrainingExample
+            {
+                Features = new CandidateFeatures
+                {
+                    GenreSimilarity = 0.9,
+                    RatingScore = 0.7,
+                    RecencyScore = 0.5,
+                    CollaborativeScore = 0.3
+                },
+                Label = 1.0
+            });
+            examples.Add(new TrainingExample
+            {
+                Features = new CandidateFeatures
+                {
+                    GenreSimilarity = 0.0,
+                    RatingScore = 0.7,
+                    RecencyScore = 0.5,
+                    CollaborativeScore = 0.3
+                },
+                Label = 0.0
+            });
+        }
+
+        strategy.Train(examples);
+
+        var goodFeatures = new CandidateFeatures
+        {
+            GenreSimilarity = 0.8,
+            RatingScore = 0.7,
+            RecencyScore = 0.5
+        };
+
+        var badFeatures = new CandidateFeatures
+        {
+            GenreSimilarity = 0.0,
+            RatingScore = 0.7,
+            RecencyScore = 0.5
+        };
+
+        var goodScore = strategy.Score(goodFeatures);
+        var badScore = strategy.Score(badFeatures);
+
+        Assert.True(goodScore > badScore,
+            $"After training, higher genre similarity should produce higher score: good={goodScore:F4}, bad={badScore:F4}");
+    }
+
+    [Fact]
+    public void Neural_Train_WithTooFewExamples_ReturnsFalse()
+    {
+        var strategy = new NeuralScoringStrategy();
+        var examples = new List<TrainingExample>
+        {
+            new() { Features = new CandidateFeatures { GenreSimilarity = 1.0 }, Label = 1.0 },
+            new() { Features = new CandidateFeatures(), Label = 0.0 }
+        };
+
+        Assert.False(strategy.Train(examples));
+    }
+
+    [Fact]
+    public void Neural_Train_UpdatesWeights()
+    {
+        var strategy = new NeuralScoringStrategy();
+
+        var examples = new List<TrainingExample>();
+        for (var i = 0; i < 10; i++)
+        {
+            examples.Add(new TrainingExample
+            {
+                Features = new CandidateFeatures
+                {
+                    GenreSimilarity = 0.9,
+                    CollaborativeScore = 0.1,
+                    RatingScore = 0.8,
+                    RecencyScore = 0.5,
+                    YearProximityScore = 0.7,
+                    GenreCount = 3,
+                    IsSeries = false
+                },
+                Label = 1.0
+            });
+            examples.Add(new TrainingExample
+            {
+                Features = new CandidateFeatures
+                {
+                    GenreSimilarity = 0.1,
+                    CollaborativeScore = 0.9,
+                    RatingScore = 0.2,
+                    RecencyScore = 0.8,
+                    YearProximityScore = 0.3,
+                    GenreCount = 1,
+                    IsSeries = true
+                },
+                Label = 0.0
+            });
+        }
+
+        var trained = strategy.Train(examples);
+        Assert.True(trained);
+    }
+
+    [Fact]
+    public void Neural_Train_ImprovesScoresForPositiveExamples()
+    {
+        var strategy = new NeuralScoringStrategy();
+
+        var positiveFeatures = new CandidateFeatures
+        {
+            GenreSimilarity = 0.9,
+            RatingScore = 0.8,
+            RecencyScore = 0.7,
+            YearProximityScore = 0.8,
+            GenreCount = 4
+        };
+
+        var scoreBefore = strategy.Score(positiveFeatures);
+
+        var examples = new List<TrainingExample>();
+        for (var i = 0; i < 20; i++)
+        {
+            examples.Add(new TrainingExample { Features = positiveFeatures, Label = 1.0 });
+            examples.Add(new TrainingExample
+            {
+                Features = new CandidateFeatures { GenreSimilarity = 0.1, RatingScore = 0.2 },
+                Label = 0.0
+            });
+        }
+
+        strategy.Train(examples);
+        var scoreAfter = strategy.Score(positiveFeatures);
+
+        Assert.True(scoreAfter >= scoreBefore,
+            $"Score should increase or stay stable after training: {scoreBefore:F4} → {scoreAfter:F4}");
+    }
+
+    [Fact]
+    public void Neural_ScoreWithExplanation_MatchesScore()
+    {
+        var strategy = new NeuralScoringStrategy();
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 0.7,
+            CollaborativeScore = 0.4,
+            RatingScore = 0.6,
+            RecencyScore = 0.3,
+            YearProximityScore = 0.5,
+            GenreCount = 2,
+            IsSeries = true,
+            UserRatingScore = 0.5,
+            CompletionRatio = 0.8,
+            PeopleSimilarity = 0.3,
+            StudioMatch = true
+        };
+
+        var score = strategy.Score(features);
+        var explanation = strategy.ScoreWithExplanation(features);
+
+        Assert.Equal(score, explanation.FinalScore, 6);
+        Assert.Equal("Neural (Adaptive MLP)", explanation.StrategyName);
+    }
+
+    [Fact]
+    public void Neural_PersistsAndRestoresWeights()
+    {
+        var weightsPath = Path.Combine(_tempDir, "neural_weights.json");
+        var strategy = new NeuralScoringStrategy(weightsPath);
+
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 0.9,
+            RatingScore = 0.8,
+            RecencyScore = 0.5
+        };
+
+        var examples = new List<TrainingExample>();
+        for (var i = 0; i < 20; i++)
+        {
+            examples.Add(new TrainingExample { Features = features, Label = 1.0 });
+            examples.Add(new TrainingExample
+            {
+                Features = new CandidateFeatures { GenreSimilarity = 0.1 },
+                Label = 0.0
+            });
+        }
+
+        strategy.Train(examples);
+        var scoreAfterTraining = strategy.Score(features);
+
+        // Create new instance from persisted weights
+        var restored = new NeuralScoringStrategy(weightsPath);
+        var scoreAfterRestore = restored.Score(features);
+
+        Assert.Equal(scoreAfterTraining, scoreAfterRestore, 6);
+    }
+
+    [Fact]
+    public void Neural_Score_OutputAlwaysClamped()
+    {
+        var strategy = new NeuralScoringStrategy();
+
+        // Test with extreme values
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 1.0,
+            CollaborativeScore = 1.0,
+            RatingScore = 1.0,
+            RecencyScore = 1.0,
+            YearProximityScore = 1.0,
+            GenreCount = 5,
+            IsSeries = true,
+            UserRatingScore = 1.0,
+            CompletionRatio = 1.0,
+            HasUserInteraction = true,
+            PeopleSimilarity = 1.0,
+            StudioMatch = true
+        };
+
+        var score = strategy.Score(features);
+        Assert.InRange(score, 0.0, 1.0);
+
+        // All zeros
+        var zeroFeatures = new CandidateFeatures();
+        var zeroScore = strategy.Score(zeroFeatures);
+        Assert.InRange(zeroScore, 0.0, 1.0);
+    }
 }

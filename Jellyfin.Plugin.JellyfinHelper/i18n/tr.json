@@ -264,6 +264,7 @@
   "reasonInteraction": "İzleme alışkanlıklarınıza uygun",
   "strategyHeuristic": "Sezgisel (Kural tabanlı)",
   "strategyLearned": "Öğrenilmiş (Uyarlanabilir ML)",
+  "strategyNeural": "Nöral (Uyarlanabilir MLP)",
   "strategyEnsemble": "Topluluk (Uyarlanabilir ML + Kurallar)",
   "recsMatch": "eşleşme",
   "recsWatchProfiles": "İzleme Profilleri",

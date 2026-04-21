@@ -264,6 +264,7 @@
   "reasonInteraction": "Coincide con tus patrones de visualización",
   "strategyHeuristic": "Heurístico (basado en reglas)",
   "strategyLearned": "Aprendido (ML adaptativo)",
+  "strategyNeural": "Neural (MLP Adaptativo)",
   "strategyEnsemble": "Conjunto (ML Adaptativo + Reglas)",
   "recsMatch": "coincidencia",
   "recsWatchProfiles": "Perfiles de visualización",

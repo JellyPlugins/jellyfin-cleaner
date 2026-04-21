@@ -264,6 +264,7 @@
   "reasonInteraction": "Passt zu deinem Sehverhalten",
   "strategyHeuristic": "Heuristisch (regelbasiert)",
   "strategyLearned": "Lernfähig (adaptives ML)",
+  "strategyNeural": "Neural (Adaptives MLP)",
   "strategyEnsemble": "Ensemble (Adaptives ML + Regeln)",
   "recsMatch": "Übereinstimmung",
   "recsWatchProfiles": "Sehprofil-Übersicht",
