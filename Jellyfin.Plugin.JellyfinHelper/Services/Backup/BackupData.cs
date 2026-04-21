@@ -161,15 +161,11 @@ public class BackupData
 
     /// <summary>
     ///     Gets or sets the execution mode for the Smart Recommendations task.
+    ///     Other recommendation settings (count, scoring strategy) are intentionally
+    ///     excluded — they are runtime preferences that use sensible defaults.
     /// </summary>
     [JsonPropertyName("recommendationsTaskMode")]
     public string RecommendationsTaskMode { get; set; } = "DryRun";
-
-    /// <summary>
-    ///     Gets or sets the maximum number of recommendations per user.
-    /// </summary>
-    [JsonPropertyName("recommendationCount")]
-    public int RecommendationCount { get; set; } = 20;
 
     // === Historical Data ===
 

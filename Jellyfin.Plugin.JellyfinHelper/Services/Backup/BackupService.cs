@@ -115,9 +115,8 @@ public class BackupService : IBackupService
             TrashFolderPath = config.TrashFolderPath,
             TrashRetentionDays = config.TrashRetentionDays,
 
-            // Smart Recommendations
-            RecommendationsTaskMode = config.RecommendationsTaskMode.ToString(),
-            RecommendationCount = config.RecommendationCount
+            // Smart Recommendations (only task mode — count and strategy use sensible defaults)
+            RecommendationsTaskMode = config.RecommendationsTaskMode.ToString()
         };
 
         // Arr instances
@@ -287,13 +286,8 @@ public class BackupService : IBackupService
             : backup.TrashFolderPath;
         config.TrashRetentionDays = Math.Clamp(backup.TrashRetentionDays, 0, BackupValidator.MaxRetentionDays);
 
-        // Smart Recommendations
+        // Smart Recommendations (only task mode — count and strategy use sensible defaults)
         config.RecommendationsTaskMode = ParseTaskMode(backup.RecommendationsTaskMode);
-        if (backup.RecommendationCount > 0)
-        {
-            config.RecommendationCount = Math.Clamp(
-                backup.RecommendationCount, 1, BackupValidator.MaxRecommendationCount);
-        }
 
         // Arr instances
         config.RadarrInstances.Clear();

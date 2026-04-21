@@ -51,9 +51,8 @@ public static class BackupSanitizer
         // Seerr task mode
         backup.SeerrCleanupTaskMode = SanitizeTaskMode(backup.SeerrCleanupTaskMode);
 
-        // Smart Recommendations
+        // Smart Recommendations (only task mode — count and strategy are not backed up)
         backup.RecommendationsTaskMode = SanitizeTaskMode(backup.RecommendationsTaskMode);
-        backup.RecommendationCount = Math.Clamp(backup.RecommendationCount, 1, BackupValidator.MaxRecommendationCount);
 
         // Arr instances
         SanitizeArrInstances(backup.RadarrInstances);
