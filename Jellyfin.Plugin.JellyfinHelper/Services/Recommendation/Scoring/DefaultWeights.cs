@@ -24,7 +24,7 @@ public static class DefaultWeights
     public const double YearProximityScore = 0.05;
 
     /// <summary>Weight for normalized genre count signal.</summary>
-    public const double GenreCountNormalized = 0.03;
+    public const double GenreCountNormalized = 0.02;
 
     /// <summary>Weight for series type signal (neutral — no inherent preference).</summary>
     public const double IsSeries = 0.00;
@@ -58,7 +58,20 @@ public static class DefaultWeights
     ///     A small positive weight that gently nudges recommendations towards items
     ///     outside the user's usual genre preferences, promoting discovery of new content.
     /// </summary>
-    public const double NoveltyScore = 0.04;
+    public const double NoveltyScore = 0.02;
+
+    /// <summary>
+    ///     Weight for people (cast/director) similarity signal.
+    ///     Items featuring actors or directors from the user's watched content get a small boost.
+    ///     Currently set to 0 because PeopleSimilarity data is not yet populated (requires batch People loading).
+    /// </summary>
+    public const double PeopleSimilarity = 0.00;
+
+    /// <summary>
+    ///     Weight for studio match signal.
+    ///     Items from studios the user has watched before get a small positive boost.
+    /// </summary>
+    public const double StudioMatch = 0.03;
 
     /// <summary>Default bias term for the learned strategy.</summary>
     public const double Bias = 0.05;
@@ -83,6 +96,8 @@ public static class DefaultWeights
         weights[(int)FeatureIndex.CompletionRatio] = CompletionRatio;
         weights[(int)FeatureIndex.IsAbandoned] = IsAbandoned;
         weights[(int)FeatureIndex.NoveltyScore] = NoveltyScore;
+        weights[(int)FeatureIndex.PeopleSimilarity] = PeopleSimilarity;
+        weights[(int)FeatureIndex.StudioMatch] = StudioMatch;
         return weights;
     }
 }

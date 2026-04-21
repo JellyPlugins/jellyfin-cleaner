@@ -46,6 +46,12 @@ public enum FeatureIndex
 
     /// <summary>Novelty score (1 − GenreSimilarity). Rewards items outside the user's usual genre preferences to promote serendipity.</summary>
     NoveltyScore = 12,
+
+    /// <summary>People similarity score (0–1). Measures overlap of cast/directors with user's preferred people.</summary>
+    PeopleSimilarity = 13,
+
+    /// <summary>Studio similarity flag (0 or 1). Whether the item is from a studio the user has watched before.</summary>
+    StudioMatch = 14,
 }
 
 /// <summary>
@@ -57,7 +63,7 @@ public sealed class CandidateFeatures
     /// <summary>
     ///     The number of features produced by <see cref="ToVector"/>.
     /// </summary>
-    public const int FeatureCount = 13;
+    public const int FeatureCount = 15;
 
     /// <summary>
     ///     Normalization ceiling for genre count (items with ≥ this many genres map to 1.0).
@@ -78,6 +84,7 @@ public sealed class CandidateFeatures
     private double _yearProximityScore;
     private double _userRatingScore = 0.5;
     private double _completionRatio;
+    private double _peopleSimilarity;
 
     /// <summary>Gets or sets the genre similarity score (0–1). Values are clamped to [0, 1].</summary>
     public double GenreSimilarity
@@ -134,6 +141,16 @@ public sealed class CandidateFeatures
         set => _completionRatio = Math.Clamp(value, 0.0, 1.0);
     }
 
+    /// <summary>Gets or sets the people (cast/director) similarity score (0–1). Values are clamped to [0, 1].</summary>
+    public double PeopleSimilarity
+    {
+        get => _peopleSimilarity;
+        set => _peopleSimilarity = Math.Clamp(value, 0.0, 1.0);
+    }
+
+    /// <summary>Gets or sets a value indicating whether the item is from a studio the user has watched before.</summary>
+    public bool StudioMatch { get; set; }
+
     /// <summary>
     ///     Converts the features into a fixed-size double array for ML processing.
     ///     Order is defined by <see cref="FeatureIndex"/>.
@@ -178,5 +195,7 @@ public sealed class CandidateFeatures
         buffer[(int)FeatureIndex.CompletionRatio] = CompletionRatio;
         buffer[(int)FeatureIndex.IsAbandoned] = CompletionRatio < AbandonedThreshold ? 1.0 : 0.0;
         buffer[(int)FeatureIndex.NoveltyScore] = 1.0 - GenreSimilarity;
+        buffer[(int)FeatureIndex.PeopleSimilarity] = PeopleSimilarity;
+        buffer[(int)FeatureIndex.StudioMatch] = StudioMatch ? 1.0 : 0.0;
     }
 }

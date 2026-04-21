@@ -193,6 +193,13 @@ public sealed class RecommendationEngine : IRecommendationEngine
             var collaborativeMax = coOccurrence.Count > 0 ? (double)coOccurrence.Values.Max() : 0;
             var avgYear = ComputeAverageYear(userProfile);
 
+            // Build O(1) lookup for watched items per user (Fix #4: replaces O(n) LINQ scan per rec)
+            var watchedItemLookup = new Dictionary<Guid, WatchedItemInfo>(userProfile.WatchedItems.Count);
+            foreach (var w in userProfile.WatchedItems)
+            {
+                watchedItemLookup.TryAdd(w.ItemId, w);
+            }
+
             foreach (var rec in prevResult.Recommendations)
             {
                 // Determine label: did the user watch this item since it was recommended?
@@ -200,9 +207,8 @@ public sealed class RecommendationEngine : IRecommendationEngine
                     || (watchedSeriesIds?.Contains(rec.ItemId) ?? false);
 
                 // Recompute features for this candidate (scores may have shifted)
-                // Look up user-specific signals (rating, completion) for training feature parity
-                var watchedItemForRec = userProfile.WatchedItems
-                    .FirstOrDefault(w => w.ItemId == rec.ItemId);
+                // Look up user-specific signals via O(1) dictionary instead of O(n) LINQ scan (Fix #4)
+                watchedItemLookup.TryGetValue(rec.ItemId, out var watchedItemForRec);
 
                 var features = new CandidateFeatures
                 {
@@ -384,6 +390,22 @@ public sealed class RecommendationEngine : IRecommendationEngine
             watchedItemLookup.TryAdd(w.ItemId, w);
         }
 
+        // Build a lookup of watched episodes grouped by series ID for series-level aggregation (Fix #2)
+        var seriesEpisodeLookup = new Dictionary<Guid, List<WatchedItemInfo>>();
+        foreach (var w in userProfile.WatchedItems)
+        {
+            if (w.SeriesId.HasValue)
+            {
+                if (!seriesEpisodeLookup.TryGetValue(w.SeriesId.Value, out var list))
+                {
+                    list = new List<WatchedItemInfo>();
+                    seriesEpisodeLookup[w.SeriesId.Value] = list;
+                }
+
+                list.Add(w);
+            }
+        }
+
         // Build the set of already-watched item IDs for this user (movies + episodes)
         var watchedIds = new HashSet<Guid>(
             userProfile.WatchedItems.Where(w => w.Played).Select(w => w.ItemId));
@@ -406,6 +428,9 @@ public sealed class RecommendationEngine : IRecommendationEngine
         // Compute the user's average watched year for year-proximity scoring
         var avgYear = ComputeAverageYear(userProfile);
 
+        // Build user's preferred studios set from watched items for StudioMatch feature (Fix #5)
+        var preferredStudios = BuildStudioPreferenceSet(userProfile, allCandidates, watchedIds, watchedSeriesIds);
+
         // Score each candidate that the user has NOT watched
         var scored = new List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>();
 
@@ -417,10 +442,23 @@ public sealed class RecommendationEngine : IRecommendationEngine
                 continue;
             }
 
-            // Skip series where user has already watched episodes
+            // Skip fully-watched series but keep partially-watched ones for "continue watching" (Fix #3)
             if (candidate is Series && watchedSeriesIds.Contains(candidate.Id))
             {
-                continue;
+                if (seriesEpisodeLookup.TryGetValue(candidate.Id, out var seriesEps))
+                {
+                    var playedCount = seriesEps.Count(e => e.Played);
+                    // Only skip if user has watched ≥90% of episodes — series is effectively completed
+                    if (seriesEps.Count > 0 && (double)playedCount / seriesEps.Count >= 0.9)
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    // No episode data available, skip conservatively
+                    continue;
+                }
             }
 
             var genreScore = ComputeGenreSimilarity(candidate.Genres ?? [], genrePreferences);
@@ -430,9 +468,34 @@ public sealed class RecommendationEngine : IRecommendationEngine
             var yearScore = ComputeYearProximity(candidate.ProductionYear, avgYear);
 
             // Compute user-specific signals for this candidate (O(1) via lookup)
-            watchedItemLookup.TryGetValue(candidate.Id, out var watchedItem);
-            var userRatingScore = ComputeUserRatingScore(watchedItem);
-            var completionRatio = ComputeCompletionRatio(watchedItem);
+            // For series candidates, aggregate from watched episodes (Fix #2)
+            double userRatingScore;
+            double completionRatio;
+
+            if (candidate is Series && seriesEpisodeLookup.TryGetValue(candidate.Id, out var episodesForScoring))
+            {
+                // Aggregate user rating: average of rated episodes
+                var ratedEpisodes = episodesForScoring.Where(e => e.UserRating is > 0).ToList();
+                userRatingScore = ratedEpisodes.Count > 0
+                    ? Math.Clamp(ratedEpisodes.Average(e => e.UserRating!.Value) / 10.0, 0.0, 1.0)
+                    : 0.5;
+
+                // Aggregate completion: fraction of episodes played
+                var playedEps = episodesForScoring.Count(e => e.Played);
+                completionRatio = episodesForScoring.Count > 0
+                    ? Math.Clamp((double)playedEps / episodesForScoring.Count, 0.0, 1.0)
+                    : 0.0;
+            }
+            else
+            {
+                watchedItemLookup.TryGetValue(candidate.Id, out var watchedItem);
+                userRatingScore = ComputeUserRatingScore(watchedItem);
+                completionRatio = ComputeCompletionRatio(watchedItem);
+            }
+
+            // Compute studio match (Fix #5)
+            var studioMatch = candidate.Studios is { Length: > 0 }
+                && candidate.Studios.Any(s => preferredStudios.Contains(s));
 
             // Build feature vector and delegate scoring to strategy
             var features = new CandidateFeatures
@@ -445,7 +508,10 @@ public sealed class RecommendationEngine : IRecommendationEngine
                 GenreCount = candidate.Genres?.Length ?? 0,
                 IsSeries = candidate is Series,
                 UserRatingScore = userRatingScore,
-                CompletionRatio = completionRatio
+                CompletionRatio = completionRatio,
+                // PeopleSimilarity is left at default 0 — requires expensive per-item People queries.
+                // TODO: Integrate when WatchedItemInfo carries People data or batch People loading is available.
+                StudioMatch = studioMatch
             };
 
             var explanation = strategy.ScoreWithExplanation(features);
@@ -583,7 +649,17 @@ public sealed class RecommendationEngine : IRecommendationEngine
         var userWatchedIds = new HashSet<Guid>(
             userProfile.WatchedItems.Where(w => w.Played).Select(w => w.ItemId));
 
-        if (userWatchedIds.Count == 0)
+        // Also include series IDs so that episode overlap can boost the parent series candidate
+        var userWatchedSeriesIds = new HashSet<Guid>(
+            userProfile.WatchedItems
+                .Where(w => w.Played && w.SeriesId.HasValue)
+                .Select(w => w.SeriesId!.Value));
+
+        // Combined set for Jaccard computation (episodes + series)
+        var userCombinedIds = new HashSet<Guid>(userWatchedIds);
+        userCombinedIds.UnionWith(userWatchedSeriesIds);
+
+        if (userCombinedIds.Count == 0)
         {
             return coOccurrence;
         }
@@ -598,26 +674,35 @@ public sealed class RecommendationEngine : IRecommendationEngine
                 continue;
             }
 
-            var otherWatchedIds = new HashSet<Guid>(
+            var otherCombinedIds = new HashSet<Guid>(
                 otherProfile.WatchedItems.Where(w => w.Played).Select(w => w.ItemId));
 
-            if (otherWatchedIds.Count == 0)
+            // Also include series IDs from other users' episode watches
+            foreach (var w in otherProfile.WatchedItems)
+            {
+                if (w.Played && w.SeriesId.HasValue)
+                {
+                    otherCombinedIds.Add(w.SeriesId.Value);
+                }
+            }
+
+            if (otherCombinedIds.Count == 0)
             {
                 continue;
             }
 
-            otherUserSets[otherProfile.UserId] = otherWatchedIds;
+            otherUserSets[otherProfile.UserId] = otherCombinedIds;
         }
 
         // Compute overlap + Jaccard per other user (cached to avoid recomputation)
         var jaccardCache = new Dictionary<Guid, double>();
 
-        foreach (var (otherUserId, otherWatchedIds) in otherUserSets)
+        foreach (var (otherUserId, otherCombinedIds) in otherUserSets)
         {
             var overlap = 0;
-            foreach (var id in userWatchedIds)
+            foreach (var id in userCombinedIds)
             {
-                if (otherWatchedIds.Contains(id))
+                if (otherCombinedIds.Contains(id))
                 {
                     overlap++;
                 }
@@ -628,14 +713,15 @@ public sealed class RecommendationEngine : IRecommendationEngine
                 continue;
             }
 
-            var union = userWatchedIds.Count + otherWatchedIds.Count - overlap;
+            var union = userCombinedIds.Count + otherCombinedIds.Count - overlap;
             var weight = union > 0 ? (double)overlap / union : 0.0;
             jaccardCache[otherUserId] = weight;
 
             // Accumulate Jaccard-weighted co-occurrence for items the other user watched but we haven't
-            foreach (var itemId in otherWatchedIds)
+            // This now includes both episode IDs AND series IDs, so series candidates get collaborative scores
+            foreach (var itemId in otherCombinedIds)
             {
-                if (!userWatchedIds.Contains(itemId))
+                if (!userCombinedIds.Contains(itemId))
                 {
                     coOccurrence.TryGetValue(itemId, out var current);
                     coOccurrence[itemId] = current + weight;
@@ -949,6 +1035,67 @@ public sealed class RecommendationEngine : IRecommendationEngine
 
         var union = setA.Count + setB.Count - intersection;
         return union > 0 ? (double)intersection / union : 0;
+    }
+
+    /// <summary>
+    ///     Builds a set of studio names the user prefers, derived from their watched items.
+    ///     Looks up the actual BaseItem objects from the candidate pool to access Studios metadata.
+    /// </summary>
+    /// <param name="userProfile">The user's watch profile.</param>
+    /// <param name="allCandidates">All candidate items (used to look up studio metadata).</param>
+    /// <param name="watchedIds">Set of item IDs the user has watched.</param>
+    /// <param name="watchedSeriesIds">Set of series IDs the user has watched episodes of.</param>
+    /// <returns>A HashSet of preferred studio names (case-insensitive).</returns>
+    internal static HashSet<string> BuildStudioPreferenceSet(
+        UserWatchProfile userProfile,
+        List<BaseItem> allCandidates,
+        HashSet<Guid> watchedIds,
+        HashSet<Guid> watchedSeriesIds)
+    {
+        var studios = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Build a quick lookup from candidates by ID
+        var candidateLookup = new Dictionary<Guid, BaseItem>(allCandidates.Count);
+        foreach (var c in allCandidates)
+        {
+            candidateLookup.TryAdd(c.Id, c);
+        }
+
+        // Collect studios from watched movies and series
+        foreach (var w in userProfile.WatchedItems)
+        {
+            if (!w.Played)
+            {
+                continue;
+            }
+
+            // Try direct item match (movies)
+            if (candidateLookup.TryGetValue(w.ItemId, out var item) && item.Studios is { Length: > 0 })
+            {
+                foreach (var s in item.Studios)
+                {
+                    if (!string.IsNullOrWhiteSpace(s))
+                    {
+                        studios.Add(s);
+                    }
+                }
+            }
+
+            // Also try series match (episodes → parent series)
+            if (w.SeriesId.HasValue && candidateLookup.TryGetValue(w.SeriesId.Value, out var seriesItem)
+                && seriesItem.Studios is { Length: > 0 })
+            {
+                foreach (var s in seriesItem.Studios)
+                {
+                    if (!string.IsNullOrWhiteSpace(s))
+                    {
+                        studios.Add(s);
+                    }
+                }
+            }
+        }
+
+        return studios;
     }
 
     /// <summary>

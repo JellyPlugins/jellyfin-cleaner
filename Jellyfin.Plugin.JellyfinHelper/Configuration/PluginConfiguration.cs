@@ -143,6 +143,12 @@ public class PluginConfiguration : BasePluginConfiguration
     public TaskMode RecommendationsTaskMode { get; set; } = TaskMode.DryRun;
 
     /// <summary>
+    ///     Gets or sets the maximum number of recommendations to generate per user.
+    ///     Default is 20. Valid range: 1–100.
+    /// </summary>
+    public int MaxRecommendationsPerUser { get; set; } = 20;
+
+    /// <summary>
     ///     Gets or sets the scoring strategy for recommendations.
     ///     Valid values: "ensemble" (default), "heuristic", "learned".
     /// </summary>
