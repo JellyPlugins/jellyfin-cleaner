@@ -440,7 +440,7 @@ public class HelperCleanupTask : IScheduledTask
                     _logger);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
         {
             _pluginLog.LogWarning("HelperCleanup", "Strategy training failed — continuing with current weights.", ex, _logger);
         }

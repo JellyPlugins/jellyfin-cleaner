@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Jellyfin.Data.Enums;
-using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
@@ -241,19 +240,13 @@ public sealed class RecommendationEngine : IRecommendationEngine
     }
 
     /// <summary>
-    ///     Resolves the active scoring strategy based on plugin configuration.
+    ///     Resolves the scoring strategy. Always uses the adaptive learned strategy
+    ///     which starts with heuristic-like weights and improves over time via training.
     /// </summary>
-    /// <returns>The scoring strategy to use.</returns>
+    /// <returns>The learned scoring strategy.</returns>
     internal static IScoringStrategy ResolveStrategy()
     {
-        var config = Plugin.Instance?.Configuration;
-        var strategyType = config?.RecommendationScoringStrategy ?? ScoringStrategyType.Heuristic;
-
-        return strategyType switch
-        {
-            ScoringStrategyType.Learned => CreateLearnedStrategy(),
-            _ => new HeuristicScoringStrategy()
-        };
+        return CreateLearnedStrategy();
     }
 
     /// <summary>

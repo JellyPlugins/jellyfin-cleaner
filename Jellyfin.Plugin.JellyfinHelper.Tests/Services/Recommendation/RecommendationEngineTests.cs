@@ -374,10 +374,10 @@ public class RecommendationEngineTests
     }
 
     [Fact]
-    public void ResolveStrategy_NoPluginInstance_ReturnsHeuristic()
+    public void ResolveStrategy_AlwaysReturnsLearnedStrategy()
     {
-        // Plugin.Instance is null in unit tests → should fall back to Heuristic
+        // Strategy is always Learned (adaptive ML), regardless of Plugin.Instance state
         var strategy = RecommendationEngine.ResolveStrategy();
-        Assert.IsType<HeuristicScoringStrategy>(strategy);
+        Assert.IsType<LearnedScoringStrategy>(strategy);
     }
 }

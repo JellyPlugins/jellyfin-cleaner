@@ -149,12 +149,6 @@ public class PluginConfiguration : BasePluginConfiguration
     public int RecommendationCount { get; set; } = 20;
 
     /// <summary>
-    ///     Gets or sets the scoring strategy for recommendations.
-    ///     Default is <see cref="ScoringStrategyType.Heuristic" /> (fixed weights).
-    /// </summary>
-    public ScoringStrategyType RecommendationScoringStrategy { get; set; } = ScoringStrategyType.Heuristic;
-
-    /// <summary>
     ///     Gets or sets the minimum log level for the plugin's in-memory log buffer.
     ///     Supported values: DEBUG, INFO, WARN, ERROR. Default is "INFO".
     /// </summary>
