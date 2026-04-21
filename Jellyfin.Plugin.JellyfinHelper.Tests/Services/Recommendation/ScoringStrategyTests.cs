@@ -1305,4 +1305,274 @@ public sealed class ScoringStrategyTests : IDisposable
         Assert.Equal(0.3, blended.CollaborativeContribution, 10);
         Assert.Equal("Genre", blended.DominantSignal); // 0.7 > 0.3
     }
+
+    // ============================================================
+    // DefaultWeights Tests
+    // ============================================================
+
+    [Fact]
+    public void DefaultWeights_CreateWeightArray_HasCorrectLength()
+    {
+        var weights = DefaultWeights.CreateWeightArray();
+        Assert.Equal(CandidateFeatures.FeatureCount, weights.Length);
+    }
+
+    [Fact]
+    public void DefaultWeights_CreateWeightArray_MatchesConstants()
+    {
+        var weights = DefaultWeights.CreateWeightArray();
+
+        Assert.Equal(DefaultWeights.GenreSimilarity, weights[(int)FeatureIndex.GenreSimilarity], 15);
+        Assert.Equal(DefaultWeights.CollaborativeScore, weights[(int)FeatureIndex.CollaborativeScore], 15);
+        Assert.Equal(DefaultWeights.RatingScore, weights[(int)FeatureIndex.RatingScore], 15);
+        Assert.Equal(DefaultWeights.RecencyScore, weights[(int)FeatureIndex.RecencyScore], 15);
+        Assert.Equal(DefaultWeights.YearProximityScore, weights[(int)FeatureIndex.YearProximityScore], 15);
+        Assert.Equal(DefaultWeights.GenreCountNormalized, weights[(int)FeatureIndex.GenreCountNormalized], 15);
+        Assert.Equal(DefaultWeights.IsSeries, weights[(int)FeatureIndex.IsSeries], 15);
+        Assert.Equal(DefaultWeights.GenreRatingInteraction, weights[(int)FeatureIndex.GenreRatingInteraction], 15);
+        Assert.Equal(DefaultWeights.GenreCollabInteraction, weights[(int)FeatureIndex.GenreCollabInteraction], 15);
+        Assert.Equal(DefaultWeights.UserRatingScore, weights[(int)FeatureIndex.UserRatingScore], 15);
+        Assert.Equal(DefaultWeights.CompletionRatio, weights[(int)FeatureIndex.CompletionRatio], 15);
+    }
+
+    [Fact]
+    public void DefaultWeights_WeightsExcludingBias_SumToOne()
+    {
+        var weights = DefaultWeights.CreateWeightArray();
+        var sum = 0.0;
+        for (var i = 0; i < weights.Length; i++)
+        {
+            sum += weights[i];
+        }
+
+        Assert.Equal(1.0, sum, 10);
+    }
+
+    // ============================================================
+    // TrainingExample — Temporal Decay Tests
+    // ============================================================
+
+    [Fact]
+    public void TrainingExample_ComputeTemporalWeight_NowReturnsOne()
+    {
+        var now = DateTime.UtcNow;
+        var example = new TrainingExample
+        {
+            Features = new CandidateFeatures { GenreSimilarity = 0.5 },
+            Label = 1.0,
+            GeneratedAtUtc = now
+        };
+
+        Assert.Equal(1.0, example.ComputeTemporalWeight(now), 10);
+    }
+
+    [Fact]
+    public void TrainingExample_ComputeTemporalWeight_HalfLifeReturnsHalf()
+    {
+        var now = DateTime.UtcNow;
+        var example = new TrainingExample
+        {
+            Features = new CandidateFeatures { GenreSimilarity = 0.5 },
+            Label = 1.0,
+            GeneratedAtUtc = now.AddDays(-TrainingExample.TemporalDecayHalfLifeDays)
+        };
+
+        Assert.Equal(0.5, example.ComputeTemporalWeight(now), 4);
+    }
+
+    [Fact]
+    public void TrainingExample_ComputeTemporalWeight_FutureExampleReturnsOne()
+    {
+        var now = DateTime.UtcNow;
+        var example = new TrainingExample
+        {
+            Features = new CandidateFeatures { GenreSimilarity = 0.5 },
+            Label = 1.0,
+            GeneratedAtUtc = now.AddDays(10) // Future
+        };
+
+        Assert.Equal(1.0, example.ComputeTemporalWeight(now), 10);
+    }
+
+    [Fact]
+    public void TrainingExample_ComputeTemporalWeight_OldExampleDecaysTowardZero()
+    {
+        var now = DateTime.UtcNow;
+        var example = new TrainingExample
+        {
+            Features = new CandidateFeatures { GenreSimilarity = 0.5 },
+            Label = 1.0,
+            GeneratedAtUtc = now.AddDays(-365) // ~1 year old
+        };
+
+        var weight = example.ComputeTemporalWeight(now);
+        Assert.True(weight > 0.0, "Weight should be positive");
+        Assert.True(weight < 0.1, $"Weight for 365-day-old example should be very small, got {weight:F6}");
+    }
+
+    [Fact]
+    public void TrainingExample_ComputeEffectiveWeight_CombinesSampleAndTemporal()
+    {
+        var now = DateTime.UtcNow;
+        var example = new TrainingExample
+        {
+            Features = new CandidateFeatures { GenreSimilarity = 0.5 },
+            Label = 1.0,
+            SampleWeight = 0.5,
+            GeneratedAtUtc = now
+        };
+
+        Assert.Equal(0.5, example.ComputeEffectiveWeight(now), 10);
+    }
+
+    [Fact]
+    public void TrainingExample_Label_ClampedToZeroOne()
+    {
+        var example = new TrainingExample
+        {
+            Features = new CandidateFeatures(),
+            Label = 2.0
+        };
+        Assert.Equal(1.0, example.Label, 15);
+
+        example.Label = -1.0;
+        Assert.Equal(0.0, example.Label, 15);
+    }
+
+    // ============================================================
+    // ScoringHelper Tests
+    // ============================================================
+
+    [Fact]
+    public void ScoringHelper_ComputeRawScore_MatchesManualCalculation()
+    {
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 0.8,
+            CollaborativeScore = 0.5,
+            RatingScore = 0.7,
+            RecencyScore = 0.3,
+            YearProximityScore = 0.4,
+            GenreCount = 3,
+            IsSeries = false,
+            UserRatingScore = 0.6,
+            CompletionRatio = 0.5
+        };
+
+        var vector = features.ToVector();
+        var weights = DefaultWeights.CreateWeightArray();
+        var bias = 0.0;
+
+        var rawScore = ScoringHelper.ComputeRawScore(vector, weights, bias);
+
+        // Manual calculation
+        var expected = 0.0;
+        for (var i = 0; i < vector.Length; i++)
+        {
+            expected += vector[i] * weights[i];
+        }
+
+        Assert.Equal(expected, rawScore, 12);
+    }
+
+    [Fact]
+    public void ScoringHelper_BuildExplanation_ScoreMatchesComputeRawScore()
+    {
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 0.6,
+            CollaborativeScore = 0.4,
+            RatingScore = 0.8,
+            RecencyScore = 0.2,
+            YearProximityScore = 0.5,
+            GenreCount = 2,
+            UserRatingScore = 0.7,
+            CompletionRatio = 0.3
+        };
+
+        var vector = features.ToVector();
+        var weights = DefaultWeights.CreateWeightArray();
+        var bias = DefaultWeights.Bias;
+
+        var explanation = ScoringHelper.BuildExplanation(vector, weights, bias, "Test");
+        var rawScore = ScoringHelper.ComputeRawScore(vector, weights, bias);
+        var expectedScore = Math.Clamp(rawScore, 0.0, 1.0);
+
+        Assert.Equal(expectedScore, explanation.FinalScore, 12);
+        Assert.Equal("Test", explanation.StrategyName);
+        Assert.False(string.IsNullOrEmpty(explanation.DominantSignal));
+    }
+
+    [Fact]
+    public void ScoringHelper_BuildExplanation_ContributionsSumApproximatelyToScore()
+    {
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 0.5,
+            CollaborativeScore = 0.3,
+            RatingScore = 0.6,
+            RecencyScore = 0.4,
+            YearProximityScore = 0.5,
+            GenreCount = 2,
+            UserRatingScore = 0.5,
+            CompletionRatio = 0.4
+        };
+
+        var vector = features.ToVector();
+        var weights = DefaultWeights.CreateWeightArray();
+        var bias = 0.0; // Zero bias so contributions should sum to score
+
+        var explanation = ScoringHelper.BuildExplanation(vector, weights, bias, "Test");
+
+        var contributionSum = explanation.GenreContribution
+            + explanation.CollaborativeContribution
+            + explanation.RatingContribution
+            + explanation.RecencyContribution
+            + explanation.YearProximityContribution
+            + explanation.UserRatingContribution
+            + explanation.InteractionContribution;
+
+        Assert.Equal(explanation.FinalScore, contributionSum, 6);
+    }
+
+    // ============================================================
+    // Ensemble State Persistence Tests
+    // ============================================================
+
+    [Fact]
+    public void Ensemble_State_PersistsAndRestores()
+    {
+        var statePath = Path.Combine(_tempDir, "ensemble_state.json");
+        var weightsPath = Path.Combine(_tempDir, "ml_weights.json");
+
+        var learned = new LearnedScoringStrategy(weightsPath);
+        var heuristic = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
+
+        var original = new EnsembleScoringStrategy(learned, heuristic, statePath);
+        var examples = GenerateTrainingExamples(100);
+        original.Train(examples);
+
+        var originalAlpha = original.CurrentAlpha;
+        var originalCount = original.TrainingExampleCount;
+
+        // Create new instance with same state path — should restore state
+        var learned2 = new LearnedScoringStrategy(weightsPath);
+        var heuristic2 = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
+        var restored = new EnsembleScoringStrategy(learned2, heuristic2, statePath);
+
+        Assert.Equal(originalCount, restored.TrainingExampleCount);
+        Assert.Equal(originalAlpha, restored.CurrentAlpha, 4);
+    }
+
+    [Fact]
+    public void Ensemble_State_MissingFileStartsFromDefaults()
+    {
+        var statePath = Path.Combine(_tempDir, "nonexistent_state.json");
+        var learned = new LearnedScoringStrategy();
+        var heuristic = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
+        var strategy = new EnsembleScoringStrategy(learned, heuristic, statePath);
+
+        Assert.Equal(EnsembleScoringStrategy.DefaultAlphaMin, strategy.CurrentAlpha, 4);
+        Assert.Equal(0, strategy.TrainingExampleCount);
+    }
 }

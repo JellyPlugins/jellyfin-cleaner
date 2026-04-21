@@ -151,8 +151,12 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   ├── IScoringStrategy.cs              # Strategy interface for candidate scoring
 │   │   ├── HeuristicScoringStrategy.cs      # Rule-based scoring
 │   │   ├── LearnedScoringStrategy.cs        # Gradient-descent ML scoring
+│   │   ├── EnsembleScoringStrategy.cs       # Adaptive ML + rules blend
+│   │   ├── ScoringHelper.cs                 # Shared scoring utilities
+│   │   ├── DefaultWeights.cs                # Centralized default weights
+│   │   ├── ScoreExplanation.cs              # Per-score breakdown model
+│   │   ├── TrainingExample.cs               # Labelled training data with temporal decay
 │   │   ├── CandidateFeatures.cs             # Feature vector struct for ML
-│   │   ├── TrainingExample.cs               # Labeled training example
 │   │   ├── IRecommendationCacheService.cs   # Cache interface
 │   │   ├── RecommendationCacheService.cs    # Disk-persisted cache
 │   │   ├── RecommendationResult.cs          # Result DTO
@@ -527,10 +531,10 @@ Sub-tasks executed in order (each respecting its configured task mode):
 
 ### Smart Recommendations
 
-- **ML-powered per-user recommendations** using dual scoring strategy
-- **Heuristic scoring** — Rule-based scoring using genre overlap, actor/director/studio match, community rating, recency, and popularity
+- **ML-powered per-user recommendations** using three-tier scoring architecture (Heuristic + Learned + Ensemble blend)
+- **Heuristic scoring** — Rule-based scoring using genre overlap, community rating, recency, year proximity, collaborative filtering, and interaction terms
 - **Learned scoring** — Gradient-descent trained linear model that learns per-user weights from positive (watched) and implicit negative (skipped) examples
-- **Watch profile analysis** — Aggregates per-user genre, actor, director, and studio frequencies from Jellyfin playback data
+- **Watch profile analysis** — Aggregates per-user genre frequencies from Jellyfin playback data
 - **Candidate filtering** — Excludes already-watched items; scores all unwatched candidates against the user's profile
 - **Configurable** — `RecommendationsTaskMode` (DryRun/Activate/Deactivate); generates up to 20 recommendations per user (fixed)
 - **Disk-persisted cache** — Results cached to `recommendations_cache.json` and served from cache until next scheduled run

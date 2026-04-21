@@ -104,21 +104,21 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         var config = Jellyfin.Plugin.JellyfinHelper.Plugin.Instance?.Configuration;
         var strategy = config?.RecommendationStrategy ?? "ensemble";
 
-        switch (strategy.ToLowerInvariant())
+        if (string.Equals(strategy, "heuristic", StringComparison.OrdinalIgnoreCase))
         {
-            case "heuristic":
-                return (IScoringStrategy?)sp.GetService(typeof(HeuristicScoringStrategy))
-                    ?? new HeuristicScoringStrategy();
-
-            case "learned":
-                var ensembleForLearned =
-                    (EnsembleScoringStrategy?)sp.GetService(typeof(EnsembleScoringStrategy));
-                return ensembleForLearned?.LearnedStrategy
-                    ?? (IScoringStrategy)new LearnedScoringStrategy();
-
-            default:
-                return (IScoringStrategy?)sp.GetService(typeof(EnsembleScoringStrategy))
-                    ?? new EnsembleScoringStrategy();
+            return (IScoringStrategy?)sp.GetService(typeof(HeuristicScoringStrategy))
+                ?? new HeuristicScoringStrategy();
         }
+
+        if (string.Equals(strategy, "learned", StringComparison.OrdinalIgnoreCase))
+        {
+            var ensembleForLearned =
+                (EnsembleScoringStrategy?)sp.GetService(typeof(EnsembleScoringStrategy));
+            return ensembleForLearned?.LearnedStrategy
+                ?? (IScoringStrategy)new LearnedScoringStrategy();
+        }
+
+        return (IScoringStrategy?)sp.GetService(typeof(EnsembleScoringStrategy))
+            ?? new EnsembleScoringStrategy();
     }
 }

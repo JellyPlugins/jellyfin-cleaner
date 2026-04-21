@@ -59,8 +59,7 @@ internal static class ScoringHelper
             (vector[(int)FeatureIndex.GenreCollabInteraction] * weights[(int)FeatureIndex.GenreCollabInteraction]) +
             (vector[(int)FeatureIndex.CompletionRatio] * weights[(int)FeatureIndex.CompletionRatio]);
 
-        var rawScore = bias + genreContrib + collabContrib + ratingContrib + recencyContrib
-            + yearProxContrib + userRatingContrib + interactionContrib;
+        var rawScore = ComputeRawScore(vector, weights, bias);
         var score = Math.Clamp(rawScore, 0.0, 1.0);
 
         return new ScoreExplanation
