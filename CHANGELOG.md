@@ -22,6 +22,8 @@ and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin
 - **i18n** — All 7 language files (en, de, fr, es, pt, zh, tr) updated with Discover tab translations (tab label, recommendation cards, activity summaries, empty states).
 - **Documentation** — Updated README.md, CONTRIBUTING.md, manifest.json, build.yaml, and CHANGELOG.md for the new Discover tab and all associated features.
 
+### Fixed
+- **Trends Tab** — "Largest" and "Recent" sections in the Trends tab were displaying the total size of the library in the tree view instead of the sum of the displayed objects.
 ---
 
 ## [1.2.1.0] — 2026-04-20
