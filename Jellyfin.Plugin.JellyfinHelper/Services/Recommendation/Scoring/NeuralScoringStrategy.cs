@@ -184,6 +184,8 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                 LearnedScoringStrategy.StandardizeSingleVector(vector, _featureMeans, _featureStdDevs);
             }
 
+            // Uses pre-allocated scratch buffers for zero-allocation scoring.
+            // Safe because we're under _syncRoot — no concurrent access.
             return ForwardPass(
                 vector,
                 _weightsHidden,
@@ -208,6 +210,8 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                 LearnedScoringStrategy.StandardizeSingleVector(vector, _featureMeans, _featureStdDevs);
             }
 
+            // Must allocate fresh buffers here (not shared scratch) because the
+            // hiddenPre values are needed after ForwardPass for gradient attribution.
             var hiddenPre = new double[HiddenSize];
             var hiddenAct = new double[HiddenSize];
             var score = ForwardPass(
@@ -385,7 +389,10 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                         hPre,
                         hAct);
 
-                    var outErr = (pred - examples[idx].Label) * sw;
+                    // Apply sigmoid derivative for correct backpropagation gradient:
+                    // dL/dz = (pred - label) × sigmoid'(z) × sampleWeight
+                    // where sigmoid'(z) = pred × (1 - pred)
+                    var outErr = (pred - examples[idx].Label) * pred * (1.0 - pred) * sw;
 
                     _adamTimestep++;
                     var bc1 = 1.0 - Math.Pow(AdamBeta1, _adamTimestep);

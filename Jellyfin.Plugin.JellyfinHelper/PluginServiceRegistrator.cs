@@ -98,8 +98,9 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
             var learned = sp.GetRequiredService<LearnedScoringStrategy>();
             var heuristic = sp.GetRequiredService<HeuristicScoringStrategy>();
+            var neural = sp.GetRequiredService<NeuralScoringStrategy>();
 
-            return new EnsembleScoringStrategy(learned, heuristic, statePath, alphaMin, alphaMax, genrePenaltyFloor);
+            return new EnsembleScoringStrategy(learned, heuristic, neural, statePath, alphaMin, alphaMax, genrePenaltyFloor);
         });
         serviceCollection.AddSingleton<IScoringStrategy>(ResolveScoringStrategy);
         serviceCollection.AddSingleton<IRecommendationEngine, RecommendationEngine>();

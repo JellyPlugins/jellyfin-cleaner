@@ -9,7 +9,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 public static class DefaultWeights
 {
     /// <summary>Weight for genre similarity signal (dominant).</summary>
-    public const double GenreSimilarity = 0.33;
+    public const double GenreSimilarity = 0.28;
 
     /// <summary>Weight for collaborative filtering signal.</summary>
     public const double CollaborativeScore = 0.12;
@@ -26,8 +26,13 @@ public static class DefaultWeights
     /// <summary>Weight for normalized genre count signal.</summary>
     public const double GenreCountNormalized = 0.02;
 
-    /// <summary>Weight for series type signal (neutral — no inherent preference).</summary>
-    public const double IsSeries = 0.00;
+    /// <summary>
+    ///     Weight for series type signal. A positive weight provides a small boost when the
+    ///     candidate is a series and the user's history contains series watches, enabling the
+    ///     model to learn user preference for series vs. movies. The ML model can further adjust
+    ///     this weight via training.
+    /// </summary>
+    public const double IsSeries = 0.05;
 
     /// <summary>Weight for genre × rating interaction signal.</summary>
     public const double GenreRatingInteraction = 0.06;

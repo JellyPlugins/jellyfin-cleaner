@@ -422,7 +422,7 @@ public sealed class ScoringStrategyTests : IDisposable
         var weights = strategy.CurrentWeights;
 
         Assert.Equal(CandidateFeatures.FeatureCount, weights.Length);
-        Assert.Equal(0.33, weights[0]); // genre (dominant)
+        Assert.Equal(0.28, weights[0]); // genre (dominant)
         Assert.Equal(0.12, weights[1]); // collaborative
         Assert.Equal(0.08, weights[2]); // rating
         Assert.Equal(0.06, weights[7]); // genre × rating interaction
@@ -670,7 +670,7 @@ public sealed class ScoringStrategyTests : IDisposable
         var weights = strategy.CurrentWeights;
 
         Assert.Equal(CandidateFeatures.FeatureCount, weights.Length);
-        Assert.Equal(0.33, weights[0]); // default genre weight
+        Assert.Equal(0.28, weights[0]); // default genre weight
     }
 
     [Fact]
@@ -1625,7 +1625,7 @@ public sealed class ScoringStrategyTests : IDisposable
         var learned = new LearnedScoringStrategy(weightsPath);
         var heuristic = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
 
-        var original = new EnsembleScoringStrategy(learned, heuristic, statePath);
+        var original = new EnsembleScoringStrategy(learned, heuristic, statePath: statePath);
         var examples = GenerateTrainingExamples(100);
         original.Train(examples);
 
@@ -1635,7 +1635,7 @@ public sealed class ScoringStrategyTests : IDisposable
         // Create new instance with same state path — should restore state
         var learned2 = new LearnedScoringStrategy(weightsPath);
         var heuristic2 = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
-        var restored = new EnsembleScoringStrategy(learned2, heuristic2, statePath);
+        var restored = new EnsembleScoringStrategy(learned2, heuristic2, statePath: statePath);
 
         Assert.Equal(originalCount, restored.TrainingExampleCount);
         Assert.Equal(originalAlpha, restored.CurrentAlpha, 4);
@@ -1647,7 +1647,7 @@ public sealed class ScoringStrategyTests : IDisposable
         var statePath = Path.Combine(_tempDir, "nonexistent_state.json");
         var learned = new LearnedScoringStrategy();
         var heuristic = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
-        var strategy = new EnsembleScoringStrategy(learned, heuristic, statePath);
+        var strategy = new EnsembleScoringStrategy(learned, heuristic, statePath: statePath);
 
         Assert.Equal(EnsembleScoringStrategy.DefaultAlphaMin, strategy.CurrentAlpha, 4);
         Assert.Equal(0, strategy.TrainingExampleCount);

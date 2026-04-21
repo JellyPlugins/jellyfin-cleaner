@@ -87,11 +87,26 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     /// </summary>
     internal const double ValidationLossCeiling = ValidationLossThreshold * 2.0;
 
+    /// <summary>
+    ///     Minimum cumulative training examples before the neural strategy is blended in.
+    ///     Below this threshold, the neural strategy is not used (beta = 0).
+    ///     Neural networks need more data than linear models to generalize well.
+    /// </summary>
+    internal const int NeuralActivationThreshold = 50;
+
+    /// <summary>
+    ///     Maximum fraction of the learned weight (α) that can be re-allocated to the neural strategy.
+    ///     At full progression, the neural strategy receives up to 40% of the ML budget,
+    ///     with the remaining 60% staying with the linear learned strategy.
+    /// </summary>
+    internal const double NeuralMaxBetaFraction = 0.4;
+
     /// <summary>Cached JSON serializer options for ensemble state persistence.</summary>
     private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
 
     private readonly HeuristicScoringStrategy _heuristic;
     private readonly LearnedScoringStrategy _learned;
+    private readonly NeuralScoringStrategy? _neural;
     private readonly ILogger? _logger;
     private readonly object _syncRoot = new();
     private readonly double _alphaMax;
@@ -99,6 +114,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     private readonly double _genrePenaltyFloor;
     private readonly string? _statePath;
     private double _alpha;
+    private double _neuralBeta;
     private bool _qualityGateFrozen;
     private int _trainingExampleCount;
 
@@ -108,6 +124,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     /// </summary>
     /// <param name="learned">The learned (adaptive ML) sub-strategy.</param>
     /// <param name="heuristic">The heuristic (rule-based) sub-strategy.</param>
+    /// <param name="neural">Optional neural (MLP) sub-strategy. When provided, it is blended in after sufficient training data is available.</param>
     /// <param name="statePath">Optional file path for persisting ensemble state.</param>
     /// <param name="alphaMin">Minimum blending factor.</param>
     /// <param name="alphaMax">Maximum blending factor.</param>
@@ -116,6 +133,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     public EnsembleScoringStrategy(
         LearnedScoringStrategy learned,
         HeuristicScoringStrategy heuristic,
+        NeuralScoringStrategy? neural = null,
         string? statePath = null,
         double alphaMin = DefaultAlphaMin,
         double alphaMax = DefaultAlphaMax,
@@ -128,6 +146,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         _alpha = _alphaMin;
 
         _learned = learned;
+        _neural = neural;
         // Disable penalty in sub-strategies since ensemble applies it centrally
         _heuristic = heuristic;
         _logger = logger;
@@ -153,10 +172,11 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         : this(
             new LearnedScoringStrategy(weightsPath),
             new HeuristicScoringStrategy(genrePenaltyFloor: 1.0), // disable penalty in sub-strategy
-            DeriveStatePath(weightsPath),
-            alphaMin,
-            alphaMax,
-            genrePenaltyFloor)
+            neural: null,
+            statePath: DeriveStatePath(weightsPath),
+            alphaMin: alphaMin,
+            alphaMax: alphaMax,
+            genrePenaltyFloor: genrePenaltyFloor)
     {
     }
 
@@ -219,6 +239,26 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     /// </summary>
     internal HeuristicScoringStrategy HeuristicStrategy => _heuristic;
 
+    /// <summary>
+    ///     Gets the underlying neural strategy, if any (for testing/debugging).
+    /// </summary>
+    internal NeuralScoringStrategy? NeuralStrategy => _neural;
+
+    /// <summary>
+    ///     Gets the current neural blending factor β (for testing/debugging).
+    ///     β is the fraction of the ML budget allocated to the neural strategy.
+    /// </summary>
+    internal double CurrentNeuralBeta
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _neuralBeta;
+            }
+        }
+    }
+
     /// <inheritdoc />
     public double Score(CandidateFeatures features)
     {
@@ -226,12 +266,26 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         var heuristicScore = _heuristic.Score(features);
 
         double alpha;
+        double beta;
         lock (_syncRoot)
         {
             alpha = _alpha;
+            beta = _neuralBeta;
         }
 
-        var blendedScore = (alpha * learnedScore) + ((1.0 - alpha) * heuristicScore);
+        double mlScore;
+        if (_neural is not null && beta > 0)
+        {
+            var neuralScore = _neural.Score(features);
+            // Split ML budget between learned and neural: β goes to neural, (1-β) stays with learned
+            mlScore = ((1.0 - beta) * learnedScore) + (beta * neuralScore);
+        }
+        else
+        {
+            mlScore = learnedScore;
+        }
+
+        var blendedScore = (alpha * mlScore) + ((1.0 - alpha) * heuristicScore);
         var penalty = ComputeSoftGenrePenalty(features.GenreSimilarity, _genrePenaltyFloor);
         return blendedScore * penalty;
     }
@@ -277,6 +331,9 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     {
         var result = _learned.Train(examples);
 
+        // Also train neural strategy if available (independent of learned success)
+        var neuralTrained = _neural is ITrainableStrategy trainableNeural && trainableNeural.Train(examples);
+
         if (result)
         {
             // Check validation loss quality gate
@@ -313,15 +370,41 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                     _alpha = _alphaMin + ((sigmoidAlpha - _alphaMin) * qualityFactor);
                     _qualityGateFrozen = qualityFactor < 0.01;
                 }
+
+                // Update neural beta: blend neural in after NeuralActivationThreshold
+                // using a sigmoid ramp from 0 to NeuralMaxBetaFraction.
+                // Only activate if the neural strategy was successfully trained.
+                if (_neural is not null && neuralTrained && _trainingExampleCount >= NeuralActivationThreshold)
+                {
+                    var neuralValidationLoss = _neural.LastValidationLoss;
+                    var neuralQualityOk = !double.IsNaN(neuralValidationLoss)
+                        && neuralValidationLoss <= ValidationLossThreshold;
+
+                    if (neuralQualityOk)
+                    {
+                        // Linear ramp from 0 to NeuralMaxBetaFraction over 50..150 examples
+                        var progress = Math.Clamp(
+                            (_trainingExampleCount - NeuralActivationThreshold) / 100.0,
+                            0.0,
+                            1.0);
+                        _neuralBeta = NeuralMaxBetaFraction * progress;
+                    }
+                    else
+                    {
+                        // Neural not generalizing well — reduce its influence
+                        _neuralBeta *= 0.5;
+                    }
+                }
             }
 
             // Log training quality metrics for transparency using structured logging
             _logger?.LogInformation(
-                "Training complete: examples={ExampleCount}, validationLoss={ValidationLoss:F6}, qualityGate={QualityGate}, alpha={Alpha:F4}",
+                "Training complete: examples={ExampleCount}, validationLoss={ValidationLoss:F6}, qualityGate={QualityGate}, alpha={Alpha:F4}, neuralBeta={NeuralBeta:F4}",
                 examples.Count,
                 validationLoss,
                 qualityGatePassed ? "passed" : "dampened",
-                _alpha);
+                _alpha,
+                _neuralBeta);
 
             TrySaveState();
         }
