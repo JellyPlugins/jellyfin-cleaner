@@ -81,7 +81,7 @@ internal static class ScoringHelper
         var peopleContrib = vector[(int)FeatureIndex.PeopleSimilarity] * weights[(int)FeatureIndex.PeopleSimilarity];
         var studioContrib = vector[(int)FeatureIndex.StudioMatch] * weights[(int)FeatureIndex.StudioMatch];
 
-        // Interaction + minor features (genreCount, isSeries, genre×rating, genre×collab, completionRatio, isAbandoned, hasInteraction, seriesProgression, popularity, dayOfWeek)
+        // Interaction + minor features (genreCount, isSeries, genre×rating, genre×collab, completionRatio, isAbandoned, hasInteraction, seriesProgression, popularity, dayOfWeek, hourOfDay, isWeekend)
         var interactionContrib =
             (vector[(int)FeatureIndex.GenreCountNormalized] * weights[(int)FeatureIndex.GenreCountNormalized]) +
             (vector[(int)FeatureIndex.IsSeries] * weights[(int)FeatureIndex.IsSeries]) +
@@ -92,7 +92,9 @@ internal static class ScoringHelper
             (vector[(int)FeatureIndex.HasInteraction] * weights[(int)FeatureIndex.HasInteraction]) +
             (vector[(int)FeatureIndex.SeriesProgressionBoost] * weights[(int)FeatureIndex.SeriesProgressionBoost]) +
             (vector[(int)FeatureIndex.PopularityScore] * weights[(int)FeatureIndex.PopularityScore]) +
-            (vector[(int)FeatureIndex.DayOfWeekAffinity] * weights[(int)FeatureIndex.DayOfWeekAffinity]);
+            (vector[(int)FeatureIndex.DayOfWeekAffinity] * weights[(int)FeatureIndex.DayOfWeekAffinity]) +
+            (vector[(int)FeatureIndex.HourOfDayAffinity] * weights[(int)FeatureIndex.HourOfDayAffinity]) +
+            (vector[(int)FeatureIndex.IsWeekend] * weights[(int)FeatureIndex.IsWeekend]);
 
         var rawScore = ComputeRawScore(vector, weights, bias);
         var score = Math.Clamp(rawScore, 0.0, 1.0);
