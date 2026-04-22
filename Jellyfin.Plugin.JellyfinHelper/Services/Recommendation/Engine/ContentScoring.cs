@@ -140,7 +140,9 @@ internal static class ContentScoring
     }
 
     /// <summary>
-    ///     Computes the average production year from the user's watched items.
+    ///     Computes the average production year from the user's watched and favorited items.
+    ///     Favorites are included because they represent explicit interest in content
+    ///     from a particular era, even if not yet played.
     /// </summary>
     /// <param name="profile">The user's watch profile.</param>
     /// <returns>The average production year, or 0 if no years are available.</returns>
@@ -149,7 +151,7 @@ internal static class ContentScoring
         long sum = 0;
         var count = 0;
 
-        foreach (var w in profile.WatchedItems.Where(w => w.Played && w.Year.HasValue))
+        foreach (var w in profile.WatchedItems.Where(w => (w.Played || w.IsFavorite) && w.Year.HasValue))
         {
             sum += w.Year!.Value;
             count++;

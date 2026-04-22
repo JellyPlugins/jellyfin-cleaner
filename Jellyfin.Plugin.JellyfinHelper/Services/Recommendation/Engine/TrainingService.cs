@@ -272,8 +272,10 @@ internal sealed class TrainingService
 
             foreach (var w in userProfile.WatchedItems)
             {
-                // Only include played items that were NEVER recommended (organic discoveries)
-                if (!w.Played || recommendedItemIds.Contains(w.ItemId))
+                // Include played OR favorited items that were NEVER recommended (organic discoveries).
+                // Favorites signal explicit interest even if not yet played — they provide
+                // positive training signal that the model should learn from.
+                if ((!w.Played && !w.IsFavorite) || recommendedItemIds.Contains(w.ItemId))
                 {
                     continue;
                 }
@@ -414,11 +416,11 @@ internal sealed class TrainingService
     {
         var studios = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var watchedItemIds = new HashSet<Guid>(
-            userProfile.WatchedItems.Where(w => w.Played).Select(w => w.ItemId));
+            userProfile.WatchedItems.Where(w => w.Played || w.IsFavorite).Select(w => w.ItemId));
         var watchedSeriesIds = new HashSet<Guid>(
-            userProfile.WatchedItems.Where(w => w.Played && w.SeriesId.HasValue).Select(w => w.SeriesId!.Value));
+            userProfile.WatchedItems.Where(w => (w.Played || w.IsFavorite) && w.SeriesId.HasValue).Select(w => w.SeriesId!.Value));
 
-        // Collect studios from any recommendation result that references items the user watched
+        // Collect studios from any recommendation result that references items the user watched or favorited
         foreach (var result in allResults)
         {
             foreach (var rec in result.Recommendations)
@@ -451,9 +453,9 @@ internal sealed class TrainingService
     {
         var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var watchedItemIds = new HashSet<Guid>(
-            userProfile.WatchedItems.Where(w => w.Played).Select(w => w.ItemId));
+            userProfile.WatchedItems.Where(w => w.Played || w.IsFavorite).Select(w => w.ItemId));
         var watchedSeriesIds = new HashSet<Guid>(
-            userProfile.WatchedItems.Where(w => w.Played && w.SeriesId.HasValue).Select(w => w.SeriesId!.Value));
+            userProfile.WatchedItems.Where(w => (w.Played || w.IsFavorite) && w.SeriesId.HasValue).Select(w => w.SeriesId!.Value));
 
         foreach (var result in allResults)
         {

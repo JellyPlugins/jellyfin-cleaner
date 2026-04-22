@@ -17,6 +17,8 @@ internal static class CollaborativeFilter
     ///     Called once in batch recommendation generation and shared across all per-user calls
     ///     to avoid rebuilding O(U) HashSets per user (O(U²) total → O(U) total).
     ///     Each set includes both direct item IDs and parent series IDs from episode watches.
+    ///     Items that are favorited (even if not yet played) are also included — they
+    ///     represent explicit interest and improve user-similarity calculation.
     /// </summary>
     /// <param name="allProfiles">All user watch profiles.</param>
     /// <returns>A dictionary mapping user ID to their combined watched-item set.</returns>
@@ -29,7 +31,8 @@ internal static class CollaborativeFilter
             var combined = new HashSet<Guid>();
             foreach (var w in profile.WatchedItems)
             {
-                if (!w.Played)
+                // Include items that are played OR favorited
+                if (!w.Played && !w.IsFavorite)
                 {
                     continue;
                 }
@@ -50,6 +53,7 @@ internal static class CollaborativeFilter
     /// <summary>
     ///     Builds a combined watch set (item IDs + series IDs) for a single user profile.
     ///     Used as fallback in single-user mode when precomputed sets are not available.
+    ///     Includes favorited items for the same reasons as <see cref="PrecomputeUserWatchSets"/>.
     /// </summary>
     /// <param name="profile">The user's watch profile.</param>
     /// <returns>A set of watched item IDs and parent series IDs.</returns>
@@ -58,7 +62,8 @@ internal static class CollaborativeFilter
         var combined = new HashSet<Guid>();
         foreach (var w in profile.WatchedItems)
         {
-            if (!w.Played)
+            // Include items that are played OR favorited
+            if (!w.Played && !w.IsFavorite)
             {
                 continue;
             }

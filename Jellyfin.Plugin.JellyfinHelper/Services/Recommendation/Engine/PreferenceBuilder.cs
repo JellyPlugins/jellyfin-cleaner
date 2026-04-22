@@ -26,6 +26,8 @@ internal static class PreferenceBuilder
     ///     Each genre gets a weight based on recency, play count, and favorites.
     ///     Recent watches count more than old ones (180-day half-life exponential decay).
     ///     Re-watched items get a PlayCount boost. Favorites get an additional boost.
+    ///     Items that are favorited but not yet played are also included — the user
+    ///     explicitly expressed interest, so their genres should influence preferences.
     /// </summary>
     /// <param name="profile">The user's watch profile.</param>
     /// <returns>A dictionary mapping genre names to normalized weights (0–1).</returns>
@@ -42,7 +44,8 @@ internal static class PreferenceBuilder
         var now = DateTime.UtcNow;
         foreach (var item in profile.WatchedItems)
         {
-            if (!item.Played || item.Genres is null)
+            // Include items that are played OR favorited — favorites signal explicit interest
+            if ((!item.Played && !item.IsFavorite) || item.Genres is null)
             {
                 continue;
             }
@@ -102,7 +105,7 @@ internal static class PreferenceBuilder
     }
 
     /// <summary>
-    ///     Builds a set of studio names the user prefers, derived from their watched items.
+    ///     Builds a set of studio names the user prefers, derived from their watched and favorited items.
     ///     Looks up the actual BaseItem objects from the candidate lookup to access Studios metadata.
     /// </summary>
     /// <param name="userProfile">The user's watch profile.</param>
@@ -114,10 +117,11 @@ internal static class PreferenceBuilder
     {
         var studios = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // Collect studios from watched movies and series
+        // Collect studios from watched and favorited movies and series
         foreach (var w in userProfile.WatchedItems)
         {
-            if (!w.Played)
+            // Include items that are played OR favorited
+            if (!w.Played && !w.IsFavorite)
             {
                 continue;
             }
@@ -146,7 +150,7 @@ internal static class PreferenceBuilder
     }
 
     /// <summary>
-    ///     Builds a set of tags the user prefers, derived from their watched items.
+    ///     Builds a set of tags the user prefers, derived from their watched and favorited items.
     ///     Looks up the actual BaseItem objects from the candidate lookup to access Tags metadata.
     ///     Used for tag-based content similarity scoring.
     /// </summary>
@@ -161,7 +165,8 @@ internal static class PreferenceBuilder
 
         foreach (var w in userProfile.WatchedItems)
         {
-            if (!w.Played)
+            // Include items that are played OR favorited
+            if (!w.Played && !w.IsFavorite)
             {
                 continue;
             }
@@ -190,9 +195,9 @@ internal static class PreferenceBuilder
     }
 
     /// <summary>
-    ///     Builds a set of preferred person names (actors/directors) from the user's watched items.
+    ///     Builds a set of preferred person names (actors/directors) from the user's watched and favorited items.
     ///     Uses the pre-built people lookup to avoid additional library queries.
-    ///     Includes people from both directly watched items and series the user has watched episodes of.
+    ///     Includes people from both directly watched/favorited items and series the user has watched episodes of.
     /// </summary>
     /// <param name="userProfile">The user's watch profile.</param>
     /// <param name="peopleLookup">Pre-built candidate people lookup (item ID → person names).</param>
@@ -205,7 +210,8 @@ internal static class PreferenceBuilder
 
         foreach (var w in userProfile.WatchedItems)
         {
-            if (!w.Played)
+            // Include items that are played OR favorited
+            if (!w.Played && !w.IsFavorite)
             {
                 continue;
             }
