@@ -49,7 +49,7 @@ public class RecommendationEngineTests
         var vector = PreferenceBuilder.BuildGenrePreferenceVector(profile);
 
         // Zero-count genres with no WatchedItems produce an empty vector
-        Assert.Equal(0, vector.Count);
+        Assert.Empty(vector);
     }
 
     [Fact]

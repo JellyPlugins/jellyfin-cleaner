@@ -755,8 +755,7 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
     │   ├── StrmLinkHandlerTests.cs
     │   └── SymlinkHandlerTests.cs
     ├── Recommendation/
-    │   ├── RecommendationEngineTests.cs         # Engine orchestration tests
-    │   ├── WatchHistoryServiceTests.cs          # Watch profile building tests
+    │   ├── RecommendationEngineTests.cs         # Engine component tests (preferences, scoring, collaborative)
     │   ├── Scoring/
     │   │   ├── ScoringStrategyTests.cs          # Heuristic, learned & ensemble scoring tests
     │   │   ├── NeuralScoringStrategyTests.cs    # Neural MLP (23→16→8→1) tests

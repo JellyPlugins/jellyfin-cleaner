@@ -244,11 +244,86 @@ internal sealed class TrainingService
             }
         }
 
+        // === Phase 2: Add organic watch examples (watched-but-never-recommended items) ===
+        // Items the user found and watched on their own provide strong positive signal
+        // that the recommendation-only approach misses. This reduces training bias.
+        var recommendedItemIds = new HashSet<Guid>();
+        foreach (var prevResult in previousResults)
+        {
+            foreach (var rec in prevResult.Recommendations)
+            {
+                recommendedItemIds.Add(rec.ItemId);
+            }
+        }
+
+        var organicCount = 0;
+        foreach (var userProfile in allProfiles)
+        {
+            var genrePreferences = PreferenceBuilder.BuildGenrePreferenceVector(userProfile);
+            var coOccurrence = CollaborativeFilter.BuildCollaborativeMap(userProfile, allProfiles, precomputedUserSets);
+            var collaborativeMax = coOccurrence.Count > 0 ? coOccurrence.Values.Max() : 0;
+            var avgYear = ContentScoring.ComputeAverageYear(userProfile);
+
+            foreach (var w in userProfile.WatchedItems)
+            {
+                // Only include played items that were NEVER recommended (organic discoveries)
+                if (!w.Played || recommendedItemIds.Contains(w.ItemId))
+                {
+                    continue;
+                }
+
+                // Skip series IDs already covered
+                if (w.SeriesId.HasValue && recommendedItemIds.Contains(w.SeriesId.Value))
+                {
+                    continue;
+                }
+
+                var collabScore = ContentScoring.ComputeCollaborativeScore(w.ItemId, coOccurrence, collaborativeMax);
+                var ratingScore = ContentScoring.NormalizeRating(w.CommunityRating);
+                var completionRatio = w.RuntimeTicks > 0
+                    ? Math.Clamp((double)w.PlaybackPositionTicks / w.RuntimeTicks, 0.0, 1.0)
+                    : (w.Played ? 1.0 : 0.0);
+
+                var features = new CandidateFeatures
+                {
+                    GenreSimilarity = SimilarityComputer.ComputeGenreSimilarity(w.Genres ?? [], genrePreferences),
+                    CollaborativeScore = collabScore,
+                    RatingScore = ratingScore,
+                    RecencyScore = w.LastPlayedDate.HasValue
+                        ? ContentScoring.ComputeRecencyScore(w.LastPlayedDate.Value)
+                        : 0.5,
+                    YearProximityScore = ContentScoring.ComputeYearProximity(w.Year, avgYear),
+                    GenreCount = w.Genres?.Count ?? 0,
+                    IsSeries = w.SeriesId.HasValue,
+                    UserRatingScore = ContentScoring.ComputeUserRatingScore(w),
+                    HasUserInteraction = true,
+                    CompletionRatio = completionRatio,
+                    PopularityScore = collabScore > 0 ? Math.Clamp(collabScore * 0.8, 0.0, 1.0) : ratingScore * 0.3,
+                    DayOfWeekAffinity = ComputeTrainingTemporalAffinity(w, w.Genres, userProfile, isDay: true),
+                    HourOfDayAffinity = ComputeTrainingTemporalAffinity(w, w.Genres, userProfile, isDay: false),
+                    IsWeekend = w.LastPlayedDate?.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday,
+                };
+
+                // Organic watches are strong positive signals — label based on completion
+                var label = ContentScoring.ComputeEngagementLabel(completionRatio);
+
+                examples.Add(new TrainingExample
+                {
+                    Features = features,
+                    Label = label,
+                    GeneratedAtUtc = w.LastPlayedDate ?? DateTime.UtcNow,
+                    SampleWeight = 0.7 // Slightly lower weight than recommended items to avoid overwhelming
+                });
+                organicCount++;
+            }
+        }
+
         var positiveCount = examples.Count(e => e.Label > 0.5);
         _pluginLog.LogInfo(
             "Recommendations",
             $"Built {examples.Count} training examples ({positiveCount} positive, " +
-            $"{examples.Count - positiveCount} negative) from {previousResults.Count} users.",
+            $"{examples.Count - positiveCount} negative) from {previousResults.Count} users " +
+            $"({organicCount} organic watch examples added).",
             _logger);
 
         List<TrainingExample> trainingExamples = examples;
