@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Engine;
@@ -148,13 +149,10 @@ internal static class ContentScoring
         long sum = 0;
         var count = 0;
 
-        foreach (var w in profile.WatchedItems)
+        foreach (var w in profile.WatchedItems.Where(w => w.Played && w.Year.HasValue))
         {
-            if (w.Played && w.Year.HasValue)
-            {
-                sum += w.Year.Value;
-                count++;
-            }
+            sum += w.Year!.Value;
+            count++;
         }
 
         return count > 0 ? (double)sum / count : 0;

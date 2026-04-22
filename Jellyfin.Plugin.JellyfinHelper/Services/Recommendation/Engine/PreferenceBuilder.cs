@@ -63,13 +63,10 @@ internal static class PreferenceBuilder
                 weight += EngineConstants.FavoriteGenreBoostFactor;
             }
 
-            foreach (var genre in item.Genres)
+            foreach (var genre in item.Genres.Where(static g => !string.IsNullOrWhiteSpace(g)))
             {
-                if (!string.IsNullOrWhiteSpace(genre))
-                {
-                    vector.TryGetValue(genre, out var current);
-                    vector[genre] = current + weight;
-                }
+                vector.TryGetValue(genre, out var current);
+                vector[genre] = current + weight;
             }
         }
 
@@ -128,12 +125,9 @@ internal static class PreferenceBuilder
             // Try direct item match (movies)
             if (candidateLookup.TryGetValue(w.ItemId, out var item) && item.Studios is { Length: > 0 })
             {
-                foreach (var s in item.Studios)
+                foreach (var s in item.Studios.Where(static s => !string.IsNullOrWhiteSpace(s)))
                 {
-                    if (!string.IsNullOrWhiteSpace(s))
-                    {
-                        studios.Add(s);
-                    }
+                    studios.Add(s);
                 }
             }
 
@@ -141,12 +135,9 @@ internal static class PreferenceBuilder
             if (w.SeriesId.HasValue && candidateLookup.TryGetValue(w.SeriesId.Value, out var seriesItem)
                 && seriesItem.Studios is { Length: > 0 })
             {
-                foreach (var s in seriesItem.Studios)
+                foreach (var s in seriesItem.Studios.Where(static s => !string.IsNullOrWhiteSpace(s)))
                 {
-                    if (!string.IsNullOrWhiteSpace(s))
-                    {
-                        studios.Add(s);
-                    }
+                    studios.Add(s);
                 }
             }
         }
@@ -178,12 +169,9 @@ internal static class PreferenceBuilder
             // Direct item match (movies)
             if (candidateLookup.TryGetValue(w.ItemId, out var item) && item.Tags is { Length: > 0 })
             {
-                foreach (var t in item.Tags)
+                foreach (var t in item.Tags.Where(static t => !string.IsNullOrWhiteSpace(t)))
                 {
-                    if (!string.IsNullOrWhiteSpace(t))
-                    {
-                        tags.Add(t);
-                    }
+                    tags.Add(t);
                 }
             }
 
@@ -191,12 +179,9 @@ internal static class PreferenceBuilder
             if (w.SeriesId.HasValue && candidateLookup.TryGetValue(w.SeriesId.Value, out var seriesItem)
                 && seriesItem.Tags is { Length: > 0 })
             {
-                foreach (var t in seriesItem.Tags)
+                foreach (var t in seriesItem.Tags.Where(static t => !string.IsNullOrWhiteSpace(t)))
                 {
-                    if (!string.IsNullOrWhiteSpace(t))
-                    {
-                        tags.Add(t);
-                    }
+                    tags.Add(t);
                 }
             }
         }

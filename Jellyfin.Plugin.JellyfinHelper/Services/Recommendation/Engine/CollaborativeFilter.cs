@@ -139,14 +139,7 @@ internal static class CollaborativeFilter
             }
 
             // Compute overlap count
-            var overlap = 0;
-            foreach (var id in userCombinedIds)
-            {
-                if (otherCombinedIds.Contains(id))
-                {
-                    overlap++;
-                }
-            }
+            var overlap = userCombinedIds.Count(otherCombinedIds.Contains);
 
             if (overlap < EngineConstants.MinCollaborativeOverlap)
             {
@@ -159,13 +152,10 @@ internal static class CollaborativeFilter
 
             // Accumulate Jaccard-weighted co-occurrence for items the other user watched but we haven't.
             // This includes both episode IDs AND series IDs, so series candidates get collaborative scores.
-            foreach (var itemId in otherCombinedIds)
+            foreach (var itemId in otherCombinedIds.Where(itemId => !userCombinedIds.Contains(itemId)))
             {
-                if (!userCombinedIds.Contains(itemId))
-                {
-                    coOccurrence.TryGetValue(itemId, out var current);
-                    coOccurrence[itemId] = current + jaccardWeight;
-                }
+                coOccurrence.TryGetValue(itemId, out var current);
+                coOccurrence[itemId] = current + jaccardWeight;
             }
         }
 
