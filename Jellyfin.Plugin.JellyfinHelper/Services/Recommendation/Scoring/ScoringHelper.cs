@@ -95,7 +95,9 @@ internal static class ScoringHelper
             (vector[(int)FeatureIndex.DayOfWeekAffinity] * weights[(int)FeatureIndex.DayOfWeekAffinity]) +
             (vector[(int)FeatureIndex.HourOfDayAffinity] * weights[(int)FeatureIndex.HourOfDayAffinity]) +
             (vector[(int)FeatureIndex.IsWeekend] * weights[(int)FeatureIndex.IsWeekend]) +
-            (vector[(int)FeatureIndex.TagSimilarity] * weights[(int)FeatureIndex.TagSimilarity]);
+            (vector[(int)FeatureIndex.TagSimilarity] * weights[(int)FeatureIndex.TagSimilarity]) +
+            (vector[(int)FeatureIndex.PeopleGenreInteraction] * weights[(int)FeatureIndex.PeopleGenreInteraction]) +
+            (vector[(int)FeatureIndex.RecencyRatingInteraction] * weights[(int)FeatureIndex.RecencyRatingInteraction]);
 
         var rawScore = ComputeRawScore(vector, weights, bias);
         var score = Math.Clamp(rawScore, 0.0, 1.0);

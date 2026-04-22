@@ -12,6 +12,8 @@ namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 /// <summary>
 ///     Scheduled sub-task that trains the scoring strategy from previous results
 ///     and generates fresh recommendations for all users.
+///     Training and incremental updates only run when TaskMode is Activate.
+///     DryRun mode generates recommendations but does NOT persist them or train models.
 /// </summary>
 public class RecommendationsTask
 {
@@ -48,36 +50,47 @@ public class RecommendationsTask
     /// <returns>A completed task.</returns>
     public Task ExecuteAsync(PluginConfiguration config, IProgress<double> progress, CancellationToken cancellationToken)
     {
+        var isActive = config.RecommendationsTaskMode == TaskMode.Activate;
         var isDryRun = config.RecommendationsTaskMode == TaskMode.DryRun;
 
         _pluginLog.LogInfo(
             "Recommendations",
-            isDryRun ? "Task started (Dry Run). Recommendations will not be saved." : "Task started.",
+            isDryRun
+                ? "Task started (Dry Run). Recommendations will be generated but NOT saved. No model training."
+                : "Task started (Active). Full training + generation + persistence.",
             _logger);
         progress.Report(5);
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Train the scoring strategy using feedback from previous recommendations
-        // (items recommended last run that were subsequently watched → positive signal)
-        try
+        // Train the scoring strategy ONLY when TaskMode is Activate.
+        // DryRun must NOT train because training writes ML weights to disk (side effect).
+        // Incremental training is enabled only in Activate mode.
+        if (isActive)
         {
-            var previousResults = _recsCacheService.LoadResults();
-            if (previousResults is { Count: > 0 })
+            try
             {
-                _pluginLog.LogInfo("Recommendations", $"Training scoring strategy from {previousResults.Count} cached user results...", _logger);
-                var trained = _recsEngine.TrainStrategy(previousResults);
-                _pluginLog.LogInfo(
-                    "Recommendations",
-                    trained
-                        ? "Strategy training completed."
-                        : "Strategy training skipped (insufficient training data).",
-                    _logger);
+                var previousResults = _recsCacheService.LoadResults();
+                if (previousResults is { Count: > 0 })
+                {
+                    _pluginLog.LogInfo("Recommendations", $"Training scoring strategy from {previousResults.Count} cached user results (incremental=true)...", _logger);
+                    var trained = _recsEngine.TrainStrategy(previousResults, incremental: true);
+                    _pluginLog.LogInfo(
+                        "Recommendations",
+                        trained
+                            ? "Strategy training completed (incremental)."
+                            : "Strategy training skipped (insufficient training data).",
+                        _logger);
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
+            {
+                _pluginLog.LogWarning("Recommendations", "Strategy training failed — continuing with current weights.", ex, _logger);
             }
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
+        else
         {
-            _pluginLog.LogWarning("Recommendations", "Strategy training failed — continuing with current weights.", ex, _logger);
+            _pluginLog.LogInfo("Recommendations", "Training skipped (DryRun mode — no model updates).", _logger);
         }
 
         progress.Report(20);
@@ -91,19 +104,20 @@ public class RecommendationsTask
 
         var totalRecs = results.Sum(r => r.Recommendations.Count);
 
-        if (isDryRun)
-        {
-            _pluginLog.LogInfo(
-                "Recommendations",
-                $"Task finished (Dry Run). Generated {totalRecs} recommendations for {results.Count} users. NOT saved.",
-                _logger);
-        }
-        else
+        if (isActive)
         {
             _recsCacheService.SaveResults(results);
             _pluginLog.LogInfo(
                 "Recommendations",
-                $"Task finished. Generated {totalRecs} recommendations for {results.Count} users. Saved to cache.",
+                $"Task finished (Active). Generated {totalRecs} recommendations for {results.Count} users. Saved to cache.",
+                _logger);
+        }
+        else
+        {
+            // DryRun: do NOT save results to cache — no side effects
+            _pluginLog.LogInfo(
+                "Recommendations",
+                $"Task finished (Dry Run). Generated {totalRecs} recommendations for {results.Count} users. NOT saved.",
                 _logger);
         }
 

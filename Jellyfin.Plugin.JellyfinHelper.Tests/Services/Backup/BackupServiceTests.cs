@@ -37,9 +37,9 @@ public class BackupServiceTests
             TrashRetentionDays = 30
         };
         backup.RadarrInstances.Add(new BackupArrInstance
-            { Name = "Radarr", Url = "http://localhost:7878", ApiKey = "abc123" });
+        { Name = "Radarr", Url = "http://localhost:7878", ApiKey = "abc123" });
         backup.SonarrInstances.Add(new BackupArrInstance
-            { Name = "Sonarr", Url = "http://localhost:8989", ApiKey = "def456" });
+        { Name = "Sonarr", Url = "http://localhost:8989", ApiKey = "def456" });
         return backup;
     }
 
@@ -360,7 +360,7 @@ public class BackupServiceTests
         var backup = CreateValidBackup();
         backup.RadarrInstances.Clear();
         backup.RadarrInstances.Add(new BackupArrInstance
-            { Name = "<script>alert(1)</script>", Url = "http://localhost:7878", ApiKey = "key" });
+        { Name = "<script>alert(1)</script>", Url = "http://localhost:7878", ApiKey = "key" });
         var result = BackupValidator.Validate(backup);
 
         Assert.False(result.IsValid);
@@ -662,7 +662,7 @@ public class BackupServiceTests
             TrashRetentionDays = -50
         };
         backup.RadarrInstances.Add(new BackupArrInstance
-            { Name = "<script>", Url = "ftp://evil.com", ApiKey = "key\0evil" });
+        { Name = "<script>", Url = "ftp://evil.com", ApiKey = "key\0evil" });
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "R2", Url = "http://ok.com", ApiKey = "ok" });
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "R3", Url = "http://ok.com", ApiKey = "ok" });
         backup.RadarrInstances.Add(new BackupArrInstance { Name = "R4", Url = "http://ok.com", ApiKey = "ok" });

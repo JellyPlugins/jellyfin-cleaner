@@ -36,7 +36,7 @@ public class TrashControllerTests : IDisposable
     private void SetupLibraries(params string[] paths)
     {
         var folders = paths.Select(path => new VirtualFolderInfo
-                { Name = Path.GetFileName(path), Locations = [path], CollectionType = CollectionTypeOptions.movies })
+        { Name = Path.GetFileName(path), Locations = [path], CollectionType = CollectionTypeOptions.movies })
             .ToList();
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns(folders);
         _configHelperMock.Setup(c => c.GetFilteredLibraryLocations(It.IsAny<ILibraryManager>()))

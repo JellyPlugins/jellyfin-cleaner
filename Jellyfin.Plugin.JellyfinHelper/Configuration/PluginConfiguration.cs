@@ -148,11 +148,9 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public int MaxRecommendationsPerUser { get; set; } = 20;
 
-    /// <summary>
-    ///     Gets or sets the scoring strategy for recommendations.
-    ///     Valid values: "ensemble" (default), "heuristic", "learned".
-    /// </summary>
-    public string RecommendationStrategy { get; set; } = "ensemble";
+    // RecommendationStrategy removed — Ensemble is always used (combines all methods).
+    // The property is kept as read-only for backward compatibility with serialized configs.
+    // Any previously saved value is ignored.
 
     /// <summary>
     ///     Gets or sets the minimum alpha value for the ensemble scoring strategy.

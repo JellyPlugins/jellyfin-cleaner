@@ -123,6 +123,16 @@ public static class DefaultWeights
     /// </summary>
     public const double TagSimilarity = 0.02;
 
+    /// <summary>
+    ///     Weight for people × genre interaction (actors you like in genres you prefer).
+    /// </summary>
+    public const double PeopleGenreInteraction = 0.03;
+
+    /// <summary>
+    ///     Weight for recency × rating interaction (trending: new + highly rated).
+    /// </summary>
+    public const double RecencyRatingInteraction = 0.03;
+
     /// <summary>Default bias term for the learned strategy.</summary>
     public const double Bias = 0.05;
 
@@ -154,6 +164,8 @@ public static class DefaultWeights
         weights[(int)FeatureIndex.HourOfDayAffinity] = HourOfDayAffinity;
         weights[(int)FeatureIndex.IsWeekend] = IsWeekend;
         weights[(int)FeatureIndex.TagSimilarity] = TagSimilarity;
+        weights[(int)FeatureIndex.PeopleGenreInteraction] = PeopleGenreInteraction;
+        weights[(int)FeatureIndex.RecencyRatingInteraction] = RecencyRatingInteraction;
         return weights;
     }
 }

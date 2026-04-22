@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Activity;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Microsoft.Extensions.Logging;
@@ -42,8 +43,9 @@ public class UserActivityUpdateTask
     /// </summary>
     /// <param name="progress">Progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="taskMode">The current task mode. Only Activate persists results.</param>
     /// <returns>A completed task.</returns>
-    public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
+    public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken, TaskMode taskMode = TaskMode.Activate)
     {
         _pluginLog.LogInfo("UserActivity", "Updating user watch activity data...", _logger);
         progress.Report(10);
@@ -54,13 +56,25 @@ public class UserActivityUpdateTask
         progress.Report(80);
 
         cancellationToken.ThrowIfCancellationRequested();
-        _userActivityCacheService.SaveResult(result);
 
-        _pluginLog.LogInfo(
-            "UserActivity",
-            $"User activity update completed: {result.TotalItemsWithActivity} items, " +
-            $"{result.TotalPlayCount} plays across {result.TotalUsersAnalyzed} users.",
-            _logger);
+        if (taskMode == TaskMode.Activate)
+        {
+            _userActivityCacheService.SaveResult(result);
+            _pluginLog.LogInfo(
+                "UserActivity",
+                $"User activity update completed (Active): {result.TotalItemsWithActivity} items, " +
+                $"{result.TotalPlayCount} plays across {result.TotalUsersAnalyzed} users. Saved to cache.",
+                _logger);
+        }
+        else
+        {
+            // DryRun: do NOT save to cache — no side effects
+            _pluginLog.LogInfo(
+                "UserActivity",
+                $"User activity update completed (Dry Run): {result.TotalItemsWithActivity} items, " +
+                $"{result.TotalPlayCount} plays across {result.TotalUsersAnalyzed} users. NOT saved.",
+                _logger);
+        }
 
         progress.Report(100);
         return Task.CompletedTask;

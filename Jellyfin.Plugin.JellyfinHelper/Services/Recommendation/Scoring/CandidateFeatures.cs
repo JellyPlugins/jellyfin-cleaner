@@ -70,6 +70,12 @@ public enum FeatureIndex
 
     /// <summary>Tag-based content similarity (0–1). Jaccard overlap of candidate tags with user's preferred tags.</summary>
     TagSimilarity = 20,
+
+    /// <summary>People × Genre interaction: actors/directors you like in genres you prefer.</summary>
+    PeopleGenreInteraction = 21,
+
+    /// <summary>Recency × Rating interaction: new + highly rated = trending content.</summary>
+    RecencyRatingInteraction = 22,
 }
 
 /// <summary>
@@ -81,7 +87,7 @@ public sealed class CandidateFeatures
     /// <summary>
     ///     The number of features produced by <see cref="ToVector"/>.
     /// </summary>
-    public const int FeatureCount = 21;
+    public const int FeatureCount = 23;
 
     /// <summary>
     ///     Normalization ceiling for genre count (items with ≥ this many genres map to 1.0).
@@ -267,5 +273,7 @@ public sealed class CandidateFeatures
         buffer[(int)FeatureIndex.HourOfDayAffinity] = HourOfDayAffinity;
         buffer[(int)FeatureIndex.IsWeekend] = IsWeekend ? 1.0 : 0.0;
         buffer[(int)FeatureIndex.TagSimilarity] = TagSimilarity;
+        buffer[(int)FeatureIndex.PeopleGenreInteraction] = PeopleSimilarity * GenreSimilarity;
+        buffer[(int)FeatureIndex.RecencyRatingInteraction] = RecencyScore * RatingScore;
     }
 }

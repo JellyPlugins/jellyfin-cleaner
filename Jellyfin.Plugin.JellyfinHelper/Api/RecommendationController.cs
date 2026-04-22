@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net.Mime;
 using System.Threading;
+using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
@@ -51,16 +52,17 @@ public class RecommendationController : ControllerBase
     /// <summary>
     ///     Gets cached recommendations for all users (admin overview).
     ///     Returns the latest cached results from the scheduled task.
-    ///     If no cache exists, generates fresh recommendations on the fly.
+    ///     If no cache exists and TaskMode is Activate, generates fresh recommendations.
+    ///     DryRun mode on-demand generation does NOT persist results.
     /// </summary>
-    /// <param name="maxPerUser">Maximum recommendations per user (default: 20, max: 100).</param>
+    /// <param name="maxPerUser">Maximum recommendations per user (default: from config, max: 100).</param>
     /// <param name="cancellationToken">Token to cancel the request.</param>
     /// <returns>A list of recommendation results, one per user.</returns>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult<List<RecommendationResult>> GetAllRecommendations(
-        [FromQuery] int maxPerUser = 20,
+        [FromQuery] int maxPerUser = 0,
         CancellationToken cancellationToken = default)
     {
         if (!IsRecommendationsEnabled())
@@ -68,7 +70,16 @@ public class RecommendationController : ControllerBase
             return StatusCode(StatusCodes.Status503ServiceUnavailable, "Smart Recommendations are disabled in plugin configuration.");
         }
 
-        maxPerUser = Math.Clamp(maxPerUser, 1, 100);
+        var config = _configService.GetConfiguration();
+        // Use config default if not specified via query parameter
+        if (maxPerUser <= 0)
+        {
+            maxPerUser = Math.Clamp(config.MaxRecommendationsPerUser, 1, 100);
+        }
+        else
+        {
+            maxPerUser = Math.Clamp(maxPerUser, 1, 100);
+        }
 
         var cached = _cacheService.LoadResults();
         if (cached is not null)
@@ -80,7 +91,13 @@ public class RecommendationController : ControllerBase
 
         // No cache available — generate on demand
         var results = _engine.GetAllRecommendations(maxPerUser, cancellationToken);
-        _cacheService.SaveResults(results);
+
+        // Only persist to cache when TaskMode is Activate (not DryRun)
+        if (config.RecommendationsTaskMode == TaskMode.Activate)
+        {
+            _cacheService.SaveResults(results);
+        }
+
         return Ok(results);
     }
 
@@ -88,7 +105,7 @@ public class RecommendationController : ControllerBase
     ///     Gets recommendations for a specific user.
     /// </summary>
     /// <param name="userId">The Jellyfin user ID.</param>
-    /// <param name="maxResults">Maximum number of recommendations (default: 20, max: 100).</param>
+    /// <param name="maxResults">Maximum number of recommendations (default: from config, max: 100).</param>
     /// <param name="cancellationToken">Token to cancel the request.</param>
     /// <returns>The recommendation result for the user.</returns>
     [HttpGet("{userId}")]
@@ -97,7 +114,7 @@ public class RecommendationController : ControllerBase
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult<RecommendationResult> GetUserRecommendations(
         Guid userId,
-        [FromQuery] int maxResults = 20,
+        [FromQuery] int maxResults = 0,
         CancellationToken cancellationToken = default)
     {
         if (!IsRecommendationsEnabled())
@@ -105,7 +122,15 @@ public class RecommendationController : ControllerBase
             return StatusCode(StatusCodes.Status503ServiceUnavailable, "Smart Recommendations are disabled in plugin configuration.");
         }
 
-        maxResults = Math.Clamp(maxResults, 1, 100);
+        var config = _configService.GetConfiguration();
+        if (maxResults <= 0)
+        {
+            maxResults = Math.Clamp(config.MaxRecommendationsPerUser, 1, 100);
+        }
+        else
+        {
+            maxResults = Math.Clamp(maxResults, 1, 100);
+        }
 
         // Try cache first — return a copy to avoid mutating the cached object
         var cached = _cacheService.LoadResults();

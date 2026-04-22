@@ -1,4 +1,4 @@
-using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
+﻿using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Engine;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
 using Xunit;
 
@@ -10,7 +10,7 @@ public class RecommendationEngineTests
     public void BuildGenrePreferenceVector_EmptyDistribution_ReturnsEmpty()
     {
         var profile = new UserWatchProfile { GenreDistribution = new Dictionary<string, int>() };
-        var vector = RecommendationEngine.BuildGenrePreferenceVector(profile);
+        var vector = PreferenceBuilder.BuildGenrePreferenceVector(profile);
         Assert.Empty(vector);
     }
 
@@ -27,7 +27,7 @@ public class RecommendationEngineTests
             }
         };
 
-        var vector = RecommendationEngine.BuildGenrePreferenceVector(profile);
+        var vector = PreferenceBuilder.BuildGenrePreferenceVector(profile);
 
         Assert.Equal(1.0, vector["Action"]);
         Assert.Equal(0.5, vector["Comedy"]);
@@ -46,7 +46,7 @@ public class RecommendationEngineTests
             }
         };
 
-        var vector = RecommendationEngine.BuildGenrePreferenceVector(profile);
+        var vector = PreferenceBuilder.BuildGenrePreferenceVector(profile);
 
         // When all counts are zero, weights are 0 (no division by zero)
         Assert.Equal(2, vector.Count);
@@ -58,41 +58,41 @@ public class RecommendationEngineTests
     public void ComputeGenreSimilarity_NoGenres_ReturnsZero()
     {
         var prefs = new Dictionary<string, double> { { "Action", 1.0 } };
-        Assert.Equal(0, RecommendationEngine.ComputeGenreSimilarity([], prefs));
+        Assert.Equal(0, SimilarityComputer.ComputeGenreSimilarity([], prefs));
     }
 
     [Fact]
     public void ComputeGenreSimilarity_NoPreferences_ReturnsZero()
     {
-        Assert.Equal(0, RecommendationEngine.ComputeGenreSimilarity(
+        Assert.Equal(0, SimilarityComputer.ComputeGenreSimilarity(
             new[] { "Action" }, new Dictionary<string, double>()));
     }
 
     [Fact]
     public void ComputeGenreSimilarity_FullMatch_SingleGenre_ReturnsOne()
     {
-        // Single genre in both candidate and prefs → cosine = 1.0
+        // Single genre in both candidate and prefs â†’ cosine = 1.0
         var prefs = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
         {
             { "Action", 1.0 }
         };
 
-        var score = RecommendationEngine.ComputeGenreSimilarity(new[] { "Action" }, prefs);
+        var score = SimilarityComputer.ComputeGenreSimilarity(new[] { "Action" }, prefs);
         Assert.Equal(1.0, score, 4);
     }
 
     [Fact]
     public void ComputeGenreSimilarity_FullMatch_MultiGenre_ReturnsHighScore()
     {
-        // Candidate has one matching genre, but prefs has multiple → cosine < 1.0
+        // Candidate has one matching genre, but prefs has multiple â†’ cosine < 1.0
         var prefs = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
         {
             { "Action", 1.0 },
             { "Comedy", 0.8 }
         };
 
-        var score = RecommendationEngine.ComputeGenreSimilarity(new[] { "Action" }, prefs);
-        // dot=1.0, normC=1, normU=sqrt(1.64)≈1.28 → cosine≈0.78
+        var score = SimilarityComputer.ComputeGenreSimilarity(new[] { "Action" }, prefs);
+        // dot=1.0, normC=1, normU=sqrt(1.64)â‰ˆ1.28 â†’ cosineâ‰ˆ0.78
         Assert.True(score > 0.7 && score < 0.85,
             $"Expected ~0.78 for single match against multi-genre prefs, got {score:F4}");
     }
@@ -105,8 +105,8 @@ public class RecommendationEngineTests
             { "Action", 1.0 }
         };
 
-        // Two genres, only one matches → cosine = 1.0 / (sqrt(2) * 1.0) ≈ 0.707
-        var score = RecommendationEngine.ComputeGenreSimilarity(new[] { "Action", "Horror" }, prefs);
+        // Two genres, only one matches â†’ cosine = 1.0 / (sqrt(2) * 1.0) â‰ˆ 0.707
+        var score = SimilarityComputer.ComputeGenreSimilarity(new[] { "Action", "Horror" }, prefs);
         Assert.True(score > 0.65 && score < 0.75,
             $"Expected ~0.707 for partial match, got {score:F4}");
     }
@@ -124,7 +124,7 @@ public class RecommendationEngineTests
         };
 
         // A film with 3 genres, all matching
-        var score = RecommendationEngine.ComputeGenreSimilarity(
+        var score = SimilarityComputer.ComputeGenreSimilarity(
             new[] { "Action", "SciFi", "Adventure" }, prefs);
 
         Assert.True(score > 0.85, $"Multi-genre film with all-matching genres should score high, got {score:F4}");
@@ -139,14 +139,14 @@ public class RecommendationEngineTests
             { "SciFi", 0.8 }
         };
 
-        var score = RecommendationEngine.ComputeGenreSimilarity(new[] { "Horror", "Comedy" }, prefs);
+        var score = SimilarityComputer.ComputeGenreSimilarity(new[] { "Horror", "Comedy" }, prefs);
         Assert.Equal(0.0, score, 4);
     }
 
     [Fact]
     public void ComputeCollaborativeScore_EmptyMap_ReturnsZero()
     {
-        Assert.Equal(0, RecommendationEngine.ComputeCollaborativeScore(
+        Assert.Equal(0, ContentScoring.ComputeCollaborativeScore(
             Guid.NewGuid(), new Dictionary<Guid, double>(), 0));
     }
 
@@ -154,7 +154,7 @@ public class RecommendationEngineTests
     public void ComputeCollaborativeScore_ItemNotInMap_ReturnsZero()
     {
         var map = new Dictionary<Guid, double> { { Guid.NewGuid(), 5.0 } };
-        Assert.Equal(0, RecommendationEngine.ComputeCollaborativeScore(Guid.NewGuid(), map, 5.0));
+        Assert.Equal(0, ContentScoring.ComputeCollaborativeScore(Guid.NewGuid(), map, 5.0));
     }
 
     [Fact]
@@ -167,7 +167,7 @@ public class RecommendationEngineTests
             { Guid.NewGuid(), 0.75 }
         };
 
-        Assert.Equal(1.0, RecommendationEngine.ComputeCollaborativeScore(itemId, map, 1.5));
+        Assert.Equal(1.0, ContentScoring.ComputeCollaborativeScore(itemId, map, 1.5));
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public class RecommendationEngineTests
             { itemId, 0.5 }
         };
 
-        Assert.Equal(0.5, RecommendationEngine.ComputeCollaborativeScore(itemId, map, 1.0));
+        Assert.Equal(0.5, ContentScoring.ComputeCollaborativeScore(itemId, map, 1.0));
     }
 
     [Fact]
@@ -188,84 +188,84 @@ public class RecommendationEngineTests
     {
         var itemId = Guid.NewGuid();
         var map = new Dictionary<Guid, double> { { itemId, 0.5 } };
-        Assert.Equal(0, RecommendationEngine.ComputeCollaborativeScore(itemId, map, 0));
+        Assert.Equal(0, ContentScoring.ComputeCollaborativeScore(itemId, map, 0));
     }
 
     [Fact]
     public void NormalizeRating_NullRating_ReturnsNeutral()
     {
-        Assert.Equal(0.5, RecommendationEngine.NormalizeRating(null));
+        Assert.Equal(0.5, ContentScoring.NormalizeRating(null));
     }
 
     [Fact]
     public void NormalizeRating_ZeroRating_ReturnsNeutral()
     {
-        Assert.Equal(0.5, RecommendationEngine.NormalizeRating(0f));
+        Assert.Equal(0.5, ContentScoring.NormalizeRating(0f));
     }
 
     [Fact]
     public void NormalizeRating_MaxRating_ReturnsOne()
     {
-        Assert.Equal(1.0, RecommendationEngine.NormalizeRating(10f));
+        Assert.Equal(1.0, ContentScoring.NormalizeRating(10f));
     }
 
     [Fact]
     public void NormalizeRating_MidRating_ReturnsHalf()
     {
-        Assert.Equal(0.5, RecommendationEngine.NormalizeRating(5f));
+        Assert.Equal(0.5, ContentScoring.NormalizeRating(5f));
     }
 
     [Fact]
     public void NormalizeRating_AboveTen_ClampedToOne()
     {
-        Assert.Equal(1.0, RecommendationEngine.NormalizeRating(12f));
+        Assert.Equal(1.0, ContentScoring.NormalizeRating(12f));
     }
 
     [Fact]
     public void ComputeRecencyScore_FutureDate_ReturnsOne()
     {
-        var score = RecommendationEngine.ComputeRecencyScore(DateTime.UtcNow.AddDays(1));
+        var score = ContentScoring.ComputeRecencyScore(DateTime.UtcNow.AddDays(1));
         Assert.Equal(1.0, score);
     }
 
     [Fact]
     public void ComputeRecencyScore_Today_ReturnsCloseToOne()
     {
-        var score = RecommendationEngine.ComputeRecencyScore(DateTime.UtcNow);
+        var score = ContentScoring.ComputeRecencyScore(DateTime.UtcNow);
         Assert.True(score > 0.99, $"Expected > 0.99 but got {score}");
     }
 
     [Fact]
     public void ComputeRecencyScore_OneYearAgo_DecaysSignificantly()
     {
-        var score = RecommendationEngine.ComputeRecencyScore(DateTime.UtcNow.AddDays(-365));
-        // With half-life ~365 days: e^(-0.0019*365) ≈ 0.5
+        var score = ContentScoring.ComputeRecencyScore(DateTime.UtcNow.AddDays(-365));
+        // With half-life ~365 days: e^(-0.0019*365) â‰ˆ 0.5
         Assert.True(score > 0.4 && score < 0.6, $"Expected ~0.5 but got {score}");
     }
 
     [Fact]
     public void ComputeYearProximity_NullYear_ReturnsNeutral()
     {
-        Assert.Equal(0.5, RecommendationEngine.ComputeYearProximity(null, 2020));
+        Assert.Equal(0.5, ContentScoring.ComputeYearProximity(null, 2020));
     }
 
     [Fact]
     public void ComputeYearProximity_ZeroAverage_ReturnsNeutral()
     {
-        Assert.Equal(0.5, RecommendationEngine.ComputeYearProximity(2020, 0));
+        Assert.Equal(0.5, ContentScoring.ComputeYearProximity(2020, 0));
     }
 
     [Fact]
     public void ComputeYearProximity_SameYear_ReturnsOne()
     {
-        Assert.Equal(1.0, RecommendationEngine.ComputeYearProximity(2020, 2020));
+        Assert.Equal(1.0, ContentScoring.ComputeYearProximity(2020, 2020));
     }
 
     [Fact]
     public void ComputeYearProximity_TenYearsDiff_DecaysExpected()
     {
-        var score = RecommendationEngine.ComputeYearProximity(2010, 2020);
-        // e^(-100/200) = e^(-0.5) ≈ 0.6065
+        var score = ContentScoring.ComputeYearProximity(2010, 2020);
+        // e^(-100/200) = e^(-0.5) â‰ˆ 0.6065
         Assert.True(score > 0.55 && score < 0.65, $"Expected ~0.607 but got {score}");
     }
 
@@ -281,7 +281,7 @@ public class RecommendationEngineTests
             ]
         };
 
-        Assert.Equal(0, RecommendationEngine.ComputeAverageYear(profile));
+        Assert.Equal(0, ContentScoring.ComputeAverageYear(profile));
     }
 
     [Fact]
@@ -296,7 +296,7 @@ public class RecommendationEngineTests
             ]
         };
 
-        Assert.Equal(2010, RecommendationEngine.ComputeAverageYear(profile));
+        Assert.Equal(2010, ContentScoring.ComputeAverageYear(profile));
     }
 
     [Fact]
@@ -320,7 +320,7 @@ public class RecommendationEngineTests
             ]
         };
 
-        var map = RecommendationEngine.BuildCollaborativeMap(user, [user, other]);
+        var map = CollaborativeFilter.BuildCollaborativeMap(user, [user, other]);
         Assert.Empty(map);
     }
 
@@ -355,7 +355,7 @@ public class RecommendationEngineTests
             ]
         };
 
-        var map = RecommendationEngine.BuildCollaborativeMap(user, [user, other]);
+        var map = CollaborativeFilter.BuildCollaborativeMap(user, [user, other]);
         Assert.Single(map);
         // Jaccard similarity: overlap=3, union=3+4-3=4, weight=3/4=0.75
         Assert.Equal(0.75, map[uniqueToOther], 4);
@@ -389,7 +389,7 @@ public class RecommendationEngineTests
         };
 
         // Only 2 shared items, minimum is 3
-        var map = RecommendationEngine.BuildCollaborativeMap(user, [user, other]);
+        var map = CollaborativeFilter.BuildCollaborativeMap(user, [user, other]);
         Assert.Empty(map);
     }
 
@@ -408,7 +408,7 @@ public class RecommendationEngineTests
             ]
         };
 
-        var map = RecommendationEngine.BuildCollaborativeMap(user, [user]);
+        var map = CollaborativeFilter.BuildCollaborativeMap(user, [user]);
         Assert.Empty(map);
     }
 
@@ -421,7 +421,7 @@ public class RecommendationEngineTests
             WatchedItems = []
         };
 
-        var map = RecommendationEngine.BuildCollaborativeMap(user, [user]);
+        var map = CollaborativeFilter.BuildCollaborativeMap(user, [user]);
         Assert.Empty(map);
     }
 
@@ -430,42 +430,42 @@ public class RecommendationEngineTests
     [Fact]
     public void ComputeUserRatingScore_NullItem_ReturnsNeutral()
     {
-        Assert.Equal(0.5, RecommendationEngine.ComputeUserRatingScore(null));
+        Assert.Equal(0.5, ContentScoring.ComputeUserRatingScore(null));
     }
 
     [Fact]
     public void ComputeUserRatingScore_NoRating_ReturnsNeutral()
     {
         var item = new WatchedItemInfo { UserRating = null };
-        Assert.Equal(0.5, RecommendationEngine.ComputeUserRatingScore(item));
+        Assert.Equal(0.5, ContentScoring.ComputeUserRatingScore(item));
     }
 
     [Fact]
     public void ComputeUserRatingScore_ZeroRating_ReturnsNeutral()
     {
         var item = new WatchedItemInfo { UserRating = 0 };
-        Assert.Equal(0.5, RecommendationEngine.ComputeUserRatingScore(item));
+        Assert.Equal(0.5, ContentScoring.ComputeUserRatingScore(item));
     }
 
     [Fact]
     public void ComputeUserRatingScore_MaxRating_ReturnsOne()
     {
         var item = new WatchedItemInfo { UserRating = 10.0 };
-        Assert.Equal(1.0, RecommendationEngine.ComputeUserRatingScore(item));
+        Assert.Equal(1.0, ContentScoring.ComputeUserRatingScore(item));
     }
 
     [Fact]
     public void ComputeUserRatingScore_MidRating_ReturnsHalf()
     {
         var item = new WatchedItemInfo { UserRating = 5.0 };
-        Assert.Equal(0.5, RecommendationEngine.ComputeUserRatingScore(item));
+        Assert.Equal(0.5, ContentScoring.ComputeUserRatingScore(item));
     }
 
     [Fact]
     public void ComputeUserRatingScore_AboveTen_ClampedToOne()
     {
         var item = new WatchedItemInfo { UserRating = 15.0 };
-        Assert.Equal(1.0, RecommendationEngine.ComputeUserRatingScore(item));
+        Assert.Equal(1.0, ContentScoring.ComputeUserRatingScore(item));
     }
 
     // --- ComputeCompletionRatio tests ---
@@ -473,35 +473,35 @@ public class RecommendationEngineTests
     [Fact]
     public void ComputeCompletionRatio_NullItem_ReturnsZero()
     {
-        Assert.Equal(0.0, RecommendationEngine.ComputeCompletionRatio(null));
+        Assert.Equal(0.0, ContentScoring.ComputeCompletionRatio(null));
     }
 
     [Fact]
     public void ComputeCompletionRatio_ZeroRuntime_ReturnsZero()
     {
         var item = new WatchedItemInfo { RuntimeTicks = 0, PlaybackPositionTicks = 100 };
-        Assert.Equal(0.0, RecommendationEngine.ComputeCompletionRatio(item));
+        Assert.Equal(0.0, ContentScoring.ComputeCompletionRatio(item));
     }
 
     [Fact]
     public void ComputeCompletionRatio_HalfWatched_ReturnsHalf()
     {
         var item = new WatchedItemInfo { RuntimeTicks = 1000, PlaybackPositionTicks = 500 };
-        Assert.Equal(0.5, RecommendationEngine.ComputeCompletionRatio(item));
+        Assert.Equal(0.5, ContentScoring.ComputeCompletionRatio(item));
     }
 
     [Fact]
     public void ComputeCompletionRatio_FullyWatched_ReturnsOne()
     {
         var item = new WatchedItemInfo { RuntimeTicks = 1000, PlaybackPositionTicks = 1000 };
-        Assert.Equal(1.0, RecommendationEngine.ComputeCompletionRatio(item));
+        Assert.Equal(1.0, ContentScoring.ComputeCompletionRatio(item));
     }
 
     [Fact]
     public void ComputeCompletionRatio_OverWatched_ClampedToOne()
     {
         var item = new WatchedItemInfo { RuntimeTicks = 1000, PlaybackPositionTicks = 1500 };
-        Assert.Equal(1.0, RecommendationEngine.ComputeCompletionRatio(item));
+        Assert.Equal(1.0, ContentScoring.ComputeCompletionRatio(item));
     }
 
     // --- ComputeJaccardFromSets tests ---
@@ -511,7 +511,7 @@ public class RecommendationEngineTests
     {
         var a = new HashSet<string>();
         var b = new HashSet<string>();
-        Assert.Equal(0.0, RecommendationEngine.ComputeJaccardFromSets(a, b));
+        Assert.Equal(0.0, SimilarityComputer.ComputeJaccardFromSets(a, b));
     }
 
     [Fact]
@@ -519,7 +519,7 @@ public class RecommendationEngineTests
     {
         var a = new HashSet<string> { "Action" };
         var b = new HashSet<string>();
-        Assert.Equal(0.0, RecommendationEngine.ComputeJaccardFromSets(a, b));
+        Assert.Equal(0.0, SimilarityComputer.ComputeJaccardFromSets(a, b));
     }
 
     [Fact]
@@ -527,7 +527,7 @@ public class RecommendationEngineTests
     {
         var a = new HashSet<string> { "Action", "Comedy" };
         var b = new HashSet<string> { "Action", "Comedy" };
-        Assert.Equal(1.0, RecommendationEngine.ComputeJaccardFromSets(a, b));
+        Assert.Equal(1.0, SimilarityComputer.ComputeJaccardFromSets(a, b));
     }
 
     [Fact]
@@ -535,7 +535,7 @@ public class RecommendationEngineTests
     {
         var a = new HashSet<string> { "Action" };
         var b = new HashSet<string> { "Comedy" };
-        Assert.Equal(0.0, RecommendationEngine.ComputeJaccardFromSets(a, b));
+        Assert.Equal(0.0, SimilarityComputer.ComputeJaccardFromSets(a, b));
     }
 
     [Fact]
@@ -544,7 +544,7 @@ public class RecommendationEngineTests
         // intersection=1 (Action), union=3 (Action,Comedy,Drama)
         var a = new HashSet<string> { "Action", "Comedy" };
         var b = new HashSet<string> { "Action", "Drama" };
-        Assert.Equal(1.0 / 3.0, RecommendationEngine.ComputeJaccardFromSets(a, b), 4);
+        Assert.Equal(1.0 / 3.0, SimilarityComputer.ComputeJaccardFromSets(a, b), 4);
     }
 
     // --- Cold-start behavior tests ---
@@ -571,7 +571,7 @@ public class RecommendationEngineTests
             ]
         };
 
-        var vector = RecommendationEngine.BuildGenrePreferenceVector(profile);
+        var vector = PreferenceBuilder.BuildGenrePreferenceVector(profile);
 
         // Action should be boosted (5 + 3.0 = 8.0) vs Comedy (5.0)
         // Normalized: Action = 1.0, Comedy = 5.0/8.0 = 0.625
@@ -587,7 +587,7 @@ public class RecommendationEngineTests
             { "action", 1.0 }
         };
 
-        var score = RecommendationEngine.ComputeGenreSimilarity(new[] { "Action" }, prefs);
+        var score = SimilarityComputer.ComputeGenreSimilarity(new[] { "Action" }, prefs);
         Assert.Equal(1.0, score, 4);
     }
 
@@ -597,7 +597,7 @@ public class RecommendationEngineTests
         var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var oneYearAgo = now.AddDays(-365);
 
-        var score = RecommendationEngine.ComputeRecencyScore(oneYearAgo, now);
+        var score = ContentScoring.ComputeRecencyScore(oneYearAgo, now);
         Assert.True(score > 0.4 && score < 0.6, $"Expected ~0.5 for 1-year decay, got {score}");
     }
 
@@ -644,20 +644,20 @@ public class RecommendationEngineTests
             ]
         };
 
-        var map = RecommendationEngine.BuildCollaborativeMap(user, [user, other1, other2]);
+        var map = CollaborativeFilter.BuildCollaborativeMap(user, [user, other1, other2]);
 
         // uniqueItem should have accumulated Jaccard weight from both other users
         Assert.True(map.ContainsKey(uniqueItem));
         Assert.True(map[uniqueItem] > 0.75, $"Expected accumulated weight > 0.75 from two users, got {map[uniqueItem]}");
     }
 
-    // ── PeopleSimilarity Tests ──────────────────────────────────────────
+    // â”€â”€ PeopleSimilarity Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void ComputePeopleSimilarity_EmptySets_ReturnsZero()
     {
         var empty = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var result = RecommendationEngine.ComputePeopleSimilarity(empty, empty);
+        var result = SimilarityComputer.ComputePeopleSimilarity(empty, empty);
         Assert.Equal(0.0, result);
     }
 
@@ -666,7 +666,7 @@ public class RecommendationEngineTests
     {
         var candidate = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Actor A", "Actor B" };
         var preferred = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Actor C", "Actor D" };
-        var result = RecommendationEngine.ComputePeopleSimilarity(candidate, preferred);
+        var result = SimilarityComputer.ComputePeopleSimilarity(candidate, preferred);
         Assert.Equal(0.0, result);
     }
 
@@ -675,17 +675,17 @@ public class RecommendationEngineTests
     {
         var candidate = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Actor A", "Director B" };
         var preferred = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Actor A", "Director B" };
-        var result = RecommendationEngine.ComputePeopleSimilarity(candidate, preferred);
+        var result = SimilarityComputer.ComputePeopleSimilarity(candidate, preferred);
         Assert.Equal(1.0, result);
     }
 
     [Fact]
     public void ComputePeopleSimilarity_PartialOverlap_ReturnsOverlapCoefficient()
     {
-        // Intersection = {A}, min(|candidate|, |preferred|) = min(2, 2) = 2 → Overlap = 1/2
+        // Intersection = {A}, min(|candidate|, |preferred|) = min(2, 2) = 2 â†’ Overlap = 1/2
         var candidate = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "A", "B" };
         var preferred = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "A", "C" };
-        var result = RecommendationEngine.ComputePeopleSimilarity(candidate, preferred);
+        var result = SimilarityComputer.ComputePeopleSimilarity(candidate, preferred);
         Assert.Equal(0.5, result, 6);
     }
 
@@ -694,7 +694,7 @@ public class RecommendationEngineTests
     {
         var candidate = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "tom hanks" };
         var preferred = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Tom Hanks" };
-        var result = RecommendationEngine.ComputePeopleSimilarity(candidate, preferred);
+        var result = SimilarityComputer.ComputePeopleSimilarity(candidate, preferred);
         Assert.Equal(1.0, result);
     }
 
@@ -703,8 +703,7 @@ public class RecommendationEngineTests
     {
         var profile = new UserWatchProfile { WatchedItems = [] };
         var lookup = new Dictionary<Guid, HashSet<string>>();
-        var result = RecommendationEngine.BuildPeoplePreferenceSet(
-            profile, lookup, new HashSet<Guid>(), new HashSet<Guid>());
+        var result = PreferenceBuilder.BuildPeoplePreferenceSet(profile, lookup);
         Assert.Empty(result);
     }
 
@@ -728,11 +727,7 @@ public class RecommendationEngineTests
             ]
         };
 
-        var watchedIds = new HashSet<Guid> { itemId };
-        var watchedSeriesIds = new HashSet<Guid> { seriesId };
-
-        var result = RecommendationEngine.BuildPeoplePreferenceSet(
-            profile, lookup, watchedIds, watchedSeriesIds);
+        var result = PreferenceBuilder.BuildPeoplePreferenceSet(profile, lookup);
 
         Assert.Contains("Actor A", result);
         Assert.Contains("Director B", result);
@@ -754,13 +749,12 @@ public class RecommendationEngineTests
             WatchedItems = [new WatchedItemInfo { ItemId = itemId, Played = false }]
         };
 
-        var result = RecommendationEngine.BuildPeoplePreferenceSet(
-            profile, lookup, new HashSet<Guid>(), new HashSet<Guid>());
+        var result = PreferenceBuilder.BuildPeoplePreferenceSet(profile, lookup);
 
         Assert.Empty(result);
     }
 
-    // ── Edge-Case Tests ──────────────────────────────────────────────
+    // â”€â”€ Edge-Case Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void BuildGenrePreferenceVector_SingleGenre_ReturnsOne()
@@ -770,7 +764,7 @@ public class RecommendationEngineTests
             GenreDistribution = new Dictionary<string, int> { { "Horror", 7 } }
         };
 
-        var vector = RecommendationEngine.BuildGenrePreferenceVector(profile);
+        var vector = PreferenceBuilder.BuildGenrePreferenceVector(profile);
 
         Assert.Single(vector);
         Assert.Equal(1.0, vector["Horror"]);
@@ -785,7 +779,7 @@ public class RecommendationEngineTests
             WatchedItems = []
         };
 
-        var map = RecommendationEngine.BuildCollaborativeMap(user, []);
+        var map = CollaborativeFilter.BuildCollaborativeMap(user, []);
         Assert.Empty(map);
     }
 
@@ -804,7 +798,7 @@ public class RecommendationEngineTests
             WatchedItems = []
         };
 
-        var map = RecommendationEngine.BuildCollaborativeMap(user, [user, other]);
+        var map = CollaborativeFilter.BuildCollaborativeMap(user, [user, other]);
         Assert.Empty(map);
     }
 
@@ -813,28 +807,28 @@ public class RecommendationEngineTests
     {
         var itemId = Guid.NewGuid();
         var map = new Dictionary<Guid, double> { { itemId, 0.5 } };
-        Assert.Equal(0, RecommendationEngine.ComputeCollaborativeScore(itemId, map, -1.0));
+        Assert.Equal(0, ContentScoring.ComputeCollaborativeScore(itemId, map, -1.0));
     }
 
     [Fact]
     public void NormalizeRating_NegativeRating_ClampedToZero()
     {
-        var score = RecommendationEngine.NormalizeRating(-5f);
+        var score = ContentScoring.NormalizeRating(-5f);
         Assert.True(score >= 0.0 && score <= 1.0, $"Expected clamped value, got {score}");
     }
 
     [Fact]
     public void ComputeRecencyScore_VeryOldDate_ReturnsNearZero()
     {
-        var score = RecommendationEngine.ComputeRecencyScore(new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var score = ContentScoring.ComputeRecencyScore(new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc));
         Assert.True(score >= 0.0 && score < 0.01, $"Expected near-zero for very old date, got {score}");
     }
 
     [Fact]
     public void ComputeYearProximity_NegativeYear_StillComputes()
     {
-        // Edge case: year 0 vs 2020 — should not throw, returns valid score
-        var score = RecommendationEngine.ComputeYearProximity(0, 2020);
+        // Edge case: year 0 vs 2020 â€” should not throw, returns valid score
+        var score = ContentScoring.ComputeYearProximity(0, 2020);
         Assert.True(score >= 0.0 && score <= 1.0, $"Expected valid score, got {score}");
     }
 
@@ -842,7 +836,7 @@ public class RecommendationEngineTests
     public void ComputeCompletionRatio_NegativeRuntime_ReturnsZero()
     {
         var item = new WatchedItemInfo { RuntimeTicks = -100, PlaybackPositionTicks = 50 };
-        Assert.Equal(0.0, RecommendationEngine.ComputeCompletionRatio(item));
+        Assert.Equal(0.0, ContentScoring.ComputeCompletionRatio(item));
     }
 
     [Fact]
@@ -851,8 +845,8 @@ public class RecommendationEngineTests
         // Overlap coefficient uses min(|A|,|B|) in denominator
         var candidate = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "A" };
         var preferred = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "A", "B", "C", "D", "E" };
-        var result = RecommendationEngine.ComputePeopleSimilarity(candidate, preferred);
-        // Intersection = {A}, min(1, 5) = 1 → Overlap = 1/1 = 1.0
+        var result = SimilarityComputer.ComputePeopleSimilarity(candidate, preferred);
+        // Intersection = {A}, min(1, 5) = 1 â†’ Overlap = 1/1 = 1.0
         Assert.Equal(1.0, result);
     }
 
@@ -865,7 +859,7 @@ public class RecommendationEngineTests
         };
 
         // Candidate with duplicate genres (edge case from malformed metadata)
-        var score = RecommendationEngine.ComputeGenreSimilarity(
+        var score = SimilarityComputer.ComputeGenreSimilarity(
             new[] { "Action", "Action", "Action" }, prefs);
 
         // Should still produce a valid score in [0, 1]
@@ -883,13 +877,13 @@ public class RecommendationEngineTests
             ]
         };
 
-        Assert.Equal(2015, RecommendationEngine.ComputeAverageYear(profile));
+        Assert.Equal(2015, ContentScoring.ComputeAverageYear(profile));
     }
 
     [Fact]
     public void ComputeAverageYear_EmptyProfile_ReturnsZero()
     {
         var profile = new UserWatchProfile { WatchedItems = [] };
-        Assert.Equal(0, RecommendationEngine.ComputeAverageYear(profile));
+        Assert.Equal(0, ContentScoring.ComputeAverageYear(profile));
     }
 }

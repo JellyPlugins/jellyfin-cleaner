@@ -9,6 +9,7 @@ using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
 using Jellyfin.Plugin.JellyfinHelper.Services.Link;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
+using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Engine;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
 using Jellyfin.Plugin.JellyfinHelper.Services.Seerr;
@@ -102,45 +103,12 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
             return new EnsembleScoringStrategy(learned, heuristic, neural, statePath, alphaMin, alphaMax, genrePenaltyFloor);
         });
-        serviceCollection.AddSingleton<IScoringStrategy>(ResolveScoringStrategy);
-        serviceCollection.AddSingleton<IRecommendationEngine, RecommendationEngine>();
+        // Always use Ensemble strategy — no user-selectable strategy choice.
+        // Ensemble combines all methods (Heuristic + Learned + Neural) for best results.
+        serviceCollection.AddSingleton<IScoringStrategy>(sp => sp.GetRequiredService<EnsembleScoringStrategy>());
+        serviceCollection.AddSingleton<IRecommendationEngine, Engine>();
         serviceCollection.AddSingleton<IRecommendationCacheService, RecommendationCacheService>();
         serviceCollection.AddSingleton<IUserActivityInsightsService, UserActivityInsightsService>();
         serviceCollection.AddSingleton<IUserActivityCacheService, UserActivityCacheService>();
-    }
-
-    /// <summary>
-    ///     Resolves the active <see cref="IScoringStrategy"/> based on plugin configuration.
-    ///     Valid strategy values: "ensemble" (default), "heuristic", "learned", "neural".
-    /// </summary>
-    private static IScoringStrategy ResolveScoringStrategy(IServiceProvider sp)
-    {
-        var config = Jellyfin.Plugin.JellyfinHelper.Plugin.Instance?.Configuration;
-        var strategy = config?.RecommendationStrategy ?? "ensemble";
-
-        if (string.Equals(strategy, "heuristic", StringComparison.OrdinalIgnoreCase))
-        {
-            // Create a standalone instance with full genre penalty (0.10) enabled.
-            // The DI-registered singleton uses genrePenaltyFloor=1.0 because it's used
-            // inside EnsembleScoringStrategy where the ensemble applies its own penalty.
-            var penaltyFloor = config?.EnsembleGenrePenaltyFloor ?? 0.10;
-            return new HeuristicScoringStrategy(genrePenaltyFloor: penaltyFloor);
-        }
-
-        if (string.Equals(strategy, "learned", StringComparison.OrdinalIgnoreCase))
-        {
-            // Return the DI-registered LearnedScoringStrategy (which has the correct weights path)
-            // via the EnsembleScoringStrategy's internal reference so there's only one instance.
-            var ensemble = sp.GetRequiredService<EnsembleScoringStrategy>();
-            return ensemble.LearnedStrategy;
-        }
-
-        if (string.Equals(strategy, "neural", StringComparison.OrdinalIgnoreCase))
-        {
-            return sp.GetRequiredService<NeuralScoringStrategy>();
-        }
-
-        // Default: Ensemble strategy (resolved via DI with all config applied)
-        return sp.GetRequiredService<EnsembleScoringStrategy>();
     }
 }

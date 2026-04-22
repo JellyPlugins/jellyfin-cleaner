@@ -397,12 +397,13 @@ public class HelperCleanupTask : IScheduledTask
 
     private Task RunUserActivityUpdate(IProgress<double> progress, CancellationToken cancellationToken)
     {
+        var config = _configHelper.GetConfig();
         var task = new UserActivityUpdateTask(
             _userActivityInsightsService,
             _userActivityCacheService,
             _pluginLog,
             _logger);
-        return task.ExecuteAsync(progress, cancellationToken);
+        return task.ExecuteAsync(progress, cancellationToken, config.RecommendationsTaskMode);
     }
 
     private Task RunRecommendationsUpdate(PluginConfiguration config, IProgress<double> progress, CancellationToken cancellationToken)
