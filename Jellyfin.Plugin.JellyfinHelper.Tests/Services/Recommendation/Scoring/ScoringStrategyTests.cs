@@ -440,12 +440,14 @@ public sealed class ScoringStrategyTests : IDisposable
         Assert.Equal(0.09, weights[9]); // user rating
         Assert.Equal(0.07, weights[10]); // completion ratio
         Assert.Equal(-0.04, weights[11]); // isAbandoned
-        Assert.Equal(0.02, weights[12]); // hasInteraction
+        Assert.Equal(0.01, weights[12]); // hasInteraction
         Assert.Equal(0.05, weights[13]); // people similarity
         Assert.Equal(0.02, weights[14]); // studio match
         Assert.Equal(0.06, weights[15]); // seriesProgressionBoost
-        Assert.Equal(0.03, weights[16]); // popularityScore
+        Assert.Equal(0.01, weights[16]); // popularityScore
         Assert.Equal(0.02, weights[17]); // dayOfWeekAffinity
+        Assert.Equal(0.02, weights[18]); // hourOfDayAffinity
+        Assert.Equal(0.01, weights[19]); // isWeekend
     }
 
     [Fact]
