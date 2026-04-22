@@ -295,9 +295,11 @@ public sealed class Engine : IRecommendationEngine
             list.Add(w);
         }
 
-        var watchedIds = new HashSet<Guid>(userProfile.WatchedItems.Where(w => w.Played).Select(w => w.ItemId));
+        // Exclude both played AND favorited items from candidates — the user already knows these items.
+        // Their genre/studio/tag/people signals still flow into preferences via PreferenceBuilder.
+        var watchedIds = new HashSet<Guid>(userProfile.WatchedItems.Where(w => w.Played || w.IsFavorite).Select(w => w.ItemId));
         var watchedSeriesIds = new HashSet<Guid>(
-            userProfile.WatchedItems.Where(w => w.Played && w.SeriesId.HasValue).Select(w => w.SeriesId!.Value));
+            userProfile.WatchedItems.Where(w => (w.Played || w.IsFavorite) && w.SeriesId.HasValue).Select(w => w.SeriesId!.Value));
 
         var genrePreferences = PreferenceBuilder.BuildGenrePreferenceVector(userProfile);
 
