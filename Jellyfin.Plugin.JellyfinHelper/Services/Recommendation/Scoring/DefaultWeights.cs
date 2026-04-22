@@ -9,7 +9,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 public static class DefaultWeights
 {
     /// <summary>Weight for genre similarity signal (dominant).</summary>
-    public const double GenreSimilarity = 0.25;
+    public const double GenreSimilarity = 0.23;
 
     /// <summary>Weight for collaborative filtering signal.</summary>
     public const double CollaborativeScore = 0.10;
@@ -115,6 +115,14 @@ public static class DefaultWeights
     /// </summary>
     public const double IsWeekend = 0.01;
 
+    /// <summary>
+    ///     Weight for tag-based content similarity signal.
+    ///     Measures Jaccard overlap between the candidate's tags and the user's
+    ///     preferred tags derived from watch history. Complements genre similarity
+    ///     with more fine-grained content categorization.
+    /// </summary>
+    public const double TagSimilarity = 0.02;
+
     /// <summary>Default bias term for the learned strategy.</summary>
     public const double Bias = 0.05;
 
@@ -145,6 +153,7 @@ public static class DefaultWeights
         weights[(int)FeatureIndex.DayOfWeekAffinity] = DayOfWeekAffinity;
         weights[(int)FeatureIndex.HourOfDayAffinity] = HourOfDayAffinity;
         weights[(int)FeatureIndex.IsWeekend] = IsWeekend;
+        weights[(int)FeatureIndex.TagSimilarity] = TagSimilarity;
         return weights;
     }
 }

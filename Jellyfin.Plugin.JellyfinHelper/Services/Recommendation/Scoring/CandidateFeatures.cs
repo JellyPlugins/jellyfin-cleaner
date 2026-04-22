@@ -67,6 +67,9 @@ public enum FeatureIndex
 
     /// <summary>Weekend flag (0 or 1). Whether the current request is on a weekend day (Sat/Sun).</summary>
     IsWeekend = 19,
+
+    /// <summary>Tag-based content similarity (0–1). Jaccard overlap of candidate tags with user's preferred tags.</summary>
+    TagSimilarity = 20,
 }
 
 /// <summary>
@@ -78,7 +81,7 @@ public sealed class CandidateFeatures
     /// <summary>
     ///     The number of features produced by <see cref="ToVector"/>.
     /// </summary>
-    public const int FeatureCount = 20;
+    public const int FeatureCount = 21;
 
     /// <summary>
     ///     Normalization ceiling for genre count (items with ≥ this many genres map to 1.0).
@@ -104,6 +107,7 @@ public sealed class CandidateFeatures
     private double _popularityScore;
     private double _dayOfWeekAffinity;
     private double _hourOfDayAffinity;
+    private double _tagSimilarity;
 
     /// <summary>Gets or sets the genre similarity score (0–1). Values are clamped to [0, 1].</summary>
     public double GenreSimilarity
@@ -204,6 +208,13 @@ public sealed class CandidateFeatures
     /// <summary>Gets or sets a value indicating whether the current request is on a weekend day (Saturday or Sunday).</summary>
     public bool IsWeekend { get; set; }
 
+    /// <summary>Gets or sets the tag-based content similarity (0–1). Jaccard overlap of candidate tags with user's preferred tags. Values are clamped to [0, 1].</summary>
+    public double TagSimilarity
+    {
+        get => _tagSimilarity;
+        set => _tagSimilarity = Math.Clamp(value, 0.0, 1.0);
+    }
+
     /// <summary>
     ///     Converts the features into a fixed-size double array for ML processing.
     ///     Order is defined by <see cref="FeatureIndex"/>.
@@ -255,5 +266,6 @@ public sealed class CandidateFeatures
         buffer[(int)FeatureIndex.DayOfWeekAffinity] = DayOfWeekAffinity;
         buffer[(int)FeatureIndex.HourOfDayAffinity] = HourOfDayAffinity;
         buffer[(int)FeatureIndex.IsWeekend] = IsWeekend ? 1.0 : 0.0;
+        buffer[(int)FeatureIndex.TagSimilarity] = TagSimilarity;
     }
 }

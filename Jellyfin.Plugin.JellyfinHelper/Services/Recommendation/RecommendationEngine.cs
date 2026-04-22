@@ -480,6 +480,9 @@ public sealed class RecommendationEngine : IRecommendationEngine
         // Build user's preferred people set from watched items for PeopleSimilarity feature
         var preferredPeople = BuildPeoplePreferenceSet(userProfile, peopleLookup, watchedIds, watchedSeriesIds);
 
+        // Build user's preferred tag set from watched items for TagSimilarity feature
+        var preferredTags = BuildTagPreferenceSet(userProfile, candidateLookup, watchedIds, watchedSeriesIds);
+
         // Score each candidate that the user has NOT watched
         var scored = new List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>();
         var candidateIndex = 0;
@@ -600,7 +603,8 @@ public sealed class RecommendationEngine : IRecommendationEngine
                 PopularityScore = popularityScore,
                 DayOfWeekAffinity = ComputeDayOfWeekAffinity(candidate, userProfile),
                 HourOfDayAffinity = ComputeHourOfDayAffinity(candidate, userProfile),
-                IsWeekend = DateTime.UtcNow.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday
+                IsWeekend = DateTime.UtcNow.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday,
+                TagSimilarity = ComputeTagSimilarity(candidate, preferredTags)
             };
 
             var explanation = strategy.ScoreWithExplanation(features);
@@ -1235,6 +1239,79 @@ public sealed class RecommendationEngine : IRecommendationEngine
         }
 
         return studios;
+    }
+
+    /// <summary>
+    ///     Builds a set of tags the user prefers, derived from their watched items.
+    ///     Looks up the actual BaseItem objects from the candidate lookup to access Tags metadata.
+    ///     Used for tag-based content similarity scoring.
+    /// </summary>
+    /// <param name="userProfile">The user's watch profile.</param>
+    /// <param name="candidateLookup">Pre-built candidate lookup by item ID (shared across calls for performance).</param>
+    /// <param name="watchedIds">Set of item IDs the user has watched.</param>
+    /// <param name="watchedSeriesIds">Set of series IDs the user has watched episodes of.</param>
+    /// <returns>A HashSet of preferred tag names (case-insensitive).</returns>
+    internal static HashSet<string> BuildTagPreferenceSet(
+        UserWatchProfile userProfile,
+        Dictionary<Guid, BaseItem> candidateLookup,
+        HashSet<Guid> watchedIds,
+        HashSet<Guid> watchedSeriesIds)
+    {
+        var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var w in userProfile.WatchedItems)
+        {
+            if (!w.Played)
+            {
+                continue;
+            }
+
+            // Direct item match (movies)
+            if (candidateLookup.TryGetValue(w.ItemId, out var item) && item.Tags is { Length: > 0 })
+            {
+                foreach (var t in item.Tags)
+                {
+                    if (!string.IsNullOrWhiteSpace(t))
+                    {
+                        tags.Add(t);
+                    }
+                }
+            }
+
+            // Series match (episodes → parent series)
+            if (w.SeriesId.HasValue && candidateLookup.TryGetValue(w.SeriesId.Value, out var seriesItem)
+                && seriesItem.Tags is { Length: > 0 })
+            {
+                foreach (var t in seriesItem.Tags)
+                {
+                    if (!string.IsNullOrWhiteSpace(t))
+                    {
+                        tags.Add(t);
+                    }
+                }
+            }
+        }
+
+        return tags;
+    }
+
+    /// <summary>
+    ///     Computes tag similarity between a candidate item's tags and the user's preferred tag set
+    ///     using Jaccard similarity: |A ∩ B| / |A ∪ B|.
+    ///     Returns 0 if either set is empty (no tags available).
+    /// </summary>
+    /// <param name="candidate">The candidate item.</param>
+    /// <param name="preferredTags">The user's preferred tag set.</param>
+    /// <returns>A Jaccard similarity score between 0 and 1.</returns>
+    internal static double ComputeTagSimilarity(BaseItem candidate, HashSet<string> preferredTags)
+    {
+        if (candidate.Tags is not { Length: > 0 } || preferredTags.Count == 0)
+        {
+            return 0;
+        }
+
+        var candidateTags = new HashSet<string>(candidate.Tags, StringComparer.OrdinalIgnoreCase);
+        return ComputeJaccardFromSets(candidateTags, preferredTags);
     }
 
     /// <summary>
