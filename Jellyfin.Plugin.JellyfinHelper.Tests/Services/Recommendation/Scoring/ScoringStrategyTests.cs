@@ -258,6 +258,7 @@ public sealed class ScoringStrategyTests : IDisposable
             (0.8 * DefaultWeights.RatingScore) +
             (0.7 * DefaultWeights.RecencyScore) +
             (0.9 * DefaultWeights.YearProximityScore) +
+
             (0.7 * 0.8 * DefaultWeights.RecencyRatingInteraction);
 
         // With genrePenaltyFloor=0.10 and GenreSimilarity=0.0, penalty = 0.10
@@ -287,6 +288,7 @@ public sealed class ScoringStrategyTests : IDisposable
             (0.8 * DefaultWeights.RatingScore) +
             (0.7 * DefaultWeights.RecencyScore) +
             (0.9 * DefaultWeights.YearProximityScore) +
+
             (0.7 * 0.8 * DefaultWeights.RecencyRatingInteraction);
 
         Assert.Equal(expected, strategy.Score(features), 4);
@@ -2204,15 +2206,34 @@ public sealed class ScoringStrategyTests : IDisposable
         var bH1 = new double[NeuralScoringStrategy.Hidden1Size];
         var wH1H2 = new double[NeuralScoringStrategy.Hidden2Size * NeuralScoringStrategy.Hidden1Size];
         var bH2 = new double[NeuralScoringStrategy.Hidden2Size];
-        var wH2O = new double[NeuralScoringStrategy.Hidden2Size];
+        var wH2H3 = new double[NeuralScoringStrategy.Hidden3Size * NeuralScoringStrategy.Hidden2Size];
+        var bH3 = new double[NeuralScoringStrategy.Hidden3Size];
+        var wH3O = new double[NeuralScoringStrategy.Hidden3Size];
         var bO = 0.0;
         var input = new double[inputSize];
         var h1Pre = new double[NeuralScoringStrategy.Hidden1Size];
         var h1Act = new double[NeuralScoringStrategy.Hidden1Size];
         var h2Pre = new double[NeuralScoringStrategy.Hidden2Size];
         var h2Act = new double[NeuralScoringStrategy.Hidden2Size];
+        var h3Pre = new double[NeuralScoringStrategy.Hidden3Size];
+        var h3Act = new double[NeuralScoringStrategy.Hidden3Size];
 
-        var result = NeuralScoringStrategy.ForwardPass(input, wIH, bH1, wH1H2, bH2, wH2O, bO, h1Pre, h1Act, h2Pre, h2Act);
+        var result = NeuralScoringStrategy.ForwardPass(
+            input,
+            wIH,
+            bH1,
+            wH1H2,
+            bH2,
+            wH2H3,
+            bH3,
+            wH3O,
+            bO,
+            h1Pre,
+            h1Act,
+            h2Pre,
+            h2Act,
+            h3Pre,
+            h3Act);
 
         // With all zero weights, biases, and inputs: sigmoid(0) = 0.5
         Assert.Equal(0.5, result, 10);

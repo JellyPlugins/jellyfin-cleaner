@@ -14,6 +14,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 ///     and generates fresh recommendations for all users.
 ///     Training and incremental updates only run when TaskMode is Activate.
 ///     DryRun mode generates recommendations but does NOT persist them or train models.
+///     Deactivate mode skips the task entirely (true no-op).
 /// </summary>
 public class RecommendationsTask
 {
@@ -50,6 +51,14 @@ public class RecommendationsTask
     /// <returns>A completed task.</returns>
     public Task ExecuteAsync(PluginConfiguration config, IProgress<double> progress, CancellationToken cancellationToken)
     {
+        // Deactivate mode: true no-op — skip all expensive work
+        if (config.RecommendationsTaskMode == TaskMode.Deactivate)
+        {
+            _pluginLog.LogInfo("Recommendations", "Task skipped (Deactivated).", _logger);
+            progress.Report(100);
+            return Task.CompletedTask;
+        }
+
         var isActive = config.RecommendationsTaskMode == TaskMode.Activate;
         var isDryRun = config.RecommendationsTaskMode == TaskMode.DryRun;
 

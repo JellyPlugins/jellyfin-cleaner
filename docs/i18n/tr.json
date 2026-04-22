@@ -215,7 +215,7 @@
   "tabRecommendations": "Keşfet",
   "activityTitle": "Kullanıcı İzleme Etkinliği",
   "activityLoading": "Etkinlik verileri yükleniyor…",
-  "activityNoData": "Etkinlik verisi yok. Önce 'Update User Watch Activity' zamanlanmış görevini çalıştırın.",
+  "activityNoData": "Etkinlik verisi yok. Önce «Kullanıcı İzleme Etkinliğini Güncelle» zamanlanmış görevini çalıştırın.",
   "activityFilterUser": "Kullanıcıya göre filtrele",
   "activityAllUsers": "Tüm Kullanıcılar",
   "activityItemName": "Başlık",

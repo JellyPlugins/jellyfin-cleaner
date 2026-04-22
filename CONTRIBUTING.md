@@ -168,7 +168,7 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   └── Scoring/                         # Scoring strategies & ML models
 │   │       ├── HeuristicScoringStrategy.cs      # Rule-based scoring (fixed weights, genre penalty)
 │   │       ├── LearnedScoringStrategy.cs        # Gradient-descent linear ML (Z-score, ArrayPool, importance logging)
-│   │       ├── NeuralScoringStrategy.cs         # Two-hidden-layer MLP (23→16→8→1, Adam, Xavier, schema v3)
+│   │       ├── NeuralScoringStrategy.cs         # Three-hidden-layer MLP (23→32→16→8→1, Adam, Xavier, schema v4)
 │   │       ├── EnsembleScoringStrategy.cs       # Adaptive 3-way blend (α sigmoid + β neural ramp)
 │   │       ├── ScoringHelper.cs                 # Shared scoring utilities (raw score, explanation builder)
 │   │       ├── DefaultWeights.cs                # Centralized default feature weights (sum=1.0, 23 features)
@@ -569,7 +569,7 @@ Sub-tasks executed in order (each respecting its configured task mode):
 - **ML-powered per-user recommendations** using four-tier scoring architecture (Heuristic + Learned + Neural MLP + Ensemble blend)
 - **Heuristic scoring** — Rule-based scoring using genre overlap, community rating, recency, year proximity, collaborative filtering, and interaction terms (fixed weights from `DefaultWeights`)
 - **Learned scoring** — Gradient-descent trained linear model (23 features + bias) that learns per-user weights from labelled examples via mini-batch SGD with L2 regularization, cosine annealing LR decay, Z-score standardization, early stopping, and per-feature weight importance logging at Debug level
-- **Neural scoring** — Two-hidden-layer MLP (23 inputs → 16 hidden₁ ReLU → 8 hidden₂ ReLU → 1 sigmoid output = 529 parameters) trained via three-layer backpropagation with Adam optimizer, L2 weight decay (no bias regularization), Xavier/Glorot initialization per layer, temporal sample weighting, early stopping, weight clamping (±3.0), and per-feature importance logging (L2 norm) at Debug level. Weight persistence via JSON (schema v3, auto-discards older schemas). Pure C# implementation with zero external ML dependencies
+- **Neural scoring** — Three-hidden-layer MLP (23 inputs → 32 hidden₁ ReLU → 16 hidden₂ ReLU → 8 hidden₃ ReLU → 1 sigmoid output = 1,441 parameters) trained via four-layer backpropagation with Adam optimizer, L2 weight decay (no bias regularization), Xavier/Glorot initialization per layer, temporal sample weighting, early stopping, weight clamping (±3.0), and per-feature importance logging (L2 norm) at Debug level. Weight persistence via JSON (schema v4, auto-discards older schemas). Pure C# implementation with zero external ML dependencies
 - **Ensemble scoring** — Adaptive 3-way blend of Heuristic, Learned, and Neural strategies using a sigmoid-driven α factor (Heuristic↔ML balance) and a linear β ramp (Learned↔Neural split within the ML budget). Includes a **quality gate**: if validation loss exceeds the threshold (MSE > 0.30), α progression is soft-dampened. Neural β activates after 50+ training examples and is gated by its own validation loss quality check
 - **Hard negative mining** — Items the user started but abandoned (< 25% completion) receive a strong negative label (0.0) during training, providing a clearer signal than simply "not watched"
 - **Soft labels** — Watched items get label 0.85 (not 1.0, to reduce label noise); recommended-but-not-watched items get 0.1 (exposure bias mitigation)
@@ -758,7 +758,7 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
     │   ├── RecommendationEngineTests.cs         # Engine component tests (preferences, scoring, collaborative)
     │   ├── Scoring/
     │   │   ├── ScoringStrategyTests.cs          # Heuristic, learned & ensemble scoring tests
-    │   │   ├── NeuralScoringStrategyTests.cs    # Neural MLP (23→16→8→1) tests
+    │   │   ├── NeuralScoringStrategyTests.cs    # Neural MLP (23→32→16→8→1) tests
     │   │   ├── ScoreExplanationTests.cs         # Explanation, blend, penalty tests
     │   │   └── TrainingExampleTests.cs          # Label quality, temporal decay tests
     │   ├── RecommendationCacheServiceTests.cs   # Cache persistence tests

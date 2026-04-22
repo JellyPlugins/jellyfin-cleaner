@@ -128,7 +128,7 @@ public class HelperCleanupTask : IScheduledTask
             ("Orphaned Subtitle Cleanup", config.OrphanedSubtitleTaskMode, RunOrphanedSubtitleCleanup),
             ("Link Repair", config.LinkRepairTaskMode, RunLinkRepair),
             ("Seerr Cleanup", config.SeerrCleanupTaskMode, (p, ct) => RunSeerrCleanup(config, p, ct)),
-            ("User Watch Activity", config.RecommendationsTaskMode, RunUserActivityUpdate),
+            ("User Watch Activity", config.RecommendationsTaskMode, (p, ct) => RunUserActivityUpdate(config, p, ct)),
             ("Smart Recommendations", config.RecommendationsTaskMode, (p, ct) => RunRecommendationsUpdate(config, p, ct))
         };
 
@@ -395,9 +395,8 @@ public class HelperCleanupTask : IScheduledTask
         progress.Report(100);
     }
 
-    private Task RunUserActivityUpdate(IProgress<double> progress, CancellationToken cancellationToken)
+    private Task RunUserActivityUpdate(PluginConfiguration config, IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var config = _configHelper.GetConfig();
         var task = new UserActivityUpdateTask(
             _userActivityInsightsService,
             _userActivityCacheService,

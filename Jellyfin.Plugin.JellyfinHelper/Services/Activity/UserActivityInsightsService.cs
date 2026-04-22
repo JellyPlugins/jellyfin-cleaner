@@ -90,9 +90,12 @@ public class UserActivityInsightsService : IUserActivityInsightsService
                         continue;
                     }
 
-                    // Only include if there's any interaction
-                    if (!userData.Played && userData.PlaybackPositionTicks <= 0
-                        && !userData.IsFavorite && userData.PlayCount <= 0)
+                    var hasPlaybackActivity = userData.Played
+                        || userData.PlaybackPositionTicks > 0
+                        || userData.PlayCount > 0;
+
+                    // Only include if there's any interaction (playback or favorite)
+                    if (!hasPlaybackActivity && !userData.IsFavorite)
                     {
                         continue;
                     }
@@ -116,9 +119,13 @@ public class UserActivityInsightsService : IUserActivityInsightsService
                     };
 
                     itemActivities.Add(activity);
-                    itemTotalPlays += userData.PlayCount;
-                    completionSum += completion;
-                    viewerCount++;
+
+                    if (hasPlaybackActivity)
+                    {
+                        itemTotalPlays += userData.PlayCount;
+                        completionSum += completion;
+                        viewerCount++;
+                    }
 
                     if (userData.IsFavorite)
                     {

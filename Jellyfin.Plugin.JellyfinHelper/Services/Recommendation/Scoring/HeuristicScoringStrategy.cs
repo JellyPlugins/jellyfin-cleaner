@@ -46,6 +46,8 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
         var vector = new double[CandidateFeatures.FeatureCount];
         features.WriteToVector(vector);
 
+        // Bias is intentionally 0.0 for the heuristic strategy — hand-tuned weights
+        // already produce scores in the desired range without a bias offset.
         var raw = ScoringHelper.ComputeRawScore(vector, WeightsArray, bias: 0.0);
         var score = Math.Clamp(raw, 0.0, 1.0);
 

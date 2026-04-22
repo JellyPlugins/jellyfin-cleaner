@@ -287,7 +287,7 @@ public class BackupService : IBackupService
         config.TrashRetentionDays = Math.Clamp(backup.TrashRetentionDays, 0, BackupValidator.MaxRetentionDays);
 
         // Smart Recommendations (only task mode — count and strategy use sensible defaults)
-        config.RecommendationsTaskMode = ParseTaskMode(backup.RecommendationsTaskMode);
+        config.RecommendationsTaskMode = ParseTaskMode(backup.RecommendationsTaskMode, TaskMode.Deactivate);
 
         // Arr instances
         config.RadarrInstances.Clear();

@@ -149,6 +149,12 @@ internal sealed class TrainingService
 
                 if (isSeries && seriesEpisodeLookup.TryGetValue(rec.ItemId, out var episodesForScoring))
                 {
+                    // For series, watchedItemLookup is keyed by episode IDs so rec.ItemId (series ID)
+                    // usually misses. Use the most-recently-watched episode so temporal features get real timestamps.
+                    watchedItemForRec = episodesForScoring
+                        .OrderByDescending(e => e.LastPlayedDate)
+                        .FirstOrDefault();
+
                     hasUserInteraction = true;
                     var ratedEpisodes = episodesForScoring.Where(e => e.UserRating is > 0).ToList();
                     userRatingScore = ratedEpisodes.Count > 0

@@ -101,7 +101,7 @@ internal static class ReasonResolver
             WatchedSeriesCount = profile.WatchedSeriesCount,
             TotalWatchTimeTicks = profile.TotalWatchTimeTicks,
             LastActivityDate = profile.LastActivityDate,
-            GenreDistribution = profile.GenreDistribution,
+            GenreDistribution = new Dictionary<string, int>(profile.GenreDistribution),
             FavoriteCount = profile.FavoriteCount,
             AverageCommunityRating = profile.AverageCommunityRating,
             WatchedItems = []

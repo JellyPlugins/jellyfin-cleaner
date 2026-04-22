@@ -654,11 +654,30 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
             if (data?.Weights is { Length: CandidateFeatures.FeatureCount }
                 && data.Version == CurrentWeightsVersion)
             {
+                // Validate standardization stats: both must be null together or both exactly FeatureCount long.
+                var meansValid = data.FeatureMeans is null || data.FeatureMeans.Length == CandidateFeatures.FeatureCount;
+                var stdDevsValid = data.FeatureStdDevs is null || data.FeatureStdDevs.Length == CandidateFeatures.FeatureCount;
+                var bothNullOrBothPresent = (data.FeatureMeans is null) == (data.FeatureStdDevs is null);
+
                 _weights = data.Weights;
                 _bias = data.Bias;
-                _featureMeans = data.FeatureMeans;
-                _featureStdDevs = data.FeatureStdDevs;
                 _trainingGeneration = data.TrainingGeneration;
+
+                if (meansValid && stdDevsValid && bothNullOrBothPresent)
+                {
+                    _featureMeans = data.FeatureMeans;
+                    _featureStdDevs = data.FeatureStdDevs;
+                }
+                else
+                {
+                    // Mismatched stats — discard them, scoring will use raw features
+                    _featureMeans = null;
+                    _featureStdDevs = null;
+                    _logger?.LogWarning(
+                        "LearnedScoringStrategy: Discarding mismatched standardization stats (means={MeansLen}, stdDevs={StdDevsLen})",
+                        data.FeatureMeans?.Length ?? -1,
+                        data.FeatureStdDevs?.Length ?? -1);
+                }
             }
             else if (data is not null)
             {

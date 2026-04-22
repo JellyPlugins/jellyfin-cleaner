@@ -83,4 +83,34 @@ public class UserActivityUpdateTaskTests
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             sut.ExecuteAsync(progress.Object, cts.Token));
     }
+
+    [Fact]
+    public async Task Execute_DryRun_DoesNotSaveCache()
+    {
+        // Arrange
+        var result = new UserActivityResult();
+        _insightsMock.Setup(x => x.BuildActivityReport()).Returns(result);
+        var sut = CreateSut();
+
+        // Act
+        await sut.ExecuteAsync(new Progress<double>(), CancellationToken.None, Configuration.TaskMode.DryRun);
+
+        // Assert
+        _cacheMock.Verify(x => x.SaveResult(It.IsAny<UserActivityResult>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Execute_Deactivate_DoesNotSaveCache()
+    {
+        // Arrange
+        var result = new UserActivityResult();
+        _insightsMock.Setup(x => x.BuildActivityReport()).Returns(result);
+        var sut = CreateSut();
+
+        // Act
+        await sut.ExecuteAsync(new Progress<double>(), CancellationToken.None, Configuration.TaskMode.Deactivate);
+
+        // Assert
+        _cacheMock.Verify(x => x.SaveResult(It.IsAny<UserActivityResult>()), Times.Never);
+    }
 }

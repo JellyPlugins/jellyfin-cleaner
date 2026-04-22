@@ -18,6 +18,7 @@ public sealed class TrainingExample
 
     private double _label;
     private double _sampleWeight = 1.0;
+    private DateTime _generatedAtUtc = DateTime.UtcNow;
 
     /// <summary>Gets or sets the feature signals for this example.</summary>
     public required CandidateFeatures Features { get; set; }
@@ -46,8 +47,18 @@ public sealed class TrainingExample
     /// <summary>
     ///     Gets or sets the UTC timestamp when the recommendation that produced this example was generated.
     ///     Used for temporal decay weighting — newer examples are more relevant.
+    ///     Values are normalized to <see cref="DateTimeKind.Utc"/> on assignment.
     /// </summary>
-    public DateTime GeneratedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime GeneratedAtUtc
+    {
+        get => _generatedAtUtc;
+        set => _generatedAtUtc = value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+    }
 
     /// <summary>
     ///     Computes a temporal decay weight based on the age of this example.

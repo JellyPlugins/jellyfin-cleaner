@@ -64,9 +64,15 @@ public sealed class Engine : IRecommendationEngine
         maxResults = Math.Clamp(maxResults, 1, EngineConstants.MaxRecommendationsPerUser);
         var allProfiles = _watchHistoryService.GetAllUserWatchProfiles();
         var userProfile = allProfiles.FirstOrDefault(p => p.UserId == userId);
-        if (userProfile is null || userProfile.WatchedItems.Count == 0)
+        if (userProfile is null)
         {
-            // Cold-start: user has no watch history — return popular/trending items
+            // User not found in any watch profile — return null so the controller can 404.
+            return null;
+        }
+
+        if (userProfile.WatchedItems.Count == 0)
+        {
+            // Cold-start: user exists but has no watch history — return popular/trending items
             return GenerateColdStartRecommendations(userId, maxResults);
         }
 

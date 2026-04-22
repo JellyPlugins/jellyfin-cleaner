@@ -82,6 +82,7 @@ public class UserActivityController : ControllerBase
     /// <summary>
     ///     Gets activity data filtered for a specific user.
     ///     Returns only items where the specified user has activity.
+    ///     Aggregate fields are recalculated from the filtered user's activities only.
     ///     Only available when Recommendations TaskMode is not Deactivate.
     /// </summary>
     /// <param name="userId">The Jellyfin user ID to filter by.</param>
@@ -119,27 +120,39 @@ public class UserActivityController : ControllerBase
             }
         }
 
-        // Filter to items where this user has activity
+        // Filter to items where this user has activity, recalculating aggregate fields
         var userItems = source.Items
             .Where(s => s.UserActivities.Any(a => a.UserId == userId))
-            .Select(s => new UserActivitySummary
+            .Select(s =>
             {
-                ItemId = s.ItemId,
-                ItemName = s.ItemName,
-                ItemType = s.ItemType,
-                SeriesName = s.SeriesName,
-                EpisodeLabel = s.EpisodeLabel,
-                Year = s.Year,
-                Genres = s.Genres,
-                CommunityRating = s.CommunityRating,
-                RuntimeTicks = s.RuntimeTicks,
-                TotalPlayCount = s.TotalPlayCount,
-                UniqueViewers = s.UniqueViewers,
-                MostRecentWatch = s.MostRecentWatch,
-                AverageCompletionPercent = s.AverageCompletionPercent,
-                FavoriteCount = s.FavoriteCount,
-                UserActivities = new Collection<UserItemActivity>(
-                    s.UserActivities.Where(a => a.UserId == userId).ToList())
+                var filteredActivities = s.UserActivities
+                    .Where(a => a.UserId == userId)
+                    .ToList();
+
+                return new UserActivitySummary
+                {
+                    ItemId = s.ItemId,
+                    ItemName = s.ItemName,
+                    ItemType = s.ItemType,
+                    SeriesName = s.SeriesName,
+                    EpisodeLabel = s.EpisodeLabel,
+                    Year = s.Year,
+                    Genres = s.Genres,
+                    CommunityRating = s.CommunityRating,
+                    RuntimeTicks = s.RuntimeTicks,
+                    TotalPlayCount = filteredActivities.Sum(a => a.PlayCount),
+                    UniqueViewers = filteredActivities.Count,
+                    MostRecentWatch = filteredActivities
+                        .Where(a => a.LastPlayedDate.HasValue)
+                        .Select(a => a.LastPlayedDate)
+                        .DefaultIfEmpty(null)
+                        .Max(),
+                    AverageCompletionPercent = filteredActivities.Count > 0
+                        ? Math.Round(filteredActivities.Average(a => a.CompletionPercent), 1)
+                        : 0,
+                    FavoriteCount = filteredActivities.Count(a => a.IsFavorite),
+                    UserActivities = new Collection<UserItemActivity>(filteredActivities)
+                };
             })
             .OrderByDescending(s => s.UserActivities.FirstOrDefault()?.LastPlayedDate)
             .Take(maxResults)

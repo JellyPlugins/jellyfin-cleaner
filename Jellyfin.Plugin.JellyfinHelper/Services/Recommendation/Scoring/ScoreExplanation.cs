@@ -58,6 +58,9 @@ public sealed class ScoreExplanation
     /// <returns>A new blended explanation.</returns>
     public ScoreExplanation Blend(ScoreExplanation other, double alpha)
     {
+        ArgumentNullException.ThrowIfNull(other);
+        alpha = Math.Clamp(alpha, 0.0, 1.0);
+
         var oneMinusAlpha = 1.0 - alpha;
         var blendedGenre = (oneMinusAlpha * GenreContribution) + (alpha * other.GenreContribution);
         var blendedCollab = (oneMinusAlpha * CollaborativeContribution) + (alpha * other.CollaborativeContribution);

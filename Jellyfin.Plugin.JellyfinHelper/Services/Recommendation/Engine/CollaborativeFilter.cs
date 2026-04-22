@@ -48,6 +48,32 @@ internal static class CollaborativeFilter
     }
 
     /// <summary>
+    ///     Builds a combined watch set (item IDs + series IDs) for a single user profile.
+    ///     Used as fallback in single-user mode when precomputed sets are not available.
+    /// </summary>
+    /// <param name="profile">The user's watch profile.</param>
+    /// <returns>A set of watched item IDs and parent series IDs.</returns>
+    private static HashSet<Guid> BuildCombinedWatchSet(UserWatchProfile profile)
+    {
+        var combined = new HashSet<Guid>();
+        foreach (var w in profile.WatchedItems)
+        {
+            if (!w.Played)
+            {
+                continue;
+            }
+
+            combined.Add(w.ItemId);
+            if (w.SeriesId.HasValue)
+            {
+                combined.Add(w.SeriesId.Value);
+            }
+        }
+
+        return combined;
+    }
+
+    /// <summary>
     ///     Builds a collaborative co-occurrence map: for each unwatched item,
     ///     accumulates Jaccard-weighted similarity from OTHER users who share watch
     ///     overlap with this user. Uses true Jaccard similarity (0–1) instead of
@@ -79,16 +105,7 @@ internal static class CollaborativeFilter
         else
         {
             // Fallback: build on-the-fly (single-user mode)
-            var userWatchedIds = new HashSet<Guid>(
-                userProfile.WatchedItems.Where(w => w.Played).Select(w => w.ItemId));
-
-            var userWatchedSeriesIds = new HashSet<Guid>(
-                userProfile.WatchedItems
-                    .Where(w => w.Played && w.SeriesId.HasValue)
-                    .Select(w => w.SeriesId!.Value));
-
-            userCombinedIds = new HashSet<Guid>(userWatchedIds);
-            userCombinedIds.UnionWith(userWatchedSeriesIds);
+            userCombinedIds = BuildCombinedWatchSet(userProfile);
         }
 
         if (userCombinedIds.Count == 0)
@@ -113,16 +130,7 @@ internal static class CollaborativeFilter
             else
             {
                 // Fallback: build on-the-fly
-                otherCombinedIds = new HashSet<Guid>(
-                    otherProfile.WatchedItems.Where(w => w.Played).Select(w => w.ItemId));
-
-                foreach (var w in otherProfile.WatchedItems)
-                {
-                    if (w.Played && w.SeriesId.HasValue)
-                    {
-                        otherCombinedIds.Add(w.SeriesId.Value);
-                    }
-                }
+                otherCombinedIds = BuildCombinedWatchSet(otherProfile);
             }
 
             if (otherCombinedIds.Count == 0)

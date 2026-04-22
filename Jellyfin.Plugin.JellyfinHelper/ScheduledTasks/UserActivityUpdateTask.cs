@@ -47,6 +47,14 @@ public class UserActivityUpdateTask
     /// <returns>A completed task.</returns>
     public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken, TaskMode taskMode = TaskMode.Activate)
     {
+        // Deactivate mode: true no-op — skip all expensive work
+        if (taskMode == TaskMode.Deactivate)
+        {
+            _pluginLog.LogInfo("UserActivity", "User activity update skipped (Deactivated).", _logger);
+            progress.Report(100);
+            return Task.CompletedTask;
+        }
+
         _pluginLog.LogInfo("UserActivity", "Updating user watch activity data...", _logger);
         progress.Report(10);
 
@@ -66,7 +74,7 @@ public class UserActivityUpdateTask
                 $"{result.TotalPlayCount} plays across {result.TotalUsersAnalyzed} users. Saved to cache.",
                 _logger);
         }
-        else
+        else // DryRun
         {
             // DryRun: do NOT save to cache — no side effects
             _pluginLog.LogInfo(
