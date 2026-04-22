@@ -1486,10 +1486,10 @@ public sealed class RecommendationEngine : IRecommendationEngine
     /// <returns>A bucket index (0–3).</returns>
     internal static int GetTimeBucket(int hour) => hour switch
     {
-        < 6 => 0,   // night
-        < 12 => 1,  // morning
-        < 18 => 2,  // afternoon
-        _ => 3      // evening
+        < 6 => 0, // night
+        < 12 => 1, // morning
+        < 18 => 2, // afternoon
+        _ => 3 // evening
     };
 
     /// <summary>
