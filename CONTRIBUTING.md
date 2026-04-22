@@ -145,17 +145,26 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   └── UserItemActivity.cs              # Per-item activity record
 │   ├── Recommendation/                # ML-powered smart recommendations
 │   │   ├── IRecommendationEngine.cs         # Interface for recommendation generation
-│   │   ├── RecommendationEngine.cs          # Orchestrates scoring and result generation
-│   │   ├── IWatchHistoryService.cs          # Interface for watch history analysis
-│   │   ├── WatchHistoryService.cs           # Builds per-user watch profiles
-│   │   ├── IScoringStrategy.cs              # Strategy interface for candidate scoring
-│   │   ├── ITrainableStrategy.cs            # Interface for trainable scoring strategies
 │   │   ├── IRecommendationCacheService.cs   # Cache interface
 │   │   ├── RecommendationCacheService.cs    # Disk-persisted cache
 │   │   ├── RecommendationResult.cs          # Result DTO
 │   │   ├── RecommendedItem.cs               # Single recommendation with score
-│   │   ├── UserWatchProfile.cs              # Per-user affinity profile
-│   │   ├── WatchedItemInfo.cs               # Watched item record
+│   │   ├── Engine/                          # Recommendation engine core
+│   │   │   ├── Engine.cs                        # Orchestrator (scoring, diversity, candidate filtering)
+│   │   │   ├── EngineConstants.cs               # Shared constants (thresholds, limits)
+│   │   │   ├── TrainingService.cs               # Implicit-feedback training from previous results
+│   │   │   ├── CollaborativeFilter.cs           # Jaccard co-occurrence collaborative filtering
+│   │   │   ├── ContentScoring.cs                # Rating normalization, recency, year proximity
+│   │   │   ├── DiversityReranker.cs             # MMR diversity re-ranking + series deduplication
+│   │   │   ├── PreferenceBuilder.cs             # Genre/people/studio/tag preference vectors
+│   │   │   ├── ReasonResolver.cs                # Human-readable recommendation reasons
+│   │   │   ├── SimilarityComputer.cs            # Genre/people/tag Jaccard similarity
+│   │   │   └── TemporalFeatures.cs              # Day-of-week / hour-of-day affinity
+│   │   ├── WatchHistory/                    # Watch history analysis
+│   │   │   ├── IWatchHistoryService.cs          # Interface for watch history
+│   │   │   ├── WatchHistoryService.cs           # Builds per-user watch profiles
+│   │   │   ├── UserWatchProfile.cs              # Per-user affinity profile
+│   │   │   └── WatchedItemInfo.cs               # Watched item record
 │   │   └── Scoring/                         # Scoring strategies & ML models
 │   │       ├── HeuristicScoringStrategy.cs      # Rule-based scoring (fixed weights, genre penalty)
 │   │       ├── LearnedScoringStrategy.cs        # Gradient-descent linear ML (Z-score, ArrayPool, importance logging)
@@ -205,7 +214,9 @@ Jellyfin.Plugin.JellyfinHelper/
 │   ├── CleanTrickplayTask.cs
 │   ├── CleanEmptyMediaFoldersTask.cs
 │   ├── CleanOrphanedSubtitlesTask.cs
-│   └── RepairLinksTask.cs            # Repairs broken .strm/symlink references
+│   ├── RepairLinksTask.cs            # Repairs broken .strm/symlink references
+│   ├── RecommendationsTask.cs        # ML recommendation generation sub-task
+│   └── UserActivityUpdateTask.cs     # User activity aggregation sub-task
 └── PluginPages/
     ├── configPage.template.html # HTML shell (build-time composition)
     ├── configPage.html          # Generated output (do not edit)
@@ -243,12 +254,17 @@ serviceCollection.AddSingleton<ILinkRepairService, LinkRepairService>();
 serviceCollection.AddSingleton<IArrIntegrationService, ArrIntegrationService>();
 serviceCollection.AddSingleton<ISeerrIntegrationService, SeerrIntegrationService>();
 serviceCollection.AddSingleton<IWatchHistoryService, WatchHistoryService>();
-serviceCollection.AddSingleton<IRecommendationEngine, RecommendationEngine>();
+// Scoring strategies registered via factory lambdas (with weight file paths from Plugin.DataFolderPath)
+serviceCollection.AddSingleton(sp => new LearnedScoringStrategy(weightsPath));
+serviceCollection.AddSingleton(sp => new NeuralScoringStrategy(neuralWeightsPath));
+serviceCollection.AddSingleton(sp => new HeuristicScoringStrategy(genrePenaltyFloor: 1.0));
+serviceCollection.AddSingleton(sp => new EnsembleScoringStrategy(learned, heuristic, neural, statePath, ...));
+// IScoringStrategy always resolves to EnsembleScoringStrategy (wraps Heuristic + Learned + Neural)
+serviceCollection.AddSingleton<IScoringStrategy>(sp => sp.GetRequiredService<EnsembleScoringStrategy>());
+serviceCollection.AddSingleton<IRecommendationEngine, Engine>();
 serviceCollection.AddSingleton<IRecommendationCacheService, RecommendationCacheService>();
 serviceCollection.AddSingleton<IUserActivityInsightsService, UserActivityInsightsService>();
 serviceCollection.AddSingleton<IUserActivityCacheService, UserActivityCacheService>();
-// IScoringStrategy always resolves to EnsembleScoringStrategy (wraps Heuristic + Learned + Neural)
-serviceCollection.AddSingleton<IScoringStrategy, EnsembleScoringStrategy>();
 ```
 
 The `IScoringStrategy` is always resolved as `EnsembleScoringStrategy`, which internally wraps Heuristic, Learned, and Neural strategies with adaptive blending. The ensemble automatically adjusts the blend ratio based on training data quality.
@@ -442,7 +458,6 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 | **Seerr API Key** | API key for Seerr cleanup / test connection | Empty |
 | **Seerr Cleanup Age (days)** | Max request age before deletion | 365 |
 | **Recommendations Task Mode** | Activate / DryRun / Deactivate | DryRun |
-| **Recommendation Strategy** | Scoring strategy: `heuristic`, `learned`, or `ensemble` | `ensemble` |
 | **Ensemble Alpha Min** | Minimum ML blend factor (0 = pure heuristic) | 0.3 |
 | **Ensemble Alpha Max** | Maximum ML blend factor (1 = pure ML) | 0.8 |
 | **Ensemble Genre Penalty Floor** | Minimum score multiplier for zero-genre-overlap items (0–1) | 0.10 |

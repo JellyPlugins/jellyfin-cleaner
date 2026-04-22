@@ -411,7 +411,10 @@ public sealed class Engine : IRecommendationEngine
 
         var explanation = strategy.ScoreWithExplanation(features);
 
-        _pluginLog.LogDebug("Recommendations", $"Score for '{candidate.Name}': {explanation}", _logger);
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _pluginLog.LogDebug("Recommendations", $"Score for '{candidate.Name}': {explanation}", _logger);
+        }
 
         var (reason, reasonKey, relatedItem) = ReasonResolver.DetermineReason(candidate, explanation, genrePreferences);
 

@@ -197,6 +197,38 @@ public class RecommendationControllerTests
         Assert.Equal(503, status.StatusCode);
     }
 
+    [Fact]
+    public void GetUserWatchProfile_Disabled_Returns503()
+    {
+        _mockConfigService.Setup(c => c.GetConfiguration())
+            .Returns(new PluginConfiguration { RecommendationsTaskMode = TaskMode.Deactivate });
+
+        var result = _controller.GetUserWatchProfile(Guid.NewGuid());
+
+        var status = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(503, status.StatusCode);
+    }
+
+    [Fact]
+    public void GetAllRecommendations_DryRun_CacheMiss_DoesNotPersist()
+    {
+        _mockConfigService.Setup(c => c.GetConfiguration())
+            .Returns(new PluginConfiguration { RecommendationsTaskMode = TaskMode.DryRun });
+        _mockCache.Setup(c => c.LoadResults()).Returns((Collection<RecommendationResult>?)null);
+
+        var generated = new Collection<RecommendationResult>
+        {
+            new() { UserId = Guid.NewGuid(), UserName = "DryRunUser" }
+        };
+        _mockEngine.Setup(e => e.GetAllRecommendations(It.IsAny<int>(), It.IsAny<CancellationToken>())).Returns(generated);
+
+        var result = _controller.GetAllRecommendations();
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        // DryRun should NOT persist to cache
+        _mockCache.Verify(c => c.SaveResults(It.IsAny<IReadOnlyList<RecommendationResult>>()), Times.Never);
+    }
+
     // === GetAllWatchProfiles ===
 
     [Fact]

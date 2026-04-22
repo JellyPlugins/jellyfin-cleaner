@@ -214,6 +214,103 @@ public class UserActivityControllerTests
     }
 
     [Fact]
+    public void GetLatestActivity_WhenDeactivated_Returns503()
+    {
+        _mockConfig.Setup(c => c.GetConfiguration()).Returns(new PluginConfiguration
+        {
+            RecommendationsTaskMode = TaskMode.Deactivate
+        });
+
+        var result = _controller.GetLatestActivity();
+
+        var statusResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(503, statusResult.StatusCode);
+    }
+
+    [Fact]
+    public void GetLatestActivity_DryRun_CacheMiss_DoesNotPersist()
+    {
+        _mockConfig.Setup(c => c.GetConfiguration()).Returns(new PluginConfiguration
+        {
+            RecommendationsTaskMode = TaskMode.DryRun
+        });
+        _mockCache.Setup(c => c.LoadResult()).Returns((UserActivityResult?)null);
+
+        var generated = new UserActivityResult
+        {
+            TotalItemsWithActivity = 7,
+            TotalUsersAnalyzed = 3,
+            TotalPlayCount = 25
+        };
+        _mockInsights.Setup(i => i.BuildActivityReport()).Returns(generated);
+
+        var result = _controller.GetLatestActivity();
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var data = Assert.IsType<UserActivityResult>(ok.Value);
+        Assert.Equal(7, data.TotalItemsWithActivity);
+        // DryRun should NOT persist to cache
+        _mockCache.Verify(c => c.SaveResult(It.IsAny<UserActivityResult>()), Times.Never);
+    }
+
+    [Fact]
+    public void GetUserActivity_WhenDeactivated_Returns503()
+    {
+        _mockConfig.Setup(c => c.GetConfiguration()).Returns(new PluginConfiguration
+        {
+            RecommendationsTaskMode = TaskMode.Deactivate
+        });
+
+        var result = _controller.GetUserActivity(Guid.NewGuid());
+
+        var statusResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(503, statusResult.StatusCode);
+    }
+
+    [Fact]
+    public void GetUserActivity_DryRun_CacheMiss_DoesNotPersist()
+    {
+        var userId = Guid.NewGuid();
+        _mockConfig.Setup(c => c.GetConfiguration()).Returns(new PluginConfiguration
+        {
+            RecommendationsTaskMode = TaskMode.DryRun
+        });
+        _mockCache.Setup(c => c.LoadResult()).Returns((UserActivityResult?)null);
+
+        var generated = new UserActivityResult
+        {
+            Items = new Collection<UserActivitySummary>
+            {
+                new()
+                {
+                    ItemId = Guid.NewGuid(),
+                    ItemName = "Movie DryRun",
+                    UserActivities = new Collection<UserItemActivity>
+                    {
+                        new()
+                        {
+                            UserId = userId,
+                            UserName = "TestUser",
+                            PlayCount = 1,
+                            Played = true,
+                            LastPlayedDate = DateTime.UtcNow
+                        }
+                    }
+                }
+            }
+        };
+        _mockInsights.Setup(i => i.BuildActivityReport()).Returns(generated);
+
+        var result = _controller.GetUserActivity(userId);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var data = Assert.IsType<List<UserActivitySummary>>(ok.Value);
+        Assert.Single(data);
+        // DryRun should NOT persist to cache
+        _mockCache.Verify(c => c.SaveResult(It.IsAny<UserActivityResult>()), Times.Never);
+    }
+
+    [Fact]
     public void GetUserActivity_CacheMiss_GeneratesAndCaches()
     {
         var userId = Guid.NewGuid();

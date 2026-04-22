@@ -217,7 +217,7 @@ internal sealed class TrainingService
                     PopularityScore = popularityScore,
                     DayOfWeekAffinity = 0.5, // Neutral — temporal context at training time differs from recommendation time
                     HourOfDayAffinity = 0.5, // Neutral — temporal context at training time differs from recommendation time
-                    IsWeekend = DateTime.UtcNow.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday,
+                    IsWeekend = false, // Neutral — temporal context at training time differs from recommendation time
                     TagSimilarity = tagSimilarity
                 };
 

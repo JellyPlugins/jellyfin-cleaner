@@ -175,8 +175,14 @@ public class RecommendationController : ControllerBase
     [HttpGet("WatchProfile/{userId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult<UserWatchProfile> GetUserWatchProfile(Guid userId)
     {
+        if (!IsRecommendationsEnabled())
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Smart Recommendations are disabled in plugin configuration.");
+        }
+
         var profile = _watchHistoryService.GetUserWatchProfile(userId);
         if (profile is null)
         {
