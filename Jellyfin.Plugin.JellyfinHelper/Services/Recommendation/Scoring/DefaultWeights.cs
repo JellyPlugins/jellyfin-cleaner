@@ -100,6 +100,21 @@ public static class DefaultWeights
     /// </summary>
     public const double DayOfWeekAffinity = 0.02;
 
+    /// <summary>
+    ///     Weight for hour-of-day affinity signal.
+    ///     Captures intra-day viewing patterns (e.g., lighter content in the morning,
+    ///     thrillers in the evening). Acts as a contextual tiebreaker.
+    /// </summary>
+    public const double HourOfDayAffinity = 0.02;
+
+    /// <summary>
+    ///     Weight for weekend flag signal.
+    ///     Captures weekend vs. weekday viewing preference differences.
+    ///     A small contextual weight that allows the model to learn that users
+    ///     may prefer different content types on weekends.
+    /// </summary>
+    public const double IsWeekend = 0.01;
+
     /// <summary>Default bias term for the learned strategy.</summary>
     public const double Bias = 0.05;
 
@@ -128,6 +143,8 @@ public static class DefaultWeights
         weights[(int)FeatureIndex.SeriesProgressionBoost] = SeriesProgressionBoost;
         weights[(int)FeatureIndex.PopularityScore] = PopularityScore;
         weights[(int)FeatureIndex.DayOfWeekAffinity] = DayOfWeekAffinity;
+        weights[(int)FeatureIndex.HourOfDayAffinity] = HourOfDayAffinity;
+        weights[(int)FeatureIndex.IsWeekend] = IsWeekend;
         return weights;
     }
 }
