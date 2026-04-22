@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
@@ -27,6 +29,11 @@ public sealed class Engine : IRecommendationEngine
     private readonly IWatchHistoryService _watchHistoryService;
     private readonly SimilarityComputer _similarityComputer;
     private readonly TrainingService _trainingService;
+
+    // Short-lived cache for candidate items and people lookup — populated during GetAllRecommendations
+    // and reused by on-demand GetRecommendations calls until next batch run invalidates them.
+    private volatile List<BaseItem>? _cachedCandidates;
+    private volatile Dictionary<Guid, HashSet<string>>? _cachedPeopleLookup;
 
     /// <summary>Initializes a new instance of the <see cref="Engine"/> class.</summary>
     /// <param name="watchHistoryService">The watch history service.</param>
@@ -63,8 +70,9 @@ public sealed class Engine : IRecommendationEngine
             return GenerateColdStartRecommendations(userId, maxResults);
         }
 
-        var candidates = LoadCandidateItems();
-        var peopleLookup = _similarityComputer.BuildCandidatePeopleLookup(candidates);
+        // Reuse cached candidates/people from last batch run if available, otherwise load fresh
+        var candidates = _cachedCandidates ?? LoadCandidateItems();
+        var peopleLookup = _cachedPeopleLookup ?? _similarityComputer.BuildCandidatePeopleLookup(candidates);
         return GenerateForUser(userProfile, allProfiles, candidates, peopleLookup, maxResults, _strategy, null, cancellationToken);
     }
 
@@ -78,9 +86,12 @@ public sealed class Engine : IRecommendationEngine
         cancellationToken.ThrowIfCancellationRequested();
         maxResultsPerUser = Math.Clamp(maxResultsPerUser, 1, EngineConstants.MaxRecommendationsPerUser);
         var allProfiles = _watchHistoryService.GetAllUserWatchProfiles();
-        var results = new Collection<RecommendationResult>();
         var candidates = LoadCandidateItems();
         var peopleLookup = _similarityComputer.BuildCandidatePeopleLookup(candidates);
+
+        // Cache for on-demand single-user calls that may follow
+        _cachedCandidates = candidates;
+        _cachedPeopleLookup = peopleLookup;
 
         // Pre-compute all user watched-item sets ONCE for collaborative filtering.
         // Reduces O(U²×M) to O(U×M) by sharing sets across BuildCollaborativeMap calls.
@@ -91,34 +102,48 @@ public sealed class Engine : IRecommendationEngine
             $"Starting recommendation generation for {allProfiles.Count} users using strategy '{_strategy.Name}'...",
             _logger);
 
-        foreach (var profile in allProfiles)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            try
+        // Process users in parallel — each user's scoring is CPU-bound and independent.
+        // ConcurrentBag collects results safely; shared read-only data (candidates, peopleLookup,
+        // precomputedUserSets) is never mutated so no locking needed.
+        var concurrentResults = new ConcurrentBag<RecommendationResult>();
+
+        Parallel.ForEach(
+            allProfiles,
+            new ParallelOptions
             {
-                results.Add(GenerateForUser(
-                    profile,
-                    allProfiles,
-                    candidates,
-                    peopleLookup,
-                    maxResultsPerUser,
-                    _strategy,
-                    precomputedUserSets,
-                    cancellationToken));
-            }
-            catch (OperationCanceledException)
+                CancellationToken = cancellationToken,
+                MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2)
+            },
+            profile =>
             {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _pluginLog.LogWarning(
-                    "Recommendations",
-                    $"Failed to generate recommendations for user '{profile.UserName}'",
-                    ex,
-                    _logger);
-            }
-        }
+                try
+                {
+                    var result = GenerateForUser(
+                        profile,
+                        allProfiles,
+                        candidates,
+                        peopleLookup,
+                        maxResultsPerUser,
+                        _strategy,
+                        precomputedUserSets,
+                        cancellationToken);
+                    concurrentResults.Add(result);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _pluginLog.LogWarning(
+                        "Recommendations",
+                        $"Failed to generate recommendations for user '{profile.UserName}'",
+                        ex,
+                        _logger);
+                }
+            });
+
+        var results = new Collection<RecommendationResult>(concurrentResults.ToList());
 
         _pluginLog.LogInfo(
             "Recommendations",
