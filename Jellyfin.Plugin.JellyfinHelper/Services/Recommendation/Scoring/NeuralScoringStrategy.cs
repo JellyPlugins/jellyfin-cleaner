@@ -12,9 +12,9 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 /// <summary>
 ///     Neural network scoring strategy using a two-hidden-layer MLP (Multi-Layer Perceptron).
 ///     Learns non-linear feature interactions from user watch history via backpropagation.
-///     Architecture: 21 inputs → 16 hidden₁ (ReLU) → 8 hidden₂ (ReLU) → 1 output (Sigmoid) = 497 parameters.
+///     Architecture: 23 inputs → 16 hidden₁ (ReLU) → 8 hidden₂ (ReLU) → 1 output (Sigmoid) = 529 parameters.
 ///     Optimized for NAS/Docker with limited hardware: zero-allocation scoring path,
-///     pre-allocated training buffers, ~500 FP multiplications per score.
+///     pre-allocated training buffers, ~530 FP multiplications per score.
 ///     No external ML dependencies — pure C# implementation.
 /// </summary>
 /// <remarks>

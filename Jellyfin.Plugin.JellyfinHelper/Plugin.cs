@@ -32,7 +32,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
     /// <inheritdoc />
     public override string Description =>
-        "Automated cleanup (trickplay, empty folders, subtitles), media statistics, trash bin, Arr integration.";
+        "Automated cleanup (trickplay, empty folders, subtitles, link repair), media statistics, ML-powered smart recommendations, user activity insights, trash bin, Arr/Seerr integration.";
 
     /// <summary>
     ///     Gets the current plugin instance.

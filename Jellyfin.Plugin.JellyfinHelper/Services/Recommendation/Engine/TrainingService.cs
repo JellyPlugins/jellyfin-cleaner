@@ -64,6 +64,23 @@ internal sealed class TrainingService
                     .Select(w => w.SeriesId!.Value));
         }
 
+        // Pre-compute collaborative data for all users (needed for full feature vectors)
+        var precomputedUserSets = CollaborativeFilter.PrecomputeUserWatchSets(allProfiles);
+
+        // Build a people lookup from cached recommendation data (PeopleNames stored on RecommendedItem).
+        // This allows computing PeopleSimilarity during training without re-querying the library.
+        var cachedPeopleLookup = new Dictionary<Guid, HashSet<string>>();
+        foreach (var prevResult in previousResults)
+        {
+            foreach (var rec in prevResult.Recommendations)
+            {
+                if (rec.PeopleNames.Count > 0 && !cachedPeopleLookup.ContainsKey(rec.ItemId))
+                {
+                    cachedPeopleLookup[rec.ItemId] = new HashSet<string>(rec.PeopleNames, StringComparer.OrdinalIgnoreCase);
+                }
+            }
+        }
+
         var examples = new List<TrainingExample>();
 
         foreach (var prevResult in previousResults)
@@ -82,14 +99,38 @@ internal sealed class TrainingService
             }
 
             var genrePreferences = PreferenceBuilder.BuildGenrePreferenceVector(userProfile);
-            var coOccurrence = CollaborativeFilter.BuildCollaborativeMap(userProfile, allProfiles);
+            var coOccurrence = CollaborativeFilter.BuildCollaborativeMap(userProfile, allProfiles, precomputedUserSets);
             var collaborativeMax = coOccurrence.Count > 0 ? coOccurrence.Values.Max() : 0;
             var avgYear = ContentScoring.ComputeAverageYear(userProfile);
+
+            // Build preferred people/studios/tags from the user's watch profile using cached data.
+            // This mirrors what Engine.GenerateForUser() does with live BaseItem data.
+            var preferredPeople = PreferenceBuilder.BuildPeoplePreferenceSet(userProfile, cachedPeopleLookup);
+            var preferredStudios = BuildStudioPreferenceSetFromCache(userProfile, previousResults);
+            var preferredTags = BuildTagPreferenceSetFromCache(userProfile, previousResults);
 
             var watchedItemLookup = new Dictionary<Guid, WatchedItemInfo>(userProfile.WatchedItems.Count);
             foreach (var w in userProfile.WatchedItems)
             {
                 watchedItemLookup.TryAdd(w.ItemId, w);
+            }
+
+            // Build series episode lookup for series-level aggregation
+            var seriesEpisodeLookup = new Dictionary<Guid, List<WatchedItemInfo>>();
+            foreach (var w in userProfile.WatchedItems)
+            {
+                if (!w.SeriesId.HasValue)
+                {
+                    continue;
+                }
+
+                if (!seriesEpisodeLookup.TryGetValue(w.SeriesId.Value, out var list))
+                {
+                    list = [];
+                    seriesEpisodeLookup[w.SeriesId.Value] = list;
+                }
+
+                list.Add(w);
             }
 
             foreach (var rec in prevResult.Recommendations)
@@ -99,19 +140,85 @@ internal sealed class TrainingService
 
                 watchedItemLookup.TryGetValue(rec.ItemId, out var watchedItemForRec);
 
+                var isSeries = string.Equals(rec.ItemType, "Series", StringComparison.OrdinalIgnoreCase);
+
+                // Compute user-specific signals matching Engine.ScoreCandidate() logic
+                double userRatingScore;
+                double completionRatio;
+                bool hasUserInteraction;
+
+                if (isSeries && seriesEpisodeLookup.TryGetValue(rec.ItemId, out var episodesForScoring))
+                {
+                    hasUserInteraction = true;
+                    var ratedEpisodes = episodesForScoring.Where(e => e.UserRating is > 0).ToList();
+                    userRatingScore = ratedEpisodes.Count > 0
+                        ? Math.Clamp(ratedEpisodes.Average(e => e.UserRating!.Value) / 10.0, 0.0, 1.0)
+                        : 0.5;
+                    completionRatio = episodesForScoring.Count > 0
+                        ? Math.Clamp((double)episodesForScoring.Count(e => e.Played) / episodesForScoring.Count, 0.0, 1.0)
+                        : 0.5;
+                }
+                else
+                {
+                    hasUserInteraction = watchedItemForRec is not null;
+                    userRatingScore = ContentScoring.ComputeUserRatingScore(watchedItemForRec);
+                    completionRatio = hasUserInteraction ? ContentScoring.ComputeCompletionRatio(watchedItemForRec) : 0.5;
+                }
+
+                // Compute collaborative score for this specific item
+                var collabScore = ContentScoring.ComputeCollaborativeScore(rec.ItemId, coOccurrence, collaborativeMax);
+
+                // Popularity proxy matching Engine.ScoreCandidate() logic
+                var ratingScore = ContentScoring.NormalizeRating(rec.CommunityRating);
+                var popularityScore = collabScore > 0 ? Math.Clamp(collabScore * 0.8, 0.0, 1.0) : ratingScore * 0.3;
+
+                // Series progression boost
+                var seriesProgressionBoost = 0.0;
+                if (isSeries && seriesEpisodeLookup.TryGetValue(rec.ItemId, out var progressionEps))
+                {
+                    var playedEps = progressionEps.Count(e => e.Played);
+                    if (progressionEps.Count > 0)
+                    {
+                        var ratio = (double)playedEps / progressionEps.Count;
+                        seriesProgressionBoost = ratio < 0.9 ? Math.Clamp(ratio * 1.2, 0.0, 1.0) : 0.2;
+                    }
+                }
+
+                // Compute PeopleSimilarity from cached data (matches Engine.ScoreCandidate() logic)
+                var peopleSimilarity = cachedPeopleLookup.TryGetValue(rec.ItemId, out var candidatePeople)
+                    ? SimilarityComputer.ComputePeopleSimilarity(candidatePeople, preferredPeople)
+                    : 0.0;
+
+                // Compute StudioMatch from cached data (matches Engine.ScoreCandidate() logic)
+                var studioMatch = rec.Studios.Count > 0
+                    && rec.Studios.Any(s => preferredStudios.Contains(s));
+
+                // Compute TagSimilarity from cached data (matches Engine.ScoreCandidate() logic)
+                var tagSimilarity = ComputeTagSimilarityFromCache(rec.Tags, preferredTags);
+
+                // Build the COMPLETE feature vector matching Engine.ScoreCandidate() logic
                 var features = new CandidateFeatures
                 {
                     GenreSimilarity = SimilarityComputer.ComputeGenreSimilarity(rec.Genres ?? [], genrePreferences),
-                    CollaborativeScore = ContentScoring.ComputeCollaborativeScore(rec.ItemId, coOccurrence, collaborativeMax),
-                    RatingScore = ContentScoring.NormalizeRating(rec.CommunityRating),
+                    CollaborativeScore = collabScore,
+                    RatingScore = ratingScore,
                     RecencyScore = rec.PremiereDate.HasValue
                         ? ContentScoring.ComputeRecencyScore(rec.PremiereDate.Value)
                         : 0.5,
                     YearProximityScore = ContentScoring.ComputeYearProximity(rec.Year, avgYear),
                     GenreCount = rec.Genres?.Count ?? 0,
-                    IsSeries = string.Equals(rec.ItemType, "Series", StringComparison.OrdinalIgnoreCase),
-                    UserRatingScore = ContentScoring.ComputeUserRatingScore(watchedItemForRec),
-                    CompletionRatio = ContentScoring.ComputeCompletionRatio(watchedItemForRec)
+                    IsSeries = isSeries,
+                    UserRatingScore = userRatingScore,
+                    HasUserInteraction = hasUserInteraction,
+                    CompletionRatio = completionRatio,
+                    PeopleSimilarity = peopleSimilarity,
+                    StudioMatch = studioMatch,
+                    SeriesProgressionBoost = seriesProgressionBoost,
+                    PopularityScore = popularityScore,
+                    DayOfWeekAffinity = 0.5, // Neutral — temporal context at training time differs from recommendation time
+                    HourOfDayAffinity = 0.5, // Neutral — temporal context at training time differs from recommendation time
+                    IsWeekend = DateTime.UtcNow.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday,
+                    TagSimilarity = tagSimilarity
                 };
 
                 double label;
@@ -212,5 +319,98 @@ internal sealed class TrainingService
         }
 
         return trained;
+    }
+
+    /// <summary>
+    ///     Builds a set of preferred studio names from cached recommendation results for a user.
+    ///     Collects studios from items the user has watched (matched by item ID or series ID).
+    ///     This mirrors <see cref="PreferenceBuilder.BuildStudioPreferenceSet"/> but uses cached data
+    ///     instead of live BaseItem objects.
+    /// </summary>
+    private static HashSet<string> BuildStudioPreferenceSetFromCache(
+        UserWatchProfile userProfile,
+        IReadOnlyList<RecommendationResult> allResults)
+    {
+        var studios = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var watchedItemIds = new HashSet<Guid>(
+            userProfile.WatchedItems.Where(w => w.Played).Select(w => w.ItemId));
+        var watchedSeriesIds = new HashSet<Guid>(
+            userProfile.WatchedItems.Where(w => w.Played && w.SeriesId.HasValue).Select(w => w.SeriesId!.Value));
+
+        // Collect studios from any recommendation result that references items the user watched
+        foreach (var result in allResults)
+        {
+            foreach (var rec in result.Recommendations)
+            {
+                if (!watchedItemIds.Contains(rec.ItemId) && !watchedSeriesIds.Contains(rec.ItemId))
+                {
+                    continue;
+                }
+
+                foreach (var s in rec.Studios)
+                {
+                    if (!string.IsNullOrWhiteSpace(s))
+                    {
+                        studios.Add(s);
+                    }
+                }
+            }
+        }
+
+        return studios;
+    }
+
+    /// <summary>
+    ///     Builds a set of preferred tag names from cached recommendation results for a user.
+    ///     This mirrors <see cref="PreferenceBuilder.BuildTagPreferenceSet"/> but uses cached data.
+    /// </summary>
+    private static HashSet<string> BuildTagPreferenceSetFromCache(
+        UserWatchProfile userProfile,
+        IReadOnlyList<RecommendationResult> allResults)
+    {
+        var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var watchedItemIds = new HashSet<Guid>(
+            userProfile.WatchedItems.Where(w => w.Played).Select(w => w.ItemId));
+        var watchedSeriesIds = new HashSet<Guid>(
+            userProfile.WatchedItems.Where(w => w.Played && w.SeriesId.HasValue).Select(w => w.SeriesId!.Value));
+
+        foreach (var result in allResults)
+        {
+            foreach (var rec in result.Recommendations)
+            {
+                if (!watchedItemIds.Contains(rec.ItemId) && !watchedSeriesIds.Contains(rec.ItemId))
+                {
+                    continue;
+                }
+
+                foreach (var t in rec.Tags)
+                {
+                    if (!string.IsNullOrWhiteSpace(t))
+                    {
+                        tags.Add(t);
+                    }
+                }
+            }
+        }
+
+        return tags;
+    }
+
+    /// <summary>
+    ///     Computes tag similarity from cached tag lists using Jaccard similarity.
+    ///     This mirrors <see cref="SimilarityComputer.ComputeTagSimilarity"/> but works with
+    ///     <see cref="IReadOnlyList{T}"/> instead of <see cref="MediaBrowser.Controller.Entities.BaseItem"/>.
+    /// </summary>
+    private static double ComputeTagSimilarityFromCache(
+        IReadOnlyList<string> candidateTags,
+        HashSet<string> preferredTags)
+    {
+        if (candidateTags.Count == 0 || preferredTags.Count == 0)
+        {
+            return 0.0;
+        }
+
+        var candidateSet = new HashSet<string>(candidateTags, StringComparer.OrdinalIgnoreCase);
+        return SimilarityComputer.ComputeJaccardFromSets(candidateSet, preferredTags);
     }
 }

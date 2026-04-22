@@ -294,7 +294,10 @@ public sealed class Engine : IRecommendationEngine
                 CommunityRating = s.Item.CommunityRating,
                 OfficialRating = s.Item.OfficialRating,
                 PremiereDate = s.Item.PremiereDate,
-                PrimaryImageTag = s.Item.HasImage(ImageType.Primary) ? s.Item.Id.ToString("N") : null
+                PrimaryImageTag = s.Item.HasImage(ImageType.Primary) ? s.Item.Id.ToString("N") : null,
+                PeopleNames = peopleLookup.TryGetValue(s.Item.Id, out var people) ? [.. people] : [],
+                Studios = s.Item.Studios ?? [],
+                Tags = s.Item.Tags ?? []
             })
             .ToList();
 

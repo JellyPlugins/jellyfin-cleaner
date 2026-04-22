@@ -72,4 +72,25 @@ public sealed class RecommendedItem
     ///     Gets or sets the premiere date (used for recency scoring during training).
     /// </summary>
     public DateTime? PremiereDate { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the people (cast/director) names associated with this item.
+    ///     Stored for training feature parity: allows TrainingService to compute
+    ///     PeopleSimilarity from cached recommendations without re-querying the library.
+    /// </summary>
+    public IReadOnlyList<string> PeopleNames { get; set; } = [];
+
+    /// <summary>
+    ///     Gets or sets the studio names associated with this item.
+    ///     Stored for training feature parity: allows TrainingService to compute
+    ///     StudioMatch from cached recommendations without re-querying the library.
+    /// </summary>
+    public IReadOnlyList<string> Studios { get; set; } = [];
+
+    /// <summary>
+    ///     Gets or sets the tags associated with this item.
+    ///     Stored for training feature parity: allows TrainingService to compute
+    ///     TagSimilarity from cached recommendations without re-querying the library.
+    /// </summary>
+    public IReadOnlyList<string> Tags { get; set; } = [];
 }

@@ -159,11 +159,11 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   └── Scoring/                         # Scoring strategies & ML models
 │   │       ├── HeuristicScoringStrategy.cs      # Rule-based scoring (fixed weights, genre penalty)
 │   │       ├── LearnedScoringStrategy.cs        # Gradient-descent linear ML (Z-score, ArrayPool, importance logging)
-│   │       ├── NeuralScoringStrategy.cs         # Two-hidden-layer MLP (21→16→8→1, Adam, Xavier, schema v3)
+│   │       ├── NeuralScoringStrategy.cs         # Two-hidden-layer MLP (23→16→8→1, Adam, Xavier, schema v3)
 │   │       ├── EnsembleScoringStrategy.cs       # Adaptive 3-way blend (α sigmoid + β neural ramp)
 │   │       ├── ScoringHelper.cs                 # Shared scoring utilities (raw score, explanation builder)
-│   │       ├── DefaultWeights.cs                # Centralized default feature weights (sum=1.0, 21 features)
-│   │       ├── CandidateFeatures.cs             # Feature vector (21 features incl. TagSimilarity, HourOfDay, IsWeekend)
+│   │       ├── DefaultWeights.cs                # Centralized default feature weights (sum=1.0, 23 features)
+│   │       ├── CandidateFeatures.cs             # Feature vector (23 features incl. TagSimilarity, HourOfDay, IsWeekend)
 │   │       ├── ScoreExplanation.cs              # Per-score breakdown model with Blend/WithPenalty
 │   │       └── TrainingExample.cs               # Labelled training data (completion-ratio labels, temporal decay)
 │   ├── Seerr/                         # Overseerr/Jellyseerr integration
@@ -247,11 +247,11 @@ serviceCollection.AddSingleton<IRecommendationEngine, RecommendationEngine>();
 serviceCollection.AddSingleton<IRecommendationCacheService, RecommendationCacheService>();
 serviceCollection.AddSingleton<IUserActivityInsightsService, UserActivityInsightsService>();
 serviceCollection.AddSingleton<IUserActivityCacheService, UserActivityCacheService>();
-// IScoringStrategy resolved via factory method based on RecommendationStrategy config
-serviceCollection.AddSingleton<IScoringStrategy>(sp => ResolveScoringStrategy(sp));
+// IScoringStrategy always resolves to EnsembleScoringStrategy (wraps Heuristic + Learned + Neural)
+serviceCollection.AddSingleton<IScoringStrategy, EnsembleScoringStrategy>();
 ```
 
-The `IScoringStrategy` registration uses a factory method (`ResolveScoringStrategy`) that reads `PluginConfiguration.RecommendationStrategy` and resolves the appropriate implementation (`heuristic` → `HeuristicScoringStrategy`, `learned` → `LearnedScoringStrategy`, `ensemble` → `EnsembleScoringStrategy`). The Ensemble strategy wraps both Heuristic and Learned internally.
+The `IScoringStrategy` is always resolved as `EnsembleScoringStrategy`, which internally wraps Heuristic, Learned, and Neural strategies with adaptive blending. The ensemble automatically adjusts the blend ratio based on training data quality.
 
 Named `HttpClient` instances are configured for external API communication: `"ArrIntegration"` (Radarr/Sonarr, 15-second timeout) and `"SeerrIntegration"` (Overseerr/Jellyseerr, 30-second timeout).
 
@@ -263,7 +263,7 @@ Named `HttpClient` instances are configured for external API communication: `"Ar
 |---------|-----------|-------------|
 | **Template Method** | `BaseLibraryCleanupTask` | Abstract base class orchestrates the cleanup lifecycle (config → log → iterate → process → summary → record). Concrete subclasses only implement `ProcessLocation()`. |
 | **Interface Segregation** | All services | Every service has a dedicated `I*Service` interface enabling mock-based testing and loose coupling. |
-| **Strategy** | `TaskMode` enum, `IScoringStrategy` | Each cleanup task can be independently set to `Activate`, `DryRun`, or `Deactivate`. Recommendation scoring uses interchangeable strategies (Heuristic, Learned, Neural, Ensemble) selected via `RecommendationStrategy` config. |
+| **Strategy** | `TaskMode` enum, `IScoringStrategy` | Each cleanup task can be independently set to `Activate`, `DryRun`, or `Deactivate`. Recommendation scoring uses the Ensemble strategy (always active), which internally wraps Heuristic, Learned, and Neural strategies with adaptive blending. |
 | **Singleton Lifetime** | DI registration | All plugin services are registered with singleton lifetime; services with shared mutable state (caches, tracking, ring buffer) still need explicit thread-safety. |
 | **Configuration Abstraction** | `IPluginConfigurationService` | Decouples all services from the static `Plugin.Instance` singleton. Services receive configuration via DI, enabling isolated unit tests without shared mutable state. |
 | **Build-time Composition** | UI pipeline | CSS/JS modules concatenated into a single `configPage.html` at build time (MSBuild target). |
@@ -553,8 +553,8 @@ Sub-tasks executed in order (each respecting its configured task mode):
 
 - **ML-powered per-user recommendations** using four-tier scoring architecture (Heuristic + Learned + Neural MLP + Ensemble blend)
 - **Heuristic scoring** — Rule-based scoring using genre overlap, community rating, recency, year proximity, collaborative filtering, and interaction terms (fixed weights from `DefaultWeights`)
-- **Learned scoring** — Gradient-descent trained linear model (21 features + bias) that learns per-user weights from labelled examples via mini-batch SGD with L2 regularization, cosine annealing LR decay, Z-score standardization, early stopping, and per-feature weight importance logging at Debug level
-- **Neural scoring** — Two-hidden-layer MLP (21 inputs → 16 hidden₁ ReLU → 8 hidden₂ ReLU → 1 sigmoid output = 497 parameters) trained via three-layer backpropagation with Adam optimizer, L2 weight decay (no bias regularization), Xavier/Glorot initialization per layer, temporal sample weighting, early stopping, weight clamping (±3.0), and per-feature importance logging (L2 norm) at Debug level. Weight persistence via JSON (schema v3, auto-discards older schemas). Pure C# implementation with zero external ML dependencies
+- **Learned scoring** — Gradient-descent trained linear model (23 features + bias) that learns per-user weights from labelled examples via mini-batch SGD with L2 regularization, cosine annealing LR decay, Z-score standardization, early stopping, and per-feature weight importance logging at Debug level
+- **Neural scoring** — Two-hidden-layer MLP (23 inputs → 16 hidden₁ ReLU → 8 hidden₂ ReLU → 1 sigmoid output = 529 parameters) trained via three-layer backpropagation with Adam optimizer, L2 weight decay (no bias regularization), Xavier/Glorot initialization per layer, temporal sample weighting, early stopping, weight clamping (±3.0), and per-feature importance logging (L2 norm) at Debug level. Weight persistence via JSON (schema v3, auto-discards older schemas). Pure C# implementation with zero external ML dependencies
 - **Ensemble scoring** — Adaptive 3-way blend of Heuristic, Learned, and Neural strategies using a sigmoid-driven α factor (Heuristic↔ML balance) and a linear β ramp (Learned↔Neural split within the ML budget). Includes a **quality gate**: if validation loss exceeds the threshold (MSE > 0.30), α progression is soft-dampened. Neural β activates after 50+ training examples and is gated by its own validation loss quality check
 - **Hard negative mining** — Items the user started but abandoned (< 25% completion) receive a strong negative label (0.0) during training, providing a clearer signal than simply "not watched"
 - **Soft labels** — Watched items get label 0.85 (not 1.0, to reduce label noise); recommended-but-not-watched items get 0.1 (exposure bias mitigation)
@@ -744,7 +744,7 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
     │   ├── WatchHistoryServiceTests.cs          # Watch profile building tests
     │   ├── Scoring/
     │   │   ├── ScoringStrategyTests.cs          # Heuristic, learned & ensemble scoring tests
-    │   │   ├── NeuralScoringStrategyTests.cs    # Neural MLP (21→16→8→1) tests
+    │   │   ├── NeuralScoringStrategyTests.cs    # Neural MLP (23→16→8→1) tests
     │   │   ├── ScoreExplanationTests.cs         # Explanation, blend, penalty tests
     │   │   └── TrainingExampleTests.cs          # Label quality, temporal decay tests
     │   ├── RecommendationCacheServiceTests.cs   # Cache persistence tests

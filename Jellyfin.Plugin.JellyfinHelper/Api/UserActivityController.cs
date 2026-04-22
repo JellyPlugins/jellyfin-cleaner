@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net.Mime;
+using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Activity;
+using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +24,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Api;
 public class UserActivityController : ControllerBase
 {
     private readonly IUserActivityCacheService _cacheService;
+    private readonly IPluginConfigurationService _configService;
     private readonly IUserActivityInsightsService _insightsService;
 
     /// <summary>
@@ -29,39 +32,57 @@ public class UserActivityController : ControllerBase
     /// </summary>
     /// <param name="cacheService">The user activity cache service.</param>
     /// <param name="insightsService">The user activity insights service.</param>
+    /// <param name="configService">The plugin configuration service.</param>
     public UserActivityController(
         IUserActivityCacheService cacheService,
-        IUserActivityInsightsService insightsService)
+        IUserActivityInsightsService insightsService,
+        IPluginConfigurationService configService)
     {
         _cacheService = cacheService;
         _insightsService = insightsService;
+        _configService = configService;
     }
 
     /// <summary>
     ///     Gets the latest cached user activity report.
     ///     Returns the full report with per-item/per-user breakdowns.
     ///     If no cache exists, generates a fresh report on the fly.
+    ///     Only available when Recommendations TaskMode is not Deactivate.
     /// </summary>
     /// <returns>The user activity result.</returns>
     [HttpGet("Latest")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult<UserActivityResult> GetLatestActivity()
     {
+        if (!IsFeatureEnabled())
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "User Activity insights are disabled in plugin configuration.");
+        }
+
         var cached = _cacheService.LoadResult();
         if (cached is not null)
         {
             return Ok(cached);
         }
 
-        // No cache yet — generate on demand and cache it
+        // No cache yet — generate on demand
+        var config = _configService.GetConfiguration();
         var result = _insightsService.BuildActivityReport();
-        _cacheService.SaveResult(result);
+
+        // Only persist to cache when TaskMode is Activate (not DryRun)
+        if (config.RecommendationsTaskMode == TaskMode.Activate)
+        {
+            _cacheService.SaveResult(result);
+        }
+
         return Ok(result);
     }
 
     /// <summary>
     ///     Gets activity data filtered for a specific user.
     ///     Returns only items where the specified user has activity.
+    ///     Only available when Recommendations TaskMode is not Deactivate.
     /// </summary>
     /// <param name="userId">The Jellyfin user ID to filter by.</param>
     /// <param name="maxResults">Maximum number of results to return (1–200, default 15).</param>
@@ -69,8 +90,14 @@ public class UserActivityController : ControllerBase
     [HttpGet("User/{userId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public ActionResult<List<UserActivitySummary>> GetUserActivity(Guid userId, [FromQuery] int maxResults = 15)
     {
+        if (!IsFeatureEnabled())
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "User Activity insights are disabled in plugin configuration.");
+        }
+
         maxResults = Math.Clamp(maxResults, 1, 200);
 
         var cached = _cacheService.LoadResult();
@@ -78,7 +105,12 @@ public class UserActivityController : ControllerBase
 
         if (cached is null)
         {
-            _cacheService.SaveResult(source);
+            var config = _configService.GetConfiguration();
+            // Only persist to cache when TaskMode is Activate (not DryRun)
+            if (config.RecommendationsTaskMode == TaskMode.Activate)
+            {
+                _cacheService.SaveResult(source);
+            }
         }
 
         // Filter to items where this user has activity
@@ -113,5 +145,16 @@ public class UserActivityController : ControllerBase
         }
 
         return Ok(userItems);
+    }
+
+    /// <summary>
+    ///     Checks whether user activity insights are enabled in the plugin configuration.
+    ///     Returns true when the Recommendations task mode is not <see cref="TaskMode.Deactivate" />.
+    /// </summary>
+    /// <returns>True if enabled (DryRun or Activate), false if deactivated.</returns>
+    private bool IsFeatureEnabled()
+    {
+        var config = _configService.GetConfiguration();
+        return config.RecommendationsTaskMode != TaskMode.Deactivate;
     }
 }
