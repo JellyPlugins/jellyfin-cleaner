@@ -191,7 +191,7 @@ public sealed class TrainingExampleTests
             var example = new TrainingExample
             {
                 Features = new CandidateFeatures(),
-                GeneratedAtUtc = reference.AddDays(-i * 30) // 0, 30, 60, 90, 120 days
+                GeneratedAtUtc = reference.AddDays(-i * 30.0) // 0, 30, 60, 90, 120 days
             };
             weights[i] = example.ComputeTemporalWeight(reference);
         }
