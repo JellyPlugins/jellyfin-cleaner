@@ -480,6 +480,101 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
     }
 
     /// <summary>
+    ///     Trains a single train/validation split with optional early stopping.
+    ///     Returns the best validation loss (or training loss if no validation set).
+    ///     Modifies _weights and _bias in-place. Must be called under lock.
+    /// </summary>
+    private double TrainSingleSplit(
+        IReadOnlyList<TrainingExample> examples,
+        double[][] precomputedVectors,
+        double[] effectiveWeights,
+        int[] trainIndices,
+        int[] valIndices,
+        Random rng,
+        bool useEarlyStopping)
+    {
+        useEarlyStopping = useEarlyStopping && valIndices.Length >= MinValidationExamples;
+
+        var bestLoss = double.MaxValue;
+        var patienceCounter = 0;
+        var bestWeights = (double[])_weights.Clone();
+        var bestBias = _bias;
+
+        var maxEpochs = useEarlyStopping ? MaxTrainingEpochs : Math.Min(MaxTrainingEpochs, 15);
+
+        for (var epoch = 0; epoch < maxEpochs; epoch++)
+        {
+            // Cosine annealing learning rate decay
+            var lr = DefaultLearningRate * 0.5 * (1.0 + Math.Cos(Math.PI * epoch / maxEpochs));
+
+            // Fisher-Yates shuffle training indices each epoch
+            for (var j = trainIndices.Length - 1; j > 0; j--)
+            {
+                var k = rng.Next(j + 1);
+                (trainIndices[j], trainIndices[k]) = (trainIndices[k], trainIndices[j]);
+            }
+
+            foreach (var idx in trainIndices)
+            {
+                var vector = precomputedVectors[idx];
+                var sampleWeight = effectiveWeights[idx];
+
+                if (sampleWeight < MinSampleWeight)
+                {
+                    continue;
+                }
+
+                var z = ScoringHelper.ComputeRawScore(vector, _weights, _bias);
+                var predicted = Math.Clamp(z, 0.0, 1.0);
+                var error = (predicted - examples[idx].Label) * sampleWeight;
+
+                if ((z <= 0 && error < 0) || (z >= 1 && error > 0))
+                {
+                    continue;
+                }
+
+                var len = Math.Min(vector.Length, _weights.Length);
+                for (var i = 0; i < len; i++)
+                {
+                    var gradient = (error * vector[i]) + (L2Lambda * _weights[i]);
+                    _weights[i] -= lr * gradient;
+                    _weights[i] = Math.Clamp(_weights[i], -2.0, 2.0);
+                }
+
+                _bias -= lr * error;
+                _bias = Math.Clamp(_bias, -1.0, 1.0);
+            }
+
+            if (useEarlyStopping && valIndices.Length > 0)
+            {
+                var valLoss = ComputeMseLoss(examples, precomputedVectors, effectiveWeights, valIndices, _weights, _bias);
+
+                if (valLoss < bestLoss - EarlyStoppingMinDelta)
+                {
+                    bestLoss = valLoss;
+                    patienceCounter = 0;
+                    Array.Copy(_weights, bestWeights, _weights.Length);
+                    bestBias = _bias;
+                }
+                else
+                {
+                    patienceCounter++;
+                    if (patienceCounter >= EarlyStoppingPatience)
+                    {
+                        Array.Copy(bestWeights, _weights, _weights.Length);
+                        _bias = bestBias;
+                        break;
+                    }
+                }
+            }
+        }
+
+        return bestLoss < double.MaxValue
+            ? bestLoss
+            : ComputeTrainingLoss(examples, precomputedVectors, effectiveWeights, _weights, _bias);
+    }
+
+    /// <summary>
     ///     Computes the weighted training loss across all examples (used when no validation split).
     /// </summary>
     private static double ComputeTrainingLoss(
