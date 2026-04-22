@@ -598,7 +598,9 @@ public sealed class RecommendationEngine : IRecommendationEngine
                 StudioMatch = studioMatch,
                 SeriesProgressionBoost = seriesProgressionBoost,
                 PopularityScore = popularityScore,
-                DayOfWeekAffinity = ComputeDayOfWeekAffinity(candidate, userProfile)
+                DayOfWeekAffinity = ComputeDayOfWeekAffinity(candidate, userProfile),
+                HourOfDayAffinity = ComputeHourOfDayAffinity(candidate, userProfile),
+                IsWeekend = DateTime.UtcNow.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday
             };
 
             var explanation = strategy.ScoreWithExplanation(features);
