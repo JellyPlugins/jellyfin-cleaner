@@ -78,9 +78,15 @@ public sealed class RecommendationEngine : IRecommendationEngine
     internal const double AbandonedCompletionThreshold = 0.25;
 
     /// <summary>
-    ///     Soft label for watched items (not 1.0 to leave headroom and reduce label noise).
+    ///     Soft label ceiling for watched items (not 1.0 to leave headroom and reduce label noise).
     /// </summary>
     internal const double WatchedLabel = 0.85;
+
+    /// <summary>
+    ///     Minimum label floor for items the user chose to watch, regardless of completion ratio.
+    ///     Ensures that even low-completion watched items are treated as positive examples.
+    /// </summary>
+    internal const double WatchedLabelFloor = 0.5;
 
     /// <summary>
     ///     Label for items the user started but abandoned (strong negative signal).
@@ -259,9 +265,10 @@ public sealed class RecommendationEngine : IRecommendationEngine
                 double label;
                 if (wasWatched)
                 {
-                    // Binary engagement signal: the user chose to watch this item.
-                    // We use WatchedLabel instead of 1.0 to leave headroom and reduce label noise.
-                    label = WatchedLabel;
+                    // Completion-ratio-modulated engagement label: items with higher completion
+                    // receive stronger positive labels. This provides richer gradient signal than
+                    // a flat label and helps the model distinguish "loved it" from "tried it".
+                    label = ComputeEngagementLabel(features.CompletionRatio);
                 }
                 else if (features.CompletionRatio > 0 && features.CompletionRatio < AbandonedCompletionThreshold)
                 {
