@@ -1,8 +1,10 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
@@ -78,10 +80,15 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
 
     // Readonly fields first (SA1214)
     private readonly ILogger? _logger;
-    private readonly double[] _scratchHiddenAct = new double[HiddenSize];
-    private readonly double[] _scratchHiddenPre = new double[HiddenSize];
+    private readonly ReaderWriterLockSlim _rwLock = new(LockRecursionPolicy.SupportsRecursion);
     private readonly object _syncRoot = new();
     private readonly string? _weightsPath;
+
+    /// <summary>Thread-local scratch buffers to avoid contention on the hot Score() path.</summary>
+    [ThreadStatic]
+    private static double[]? _tlsHiddenPre;
+    [ThreadStatic]
+    private static double[]? _tlsHiddenAct;
 
     // Non-readonly fields
     private int _adamTimestep;
@@ -186,23 +193,31 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
         var vector = new double[CandidateFeatures.FeatureCount];
         features.WriteToVector(vector);
 
-        lock (_syncRoot)
+        // Thread-local scratch buffers: each thread gets its own pair,
+        // eliminating contention when scoring 1000+ candidates in parallel.
+        _tlsHiddenPre ??= new double[HiddenSize];
+        _tlsHiddenAct ??= new double[HiddenSize];
+
+        _rwLock.EnterReadLock();
+        try
         {
             if (_featureMeans is not null && _featureStdDevs is not null)
             {
                 LearnedScoringStrategy.StandardizeSingleVector(vector, _featureMeans, _featureStdDevs);
             }
 
-            // Uses pre-allocated scratch buffers for zero-allocation scoring.
-            // Safe because we're under _syncRoot — no concurrent access.
             return ForwardPass(
                 vector,
                 _weightsHidden,
                 _biasHidden,
                 _weightsOutput,
                 _biasOutput,
-                _scratchHiddenPre,
-                _scratchHiddenAct);
+                _tlsHiddenPre,
+                _tlsHiddenAct);
+        }
+        finally
+        {
+            _rwLock.ExitReadLock();
         }
     }
 
@@ -212,7 +227,8 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
         var vector = new double[CandidateFeatures.FeatureCount];
         features.WriteToVector(vector);
 
-        lock (_syncRoot)
+        _rwLock.EnterReadLock();
+        try
         {
             if (_featureMeans is not null && _featureStdDevs is not null)
             {
@@ -288,6 +304,10 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                 StrategyName = Name
             };
         }
+        finally
+        {
+            _rwLock.ExitReadLock();
+        }
     }
 
     /// <summary>
@@ -323,7 +343,8 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
             LearnedScoringStrategy.StandardizeVectors(vectors, featureMeans, featureStdDevs);
         }
 
-        lock (_syncRoot)
+        _rwLock.EnterWriteLock();
+        try
         {
             EnsureAdamState(inputSize);
 
@@ -495,9 +516,16 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
 
             _featureMeans = featureMeans;
             _featureStdDevs = featureStdDevs;
+
+            // Persist inside the write lock so that no concurrent Score() call can observe
+            // a window between training completion and save snapshot.
+            TrySaveWeights();
+        }
+        finally
+        {
+            _rwLock.ExitWriteLock();
         }
 
-        TrySaveWeights();
         return true;
     }
 
@@ -695,7 +723,7 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
         }
     }
 
-    /// <summary>Persists current weights to disk atomically.</summary>
+    /// <summary>Persists current weights to disk atomically. Must be called under write lock or during init.</summary>
     private void TrySaveWeights()
     {
         if (string.IsNullOrEmpty(_weightsPath))
@@ -711,24 +739,21 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                 Directory.CreateDirectory(dir);
             }
 
-            string json;
-            lock (_syncRoot)
+            // Caller must hold the write lock (or be in constructor before any concurrent access).
+            // Snapshot the weights under that protection.
+            var data = new NeuralWeightsData
             {
-                var data = new NeuralWeightsData
-                {
-                    WeightsHidden = (double[])_weightsHidden.Clone(),
-                    BiasHidden = (double[])_biasHidden.Clone(),
-                    WeightsOutput = (double[])_weightsOutput.Clone(),
-                    BiasOutput = _biasOutput,
-                    FeatureMeans = _featureMeans is not null ? (double[])_featureMeans.Clone() : null,
-                    FeatureStdDevs = _featureStdDevs is not null ? (double[])_featureStdDevs.Clone() : null,
-                    TrainingGeneration = _trainingGeneration,
-                    AdamTimestep = _adamTimestep,
-                    UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
-                    Version = CurrentWeightsVersion
-                };
-                json = JsonSerializer.Serialize(data, SerializerOptions);
-            }
+                WeightsHidden = (double[])_weightsHidden.Clone(),
+                BiasHidden = (double[])_biasHidden.Clone(),
+                WeightsOutput = (double[])_weightsOutput.Clone(),
+                BiasOutput = _biasOutput,
+                FeatureMeans = _featureMeans is not null ? (double[])_featureMeans.Clone() : null,
+                FeatureStdDevs = _featureStdDevs is not null ? (double[])_featureStdDevs.Clone() : null,
+                TrainingGeneration = _trainingGeneration,
+                UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
+                Version = CurrentWeightsVersion
+            };
+            var json = JsonSerializer.Serialize(data, SerializerOptions);
 
             var tempPath = _weightsPath + ".tmp";
             File.WriteAllText(tempPath, json);
@@ -768,8 +793,8 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
         /// <summary>Gets or sets the training generation counter.</summary>
         public int TrainingGeneration { get; set; }
 
-        /// <summary>Gets or sets the Adam optimizer timestep counter.</summary>
-        public int AdamTimestep { get; set; }
+        // AdamTimestep was previously persisted here but never loaded (moments are not
+        // persisted, so restoring the timestep alone is meaningless). Removed as dead code.
 
         /// <summary>Gets or sets the ISO 8601 timestamp of the last update.</summary>
         public string UpdatedAt { get; set; } = string.Empty;

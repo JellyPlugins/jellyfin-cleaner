@@ -618,6 +618,12 @@ public sealed class RecommendationEngine : IRecommendationEngine
             scored.Add((candidate, totalScore, reason, reasonKey, relatedItem));
         }
 
+        // Series deduplication: when the library contains individual episodes/seasons,
+        // multiple items from the same series can dominate the top results.
+        // Keep only the highest-scored item per series (identified by SeriesId).
+        // Non-series items (movies, etc.) pass through unchanged.
+        scored = DeduplicateSeries(scored);
+
         // Apply MMR (Maximal Marginal Relevance) diversity re-ranking.
         // This balances relevance with diversity to avoid recommending too many
         // similar items (e.g., all from the same genre cluster).
@@ -1000,6 +1006,57 @@ public sealed class RecommendationEngine : IRecommendationEngine
         }
 
         return count > 0 ? (double)sum / count : 0;
+    }
+
+    /// <summary>
+    ///     Deduplicates series entries: when episodes or seasons from the same series
+    ///     appear as separate candidates, keeps only the highest-scored entry per series.
+    ///     Non-series items (movies, etc.) are passed through unchanged.
+    /// </summary>
+    /// <param name="scored">The scored candidate list (may contain duplicate series).</param>
+    /// <returns>A deduplicated list with at most one entry per series.</returns>
+    internal static List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>
+        DeduplicateSeries(
+            List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)> scored)
+    {
+        var result = new List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>(scored.Count);
+        var bestPerSeries = new Dictionary<Guid, int>(); // seriesId → index in result
+
+        foreach (var entry in scored)
+        {
+            // Determine the series ID: for Episode/Season use the parent series ID,
+            // for Series items use their own ID.
+            Guid? seriesId = entry.Item switch
+            {
+                Episode ep => ep.SeriesId != Guid.Empty ? ep.SeriesId : null,
+                Season season => season.SeriesId != Guid.Empty ? season.SeriesId : null,
+                Series s => s.Id,
+                _ => null
+            };
+
+            if (seriesId is null)
+            {
+                // Non-series item (movie, etc.) — always include
+                result.Add(entry);
+                continue;
+            }
+
+            if (bestPerSeries.TryGetValue(seriesId.Value, out var existingIdx))
+            {
+                // Keep the higher-scored entry
+                if (entry.Score > result[existingIdx].Score)
+                {
+                    result[existingIdx] = entry;
+                }
+            }
+            else
+            {
+                bestPerSeries[seriesId.Value] = result.Count;
+                result.Add(entry);
+            }
+        }
+
+        return result;
     }
 
     /// <summary>

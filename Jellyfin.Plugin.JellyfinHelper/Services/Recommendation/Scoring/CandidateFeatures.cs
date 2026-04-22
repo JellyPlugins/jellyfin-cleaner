@@ -61,6 +61,12 @@ public enum FeatureIndex
 
     /// <summary>Day-of-week affinity (0–1). How well this content type matches the user's typical viewing pattern for the current day.</summary>
     DayOfWeekAffinity = 17,
+
+    /// <summary>Hour-of-day affinity (0–1). How well this content matches the user's viewing patterns for the current time of day.</summary>
+    HourOfDayAffinity = 18,
+
+    /// <summary>Weekend flag (0 or 1). Whether the current request is on a weekend day (Sat/Sun).</summary>
+    IsWeekend = 19,
 }
 
 /// <summary>
@@ -72,7 +78,7 @@ public sealed class CandidateFeatures
     /// <summary>
     ///     The number of features produced by <see cref="ToVector"/>.
     /// </summary>
-    public const int FeatureCount = 18;
+    public const int FeatureCount = 20;
 
     /// <summary>
     ///     Normalization ceiling for genre count (items with ≥ this many genres map to 1.0).
@@ -97,6 +103,7 @@ public sealed class CandidateFeatures
     private double _seriesProgressionBoost;
     private double _popularityScore;
     private double _dayOfWeekAffinity;
+    private double _hourOfDayAffinity;
 
     /// <summary>Gets or sets the genre similarity score (0–1). Values are clamped to [0, 1].</summary>
     public double GenreSimilarity
@@ -187,6 +194,16 @@ public sealed class CandidateFeatures
         set => _dayOfWeekAffinity = Math.Clamp(value, 0.0, 1.0);
     }
 
+    /// <summary>Gets or sets the hour-of-day affinity (0–1). How well this content matches the user's viewing patterns for the current time of day (e.g. evening vs morning). Values are clamped to [0, 1].</summary>
+    public double HourOfDayAffinity
+    {
+        get => _hourOfDayAffinity;
+        set => _hourOfDayAffinity = Math.Clamp(value, 0.0, 1.0);
+    }
+
+    /// <summary>Gets or sets a value indicating whether the current request is on a weekend day (Saturday or Sunday).</summary>
+    public bool IsWeekend { get; set; }
+
     /// <summary>
     ///     Converts the features into a fixed-size double array for ML processing.
     ///     Order is defined by <see cref="FeatureIndex"/>.
@@ -236,5 +253,7 @@ public sealed class CandidateFeatures
         buffer[(int)FeatureIndex.SeriesProgressionBoost] = SeriesProgressionBoost;
         buffer[(int)FeatureIndex.PopularityScore] = PopularityScore;
         buffer[(int)FeatureIndex.DayOfWeekAffinity] = DayOfWeekAffinity;
+        buffer[(int)FeatureIndex.HourOfDayAffinity] = HourOfDayAffinity;
+        buffer[(int)FeatureIndex.IsWeekend] = IsWeekend ? 1.0 : 0.0;
     }
 }

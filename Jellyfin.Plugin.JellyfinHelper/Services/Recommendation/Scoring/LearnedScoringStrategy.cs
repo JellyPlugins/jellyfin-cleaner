@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -158,38 +159,55 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
     /// <inheritdoc />
     public double Score(CandidateFeatures features)
     {
-        // Allocate a fresh vector to avoid thread-safety issues with shared buffers
-        // across async continuations on the same thread.
-        var vector = new double[CandidateFeatures.FeatureCount];
-        features.WriteToVector(vector);
-
-        lock (_syncRoot)
+        // Rent from ArrayPool to avoid 1000+ allocations per recommendation run.
+        // Safe across async continuations because each call gets its own rented buffer.
+        var vector = ArrayPool<double>.Shared.Rent(CandidateFeatures.FeatureCount);
+        try
         {
-            // Apply Z-score standardization if statistics are available
-            if (_featureMeans is not null && _featureStdDevs is not null)
-            {
-                StandardizeSingleVector(vector, _featureMeans, _featureStdDevs);
-            }
+            // Clear only the portion we use (Rent may return a larger array)
+            Array.Clear(vector, 0, CandidateFeatures.FeatureCount);
+            features.WriteToVector(vector);
 
-            return Math.Clamp(ScoringHelper.ComputeRawScore(vector, _weights, _bias), 0.0, 1.0);
+            lock (_syncRoot)
+            {
+                // Apply Z-score standardization if statistics are available
+                if (_featureMeans is not null && _featureStdDevs is not null)
+                {
+                    StandardizeSingleVector(vector, _featureMeans, _featureStdDevs);
+                }
+
+                return Math.Clamp(ScoringHelper.ComputeRawScore(vector, _weights, _bias), 0.0, 1.0);
+            }
+        }
+        finally
+        {
+            ArrayPool<double>.Shared.Return(vector);
         }
     }
 
     /// <inheritdoc />
     public ScoreExplanation ScoreWithExplanation(CandidateFeatures features)
     {
-        var vector = new double[CandidateFeatures.FeatureCount];
-        features.WriteToVector(vector);
-
-        lock (_syncRoot)
+        var vector = ArrayPool<double>.Shared.Rent(CandidateFeatures.FeatureCount);
+        try
         {
-            // Apply Z-score standardization if statistics are available
-            if (_featureMeans is not null && _featureStdDevs is not null)
-            {
-                StandardizeSingleVector(vector, _featureMeans, _featureStdDevs);
-            }
+            Array.Clear(vector, 0, CandidateFeatures.FeatureCount);
+            features.WriteToVector(vector);
 
-            return ScoringHelper.BuildExplanation(vector, _weights, _bias, Name);
+            lock (_syncRoot)
+            {
+                // Apply Z-score standardization if statistics are available
+                if (_featureMeans is not null && _featureStdDevs is not null)
+                {
+                    StandardizeSingleVector(vector, _featureMeans, _featureStdDevs);
+                }
+
+                return ScoringHelper.BuildExplanation(vector, _weights, _bias, Name);
+            }
+        }
+        finally
+        {
+            ArrayPool<double>.Shared.Return(vector);
         }
     }
 
