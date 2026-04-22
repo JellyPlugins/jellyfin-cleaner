@@ -388,9 +388,19 @@ internal sealed class TrainingService
 
         if (trained)
         {
+            // Compute ranking metrics on the full example set to evaluate recommendation quality.
+            // Unlike MSE (which measures score accuracy), these metrics measure what matters:
+            // whether items the user likes land in the top K predictions.
+            var (precisionAtK, recallAtK, ndcgAtK) = Scoring.RankingMetrics.ComputeAll(
+                trainingExamples, strategy, Scoring.RankingMetrics.DefaultK);
+
             _pluginLog.LogInfo(
                 "Recommendations",
-                $"Strategy '{strategy.Name}' training completed successfully.",
+                $"Strategy '{strategy.Name}' training completed — " +
+                $"P@{Scoring.RankingMetrics.DefaultK}: {precisionAtK:F3}, " +
+                $"R@{Scoring.RankingMetrics.DefaultK}: {recallAtK:F3}, " +
+                $"NDCG@{Scoring.RankingMetrics.DefaultK}: {ndcgAtK:F3} " +
+                $"({trainingExamples.Count} examples).",
                 _logger);
         }
         else

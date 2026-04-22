@@ -115,6 +115,9 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
     private double[]? _featureMeans;
     private double[]? _featureStdDevs;
     private double _lastValidationLoss = double.NaN;
+    private double _lastPrecisionAtK = double.NaN;
+    private double _lastRecallAtK = double.NaN;
+    private double _lastNdcgAtK = double.NaN;
     private double[]? _mBH1;
     private double[]? _mBH2;
     private double[]? _mBH3;
@@ -179,6 +182,42 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
             lock (_syncRoot)
             {
                 return _lastValidationLoss;
+            }
+        }
+    }
+
+    /// <summary>Gets the Precision@K from the last training run.</summary>
+    internal double LastPrecisionAtK
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _lastPrecisionAtK;
+            }
+        }
+    }
+
+    /// <summary>Gets the Recall@K from the last training run.</summary>
+    internal double LastRecallAtK
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _lastRecallAtK;
+            }
+        }
+    }
+
+    /// <summary>Gets the NDCG@K from the last training run.</summary>
+    internal double LastNdcgAtK
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _lastNdcgAtK;
             }
         }
     }
@@ -761,6 +800,15 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
             {
                 _rwLock.ExitWriteLock();
             }
+        }
+
+        // Compute ranking metrics outside the write lock (Score() needs read lock).
+        var (pAtK, rAtK, nAtK) = RankingMetrics.ComputeAll(examples, this, RankingMetrics.DefaultK);
+        lock (_syncRoot)
+        {
+            _lastPrecisionAtK = pAtK;
+            _lastRecallAtK = rAtK;
+            _lastNdcgAtK = nAtK;
         }
 
         return true;

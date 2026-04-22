@@ -428,9 +428,15 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
 
             // Log training quality metrics for transparency using structured logging
             _logger?.LogInformation(
-                "Training complete: examples={ExampleCount}, validationLoss={ValidationLoss:F6}, qualityGate={QualityGate}, alpha={Alpha:F4}, neuralBeta={NeuralBeta:F4}",
+                "Training complete: examples={ExampleCount}, valLoss={ValidationLoss:F6}, P@{K}={PrecisionAtK:F3}, R@{K2}={RecallAtK:F3}, NDCG@{K3}={NdcgAtK:F3}, qualityGate={QualityGate}, alpha={Alpha:F4}, neuralBeta={NeuralBeta:F4}",
                 examples.Count,
                 validationLoss,
+                RankingMetrics.DefaultK,
+                _learned.LastPrecisionAtK,
+                RankingMetrics.DefaultK,
+                _learned.LastRecallAtK,
+                RankingMetrics.DefaultK,
+                _learned.LastNdcgAtK,
                 qualityGatePassed ? "passed" : "dampened",
                 _alpha,
                 _neuralBeta);

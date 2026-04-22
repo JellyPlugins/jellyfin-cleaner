@@ -174,7 +174,8 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │       ├── DefaultWeights.cs                # Centralized default feature weights (sum=1.0, 23 features)
 │   │       ├── CandidateFeatures.cs             # Feature vector (23 features incl. TagSimilarity, HourOfDay, IsWeekend)
 │   │       ├── ScoreExplanation.cs              # Per-score breakdown model with Blend/WithPenalty
-│   │       └── TrainingExample.cs               # Labelled training data (completion-ratio labels, temporal decay)
+│   │       ├── TrainingExample.cs               # Labelled training data (completion-ratio labels, temporal decay)
+│   │       └── RankingMetrics.cs                # Ranking evaluation metrics (Precision@K, Recall@K, NDCG@K)
 │   ├── Seerr/                         # Overseerr/Jellyseerr integration
 │   │   ├── ISeerrIntegrationService.cs
 │   │   ├── SeerrIntegrationService.cs # HTTP client for Seerr API communication & cleanup
@@ -760,7 +761,8 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
     │   │   ├── ScoringStrategyTests.cs          # Heuristic, learned & ensemble scoring tests
     │   │   ├── NeuralScoringStrategyTests.cs    # Neural MLP (23→32→16→8→1) tests
     │   │   ├── ScoreExplanationTests.cs         # Explanation, blend, penalty tests
-    │   │   └── TrainingExampleTests.cs          # Label quality, temporal decay tests
+    │   │   ├── TrainingExampleTests.cs          # Label quality, temporal decay tests
+    │   │   └── RankingMetricsTests.cs           # Precision@K, Recall@K, NDCG@K metric tests
     │   ├── RecommendationCacheServiceTests.cs   # Cache persistence tests
     │   └── RecommendationDtoTests.cs            # DTO serialization tests
     ├── Activity/

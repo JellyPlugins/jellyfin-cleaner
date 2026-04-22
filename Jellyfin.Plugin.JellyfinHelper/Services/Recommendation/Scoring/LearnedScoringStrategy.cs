@@ -80,6 +80,9 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
     private readonly string? _weightsPath;
     private double _bias;
     private double _lastValidationLoss = double.NaN;
+    private double _lastPrecisionAtK = double.NaN;
+    private double _lastRecallAtK = double.NaN;
+    private double _lastNdcgAtK = double.NaN;
     private int _trainingGeneration;
     private double[] _weights;
 
@@ -131,6 +134,54 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
             lock (_syncRoot)
             {
                 return _lastValidationLoss;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Gets the Precision@K from the last training run.
+    ///     Measures what fraction of top-K predicted items are actually relevant.
+    ///     Returns <see cref="double.NaN"/> if no training has been performed.
+    /// </summary>
+    internal double LastPrecisionAtK
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _lastPrecisionAtK;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Gets the Recall@K from the last training run.
+    ///     Measures what fraction of all relevant items appear in the top-K predictions.
+    ///     Returns <see cref="double.NaN"/> if no training has been performed.
+    /// </summary>
+    internal double LastRecallAtK
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _lastRecallAtK;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Gets the NDCG@K from the last training run.
+    ///     Measures ranking quality by rewarding relevant items at higher positions.
+    ///     Returns <see cref="double.NaN"/> if no training has been performed.
+    /// </summary>
+    internal double LastNdcgAtK
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _lastNdcgAtK;
             }
         }
     }
@@ -367,6 +418,13 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
             // Persist Z-score statistics so scoring uses the same standardization
             _featureMeans = featureMeans;
             _featureStdDevs = featureStdDevs;
+
+            // Compute ranking metrics after training — measures recommendation quality
+            // (are relevant items in the top K?) rather than score accuracy (MSE).
+            var (pAtK, rAtK, nAtK) = RankingMetrics.ComputeAll(examples, this, RankingMetrics.DefaultK);
+            _lastPrecisionAtK = pAtK;
+            _lastRecallAtK = rAtK;
+            _lastNdcgAtK = nAtK;
 
             // Persist inside the lock so that no concurrent Score() call can observe
             // a window between training completion and save snapshot.
