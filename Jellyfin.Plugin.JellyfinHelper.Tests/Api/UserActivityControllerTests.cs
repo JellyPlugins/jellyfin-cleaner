@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Jellyfin.Plugin.JellyfinHelper.Api;
+using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Activity;
+using Jellyfin.Plugin.JellyfinHelper.Services.ConfigAccess;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Xunit;
@@ -14,12 +16,19 @@ public class UserActivityControllerTests
     private readonly Mock<IUserActivityCacheService> _mockCache;
     private readonly UserActivityController _controller;
     private readonly Mock<IUserActivityInsightsService> _mockInsights;
+    private readonly Mock<IPluginConfigurationService> _mockConfig;
 
     public UserActivityControllerTests()
     {
         _mockCache = new Mock<IUserActivityCacheService>();
         _mockInsights = new Mock<IUserActivityInsightsService>();
-        _controller = new UserActivityController(_mockCache.Object, _mockInsights.Object);
+        _mockConfig = new Mock<IPluginConfigurationService>();
+        // Default: feature enabled (TaskMode = Activate)
+        _mockConfig.Setup(c => c.GetConfiguration()).Returns(new PluginConfiguration
+        {
+            RecommendationsTaskMode = TaskMode.Activate
+        });
+        _controller = new UserActivityController(_mockCache.Object, _mockInsights.Object, _mockConfig.Object);
     }
 
     // === GetLatestActivity ===
