@@ -705,6 +705,81 @@ public sealed class NeuralScoringStrategyTests : IDisposable
     }
 
     // ============================================================
+    // Two-Hidden-Layer Architecture Tests
+    // ============================================================
+
+    [Fact]
+    public void Hidden1Size_Is16()
+    {
+        Assert.Equal(16, NeuralScoringStrategy.Hidden1Size);
+    }
+
+    [Fact]
+    public void Hidden2Size_Is8()
+    {
+        Assert.Equal(8, NeuralScoringStrategy.Hidden2Size);
+    }
+
+    [Fact]
+    public void CurrentWeightsVersion_Is3()
+    {
+        Assert.Equal(3, NeuralScoringStrategy.CurrentWeightsVersion);
+    }
+
+    [Fact]
+    public void H1H2Weights_AreNotAllZero()
+    {
+        var strategy = new NeuralScoringStrategy();
+        var wH1H2 = strategy.CurrentWeightsH1H2;
+
+        Assert.True(wH1H2.Any(w => Math.Abs(w) > 1e-10), "H1→H2 weights should not all be zero after Xavier init");
+    }
+
+    // ============================================================
+    // Concurrency Tests
+    // ============================================================
+
+    [Fact]
+    public void Score_ConcurrentCalls_DoNotThrow()
+    {
+        var strategy = new NeuralScoringStrategy();
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 0.7,
+            RatingScore = 0.6,
+            CollaborativeScore = 0.4
+        };
+
+        // 100 parallel Score() calls should not throw or corrupt state
+        Parallel.For(0, 100, _ =>
+        {
+            var score = strategy.Score(features);
+            Assert.InRange(score, 0.0, 1.0);
+        });
+    }
+
+    [Fact]
+    public async Task Score_DuringTraining_DoesNotThrow()
+    {
+        var strategy = new NeuralScoringStrategy();
+        var examples = GenerateExamples(20);
+        var features = new CandidateFeatures { GenreSimilarity = 0.5, RatingScore = 0.6 };
+
+        // Train on one thread, score on another — should not deadlock or throw
+        var trainTask = Task.Run(() => strategy.Train(examples));
+        var scoreTask = Task.Run(() =>
+        {
+            for (var i = 0; i < 50; i++)
+            {
+                var score = strategy.Score(features);
+                Assert.InRange(score, 0.0, 1.0);
+            }
+        });
+
+        await Task.WhenAll(trainTask, scoreTask);
+    }
+
+    // ============================================================
     // Helpers
     // ============================================================
 
