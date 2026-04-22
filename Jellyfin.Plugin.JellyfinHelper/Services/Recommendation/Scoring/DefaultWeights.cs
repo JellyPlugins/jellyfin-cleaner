@@ -63,7 +63,7 @@ public static class DefaultWeights
     ///     A small positive weight that gives a slight boost to items the user has some
     ///     history with, allowing the model to distinguish "not yet seen" from "abandoned".
     /// </summary>
-    public const double HasInteraction = 0.02;
+    public const double HasInteraction = 0.01;
 
     /// <summary>
     ///     Weight for people (cast/director) similarity signal.
@@ -91,7 +91,7 @@ public static class DefaultWeights
     ///     users who have little personal history. The ML model can adjust this weight down as
     ///     personalized signals strengthen.
     /// </summary>
-    public const double PopularityScore = 0.03;
+    public const double PopularityScore = 0.01;
 
     /// <summary>
     ///     Weight for day-of-week affinity signal.
