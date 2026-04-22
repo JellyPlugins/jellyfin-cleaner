@@ -215,7 +215,7 @@
   "tabRecommendations": "Descobrir",
   "activityTitle": "Atividade dos usuários",
   "activityLoading": "Carregando dados de atividade…",
-  "activityNoData": "Sem dados de atividade disponíveis. Execute primeiro a tarefa agendada «Update User Watch Activity».",
+  "activityNoData": "Sem dados de atividade disponíveis. Execute primeiro a tarefa agendada «Atualizar atividade de visualização dos usuários».",
   "activityFilterUser": "Filtrar por usuário",
   "activityAllUsers": "Todos os usuários",
   "activityItemName": "Título",
