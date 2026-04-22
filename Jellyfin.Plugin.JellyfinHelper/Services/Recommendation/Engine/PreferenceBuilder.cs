@@ -13,9 +13,19 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Engine;
 internal static class PreferenceBuilder
 {
     /// <summary>
+    ///     Half-life for genre preference temporal decay in days (~180 days).
+    ///     Genres watched recently contribute more than genres watched months ago.
+    /// </summary>
+    private const double GenreDecayHalfLifeDays = 180.0;
+
+    /// <summary>Decay constant derived from half-life: ln(2) / halfLife.</summary>
+    private static readonly double GenreDecayConstant = Math.Log(2.0) / GenreDecayHalfLifeDays;
+
+    /// <summary>
     ///     Builds a normalized genre preference vector from the user's watch history.
-    ///     Each genre gets a weight based on how often the user has watched items of that genre.
-    ///     Genres from favorited items receive an additional boost to better reflect true preferences.
+    ///     Each genre gets a weight based on recency, play count, and favorites.
+    ///     Recent watches count more than old ones (180-day half-life exponential decay).
+    ///     Re-watched items get a PlayCount boost. Favorites get an additional boost.
     /// </summary>
     /// <param name="profile">The user's watch profile.</param>
     /// <returns>A dictionary mapping genre names to normalized weights (0–1).</returns>
@@ -23,23 +33,34 @@ internal static class PreferenceBuilder
     {
         var vector = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
-        if (profile.GenreDistribution.Count == 0)
+        if (profile.WatchedItems.Count == 0 && profile.GenreDistribution.Count == 0)
         {
             return vector;
         }
 
-        // Start with the base genre distribution
-        foreach (var (genre, count) in profile.GenreDistribution)
-        {
-            vector[genre] = count;
-        }
-
-        // Boost genres from favorited items — favorites signal strong preference
+        // Build genre preferences with temporal decay — recent watches count more
+        var now = DateTime.UtcNow;
         foreach (var item in profile.WatchedItems)
         {
-            if (!item.IsFavorite || item.Genres is null)
+            if (!item.Played || item.Genres is null)
             {
                 continue;
+            }
+
+            // Compute temporal weight: exponential decay with ~180-day half-life
+            var ageDays = item.LastPlayedDate.HasValue
+                ? Math.Max(0, (now - item.LastPlayedDate.Value).TotalDays)
+                : 365.0; // Default to ~1 year for items without timestamp
+            var temporalWeight = Math.Exp(-GenreDecayConstant * ageDays);
+
+            // PlayCount boost: re-watched items signal stronger preference
+            var playCountBoost = Math.Min(item.PlayCount, 5) * 0.2; // max 1.0 extra from re-watches
+            var weight = temporalWeight + playCountBoost;
+
+            // Favorite boost
+            if (item.IsFavorite)
+            {
+                weight += EngineConstants.FavoriteGenreBoostFactor;
             }
 
             foreach (var genre in item.Genres)
@@ -47,8 +68,19 @@ internal static class PreferenceBuilder
                 if (!string.IsNullOrWhiteSpace(genre))
                 {
                     vector.TryGetValue(genre, out var current);
-                    vector[genre] = current + EngineConstants.FavoriteGenreBoostFactor;
+                    vector[genre] = current + weight;
                 }
+            }
+        }
+
+        // Merge GenreDistribution as base weights for genres not covered by WatchedItems.
+        // This ensures backward compatibility and catches genres from items whose
+        // WatchedItemInfo has no Genres array (e.g. episodes inheriting parent series genres).
+        foreach (var (genre, count) in profile.GenreDistribution)
+        {
+            if (!vector.ContainsKey(genre) && count > 0)
+            {
+                vector[genre] = count;
             }
         }
 

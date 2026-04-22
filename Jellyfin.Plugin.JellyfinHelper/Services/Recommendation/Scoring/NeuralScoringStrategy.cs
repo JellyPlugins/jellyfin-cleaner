@@ -105,6 +105,7 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
     private double[] _biasH1;
     private double[] _biasH2;
     private double _biasOutput;
+    private volatile bool _disposed;
     private double[]? _featureMeans;
     private double[]? _featureStdDevs;
     private double _lastValidationLoss = double.NaN;
@@ -220,6 +221,11 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
     /// <inheritdoc />
     public double Score(CandidateFeatures features)
     {
+        if (_disposed)
+        {
+            return 0.5;
+        }
+
         var vector = new double[CandidateFeatures.FeatureCount];
         features.WriteToVector(vector);
 
@@ -264,6 +270,11 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
     /// <inheritdoc />
     public ScoreExplanation ScoreWithExplanation(CandidateFeatures features)
     {
+        if (_disposed)
+        {
+            return new ScoreExplanation { FinalScore = 0.5, StrategyName = Name };
+        }
+
         var vector = new double[CandidateFeatures.FeatureCount];
         features.WriteToVector(vector);
 
@@ -997,6 +1008,7 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
     /// <inheritdoc />
     public void Dispose()
     {
+        _disposed = true;
         _rwLock.Dispose();
     }
 

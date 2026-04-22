@@ -215,9 +215,9 @@ internal sealed class TrainingService
                     StudioMatch = studioMatch,
                     SeriesProgressionBoost = seriesProgressionBoost,
                     PopularityScore = popularityScore,
-                    DayOfWeekAffinity = 0.5, // Neutral — temporal context at training time differs from recommendation time
-                    HourOfDayAffinity = 0.5, // Neutral — temporal context at training time differs from recommendation time
-                    IsWeekend = false, // Neutral — temporal context at training time differs from recommendation time
+                    DayOfWeekAffinity = ComputeTrainingTemporalAffinity(watchedItemForRec, rec.Genres, userProfile, isDay: true),
+                    HourOfDayAffinity = ComputeTrainingTemporalAffinity(watchedItemForRec, rec.Genres, userProfile, isDay: false),
+                    IsWeekend = watchedItemForRec?.LastPlayedDate?.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday,
                     TagSimilarity = tagSimilarity
                 };
 
@@ -394,6 +394,71 @@ internal sealed class TrainingService
         }
 
         return tags;
+    }
+
+    /// <summary>
+    ///     Computes temporal affinity for training examples using the actual watch timestamp.
+    ///     Instead of setting temporal features to neutral (0.5), uses the real DayOfWeek/HourOfDay
+    ///     from when the user watched the item. This allows the model to learn temporal weights.
+    /// </summary>
+    /// <param name="watchedItem">The watched item (may be null for unmatched items).</param>
+    /// <param name="candidateGenres">The candidate item's genres.</param>
+    /// <param name="userProfile">The user's watch profile.</param>
+    /// <param name="isDay">True for day-of-week affinity, false for hour-of-day affinity.</param>
+    /// <returns>A temporal affinity score between 0 and 1, or 0.5 if no timestamp is available.</returns>
+    private static double ComputeTrainingTemporalAffinity(
+        WatchHistory.WatchedItemInfo? watchedItem,
+        IReadOnlyList<string>? candidateGenres,
+        WatchHistory.UserWatchProfile userProfile,
+        bool isDay)
+    {
+        if (watchedItem?.LastPlayedDate is null || candidateGenres is null || candidateGenres.Count == 0)
+        {
+            return 0.5;
+        }
+
+        var watchDate = watchedItem.LastPlayedDate.Value;
+        var candidateGenreSet = new HashSet<string>(candidateGenres, StringComparer.OrdinalIgnoreCase);
+
+        var matchCount = 0;
+        var totalInBucket = 0;
+
+        foreach (var w in userProfile.WatchedItems)
+        {
+            if (!w.Played || !w.LastPlayedDate.HasValue)
+            {
+                continue;
+            }
+
+            bool inBucket;
+            if (isDay)
+            {
+                inBucket = w.LastPlayedDate.Value.DayOfWeek == watchDate.DayOfWeek;
+            }
+            else
+            {
+                inBucket = TemporalFeatures.GetTimeBucket(w.LastPlayedDate.Value.Hour)
+                    == TemporalFeatures.GetTimeBucket(watchDate.Hour);
+            }
+
+            if (!inBucket)
+            {
+                continue;
+            }
+
+            totalInBucket++;
+            if (w.Genres is not null && w.Genres.Any(g => candidateGenreSet.Contains(g)))
+            {
+                matchCount++;
+            }
+        }
+
+        if (totalInBucket < 3)
+        {
+            return 0.5;
+        }
+
+        return Math.Clamp((double)matchCount / totalInBucket, 0.0, 1.0);
     }
 
     /// <summary>

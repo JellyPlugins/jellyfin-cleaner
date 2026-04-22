@@ -57,9 +57,10 @@ public sealed class Engine : IRecommendationEngine
         maxResults = Math.Clamp(maxResults, 1, EngineConstants.MaxRecommendationsPerUser);
         var allProfiles = _watchHistoryService.GetAllUserWatchProfiles();
         var userProfile = allProfiles.FirstOrDefault(p => p.UserId == userId);
-        if (userProfile is null)
+        if (userProfile is null || userProfile.WatchedItems.Count == 0)
         {
-            return null;
+            // Cold-start: user has no watch history — return popular/trending items
+            return GenerateColdStartRecommendations(userId, maxResults);
         }
 
         var candidates = LoadCandidateItems();
@@ -124,6 +125,61 @@ public sealed class Engine : IRecommendationEngine
             $"Finished: {results.Count} users, {results.Sum(r => r.Recommendations.Count)} total recommendations.",
             _logger);
         return results;
+    }
+
+    /// <summary>
+    ///     Generates cold-start recommendations for users with no watch history.
+    ///     Uses community ratings and recency as proxy signals since no personal preferences exist.
+    ///     Returns highly-rated recent items across diverse genres.
+    /// </summary>
+    /// <param name="userId">The user's ID.</param>
+    /// <param name="maxResults">Maximum recommendations to return.</param>
+    /// <returns>A recommendation result with popular/trending items.</returns>
+    internal RecommendationResult GenerateColdStartRecommendations(Guid userId, int maxResults)
+    {
+        var candidates = LoadCandidateItems();
+
+        var scored = new List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>();
+        foreach (var candidate in candidates)
+        {
+            var ratingScore = ContentScoring.NormalizeRating(candidate.CommunityRating);
+            var recencyScore = ContentScoring.ComputeRecencyScore(candidate.PremiereDate ?? candidate.DateCreated);
+            // Cold-start formula: 60% rating, 40% recency — prioritize quality + freshness
+            var score = (0.6 * ratingScore) + (0.4 * recencyScore);
+            scored.Add((candidate, score, "Popular and highly rated", "reasonPopular", null));
+        }
+
+        var topItems = DiversityReranker.ApplyDiversityReranking(scored, maxResults)
+            .Select(s => new RecommendedItem
+            {
+                ItemId = s.Item.Id,
+                Name = s.Item.Name ?? string.Empty,
+                ItemType = s.Item.GetType().Name,
+                Score = Math.Round(s.Score, 4),
+                Reason = s.Reason,
+                ReasonKey = s.ReasonKey,
+                Genres = s.Item.Genres ?? [],
+                Year = s.Item.ProductionYear,
+                CommunityRating = s.Item.CommunityRating,
+                OfficialRating = s.Item.OfficialRating,
+                PremiereDate = s.Item.PremiereDate,
+                PrimaryImageTag = s.Item.HasImage(ImageType.Primary) ? s.Item.Id.ToString("N") : null,
+                PeopleNames = [],
+                Studios = s.Item.Studios ?? [],
+                Tags = s.Item.Tags ?? []
+            })
+            .ToList();
+
+        _pluginLog.LogInfo("Recommendations", $"Generated {topItems.Count} cold-start recommendations for user '{userId}' (no watch history)", _logger);
+
+        return new RecommendationResult
+        {
+            UserId = userId,
+            Recommendations = new Collection<RecommendedItem>(topItems),
+            GeneratedAt = DateTime.UtcNow,
+            ScoringStrategy = "Cold Start (Popular + Recent)",
+            ScoringStrategyKey = "strategyColdStart"
+        };
     }
 
     /// <summary>

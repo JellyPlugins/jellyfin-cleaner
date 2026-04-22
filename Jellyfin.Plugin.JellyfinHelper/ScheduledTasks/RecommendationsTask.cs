@@ -96,7 +96,7 @@ public class RecommendationsTask
         progress.Report(20);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var maxPerUser = Math.Clamp(Plugin.Instance?.Configuration.MaxRecommendationsPerUser ?? 20, 1, 100);
+        var maxPerUser = Math.Clamp(config.MaxRecommendationsPerUser, 1, 100);
         var results = _recsEngine.GetAllRecommendations(maxPerUser, cancellationToken);
 
         progress.Report(80);

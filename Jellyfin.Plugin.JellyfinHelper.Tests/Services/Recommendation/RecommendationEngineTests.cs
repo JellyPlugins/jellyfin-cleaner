@@ -35,7 +35,7 @@ public class RecommendationEngineTests
     }
 
     [Fact]
-    public void BuildGenrePreferenceVector_ZeroCounts_ReturnsZeroWeights()
+    public void BuildGenrePreferenceVector_ZeroCounts_ReturnsEmpty()
     {
         var profile = new UserWatchProfile
         {
@@ -48,10 +48,8 @@ public class RecommendationEngineTests
 
         var vector = PreferenceBuilder.BuildGenrePreferenceVector(profile);
 
-        // When all counts are zero, weights are 0 (no division by zero)
-        Assert.Equal(2, vector.Count);
-        Assert.Equal(0.0, vector["Action"]);
-        Assert.Equal(0.0, vector["Comedy"]);
+        // Zero-count genres with no WatchedItems produce an empty vector
+        Assert.Equal(0, vector.Count);
     }
 
     [Fact]
@@ -556,8 +554,8 @@ public class RecommendationEngineTests
         {
             GenreDistribution = new Dictionary<string, int>
             {
-                { "Action", 5 },
-                { "Comedy", 5 }
+                { "Action", 3 },
+                { "Comedy", 3 }
             },
             WatchedItems =
             [
@@ -566,17 +564,22 @@ public class RecommendationEngineTests
                     IsFavorite = true,
                     Genres = new[] { "Action" },
                     ItemId = Guid.NewGuid(),
-                    Played = true
+                    Played = true,
+                    LastPlayedDate = DateTime.UtcNow.AddDays(-7),
+                    PlayCount = 5
                 }
             ]
         };
 
         var vector = PreferenceBuilder.BuildGenrePreferenceVector(profile);
 
-        // Action should be boosted (5 + 3.0 = 8.0) vs Comedy (5.0)
-        // Normalized: Action = 1.0, Comedy = 5.0/8.0 = 0.625
-        Assert.Equal(1.0, vector["Action"]);
-        Assert.True(vector["Comedy"] < 0.7, $"Comedy should be lower than Action, got {vector["Comedy"]}");
+        // Action should be boosted (temporal weight + favorite boost + PlayCount boost)
+        // Comedy comes from GenreDistribution fallback (count=5)
+        // Both should be present; Action should have a higher weight than Comedy after normalization
+        Assert.True(vector.ContainsKey("Action"), "Action should be in vector");
+        Assert.True(vector.ContainsKey("Comedy"), "Comedy should be in vector");
+        Assert.True(vector["Action"] > vector["Comedy"],
+            $"Action ({vector["Action"]:F4}) should be higher than Comedy ({vector["Comedy"]:F4}) due to favorite boost");
     }
 
     [Fact]
