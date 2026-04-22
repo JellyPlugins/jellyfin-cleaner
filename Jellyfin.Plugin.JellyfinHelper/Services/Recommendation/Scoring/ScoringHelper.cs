@@ -17,6 +17,12 @@ internal static class ScoringHelper
     internal const double DefaultGenrePenaltyThreshold = 0.3;
 
     /// <summary>
+    ///     Default fallback score returned when a computed score is NaN or Infinity.
+    ///     0.5 is neutral (neither positive nor negative recommendation signal).
+    /// </summary>
+    internal const double NaNFallbackScore = 0.5;
+
+    /// <summary>
     ///     Computes a soft genre penalty multiplier that ramps linearly from <paramref name="floor"/>
     ///     (at genreSimilarity = 0) to 1.0 (at genreSimilarity ≥ <paramref name="threshold"/>).
     ///     Shared by <see cref="HeuristicScoringStrategy"/> and <see cref="EnsembleScoringStrategy"/>
@@ -38,11 +44,13 @@ internal static class ScoringHelper
 
     /// <summary>
     ///     Computes the raw linear score from a feature vector, weights, and bias.
+    ///     Returns <see cref="NaNFallbackScore"/> if the result is NaN or Infinity,
+    ///     which can occur when weights are corrupted or features contain invalid values.
     /// </summary>
     /// <param name="vector">The feature vector.</param>
     /// <param name="weights">The weight array (same length as vector).</param>
     /// <param name="bias">The bias term.</param>
-    /// <returns>The raw (unclamped) score.</returns>
+    /// <returns>The raw (unclamped) score, or <see cref="NaNFallbackScore"/> if the result is not finite.</returns>
     internal static double ComputeRawScore(double[] vector, double[] weights, double bias)
     {
         var score = bias;
@@ -52,12 +60,26 @@ internal static class ScoringHelper
             score += vector[i] * weights[i];
         }
 
-        return score;
+        return double.IsFinite(score) ? score : NaNFallbackScore;
+    }
+
+    /// <summary>
+    ///     Guards a score value against NaN and Infinity.
+    ///     Returns <see cref="NaNFallbackScore"/> if the value is not a finite number.
+    ///     This is the centralized guard used by all scoring strategies to prevent
+    ///     NaN propagation through the recommendation pipeline.
+    /// </summary>
+    /// <param name="score">The score to guard.</param>
+    /// <returns>The original score if finite, otherwise <see cref="NaNFallbackScore"/>.</returns>
+    internal static double GuardScore(double score)
+    {
+        return double.IsFinite(score) ? score : NaNFallbackScore;
     }
 
     /// <summary>
     ///     Builds a complete <see cref="ScoreExplanation"/> from a feature vector and weights.
     ///     Extracts per-feature contributions and determines the dominant signal.
+    ///     All computed values are guarded against NaN/Infinity propagation.
     /// </summary>
     /// <param name="vector">The feature vector (length = <see cref="CandidateFeatures.FeatureCount"/>).</param>
     /// <param name="weights">The weight array.</param>
@@ -70,19 +92,19 @@ internal static class ScoringHelper
         double bias,
         string strategyName)
     {
-        var genreContrib = vector[(int)FeatureIndex.GenreSimilarity] * weights[(int)FeatureIndex.GenreSimilarity];
-        var collabContrib = vector[(int)FeatureIndex.CollaborativeScore] * weights[(int)FeatureIndex.CollaborativeScore];
-        var ratingContrib = vector[(int)FeatureIndex.RatingScore] * weights[(int)FeatureIndex.RatingScore];
-        var recencyContrib = vector[(int)FeatureIndex.RecencyScore] * weights[(int)FeatureIndex.RecencyScore];
-        var yearProxContrib = vector[(int)FeatureIndex.YearProximityScore] * weights[(int)FeatureIndex.YearProximityScore];
-        var userRatingContrib = vector[(int)FeatureIndex.UserRatingScore] * weights[(int)FeatureIndex.UserRatingScore];
+        var genreContrib = GuardScore(vector[(int)FeatureIndex.GenreSimilarity] * weights[(int)FeatureIndex.GenreSimilarity]);
+        var collabContrib = GuardScore(vector[(int)FeatureIndex.CollaborativeScore] * weights[(int)FeatureIndex.CollaborativeScore]);
+        var ratingContrib = GuardScore(vector[(int)FeatureIndex.RatingScore] * weights[(int)FeatureIndex.RatingScore]);
+        var recencyContrib = GuardScore(vector[(int)FeatureIndex.RecencyScore] * weights[(int)FeatureIndex.RecencyScore]);
+        var yearProxContrib = GuardScore(vector[(int)FeatureIndex.YearProximityScore] * weights[(int)FeatureIndex.YearProximityScore]);
+        var userRatingContrib = GuardScore(vector[(int)FeatureIndex.UserRatingScore] * weights[(int)FeatureIndex.UserRatingScore]);
 
         // People and studio contributions tracked separately for dominant signal detection
-        var peopleContrib = vector[(int)FeatureIndex.PeopleSimilarity] * weights[(int)FeatureIndex.PeopleSimilarity];
-        var studioContrib = vector[(int)FeatureIndex.StudioMatch] * weights[(int)FeatureIndex.StudioMatch];
+        var peopleContrib = GuardScore(vector[(int)FeatureIndex.PeopleSimilarity] * weights[(int)FeatureIndex.PeopleSimilarity]);
+        var studioContrib = GuardScore(vector[(int)FeatureIndex.StudioMatch] * weights[(int)FeatureIndex.StudioMatch]);
 
         // Interaction + minor features (genreCount, isSeries, genre×rating, genre×collab, completionRatio, isAbandoned, hasInteraction, seriesProgression, popularity, dayOfWeek, hourOfDay, isWeekend, tagSimilarity)
-        var interactionContrib =
+        var interactionContrib = GuardScore(
             (vector[(int)FeatureIndex.GenreCountNormalized] * weights[(int)FeatureIndex.GenreCountNormalized]) +
             (vector[(int)FeatureIndex.IsSeries] * weights[(int)FeatureIndex.IsSeries]) +
             (vector[(int)FeatureIndex.GenreRatingInteraction] * weights[(int)FeatureIndex.GenreRatingInteraction]) +
@@ -97,7 +119,7 @@ internal static class ScoringHelper
             (vector[(int)FeatureIndex.IsWeekend] * weights[(int)FeatureIndex.IsWeekend]) +
             (vector[(int)FeatureIndex.TagSimilarity] * weights[(int)FeatureIndex.TagSimilarity]) +
             (vector[(int)FeatureIndex.PeopleGenreInteraction] * weights[(int)FeatureIndex.PeopleGenreInteraction]) +
-            (vector[(int)FeatureIndex.RecencyRatingInteraction] * weights[(int)FeatureIndex.RecencyRatingInteraction]);
+            (vector[(int)FeatureIndex.RecencyRatingInteraction] * weights[(int)FeatureIndex.RecencyRatingInteraction]));
 
         var rawScore = ComputeRawScore(vector, weights, bias);
         var score = Math.Clamp(rawScore, 0.0, 1.0);

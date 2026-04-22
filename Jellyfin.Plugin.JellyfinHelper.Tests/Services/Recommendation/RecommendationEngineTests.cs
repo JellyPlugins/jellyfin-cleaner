@@ -1,4 +1,5 @@
 ﻿using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Engine;
+using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
 using Xunit;
 
@@ -888,5 +889,129 @@ public class RecommendationEngineTests
     {
         var profile = new UserWatchProfile { WatchedItems = [] };
         Assert.Equal(0, ContentScoring.ComputeAverageYear(profile));
+    }
+
+    // — NaN/Infinity Guard Tests ————————————————————————————
+
+    [Fact]
+    public void GuardScore_FiniteValue_ReturnsSameValue()
+    {
+        Assert.Equal(0.75, ScoringHelper.GuardScore(0.75));
+        Assert.Equal(0.0, ScoringHelper.GuardScore(0.0));
+        Assert.Equal(1.0, ScoringHelper.GuardScore(1.0));
+        Assert.Equal(-0.5, ScoringHelper.GuardScore(-0.5));
+    }
+
+    [Fact]
+    public void GuardScore_NaN_ReturnsFallback()
+    {
+        Assert.Equal(ScoringHelper.NaNFallbackScore, ScoringHelper.GuardScore(double.NaN));
+    }
+
+    [Fact]
+    public void GuardScore_PositiveInfinity_ReturnsFallback()
+    {
+        Assert.Equal(ScoringHelper.NaNFallbackScore, ScoringHelper.GuardScore(double.PositiveInfinity));
+    }
+
+    [Fact]
+    public void GuardScore_NegativeInfinity_ReturnsFallback()
+    {
+        Assert.Equal(ScoringHelper.NaNFallbackScore, ScoringHelper.GuardScore(double.NegativeInfinity));
+    }
+
+    [Fact]
+    public void ComputeRawScore_NaNWeight_ReturnsFallback()
+    {
+        var vector = new double[] { 1.0, 0.5, 0.3 };
+        var weights = new double[] { double.NaN, 0.5, 0.3 };
+        var result = ScoringHelper.ComputeRawScore(vector, weights, 0.0);
+        Assert.Equal(ScoringHelper.NaNFallbackScore, result);
+    }
+
+    [Fact]
+    public void ComputeRawScore_InfinityWeight_ReturnsFallback()
+    {
+        var vector = new double[] { 1.0, 0.5 };
+        var weights = new double[] { double.PositiveInfinity, 0.5 };
+        var result = ScoringHelper.ComputeRawScore(vector, weights, 0.0);
+        Assert.Equal(ScoringHelper.NaNFallbackScore, result);
+    }
+
+    [Fact]
+    public void ComputeRawScore_NaNBias_ReturnsFallback()
+    {
+        var vector = new double[] { 1.0, 0.5 };
+        var weights = new double[] { 0.3, 0.5 };
+        var result = ScoringHelper.ComputeRawScore(vector, weights, double.NaN);
+        Assert.Equal(ScoringHelper.NaNFallbackScore, result);
+    }
+
+    [Fact]
+    public void ComputeRawScore_ValidInputs_ReturnsCorrectScore()
+    {
+        var vector = new double[] { 1.0, 2.0 };
+        var weights = new double[] { 0.5, 0.25 };
+        // 0.1 + (1.0 * 0.5) + (2.0 * 0.25) = 0.1 + 0.5 + 0.5 = 1.1
+        var result = ScoringHelper.ComputeRawScore(vector, weights, 0.1);
+        Assert.Equal(1.1, result, 6);
+    }
+
+    [Fact]
+    public void NeuralScoringStrategy_Sigmoid_NaN_ReturnsNaN()
+    {
+        // Sigmoid itself propagates NaN — the guard is in Score(), not Sigmoid()
+        var result = NeuralScoringStrategy.Sigmoid(double.NaN);
+        Assert.True(double.IsNaN(result));
+    }
+
+    [Fact]
+    public void NeuralScoringStrategy_Score_WithDefaultWeights_ReturnsFiniteValue()
+    {
+        using var strategy = new NeuralScoringStrategy();
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 0.8,
+            RatingScore = 0.7,
+            RecencyScore = 0.5
+        };
+
+        var score = strategy.Score(features);
+        Assert.True(double.IsFinite(score), $"Score should be finite, got {score}");
+        Assert.True(score >= 0.0 && score <= 1.0, $"Score should be in [0, 1], got {score}");
+    }
+
+    [Fact]
+    public void NeuralScoringStrategy_ScoreWithExplanation_ReturnsFiniteValues()
+    {
+        using var strategy = new NeuralScoringStrategy();
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 0.8,
+            RatingScore = 0.7,
+            RecencyScore = 0.5
+        };
+
+        var explanation = strategy.ScoreWithExplanation(features);
+        Assert.True(double.IsFinite(explanation.FinalScore),
+            $"FinalScore should be finite, got {explanation.FinalScore}");
+        Assert.True(explanation.FinalScore >= 0.0 && explanation.FinalScore <= 1.0,
+            $"FinalScore should be in [0, 1], got {explanation.FinalScore}");
+    }
+
+    [Fact]
+    public void LearnedScoringStrategy_Score_WithDefaultWeights_ReturnsFiniteValue()
+    {
+        var strategy = new LearnedScoringStrategy();
+        var features = new CandidateFeatures
+        {
+            GenreSimilarity = 0.8,
+            RatingScore = 0.7,
+            RecencyScore = 0.5
+        };
+
+        var score = strategy.Score(features);
+        Assert.True(double.IsFinite(score), $"Score should be finite, got {score}");
+        Assert.True(score >= 0.0 && score <= 1.0, $"Score should be in [0, 1], got {score}");
     }
 }

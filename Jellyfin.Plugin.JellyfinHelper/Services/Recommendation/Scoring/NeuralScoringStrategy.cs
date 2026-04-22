@@ -245,7 +245,7 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                 LearnedScoringStrategy.StandardizeSingleVector(vector, _featureMeans, _featureStdDevs);
             }
 
-            return ForwardPass(
+            var result = ForwardPass(
                 vector,
                 _weightsIH,
                 _biasH1,
@@ -257,6 +257,10 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                 _tlsH1Act,
                 _tlsH2Pre,
                 _tlsH2Act);
+
+            // Guard against NaN/Infinity propagation from corrupted weights or features.
+            // Without this, a single NaN weight silently poisons all scores in the pipeline.
+            return ScoringHelper.GuardScore(result);
         }
         finally
         {
@@ -293,7 +297,7 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
             var h1Act = new double[Hidden1Size];
             var h2Pre = new double[Hidden2Size];
             var h2Act = new double[Hidden2Size];
-            var score = ForwardPass(
+            var rawScore = ForwardPass(
                 vector,
                 _weightsIH,
                 _biasH1,
@@ -305,6 +309,9 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                 h1Act,
                 h2Pre,
                 h2Act);
+
+            // Guard against NaN/Infinity propagation from corrupted weights or features.
+            var score = ScoringHelper.GuardScore(rawScore);
 
             // Input-gradient attribution through both hidden layers:
             // contribution[i] = Σ_j Σ_k (wH2O[k] · relu'(h2Pre[k]) · wH1H2[k,j] · relu'(h1Pre[j]) · wIH[j,i]) · input[i]
