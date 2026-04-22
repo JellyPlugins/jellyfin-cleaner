@@ -35,7 +35,7 @@ public sealed class ScoringStrategyTests : IDisposable
     // ============================================================
 
     [Fact]
-    public void CandidateFeatures_ToVector_Returns18Elements()
+    public void CandidateFeatures_ToVector_Returns20Elements()
     {
         var features = new CandidateFeatures
         {
@@ -50,12 +50,14 @@ public sealed class ScoringStrategyTests : IDisposable
             CompletionRatio = 0.75,
             SeriesProgressionBoost = 0.4,
             PopularityScore = 0.6,
-            DayOfWeekAffinity = 0.3
+            DayOfWeekAffinity = 0.3,
+            HourOfDayAffinity = 0.5,
+            IsWeekend = true
         };
 
         var vector = features.ToVector();
 
-        Assert.Equal(18, vector.Length);
+        Assert.Equal(20, vector.Length);
         Assert.Equal(0.8, vector[0]); // genre
         Assert.Equal(0.5, vector[1]); // collab
         Assert.Equal(0.7, vector[2]); // rating
@@ -74,6 +76,8 @@ public sealed class ScoringStrategyTests : IDisposable
         Assert.Equal(0.4, vector[15]); // seriesProgressionBoost
         Assert.Equal(0.6, vector[16]); // popularityScore
         Assert.Equal(0.3, vector[17]); // dayOfWeekAffinity
+        Assert.Equal(0.5, vector[18]); // hourOfDayAffinity
+        Assert.Equal(1.0, vector[19]); // isWeekend (true → 1.0)
     }
 
     [Fact]
