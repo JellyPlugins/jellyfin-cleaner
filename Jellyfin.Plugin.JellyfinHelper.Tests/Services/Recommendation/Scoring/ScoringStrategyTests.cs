@@ -1707,8 +1707,9 @@ public sealed class ScoringStrategyTests : IDisposable
 
         var score = strategy.Score(features);
 
-        // Neural network with sigmoid activation and bias produces ~0.5 for zero input
-        Assert.InRange(score, 0.0, 0.60);
+        // Two-hidden-layer MLP with Xavier init and sigmoid output produces baseline score
+        // for default features (UserRatingScore=0.5, CompletionRatio=0.5, rest=0).
+        Assert.InRange(score, 0.0, 0.75);
     }
 
     [Fact]
@@ -2187,15 +2188,19 @@ public sealed class ScoringStrategyTests : IDisposable
     public void Neural_ForwardPass_ZeroInputProducesSigmoidOfBias()
     {
         var inputSize = CandidateFeatures.FeatureCount;
-        var wH = new double[NeuralScoringStrategy.HiddenSize * inputSize];
-        var bH = new double[NeuralScoringStrategy.HiddenSize];
-        var wO = new double[NeuralScoringStrategy.HiddenSize];
+        var wIH = new double[NeuralScoringStrategy.Hidden1Size * inputSize];
+        var bH1 = new double[NeuralScoringStrategy.Hidden1Size];
+        var wH1H2 = new double[NeuralScoringStrategy.Hidden2Size * NeuralScoringStrategy.Hidden1Size];
+        var bH2 = new double[NeuralScoringStrategy.Hidden2Size];
+        var wH2O = new double[NeuralScoringStrategy.Hidden2Size];
         var bO = 0.0;
         var input = new double[inputSize];
-        var hPre = new double[NeuralScoringStrategy.HiddenSize];
-        var hAct = new double[NeuralScoringStrategy.HiddenSize];
+        var h1Pre = new double[NeuralScoringStrategy.Hidden1Size];
+        var h1Act = new double[NeuralScoringStrategy.Hidden1Size];
+        var h2Pre = new double[NeuralScoringStrategy.Hidden2Size];
+        var h2Act = new double[NeuralScoringStrategy.Hidden2Size];
 
-        var result = NeuralScoringStrategy.ForwardPass(input, wH, bH, wO, bO, hPre, hAct);
+        var result = NeuralScoringStrategy.ForwardPass(input, wIH, bH1, wH1H2, bH2, wH2O, bO, h1Pre, h1Act, h2Pre, h2Act);
 
         // With all zero weights, biases, and inputs: sigmoid(0) = 0.5
         Assert.Equal(0.5, result, 10);

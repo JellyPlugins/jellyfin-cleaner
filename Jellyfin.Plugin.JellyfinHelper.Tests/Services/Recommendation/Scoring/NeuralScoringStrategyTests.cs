@@ -95,14 +95,18 @@ public sealed class NeuralScoringStrategyTests : IDisposable
     {
         var inputSize = CandidateFeatures.FeatureCount;
         var input = new double[inputSize];
-        var wH = new double[NeuralScoringStrategy.HiddenSize * inputSize];
-        var bH = new double[NeuralScoringStrategy.HiddenSize];
-        var wO = new double[NeuralScoringStrategy.HiddenSize];
+        var wIH = new double[NeuralScoringStrategy.Hidden1Size * inputSize];
+        var bH1 = new double[NeuralScoringStrategy.Hidden1Size];
+        var wH1H2 = new double[NeuralScoringStrategy.Hidden2Size * NeuralScoringStrategy.Hidden1Size];
+        var bH2 = new double[NeuralScoringStrategy.Hidden2Size];
+        var wH2O = new double[NeuralScoringStrategy.Hidden2Size];
         var bO = 0.0;
-        var hPre = new double[NeuralScoringStrategy.HiddenSize];
-        var hAct = new double[NeuralScoringStrategy.HiddenSize];
+        var h1Pre = new double[NeuralScoringStrategy.Hidden1Size];
+        var h1Act = new double[NeuralScoringStrategy.Hidden1Size];
+        var h2Pre = new double[NeuralScoringStrategy.Hidden2Size];
+        var h2Act = new double[NeuralScoringStrategy.Hidden2Size];
 
-        var result = NeuralScoringStrategy.ForwardPass(input, wH, bH, wO, bO, hPre, hAct);
+        var result = NeuralScoringStrategy.ForwardPass(input, wIH, bH1, wH1H2, bH2, wH2O, bO, h1Pre, h1Act, h2Pre, h2Act);
 
         // All zeros → hidden pre-activation = 0 → ReLU(0) = 0 → output = sigmoid(0) = 0.5
         Assert.Equal(0.5, result, 10);
@@ -113,14 +117,18 @@ public sealed class NeuralScoringStrategyTests : IDisposable
     {
         var inputSize = CandidateFeatures.FeatureCount;
         var input = new double[inputSize];
-        var wH = new double[NeuralScoringStrategy.HiddenSize * inputSize];
-        var bH = new double[NeuralScoringStrategy.HiddenSize];
-        var wO = new double[NeuralScoringStrategy.HiddenSize];
+        var wIH = new double[NeuralScoringStrategy.Hidden1Size * inputSize];
+        var bH1 = new double[NeuralScoringStrategy.Hidden1Size];
+        var wH1H2 = new double[NeuralScoringStrategy.Hidden2Size * NeuralScoringStrategy.Hidden1Size];
+        var bH2 = new double[NeuralScoringStrategy.Hidden2Size];
+        var wH2O = new double[NeuralScoringStrategy.Hidden2Size];
         var bO = 2.0; // positive output bias
-        var hPre = new double[NeuralScoringStrategy.HiddenSize];
-        var hAct = new double[NeuralScoringStrategy.HiddenSize];
+        var h1Pre = new double[NeuralScoringStrategy.Hidden1Size];
+        var h1Act = new double[NeuralScoringStrategy.Hidden1Size];
+        var h2Pre = new double[NeuralScoringStrategy.Hidden2Size];
+        var h2Act = new double[NeuralScoringStrategy.Hidden2Size];
 
-        var result = NeuralScoringStrategy.ForwardPass(input, wH, bH, wO, bO, hPre, hAct);
+        var result = NeuralScoringStrategy.ForwardPass(input, wIH, bH1, wH1H2, bH2, wH2O, bO, h1Pre, h1Act, h2Pre, h2Act);
 
         // sigmoid(2.0) ≈ 0.88
         Assert.True(result > 0.5, $"Positive bias should increase output, got {result}");
@@ -144,30 +152,39 @@ public sealed class NeuralScoringStrategyTests : IDisposable
         var inputSize = CandidateFeatures.FeatureCount;
         var rng = new Random(123);
 
-        // Random weights and inputs
+        // Random weights and inputs for two-hidden-layer architecture
         var input = new double[inputSize];
-        var wH = new double[NeuralScoringStrategy.HiddenSize * inputSize];
-        var bH = new double[NeuralScoringStrategy.HiddenSize];
-        var wO = new double[NeuralScoringStrategy.HiddenSize];
-        var hPre = new double[NeuralScoringStrategy.HiddenSize];
-        var hAct = new double[NeuralScoringStrategy.HiddenSize];
+        var wIH = new double[NeuralScoringStrategy.Hidden1Size * inputSize];
+        var bH1 = new double[NeuralScoringStrategy.Hidden1Size];
+        var wH1H2 = new double[NeuralScoringStrategy.Hidden2Size * NeuralScoringStrategy.Hidden1Size];
+        var bH2 = new double[NeuralScoringStrategy.Hidden2Size];
+        var wH2O = new double[NeuralScoringStrategy.Hidden2Size];
+        var h1Pre = new double[NeuralScoringStrategy.Hidden1Size];
+        var h1Act = new double[NeuralScoringStrategy.Hidden1Size];
+        var h2Pre = new double[NeuralScoringStrategy.Hidden2Size];
+        var h2Act = new double[NeuralScoringStrategy.Hidden2Size];
 
         for (var i = 0; i < input.Length; i++)
         {
             input[i] = rng.NextDouble();
         }
 
-        for (var i = 0; i < wH.Length; i++)
+        for (var i = 0; i < wIH.Length; i++)
         {
-            wH[i] = (rng.NextDouble() - 0.5) * 2;
+            wIH[i] = (rng.NextDouble() - 0.5) * 2;
         }
 
-        for (var i = 0; i < wO.Length; i++)
+        for (var i = 0; i < wH1H2.Length; i++)
         {
-            wO[i] = (rng.NextDouble() - 0.5) * 2;
+            wH1H2[i] = (rng.NextDouble() - 0.5) * 2;
         }
 
-        var result = NeuralScoringStrategy.ForwardPass(input, wH, bH, wO, 0.0, hPre, hAct);
+        for (var i = 0; i < wH2O.Length; i++)
+        {
+            wH2O[i] = (rng.NextDouble() - 0.5) * 2;
+        }
+
+        var result = NeuralScoringStrategy.ForwardPass(input, wIH, bH1, wH1H2, bH2, wH2O, 0.0, h1Pre, h1Act, h2Pre, h2Act);
         Assert.InRange(result, 0.0, 1.0);
     }
 
@@ -184,53 +201,6 @@ public sealed class NeuralScoringStrategyTests : IDisposable
 
         Assert.True(wH.Any(w => Math.Abs(w) > 1e-10), "Hidden weights should not all be zero after Xavier init");
         Assert.True(wO.Any(w => Math.Abs(w) > 1e-10), "Output weights should not all be zero after Xavier init");
-    }
-
-    [Fact]
-    public void XavierInit_HiddenWeights_CorrectLength()
-    {
-        var strategy = new NeuralScoringStrategy();
-        var wH = strategy.CurrentWeightsHidden;
-
-        Assert.Equal(NeuralScoringStrategy.HiddenSize * CandidateFeatures.FeatureCount, wH.Length);
-    }
-
-    [Fact]
-    public void XavierInit_OutputWeights_CorrectLength()
-    {
-        var strategy = new NeuralScoringStrategy();
-        var wO = strategy.CurrentWeightsOutput;
-
-        Assert.Equal(NeuralScoringStrategy.HiddenSize, wO.Length);
-    }
-
-    [Fact]
-    public void XavierInit_HiddenWeights_WithinExpectedBounds()
-    {
-        var strategy = new NeuralScoringStrategy();
-        var wH = strategy.CurrentWeightsHidden;
-
-        // Xavier limit = sqrt(6 / (inputSize + hiddenSize))
-        var limit = Math.Sqrt(6.0 / (CandidateFeatures.FeatureCount + NeuralScoringStrategy.HiddenSize));
-
-        foreach (var w in wH)
-        {
-            Assert.InRange(w, -limit - 0.001, limit + 0.001);
-        }
-    }
-
-    [Fact]
-    public void XavierInit_OutputWeights_WithinExpectedBounds()
-    {
-        var strategy = new NeuralScoringStrategy();
-        var wO = strategy.CurrentWeightsOutput;
-
-        var limit = Math.Sqrt(6.0 / (NeuralScoringStrategy.HiddenSize + 1));
-
-        foreach (var w in wO)
-        {
-            Assert.InRange(w, -limit - 0.001, limit + 0.001);
-        }
     }
 
     [Fact]
@@ -512,9 +482,11 @@ public sealed class NeuralScoringStrategyTests : IDisposable
         Assert.True(File.Exists(weightsPath), "Weights file should be created after training");
 
         var json = File.ReadAllText(weightsPath);
-        Assert.Contains("WeightsHidden", json);
-        Assert.Contains("BiasHidden", json);
-        Assert.Contains("WeightsOutput", json);
+        Assert.Contains("WeightsIH", json);
+        Assert.Contains("BiasH1", json);
+        Assert.Contains("WeightsH1H2", json);
+        Assert.Contains("BiasH2", json);
+        Assert.Contains("WeightsH2O", json);
         Assert.Contains("BiasOutput", json);
         Assert.Contains("Version", json);
         Assert.Contains("TrainingGeneration", json);
@@ -611,9 +583,11 @@ public sealed class NeuralScoringStrategyTests : IDisposable
         // Write a weights file with wrong version
         var fakeData = new NeuralScoringStrategy.NeuralWeightsData
         {
-            WeightsHidden = new double[NeuralScoringStrategy.HiddenSize * CandidateFeatures.FeatureCount],
-            BiasHidden = new double[NeuralScoringStrategy.HiddenSize],
-            WeightsOutput = new double[NeuralScoringStrategy.HiddenSize],
+            WeightsIH = new double[NeuralScoringStrategy.Hidden1Size * CandidateFeatures.FeatureCount],
+            BiasH1 = new double[NeuralScoringStrategy.Hidden1Size],
+            WeightsH1H2 = new double[NeuralScoringStrategy.Hidden2Size * NeuralScoringStrategy.Hidden1Size],
+            BiasH2 = new double[NeuralScoringStrategy.Hidden2Size],
+            WeightsH2O = new double[NeuralScoringStrategy.Hidden2Size],
             BiasOutput = 999.0,
             Version = NeuralScoringStrategy.CurrentWeightsVersion - 1 // old version
         };
@@ -658,6 +632,62 @@ public sealed class NeuralScoringStrategyTests : IDisposable
     public void WeightClamp_Is3()
     {
         Assert.Equal(3.0, NeuralScoringStrategy.WeightClamp);
+    }
+
+    [Fact]
+    public void XavierInit_InputHiddenWeights_CorrectLength()
+    {
+        var strategy = new NeuralScoringStrategy();
+        var wIH = strategy.CurrentWeightsHidden;
+
+        Assert.Equal(NeuralScoringStrategy.Hidden1Size * CandidateFeatures.FeatureCount, wIH.Length);
+    }
+
+    [Fact]
+    public void XavierInit_H1H2Weights_CorrectLength()
+    {
+        var strategy = new NeuralScoringStrategy();
+        var wH1H2 = strategy.CurrentWeightsH1H2;
+
+        Assert.Equal(NeuralScoringStrategy.Hidden2Size * NeuralScoringStrategy.Hidden1Size, wH1H2.Length);
+    }
+
+    [Fact]
+    public void XavierInit_OutputWeights_CorrectLength()
+    {
+        var strategy = new NeuralScoringStrategy();
+        var wO = strategy.CurrentWeightsOutput;
+
+        Assert.Equal(NeuralScoringStrategy.Hidden2Size, wO.Length);
+    }
+
+    [Fact]
+    public void XavierInit_InputHiddenWeights_WithinExpectedBounds()
+    {
+        var strategy = new NeuralScoringStrategy();
+        var wIH = strategy.CurrentWeightsHidden;
+
+        // Xavier limit = sqrt(6 / (inputSize + Hidden1Size))
+        var limit = Math.Sqrt(6.0 / (CandidateFeatures.FeatureCount + NeuralScoringStrategy.Hidden1Size));
+
+        foreach (var w in wIH)
+        {
+            Assert.InRange(w, -limit - 0.001, limit + 0.001);
+        }
+    }
+
+    [Fact]
+    public void XavierInit_OutputWeights_WithinExpectedBounds()
+    {
+        var strategy = new NeuralScoringStrategy();
+        var wO = strategy.CurrentWeightsOutput;
+
+        var limit = Math.Sqrt(6.0 / (NeuralScoringStrategy.Hidden2Size + 1));
+
+        foreach (var w in wO)
+        {
+            Assert.InRange(w, -limit - 0.001, limit + 0.001);
+        }
     }
 
     [Fact]
