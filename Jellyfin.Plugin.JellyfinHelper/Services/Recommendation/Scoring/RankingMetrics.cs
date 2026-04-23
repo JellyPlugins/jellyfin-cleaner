@@ -246,7 +246,9 @@ internal static class RankingMetrics
 
     /// <summary>
     ///     Returns the indices of the top-K elements by descending value.
-    ///     Uses partial sort (selection) for efficiency when K &lt;&lt; N.
+    ///     Uses a full sort of all indices (O(N log N)); sufficient for typical
+    ///     training set sizes. For very large N with K &lt;&lt; N, a min-heap
+    ///     of size K would be more efficient.
     /// </summary>
     /// <param name="scores">The scores to rank.</param>
     /// <param name="k">Number of top indices to return.</param>

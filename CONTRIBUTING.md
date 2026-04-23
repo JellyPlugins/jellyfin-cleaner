@@ -165,10 +165,10 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   │   ├── WatchHistoryService.cs           # Builds per-user watch profiles
 │   │   │   ├── UserWatchProfile.cs              # Per-user affinity profile
 │   │   │   └── WatchedItemInfo.cs               # Watched item record
-    │   │   └── Scoring/                         # Scoring strategies & ML models
-    │   │       ├── IScoringStrategy.cs               # Scoring interface + ITrainableStrategy (learning support)
-    │   │       ├── HeuristicScoringStrategy.cs      # Rule-based scoring (fixed weights, genre penalty)
-    │   │       ├── LearnedScoringStrategy.cs        # Gradient-descent linear ML (Z-score, ArrayPool, importance logging)
+│   │   └── Scoring/                         # Scoring strategies & ML models
+│   │       ├── IScoringStrategy.cs               # Scoring interface + ITrainableStrategy (learning support)
+│   │       ├── HeuristicScoringStrategy.cs      # Rule-based scoring (fixed weights, genre penalty)
+│   │       ├── LearnedScoringStrategy.cs        # Gradient-descent linear ML (Z-score, ArrayPool, importance logging)
 │   │       ├── NeuralScoringStrategy.cs         # Three-hidden-layer MLP (23→32→16→8→1, Adam, Xavier, schema v4)
 │   │       ├── EnsembleScoringStrategy.cs       # Adaptive 3-way blend (α sigmoid + β neural ramp)
 │   │       ├── ScoringHelper.cs                 # Shared scoring utilities (raw score, explanation builder)

@@ -32,7 +32,7 @@ internal static class DiversityReranker
             {
                 Episode ep => ep.SeriesId != Guid.Empty ? ep.SeriesId : null,
                 Season season => season.SeriesId != Guid.Empty ? season.SeriesId : null,
-                Series s => s.Id,
+                Series s => s.Id != Guid.Empty ? s.Id : null,
                 _ => null
             };
 

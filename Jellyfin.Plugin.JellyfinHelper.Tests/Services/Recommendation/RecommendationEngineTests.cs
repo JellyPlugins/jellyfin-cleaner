@@ -788,7 +788,7 @@ public class RecommendationEngineTests
     }
 
     [Fact]
-    public void BuildCollaborativeMap_NullWatchedItems_ReturnsEmpty()
+    public void BuildCollaborativeMap_EmptyWatchedItems_ReturnsEmpty()
     {
         var user = new UserWatchProfile
         {
@@ -815,10 +815,10 @@ public class RecommendationEngineTests
     }
 
     [Fact]
-    public void NormalizeRating_NegativeRating_ClampedToZero()
+    public void NormalizeRating_NegativeRating_ReturnsNeutral()
     {
-        var score = ContentScoring.NormalizeRating(-5f);
-        Assert.True(score >= 0.0 && score <= 1.0, $"Expected clamped value, got {score}");
+        // Negative ratings are treated as invalid/absent and return the neutral value (0.5)
+        Assert.Equal(0.5, ContentScoring.NormalizeRating(-5f));
     }
 
     [Fact]
@@ -863,11 +863,13 @@ public class RecommendationEngineTests
         };
 
         // Candidate with duplicate genres (edge case from malformed metadata)
+        // Cosine similarity treats duplicates as higher magnitude in that dimension,
+        // but the single matching genre still yields a valid score in [0, 1].
         var score = SimilarityComputer.ComputeGenreSimilarity(
             new[] { "Action", "Action", "Action" }, prefs);
 
-        // Should still produce a valid score in [0, 1]
-        Assert.True(score >= 0.0 && score <= 1.0, $"Expected valid score, got {score}");
+        // With duplicates: dot = 3*1.0 = 3, normC = sqrt(9) = 3, normU = 1 -> cosine = 3/(3*1) = 1.0
+        Assert.Equal(1.0, score, 4);
     }
 
     [Fact]
@@ -891,7 +893,7 @@ public class RecommendationEngineTests
         Assert.Equal(0, ContentScoring.ComputeAverageYear(profile));
     }
 
-    // — NaN/Infinity Guard Tests ————————————————————————————
+    //  -- NaN/Infinity Guard Tests  -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
     [Fact]
     public void GuardScore_FiniteValue_ReturnsSameValue()
@@ -960,7 +962,7 @@ public class RecommendationEngineTests
     [Fact]
     public void NeuralScoringStrategy_Sigmoid_NaN_ReturnsNaN()
     {
-        // Sigmoid itself propagates NaN — the guard is in Score(), not Sigmoid()
+        // Sigmoid itself propagates NaN  -- the guard is in Score(), not Sigmoid()
         var result = NeuralScoringStrategy.Sigmoid(double.NaN);
         Assert.True(double.IsNaN(result));
     }

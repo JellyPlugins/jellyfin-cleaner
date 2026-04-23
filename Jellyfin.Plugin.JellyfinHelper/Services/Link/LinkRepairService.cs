@@ -334,7 +334,6 @@ public class LinkRepairService : ILinkRepairService
                     // Exactly one media file found - this is our match
                     var newTargetPath = mediaFiles[0];
                     fileResult.NewTargetPath = newTargetPath;
-                    fileResult.Status = LinkFileStatus.Repaired;
 
                     if (dryRun)
                     {
@@ -342,6 +341,7 @@ public class LinkRepairService : ILinkRepairService
                             "LinkRepair",
                             $"[Dry Run] Would repair link file: {fileResult.LinkFilePath} | {fileResult.OriginalTargetPath} -> {newTargetPath}",
                             _logger);
+                        fileResult.Status = LinkFileStatus.Broken;
                     }
                     else
                     {
@@ -353,6 +353,7 @@ public class LinkRepairService : ILinkRepairService
                         try
                         {
                             handler.WriteTarget(fileResult.LinkFilePath, newTargetPath);
+                            fileResult.Status = LinkFileStatus.Repaired;
                         }
                         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
                         {

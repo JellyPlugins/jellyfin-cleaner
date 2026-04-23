@@ -59,7 +59,7 @@ public sealed class ScoreExplanation
     public ScoreExplanation Blend(ScoreExplanation other, double alpha)
     {
         ArgumentNullException.ThrowIfNull(other);
-        alpha = Math.Clamp(alpha, 0.0, 1.0);
+        alpha = double.IsFinite(alpha) ? Math.Clamp(alpha, 0.0, 1.0) : 0.0;
 
         var oneMinusAlpha = 1.0 - alpha;
         var blendedGenre = (oneMinusAlpha * GenreContribution) + (alpha * other.GenreContribution);
@@ -98,7 +98,7 @@ public sealed class ScoreExplanation
     /// <returns>A new explanation with all values scaled by the penalty.</returns>
     public ScoreExplanation WithPenalty(double penaltyMultiplier)
     {
-        penaltyMultiplier = Math.Clamp(penaltyMultiplier, 0.0, 1.0);
+        penaltyMultiplier = double.IsFinite(penaltyMultiplier) ? Math.Clamp(penaltyMultiplier, 0.0, 1.0) : 1.0;
         return new ScoreExplanation
         {
             FinalScore = Math.Clamp(FinalScore * penaltyMultiplier, 0.0, 1.0),
