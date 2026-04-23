@@ -131,9 +131,21 @@ internal static class ContentScoring
     /// <returns>A completion ratio between 0 and 1.</returns>
     internal static double ComputeCompletionRatio(WatchedItemInfo? watchedItem)
     {
-        if (watchedItem is null || watchedItem.RuntimeTicks <= 0)
+        if (watchedItem is null)
         {
-            return 0.0; // not started or no runtime info — neutral for candidates
+            return 0.0; // not started — neutral for candidates
+        }
+
+        // Jellyfin resets PlaybackPositionTicks to 0 when an item is marked as played,
+        // so rely on the Played flag rather than tick math for fully-watched items.
+        if (watchedItem.Played)
+        {
+            return 1.0;
+        }
+
+        if (watchedItem.RuntimeTicks <= 0)
+        {
+            return 0.0; // no runtime info — neutral for candidates
         }
 
         return Math.Clamp((double)watchedItem.PlaybackPositionTicks / watchedItem.RuntimeTicks, 0.0, 1.0);

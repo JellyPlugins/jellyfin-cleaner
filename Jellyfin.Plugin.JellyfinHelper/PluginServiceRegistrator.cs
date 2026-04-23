@@ -56,7 +56,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<IArrIntegrationService, ArrIntegrationService>();
         serviceCollection.AddSingleton<ISeerrIntegrationService, SeerrIntegrationService>();
         serviceCollection.AddSingleton<IWatchHistoryService, WatchHistoryService>();
-        serviceCollection.AddSingleton(sp =>
+        serviceCollection.AddSingleton(_ =>
         {
             var dataPath = Plugin.Instance?.DataFolderPath;
             string? weightsPath = null;
@@ -67,7 +67,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
             return new LearnedScoringStrategy(weightsPath);
         });
-        serviceCollection.AddSingleton(sp =>
+        serviceCollection.AddSingleton(_ =>
         {
             var dataPath = Plugin.Instance?.DataFolderPath;
             string? neuralWeightsPath = null;
@@ -78,7 +78,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
             return new NeuralScoringStrategy(neuralWeightsPath);
         });
-        serviceCollection.AddSingleton(sp =>
+        serviceCollection.AddSingleton(_ =>
         {
             // When used inside Ensemble, disable standalone genre penalty (penalty = 1.0)
             return new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);

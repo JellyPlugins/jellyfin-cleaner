@@ -83,6 +83,24 @@ internal sealed class TrainingService
 
         var examples = new List<TrainingExample>();
 
+        // Pre-compute per-user artifacts once and cache them. These are reused across
+        // Phase 1 (recommendation feedback) and Phase 2 (organic examples), avoiding
+        // redundant BuildCollaborativeMap / BuildGenrePreferenceVector calls for the same user.
+        var perUserCache = new Dictionary<Guid, (
+            Dictionary<string, double> GenrePreferences,
+            Dictionary<Guid, double> CoOccurrence,
+            double CollaborativeMax,
+            double AvgYear)>();
+
+        foreach (var profile in allProfiles)
+        {
+            var gp = PreferenceBuilder.BuildGenrePreferenceVector(profile);
+            var co = CollaborativeFilter.BuildCollaborativeMap(profile, allProfiles, precomputedUserSets);
+            var cm = co.Count > 0 ? co.Values.Max() : 0;
+            var ay = ContentScoring.ComputeAverageYear(profile);
+            perUserCache[profile.UserId] = (gp, co, cm, ay);
+        }
+
         foreach (var prevResult in previousResults)
         {
             if (!profileLookup.TryGetValue(prevResult.UserId, out var watchedIds))
@@ -98,10 +116,7 @@ internal sealed class TrainingService
                 continue;
             }
 
-            var genrePreferences = PreferenceBuilder.BuildGenrePreferenceVector(userProfile);
-            var coOccurrence = CollaborativeFilter.BuildCollaborativeMap(userProfile, allProfiles, precomputedUserSets);
-            var collaborativeMax = coOccurrence.Count > 0 ? coOccurrence.Values.Max() : 0;
-            var avgYear = ContentScoring.ComputeAverageYear(userProfile);
+            var (genrePreferences, coOccurrence, collaborativeMax, avgYear) = perUserCache[userProfile.UserId];
 
             // Build preferred people/studios/tags from the user's watch profile using cached data.
             // This mirrors what Engine.GenerateForUser() does with live BaseItem data.
@@ -265,10 +280,7 @@ internal sealed class TrainingService
         var organicCount = 0;
         foreach (var userProfile in allProfiles)
         {
-            var genrePreferences = PreferenceBuilder.BuildGenrePreferenceVector(userProfile);
-            var coOccurrence = CollaborativeFilter.BuildCollaborativeMap(userProfile, allProfiles, precomputedUserSets);
-            var collaborativeMax = coOccurrence.Count > 0 ? coOccurrence.Values.Max() : 0;
-            var avgYear = ContentScoring.ComputeAverageYear(userProfile);
+            var (genrePreferences, coOccurrence, collaborativeMax, avgYear) = perUserCache[userProfile.UserId];
 
             foreach (var w in userProfile.WatchedItems)
             {

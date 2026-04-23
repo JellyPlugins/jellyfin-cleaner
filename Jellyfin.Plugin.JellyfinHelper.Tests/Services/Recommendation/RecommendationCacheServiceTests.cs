@@ -35,9 +35,20 @@ public sealed class RecommendationCacheServiceTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_tempDir))
+        try
         {
-            Directory.Delete(_tempDir, true);
+            if (Directory.Exists(_tempDir))
+            {
+                Directory.Delete(_tempDir, true);
+            }
+        }
+        catch (IOException)
+        {
+            // Best-effort cleanup — don't fail the test run for transient IO issues
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best-effort cleanup — don't fail the test run for access issues
         }
     }
 

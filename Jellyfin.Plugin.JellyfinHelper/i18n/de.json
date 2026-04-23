@@ -250,7 +250,7 @@
   "recsEngineType": "Inhalt + Kollaborativ",
   "recsSelectUser": "Nutzer auswählen",
   "recsItems": "Einträge",
-  "recsNoItems": "Noch keine Empfehlungen für diesen Nutzer. Mehr Watch-Verlauf benötigt.",
+  "recsNoItems": "Noch keine Empfehlungen für diesen Nutzer. Mehr Sehverlauf benötigt.",
   "recsReason": "Warum",
   "recsReasonGeneric": "Basierend auf deinem Sehverlauf",
   "reasonCollaborative": "Beliebt bei ähnlichen Zuschauern",

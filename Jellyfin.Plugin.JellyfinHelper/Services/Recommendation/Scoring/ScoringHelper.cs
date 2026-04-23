@@ -77,6 +77,27 @@ internal static class ScoringHelper
     }
 
     /// <summary>
+    ///     Safely computes a single feature contribution (value × weight).
+    ///     Returns 0 when the feature index exceeds the vector or weight array length,
+    ///     which can happen when an older/corrupted model is loaded with fewer persisted weights.
+    ///     This mirrors the truncation tolerance of <see cref="ComputeRawScore"/>.
+    /// </summary>
+    /// <param name="values">The feature vector.</param>
+    /// <param name="coeffs">The weight/coefficient array.</param>
+    /// <param name="index">The feature index to compute.</param>
+    /// <returns>The guarded contribution, or 0 if the index is out of bounds.</returns>
+    private static double GetContribution(double[] values, double[] coeffs, FeatureIndex index)
+    {
+        var i = (int)index;
+        if (i >= values.Length || i >= coeffs.Length)
+        {
+            return 0.0;
+        }
+
+        return GuardScore(values[i] * coeffs[i]);
+    }
+
+    /// <summary>
     ///     Builds a complete <see cref="ScoreExplanation"/> from a feature vector and weights.
     ///     Extracts per-feature contributions and determines the dominant signal.
     ///     All computed values are guarded against NaN/Infinity propagation.
@@ -92,34 +113,34 @@ internal static class ScoringHelper
         double bias,
         string strategyName)
     {
-        var genreContrib = GuardScore(vector[(int)FeatureIndex.GenreSimilarity] * weights[(int)FeatureIndex.GenreSimilarity]);
-        var collabContrib = GuardScore(vector[(int)FeatureIndex.CollaborativeScore] * weights[(int)FeatureIndex.CollaborativeScore]);
-        var ratingContrib = GuardScore(vector[(int)FeatureIndex.RatingScore] * weights[(int)FeatureIndex.RatingScore]);
-        var recencyContrib = GuardScore(vector[(int)FeatureIndex.RecencyScore] * weights[(int)FeatureIndex.RecencyScore]);
-        var yearProxContrib = GuardScore(vector[(int)FeatureIndex.YearProximityScore] * weights[(int)FeatureIndex.YearProximityScore]);
-        var userRatingContrib = GuardScore(vector[(int)FeatureIndex.UserRatingScore] * weights[(int)FeatureIndex.UserRatingScore]);
+        var genreContrib = GetContribution(vector, weights, FeatureIndex.GenreSimilarity);
+        var collabContrib = GetContribution(vector, weights, FeatureIndex.CollaborativeScore);
+        var ratingContrib = GetContribution(vector, weights, FeatureIndex.RatingScore);
+        var recencyContrib = GetContribution(vector, weights, FeatureIndex.RecencyScore);
+        var yearProxContrib = GetContribution(vector, weights, FeatureIndex.YearProximityScore);
+        var userRatingContrib = GetContribution(vector, weights, FeatureIndex.UserRatingScore);
 
         // People and studio contributions tracked separately for dominant signal detection
-        var peopleContrib = GuardScore(vector[(int)FeatureIndex.PeopleSimilarity] * weights[(int)FeatureIndex.PeopleSimilarity]);
-        var studioContrib = GuardScore(vector[(int)FeatureIndex.StudioMatch] * weights[(int)FeatureIndex.StudioMatch]);
+        var peopleContrib = GetContribution(vector, weights, FeatureIndex.PeopleSimilarity);
+        var studioContrib = GetContribution(vector, weights, FeatureIndex.StudioMatch);
 
         // Interaction + minor features (genreCount, isSeries, genre×rating, genre×collab, completionRatio, isAbandoned, hasInteraction, seriesProgression, popularity, dayOfWeek, hourOfDay, isWeekend, tagSimilarity)
         var interactionContrib = GuardScore(
-            (vector[(int)FeatureIndex.GenreCountNormalized] * weights[(int)FeatureIndex.GenreCountNormalized]) +
-            (vector[(int)FeatureIndex.IsSeries] * weights[(int)FeatureIndex.IsSeries]) +
-            (vector[(int)FeatureIndex.GenreRatingInteraction] * weights[(int)FeatureIndex.GenreRatingInteraction]) +
-            (vector[(int)FeatureIndex.GenreCollabInteraction] * weights[(int)FeatureIndex.GenreCollabInteraction]) +
-            (vector[(int)FeatureIndex.CompletionRatio] * weights[(int)FeatureIndex.CompletionRatio]) +
-            (vector[(int)FeatureIndex.IsAbandoned] * weights[(int)FeatureIndex.IsAbandoned]) +
-            (vector[(int)FeatureIndex.HasInteraction] * weights[(int)FeatureIndex.HasInteraction]) +
-            (vector[(int)FeatureIndex.SeriesProgressionBoost] * weights[(int)FeatureIndex.SeriesProgressionBoost]) +
-            (vector[(int)FeatureIndex.PopularityScore] * weights[(int)FeatureIndex.PopularityScore]) +
-            (vector[(int)FeatureIndex.DayOfWeekAffinity] * weights[(int)FeatureIndex.DayOfWeekAffinity]) +
-            (vector[(int)FeatureIndex.HourOfDayAffinity] * weights[(int)FeatureIndex.HourOfDayAffinity]) +
-            (vector[(int)FeatureIndex.IsWeekend] * weights[(int)FeatureIndex.IsWeekend]) +
-            (vector[(int)FeatureIndex.TagSimilarity] * weights[(int)FeatureIndex.TagSimilarity]) +
-            (vector[(int)FeatureIndex.PeopleGenreInteraction] * weights[(int)FeatureIndex.PeopleGenreInteraction]) +
-            (vector[(int)FeatureIndex.RecencyRatingInteraction] * weights[(int)FeatureIndex.RecencyRatingInteraction]));
+            GetContribution(vector, weights, FeatureIndex.GenreCountNormalized) +
+            GetContribution(vector, weights, FeatureIndex.IsSeries) +
+            GetContribution(vector, weights, FeatureIndex.GenreRatingInteraction) +
+            GetContribution(vector, weights, FeatureIndex.GenreCollabInteraction) +
+            GetContribution(vector, weights, FeatureIndex.CompletionRatio) +
+            GetContribution(vector, weights, FeatureIndex.IsAbandoned) +
+            GetContribution(vector, weights, FeatureIndex.HasInteraction) +
+            GetContribution(vector, weights, FeatureIndex.SeriesProgressionBoost) +
+            GetContribution(vector, weights, FeatureIndex.PopularityScore) +
+            GetContribution(vector, weights, FeatureIndex.DayOfWeekAffinity) +
+            GetContribution(vector, weights, FeatureIndex.HourOfDayAffinity) +
+            GetContribution(vector, weights, FeatureIndex.IsWeekend) +
+            GetContribution(vector, weights, FeatureIndex.TagSimilarity) +
+            GetContribution(vector, weights, FeatureIndex.PeopleGenreInteraction) +
+            GetContribution(vector, weights, FeatureIndex.RecencyRatingInteraction));
 
         var rawScore = ComputeRawScore(vector, weights, bias);
         var score = Math.Clamp(rawScore, 0.0, 1.0);

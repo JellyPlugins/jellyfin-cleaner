@@ -100,17 +100,16 @@ public class UserActivityUpdateTaskTests
     }
 
     [Fact]
-    public async Task Execute_Deactivate_DoesNotSaveCache()
+    public async Task Execute_Deactivate_DoesNotBuildReportOrSaveCache()
     {
-        // Arrange
-        var result = new UserActivityResult();
-        _insightsMock.Setup(x => x.BuildActivityReport()).Returns(result);
+        // Arrange — no mock setup needed: BuildActivityReport should never be called
         var sut = CreateSut();
 
         // Act
         await sut.ExecuteAsync(new Progress<double>(), CancellationToken.None, Configuration.TaskMode.Deactivate);
 
-        // Assert
+        // Assert — Deactivate is a true no-op: no report building, no cache save
+        _insightsMock.Verify(x => x.BuildActivityReport(), Times.Never);
         _cacheMock.Verify(x => x.SaveResult(It.IsAny<UserActivityResult>()), Times.Never);
     }
 }

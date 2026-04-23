@@ -165,7 +165,7 @@ public class BackupData
     ///     excluded — they are runtime preferences that use sensible defaults.
     /// </summary>
     [JsonPropertyName("recommendationsTaskMode")]
-    public string RecommendationsTaskMode { get; set; } = "DryRun";
+    public string RecommendationsTaskMode { get; set; } = string.Empty;
 
     // === Historical Data ===
 

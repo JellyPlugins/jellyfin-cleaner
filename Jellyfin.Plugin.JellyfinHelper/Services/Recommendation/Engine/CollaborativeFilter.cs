@@ -28,23 +28,7 @@ internal static class CollaborativeFilter
 
         foreach (var profile in allProfiles)
         {
-            var combined = new HashSet<Guid>();
-            foreach (var w in profile.WatchedItems)
-            {
-                // Include items that are played OR favorited
-                if (!w.Played && !w.IsFavorite)
-                {
-                    continue;
-                }
-
-                combined.Add(w.ItemId);
-                if (w.SeriesId.HasValue)
-                {
-                    combined.Add(w.SeriesId.Value);
-                }
-            }
-
-            result[profile.UserId] = combined;
+            result[profile.UserId] = BuildCombinedWatchSet(profile);
         }
 
         return result;
@@ -143,8 +127,11 @@ internal static class CollaborativeFilter
                 continue;
             }
 
-            // Compute overlap count
-            var overlap = userCombinedIds.Count(otherCombinedIds.Contains);
+            // Compute overlap count by enumerating the smaller set for efficiency
+            var (smaller, larger) = userCombinedIds.Count <= otherCombinedIds.Count
+                ? (userCombinedIds, otherCombinedIds)
+                : (otherCombinedIds, userCombinedIds);
+            var overlap = smaller.Count(larger.Contains);
 
             if (overlap < EngineConstants.MinCollaborativeOverlap)
             {

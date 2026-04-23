@@ -64,6 +64,15 @@ public class UserActivityCacheService : IUserActivityCacheService
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                try
+                {
+                    File.Delete(_cacheFilePath + ".tmp");
+                }
+                catch
+                {
+                    // best effort
+                }
+
                 _pluginLog.LogWarning(
                     "UserActivityCache",
                     $"Could not save activity result to {_cacheFilePath}",
@@ -86,7 +95,13 @@ public class UserActivityCacheService : IUserActivityCacheService
                 }
 
                 var json = File.ReadAllText(_cacheFilePath);
-                return JsonSerializer.Deserialize<UserActivityResult>(json, JsonOptions);
+                var result = JsonSerializer.Deserialize<UserActivityResult>(json, JsonOptions);
+                if (result is null)
+                {
+                    _pluginLog.LogWarning("UserActivityCache", $"Cache file {_cacheFilePath} deserialized to null.", logger: _logger);
+                }
+
+                return result;
             }
             catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
             {

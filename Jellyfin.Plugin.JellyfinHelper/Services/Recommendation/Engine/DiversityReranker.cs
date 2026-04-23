@@ -76,9 +76,8 @@ internal static class DiversityReranker
             return candidates.OrderByDescending(c => c.Score).ToList();
         }
 
-        var pool = candidates.OrderByDescending(c => c.Score).Take(count * 3).ToList();
         var selected = new List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>(count);
-        var remaining = new List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>(pool);
+        var remaining = candidates.OrderByDescending(c => c.Score).Take(count * 3).ToList();
 
         var genreSetCache = new Dictionary<Guid, HashSet<string>>();
 

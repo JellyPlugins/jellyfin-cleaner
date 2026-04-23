@@ -30,10 +30,10 @@ public sealed class Engine : IRecommendationEngine
     private readonly SimilarityComputer _similarityComputer;
     private readonly TrainingService _trainingService;
 
-    // Short-lived cache for candidate items and people lookup — populated during GetAllRecommendations
-    // and reused by on-demand GetRecommendations calls until next batch run invalidates them.
-    private volatile List<BaseItem>? _cachedCandidates;
-    private volatile Dictionary<Guid, HashSet<string>>? _cachedPeopleLookup;
+    // Short-lived cache — populated during GetAllRecommendations and reused by on-demand
+    // GetRecommendations calls until next batch run invalidates it.
+    // Stored as a single immutable snapshot to prevent concurrent readers from mixing data across batches.
+    private volatile CandidateSnapshot? _cachedSnapshot;
 
     /// <summary>Initializes a new instance of the <see cref="Engine"/> class.</summary>
     /// <param name="watchHistoryService">The watch history service.</param>
@@ -77,8 +77,9 @@ public sealed class Engine : IRecommendationEngine
         }
 
         // Reuse cached candidates/people from last batch run if available, otherwise load fresh
-        var candidates = _cachedCandidates ?? LoadCandidateItems();
-        var peopleLookup = _cachedPeopleLookup ?? _similarityComputer.BuildCandidatePeopleLookup(candidates);
+        var snapshot = _cachedSnapshot;
+        var candidates = snapshot?.Candidates ?? LoadCandidateItems();
+        var peopleLookup = snapshot?.PeopleLookup ?? _similarityComputer.BuildCandidatePeopleLookup(candidates);
         return GenerateForUser(userProfile, allProfiles, candidates, peopleLookup, maxResults, _strategy, null, cancellationToken);
     }
 
@@ -96,8 +97,7 @@ public sealed class Engine : IRecommendationEngine
         var peopleLookup = _similarityComputer.BuildCandidatePeopleLookup(candidates);
 
         // Cache for on-demand single-user calls that may follow
-        _cachedCandidates = candidates;
-        _cachedPeopleLookup = peopleLookup;
+        _cachedSnapshot = new CandidateSnapshot(candidates, peopleLookup);
 
         // Pre-compute all user watched-item sets ONCE for collaborative filtering.
         // Reduces O(U²×M) to O(U×M) by sharing sets across BuildCollaborativeMap calls.
@@ -509,4 +509,13 @@ public sealed class Engine : IRecommendationEngine
 
         return (candidate, explanation.FinalScore, reason, reasonKey, relatedItem);
     }
+
+    /// <summary>
+    ///     Immutable snapshot of candidate items and their people lookup.
+    ///     Published/read as a single reference so concurrent readers always see
+    ///     a consistent pair (candidates from the same batch as the people lookup).
+    /// </summary>
+    private sealed record CandidateSnapshot(
+        List<BaseItem> Candidates,
+        Dictionary<Guid, HashSet<string>> PeopleLookup);
 }

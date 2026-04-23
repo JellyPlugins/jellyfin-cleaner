@@ -187,7 +187,8 @@ public class HelperCleanupTaskTests : IDisposable
             EmptyMediaFolderTaskMode = TaskMode.Deactivate,
             OrphanedSubtitleTaskMode = TaskMode.Deactivate,
             LinkRepairTaskMode = TaskMode.Deactivate,
-            SeerrCleanupTaskMode = TaskMode.Deactivate
+            SeerrCleanupTaskMode = TaskMode.Deactivate,
+            RecommendationsTaskMode = TaskMode.Deactivate
         };
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
