@@ -68,13 +68,14 @@ public sealed class WatchHistoryService : IWatchHistoryService
 
         // Load library items once for all users (performance: avoids redundant DB queries)
         var allItems = LoadAllVideoItems();
+        var allSeries = LoadAllSeriesItems();
 
         var profiles = new Collection<UserWatchProfile>();
         foreach (var user in users)
         {
             try
             {
-                profiles.Add(BuildProfile(user, allItems));
+                profiles.Add(BuildProfile(user, allItems, allSeries));
             }
             catch (Exception ex)
             {
@@ -109,14 +110,30 @@ public sealed class WatchHistoryService : IWatchHistoryService
     }
 
     /// <summary>
+    ///     Loads all series items from the library.
+    ///     Called once and shared across all user profile builds for series-level favorite detection.
+    /// </summary>
+    /// <returns>A list of all series items.</returns>
+    internal IReadOnlyList<BaseItem> LoadAllSeriesItems()
+    {
+        return _libraryManager.GetItemList(new InternalItemsQuery
+        {
+            IncludeItemTypes = [BaseItemKind.Series],
+            IsFolder = true
+        });
+    }
+
+    /// <summary>
     ///     Builds a complete watch profile for a single user using pre-loaded library items.
     /// </summary>
     /// <param name="user">The Jellyfin user entity.</param>
     /// <param name="allItems">Pre-loaded video items from the library (null to query on demand).</param>
+    /// <param name="allSeries">Pre-loaded series items for favorite detection (null to query on demand).</param>
     /// <returns>A populated watch profile for the user.</returns>
     internal UserWatchProfile BuildProfile(
         Jellyfin.Database.Implementations.Entities.User user,
-        IReadOnlyList<BaseItem>? allItems = null)
+        IReadOnlyList<BaseItem>? allItems = null,
+        IReadOnlyList<BaseItem>? allSeries = null)
     {
         var profile = new UserWatchProfile
         {
@@ -220,6 +237,19 @@ public sealed class WatchHistoryService : IWatchHistoryService
                 (!profile.LastActivityDate.HasValue || userData.LastPlayedDate > profile.LastActivityDate))
             {
                 profile.LastActivityDate = userData.LastPlayedDate;
+            }
+        }
+
+        // Check series-level favorites: users can favorite an entire series in Jellyfin.
+        // This UserData lives on the Series item itself, not on individual episodes.
+        allSeries ??= LoadAllSeriesItems();
+
+        foreach (var series in allSeries)
+        {
+            var seriesUserData = _userDataManager.GetUserData(user, series);
+            if (seriesUserData is not null && seriesUserData.IsFavorite)
+            {
+                profile.FavoriteSeriesIds.Add(series.Id);
             }
         }
 

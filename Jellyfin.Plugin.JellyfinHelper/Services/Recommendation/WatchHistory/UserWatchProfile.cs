@@ -50,9 +50,17 @@ public sealed class UserWatchProfile
     public Dictionary<string, int> GenreDistribution { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    ///     Gets or sets the number of items marked as favorites.
+    ///     Gets or sets the number of favorite items.
     /// </summary>
     public int FavoriteCount { get; set; }
+
+    /// <summary>
+    ///     Gets the set of series IDs that the user has marked as favorite at the series level.
+    ///     In Jellyfin, users can favorite a whole series (not just individual episodes).
+    ///     This set captures those series-level favorites so that the recommendation engine
+    ///     can treat them as positive signals even when no individual episode is favorited.
+    /// </summary>
+    public HashSet<Guid> FavoriteSeriesIds { get; init; } = [];
 
     /// <summary>
     ///     Gets or sets the average community rating of watched items.

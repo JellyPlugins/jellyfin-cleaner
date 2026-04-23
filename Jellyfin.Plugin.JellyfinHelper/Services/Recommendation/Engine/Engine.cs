@@ -313,6 +313,12 @@ public sealed class Engine : IRecommendationEngine
         var watchedSeriesIds = new HashSet<Guid>(
             userProfile.WatchedItems.Where(w => (w.Played || w.IsFavorite) && w.SeriesId.HasValue).Select(w => w.SeriesId!.Value));
 
+        // Also include series-level favorites (user favorited the series itself, not individual episodes)
+        foreach (var favSeriesId in userProfile.FavoriteSeriesIds)
+        {
+            watchedSeriesIds.Add(favSeriesId);
+        }
+
         var genrePreferences = PreferenceBuilder.BuildGenrePreferenceVector(userProfile);
 
         // Build O(1) candidate lookup by ID — shared across studio/tag preference building

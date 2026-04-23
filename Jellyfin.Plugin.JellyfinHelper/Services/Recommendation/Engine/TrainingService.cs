@@ -65,10 +65,18 @@ internal sealed class TrainingService
         var seriesLookup = new Dictionary<Guid, HashSet<Guid>>();
         foreach (var profile in allProfiles)
         {
-            seriesLookup[profile.UserId] = new HashSet<Guid>(
+            var seriesIds = new HashSet<Guid>(
                 profile.WatchedItems
                     .Where(w => (w.Played || w.IsFavorite) && w.SeriesId.HasValue)
                     .Select(w => w.SeriesId!.Value));
+
+            // Also include series-level favorites (user favorited the series itself, not individual episodes)
+            foreach (var favSeriesId in profile.FavoriteSeriesIds)
+            {
+                seriesIds.Add(favSeriesId);
+            }
+
+            seriesLookup[profile.UserId] = seriesIds;
         }
 
         // Pre-compute collaborative data for all users (needed for full feature vectors)
