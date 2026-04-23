@@ -105,7 +105,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Best effort — if the data directory is inaccessible, nothing we can do.
         }

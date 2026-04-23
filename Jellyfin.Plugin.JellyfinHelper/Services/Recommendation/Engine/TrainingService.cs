@@ -285,6 +285,29 @@ internal sealed class TrainingService
         {
             var (genrePreferences, coOccurrence, collaborativeMax, avgYear) = perUserCache[userProfile.UserId];
 
+            // Build per-user preference sets for organic feature computation (mirrors Phase 1).
+            var preferredPeopleOrganic = PreferenceBuilder.BuildPeoplePreferenceSet(userProfile, cachedPeopleLookup);
+            var preferredStudiosOrganic = BuildStudioPreferenceSetFromCache(userProfile, previousResults);
+            var preferredTagsOrganic = BuildTagPreferenceSetFromCache(userProfile, previousResults);
+
+            // Build series episode lookup for series progression boost
+            var seriesEpisodeLookupOrganic = new Dictionary<Guid, List<WatchedItemInfo>>();
+            foreach (var ep in userProfile.WatchedItems)
+            {
+                if (!ep.SeriesId.HasValue)
+                {
+                    continue;
+                }
+
+                if (!seriesEpisodeLookupOrganic.TryGetValue(ep.SeriesId.Value, out var epList))
+                {
+                    epList = [];
+                    seriesEpisodeLookupOrganic[ep.SeriesId.Value] = epList;
+                }
+
+                epList.Add(ep);
+            }
+
             foreach (var w in userProfile.WatchedItems)
             {
                 // Include played OR favorited items that were NEVER recommended (organic discoveries).
@@ -319,6 +342,49 @@ internal sealed class TrainingService
                     completionRatio = 0.0;
                 }
 
+                var isSeries = string.Equals(w.ItemType, "Series", StringComparison.OrdinalIgnoreCase);
+
+                // Compute PeopleSimilarity from cached data (organic item may have been previously recommended)
+                var peopleSimilarity = cachedPeopleLookup.TryGetValue(w.ItemId, out var organicPeople)
+                    ? SimilarityComputer.ComputePeopleSimilarity(organicPeople, preferredPeopleOrganic)
+                    : 0.0;
+
+                // Compute StudioMatch — look up organic item in cached results for studio data
+                var studioMatch = false;
+                var tagSimilarity = 0.0;
+                foreach (var prevResult in previousResults)
+                {
+                    foreach (var rec in prevResult.Recommendations)
+                    {
+                        if (rec.ItemId != w.ItemId)
+                        {
+                            continue;
+                        }
+
+                        studioMatch = rec.Studios.Count > 0
+                            && rec.Studios.Any(s => preferredStudiosOrganic.Contains(s));
+                        tagSimilarity = ComputeTagSimilarityFromCache(rec.Tags, preferredTagsOrganic);
+                        break;
+                    }
+
+                    if (studioMatch || tagSimilarity > 0)
+                    {
+                        break;
+                    }
+                }
+
+                // Series progression boost for organic series items
+                var seriesProgressionBoost = 0.0;
+                if (isSeries && seriesEpisodeLookupOrganic.TryGetValue(w.ItemId, out var organicEps))
+                {
+                    var playedEps = organicEps.Count(e => e.Played);
+                    if (organicEps.Count > 0)
+                    {
+                        var ratio = (double)playedEps / organicEps.Count;
+                        seriesProgressionBoost = ratio < 0.9 ? Math.Clamp(ratio * 1.2, 0.0, 1.0) : 0.2;
+                    }
+                }
+
                 var features = new CandidateFeatures
                 {
                     GenreSimilarity = SimilarityComputer.ComputeGenreSimilarity(w.Genres ?? [], genrePreferences),
@@ -329,14 +395,18 @@ internal sealed class TrainingService
                         : 0.5,
                     YearProximityScore = ContentScoring.ComputeYearProximity(w.Year, avgYear),
                     GenreCount = w.Genres?.Count ?? 0,
-                    IsSeries = w.SeriesId.HasValue,
+                    IsSeries = isSeries,
                     UserRatingScore = ContentScoring.ComputeUserRatingScore(w),
                     HasUserInteraction = true,
                     CompletionRatio = completionRatio,
+                    PeopleSimilarity = peopleSimilarity,
+                    StudioMatch = studioMatch,
+                    SeriesProgressionBoost = seriesProgressionBoost,
                     PopularityScore = collabScore > 0 ? Math.Clamp(collabScore * 0.8, 0.0, 1.0) : ratingScore * 0.3,
                     DayOfWeekAffinity = ComputeTrainingTemporalAffinity(w, w.Genres, userProfile, isDay: true),
                     HourOfDayAffinity = ComputeTrainingTemporalAffinity(w, w.Genres, userProfile, isDay: false),
                     IsWeekend = w.LastPlayedDate?.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday,
+                    TagSimilarity = tagSimilarity
                 };
 
                 // Organic watches are strong positive signals — label based on completion

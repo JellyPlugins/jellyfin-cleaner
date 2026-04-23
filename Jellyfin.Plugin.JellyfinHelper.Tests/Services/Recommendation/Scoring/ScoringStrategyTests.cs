@@ -355,7 +355,7 @@ public sealed class ScoringStrategyTests : IDisposable
             // Every feature must have a non-zero default weight (positive or negative).
             // IsAbandoned intentionally has a negative weight (-0.04).
             Assert.True(
-                weights[i] != 0.0,
+                Math.Abs(weights[i]) > 1e-12,
                 $"FeatureIndex.{index} ({i}) has weight 0.0 in DefaultWeights.CreateWeightArray(). " +
                 $"Add an explicit assignment or document why it should be zero.");
         }
