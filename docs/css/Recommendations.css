@@ -472,7 +472,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .recs-collapsible-body {
+    .recs-collapsible-body,
+    .recs-collapsible-arrow,
+    .recs-score-bar,
+    .activity-completion-fill,
+    .recs-item,
+    .recs-collapsible-toggle {
         transition: none;
     }
 }

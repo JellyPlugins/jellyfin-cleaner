@@ -92,7 +92,7 @@ public class RecommendationsTask
                         _logger);
                 }
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException and not OperationCanceledException)
             {
                 _pluginLog.LogWarning("Recommendations", "Strategy training failed — continuing with current weights.", ex, _logger);
             }

@@ -159,8 +159,8 @@ public class PluginConfiguration : BasePluginConfiguration
     }
 
     // RecommendationStrategy removed — Ensemble is always used (combines all methods).
-    // The property is kept as read-only for backward compatibility with serialized configs.
-    // Any previously saved value is ignored.
+    // System.Text.Json silently ignores unknown properties during deserialization,
+    // so previously saved "RecommendationStrategy" values are harmlessly discarded.
 
     /// <summary>
     ///     Gets or sets the minimum alpha value for the ensemble scoring strategy.

@@ -285,7 +285,7 @@ public class HelperCleanupTask : IScheduledTask
                 logger: _logger);
             throw;
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
+        catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
         {
             _pluginLog.LogWarning("HelperCleanup", "Failed to recompute growth timeline.", ex, _logger);
         }
