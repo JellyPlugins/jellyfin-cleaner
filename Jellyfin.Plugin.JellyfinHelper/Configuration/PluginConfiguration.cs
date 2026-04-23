@@ -14,7 +14,7 @@ public class PluginConfiguration : BasePluginConfiguration
     // ===== Backing fields for clamped properties =====
     private int _maxRecommendationsPerUser = 20;
     private double _ensembleAlphaMin = 0.3;
-    private double _ensembleAlphaMax = 0.8;
+    private double _ensembleAlphaMax = 0.75;
     private double _ensembleGenrePenaltyFloor = 0.10;
 
     /// <summary>
@@ -183,7 +183,7 @@ public class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>
     ///     Gets or sets the maximum alpha value for the ensemble scoring strategy.
-    ///     Controls the upper bound of learned model blending (0–1). Default is 0.8.
+    ///     Controls the upper bound of learned model blending (0–1). Default is 0.75.
     ///     Out-of-range values are clamped. Enforces AlphaMin ≤ AlphaMax.
     /// </summary>
     public double EnsembleAlphaMax

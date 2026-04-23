@@ -89,6 +89,22 @@ internal static class EngineConstants
     internal const double ExposureLabel = 0.1;
 
     /// <summary>
+    ///     Number of days after a recommendation within which a watch is considered
+    ///     "recommendation-influenced". Items watched within this window receive a
+    ///     higher training label (<see cref="RecommendationInfluencedLabel"/>) to
+    ///     reward the model for successfully influencing user behavior.
+    /// </summary>
+    internal const double RecommendationInfluenceWindowDays = 7.0;
+
+    /// <summary>
+    ///     Training label for items that were recommended AND watched within the
+    ///     <see cref="RecommendationInfluenceWindowDays"/> window. Higher than
+    ///     <see cref="WatchedLabel"/> (0.85) to provide a stronger positive signal
+    ///     for recommendation-influenced watches.
+    /// </summary>
+    internal const double RecommendationInfluencedLabel = 0.90;
+
+    /// <summary>
     ///     Fraction of old training examples retained during incremental training.
     ///     New examples (since last training) are always included; this fraction
     ///     controls how many older examples are randomly sampled to prevent

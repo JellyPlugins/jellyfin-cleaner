@@ -1,4 +1,4 @@
-using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
+﻿using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Recommendation.Scoring;
@@ -463,8 +463,8 @@ public sealed class ScoringStrategyTests : IDisposable
         var weights = strategy.CurrentWeights;
 
         Assert.Equal(CandidateFeatures.FeatureCount, weights.Length);
-        Assert.Equal(0.23, weights[0]); // genre (dominant)
-        Assert.Equal(0.10, weights[1]); // collaborative
+        Assert.Equal(0.20, weights[0]); // genre (dominant)
+        Assert.Equal(0.11, weights[1]); // collaborative
         Assert.Equal(0.07, weights[2]); // rating
         Assert.Equal(0.05, weights[7]); // genre × rating interaction
         Assert.Equal(0.05, weights[8]); // genre × collab interaction
@@ -472,7 +472,7 @@ public sealed class ScoringStrategyTests : IDisposable
         Assert.Equal(0.07, weights[10]); // completion ratio
         Assert.Equal(-0.04, weights[11]); // isAbandoned
         Assert.Equal(0.01, weights[12]); // hasInteraction
-        Assert.Equal(0.05, weights[13]); // people similarity
+        Assert.Equal(0.06, weights[13]); // people similarity
         Assert.Equal(0.02, weights[14]); // studio match
         Assert.Equal(0.06, weights[15]); // seriesProgressionBoost
         Assert.Equal(0.01, weights[16]); // popularityScore
@@ -717,7 +717,7 @@ public sealed class ScoringStrategyTests : IDisposable
         var weights = strategy.CurrentWeights;
 
         Assert.Equal(CandidateFeatures.FeatureCount, weights.Length);
-        Assert.Equal(0.23, weights[0]); // default genre weight
+        Assert.Equal(0.20, weights[0]); // default genre weight
     }
 
     [Fact]

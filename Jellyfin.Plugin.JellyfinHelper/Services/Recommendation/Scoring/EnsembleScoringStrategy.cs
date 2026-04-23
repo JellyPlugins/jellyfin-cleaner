@@ -36,10 +36,10 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
 
     /// <summary>
     ///     Default maximum blending factor (learned dominates with abundant data).
-    ///     Capped at 0.8 instead of 1.0 so that heuristic rules always contribute at least
-    ///     20% — this guards against overfitting when the ML model has limited diversity.
+    ///     Capped at 0.75 instead of 1.0 so that heuristic rules always contribute at least
+    ///     25% — this guards against overfitting when the ML model has limited diversity.
     /// </summary>
-    internal const double DefaultAlphaMax = 0.8;
+    internal const double DefaultAlphaMax = 0.75;
 
     /// <summary>
     ///     Sigmoid steepness for alpha transition.

@@ -8,17 +8,17 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 /// </summary>
 public static class DefaultWeights
 {
-    /// <summary>Weight for genre similarity signal (dominant).</summary>
-    public const double GenreSimilarity = 0.23;
+    /// <summary>Weight for genre similarity signal (dominant, reduced from 0.23 to give more room to non-genre signals).</summary>
+    public const double GenreSimilarity = 0.20;
 
     /// <summary>Weight for collaborative filtering signal.</summary>
-    public const double CollaborativeScore = 0.10;
+    public const double CollaborativeScore = 0.11;
 
     /// <summary>Weight for community rating signal.</summary>
     public const double RatingScore = 0.07;
 
-    /// <summary>Weight for recency signal.</summary>
-    public const double RecencyScore = 0.05;
+    /// <summary>Weight for recency signal (increased from 0.05 during genre rebalance).</summary>
+    public const double RecencyScore = 0.06;
 
     /// <summary>Weight for year proximity signal.</summary>
     public const double YearProximityScore = 0.05;
@@ -66,11 +66,11 @@ public static class DefaultWeights
     public const double HasInteraction = 0.01;
 
     /// <summary>
-    ///     Weight for people (cast/director) similarity signal.
+    ///     Weight for people (cast/director) similarity signal (increased from 0.05 during genre rebalance).
     ///     Items featuring actors or directors from the user's watched content get a boost.
     ///     Cast/director overlap is a strong content-based signal for user preference.
     /// </summary>
-    public const double PeopleSimilarity = 0.05;
+    public const double PeopleSimilarity = 0.06;
 
     /// <summary>
     ///     Weight for studio match signal.

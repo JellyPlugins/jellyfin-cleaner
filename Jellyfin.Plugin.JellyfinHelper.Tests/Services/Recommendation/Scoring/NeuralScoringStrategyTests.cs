@@ -1,4 +1,4 @@
-using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
+﻿using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Recommendation.Scoring;
@@ -752,9 +752,9 @@ public sealed class NeuralScoringStrategyTests : IDisposable
     }
 
     [Fact]
-    public void CurrentWeightsVersion_Is4()
+    public void CurrentWeightsVersion_Is5()
     {
-        Assert.Equal(4, NeuralScoringStrategy.CurrentWeightsVersion);
+        Assert.Equal(5, NeuralScoringStrategy.CurrentWeightsVersion);
     }
 
     [Fact]

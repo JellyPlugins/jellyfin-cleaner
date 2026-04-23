@@ -260,7 +260,22 @@ internal sealed class TrainingService
                 double label;
                 if (wasWatched)
                 {
-                    label = ContentScoring.ComputeEngagementLabel(features.CompletionRatio);
+                    // Check temporal proximity: was the item watched within the influence window
+                    // after the recommendation was generated? If so, the recommendation likely
+                    // influenced the watch — reward with a higher label.
+                    var baseLabel = ContentScoring.ComputeEngagementLabel(features.CompletionRatio);
+                    if (watchedItemForRec?.LastPlayedDate is not null
+                        && (watchedItemForRec.LastPlayedDate.Value - prevResult.GeneratedAt).TotalDays
+                            <= EngineConstants.RecommendationInfluenceWindowDays
+                        && watchedItemForRec.LastPlayedDate.Value >= prevResult.GeneratedAt)
+                    {
+                        // Watched shortly after recommendation — boost label
+                        label = Math.Max(baseLabel, EngineConstants.RecommendationInfluencedLabel);
+                    }
+                    else
+                    {
+                        label = baseLabel;
+                    }
                 }
                 else if (features.CompletionRatio > 0 && features.CompletionRatio < EngineConstants.AbandonedCompletionThreshold)
                 {
