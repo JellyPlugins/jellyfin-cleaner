@@ -39,10 +39,29 @@ function renderRecommendations(container, results) {
     container.innerHTML = html;
     window._recsResults = results;
     var recsSelect = document.getElementById('recsUserSelect');
-    if (recsSelect) { recsSelect.addEventListener('change', function () { onUserChanged(parseInt(recsSelect.value, 10)); }); }
+    if (recsSelect) {
+        recsSelect.addEventListener('change', function () {
+            var idx = parseInt(recsSelect.value, 10);
+            // Persist selected user in browser storage so it survives page refresh
+            try { var uid = results[idx] && results[idx].UserId; if (uid) localStorage.setItem('jh_recsSelectedUser', uid); } catch (e) { /* localStorage unavailable */ }
+            onUserChanged(idx);
+        });
+    }
     var toggleBtn = document.getElementById('recsActivityToggle');
     if (toggleBtn) { toggleBtn.addEventListener('click', function () { toggleActivityCollapsible(); }); }
-    if (results.length > 0) { onUserChanged(0); }
+
+    // Restore previously selected user from browser storage (fallback: first user)
+    var initialIdx = 0;
+    try {
+        var savedUserId = localStorage.getItem('jh_recsSelectedUser');
+        if (savedUserId) {
+            for (var s = 0; s < results.length; s++) {
+                if (results[s].UserId === savedUserId) { initialIdx = s; break; }
+            }
+        }
+    } catch (e) { /* localStorage unavailable — use default */ }
+    if (recsSelect && initialIdx > 0) { recsSelect.value = '' + initialIdx; }
+    if (results.length > 0) { onUserChanged(initialIdx); }
 }
 
 function onUserChanged(index) {
