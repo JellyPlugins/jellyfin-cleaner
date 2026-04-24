@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
+using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Playlist;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
@@ -21,10 +23,34 @@ public class RecommendationsTask
     private readonly IRecommendationEngine _recsEngine;
     private readonly IRecommendationCacheService _recsCacheService;
     private readonly IPluginLogService _pluginLog;
+    private readonly IRecommendationPlaylistService? _playlistService;
     private readonly ILogger _logger;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="RecommendationsTask" /> class.
+    /// </summary>
+    /// <param name="recsEngine">The recommendation engine.</param>
+    /// <param name="recsCacheService">The recommendation cache service.</param>
+    /// <param name="pluginLog">The plugin log service.</param>
+    /// <param name="playlistService">The recommendation playlist service (optional, null disables playlist sync).</param>
+    /// <param name="logger">The logger instance.</param>
+    public RecommendationsTask(
+        IRecommendationEngine recsEngine,
+        IRecommendationCacheService recsCacheService,
+        IPluginLogService pluginLog,
+        IRecommendationPlaylistService? playlistService,
+        ILogger logger)
+    {
+        _recsEngine = recsEngine;
+        _recsCacheService = recsCacheService;
+        _pluginLog = pluginLog;
+        _playlistService = playlistService;
+        _logger = logger;
+    }
+
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="RecommendationsTask" /> class
+    ///     without the playlist service (backward compatibility for existing callers and tests).
     /// </summary>
     /// <param name="recsEngine">The recommendation engine.</param>
     /// <param name="recsCacheService">The recommendation cache service.</param>
@@ -35,11 +61,8 @@ public class RecommendationsTask
         IRecommendationCacheService recsCacheService,
         IPluginLogService pluginLog,
         ILogger logger)
+        : this(recsEngine, recsCacheService, pluginLog, null, logger)
     {
-        _recsEngine = recsEngine;
-        _recsCacheService = recsCacheService;
-        _pluginLog = pluginLog;
-        _logger = logger;
     }
 
     /// <summary>
@@ -49,14 +72,14 @@ public class RecommendationsTask
     /// <param name="progress">Progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A completed task.</returns>
-    public Task ExecuteAsync(PluginConfiguration config, IProgress<double> progress, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(PluginConfiguration config, IProgress<double> progress, CancellationToken cancellationToken)
     {
         // Deactivate mode: true no-op — skip all expensive work
         if (config.RecommendationsTaskMode == TaskMode.Deactivate)
         {
             _pluginLog.LogInfo("Recommendations", "Task skipped (Deactivated).", _logger);
             progress.Report(100);
-            return Task.CompletedTask;
+            return;
         }
 
         var isActive = config.RecommendationsTaskMode == TaskMode.Activate;
@@ -116,6 +139,33 @@ public class RecommendationsTask
         if (isActive)
         {
             _recsCacheService.SaveResults(results);
+
+            // Sync recommendations to Jellyfin playlists if enabled
+            if (config.SyncRecommendationsToPlaylist && _playlistService != null)
+            {
+                try
+                {
+                    var syncResult = await _playlistService!.UpdatePlaylistsForAllUsersAsync(results, cancellationToken).ConfigureAwait(false);
+                    _pluginLog.LogInfo(
+                        "Recommendations",
+                        $"Playlist sync: {syncResult.PlaylistsCreated} created, {syncResult.TotalItemsAdded} items added, {syncResult.OldPlaylistsRemoved} old removed.",
+                        _logger);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
+                {
+                    _pluginLog.LogWarning("Recommendations", "Playlist sync failed — recommendations were saved but playlists could not be updated.", ex, _logger);
+                }
+            }
+            else if (!config.SyncRecommendationsToPlaylist && _playlistService != null)
+            {
+                // Playlist sync was disabled — clean up any existing playlists from previous runs
+                await CleanupOldPlaylistsAsync(cancellationToken).ConfigureAwait(false);
+            }
+
             _pluginLog.LogInfo(
                 "Recommendations",
                 $"Task finished (Active). Generated {totalRecs} recommendations for {results.Count} users. Saved to cache.",
@@ -131,6 +181,26 @@ public class RecommendationsTask
         }
 
         progress.Report(100);
-        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    ///     Attempts to remove all recommendation playlists from a previous run.
+    ///     This is called when playlist sync is disabled to clean up stale playlists.
+    ///     Errors are logged but do not fail the task.
+    /// </summary>
+    private async Task CleanupOldPlaylistsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var removed = await _playlistService!.RemoveAllRecommendationPlaylistsAsync(cancellationToken).ConfigureAwait(false);
+            if (removed > 0)
+            {
+                _pluginLog.LogInfo("Recommendations", $"Cleaned up {removed} old recommendation playlists (sync disabled).", _logger);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException and not StackOverflowException)
+        {
+            _pluginLog.LogWarning("Recommendations", "Failed to clean up old recommendation playlists.", ex, _logger);
+        }
     }
 }

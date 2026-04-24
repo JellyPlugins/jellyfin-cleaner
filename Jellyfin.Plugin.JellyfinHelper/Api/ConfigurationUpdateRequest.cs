@@ -50,6 +50,11 @@ public class ConfigurationUpdateRequest
     public TaskMode RecommendationsTaskMode { get; init; } = TaskMode.DryRun;
 
     /// <summary>
+    ///     Gets a value indicating whether recommendation results should be synced to Jellyfin playlists.
+    /// </summary>
+    public bool SyncRecommendationsToPlaylist { get; init; }
+
+    /// <summary>
     ///     Gets the execution mode for the Seerr Cleanup task.
     /// </summary>
     public TaskMode SeerrCleanupTaskMode { get; init; } = TaskMode.Deactivate;

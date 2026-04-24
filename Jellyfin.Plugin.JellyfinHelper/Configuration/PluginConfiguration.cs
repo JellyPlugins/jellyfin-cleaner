@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -157,6 +157,14 @@ public class PluginConfiguration : BasePluginConfiguration
         get => _maxRecommendationsPerUser;
         set => _maxRecommendationsPerUser = Math.Clamp(value, 1, 100);
     }
+
+    /// <summary>
+    ///     Gets or sets a value indicating whether recommendation results should be synced
+    ///     to per-user Jellyfin playlists visible in the native UI.
+    ///     Only effective when <see cref="RecommendationsTaskMode"/> is <see cref="TaskMode.Activate"/>.
+    ///     Default is false (opt-in feature).
+    /// </summary>
+    public bool SyncRecommendationsToPlaylist { get; set; }
 
     // RecommendationStrategy removed — Ensemble is always used (combines all methods).
     // XmlSerializer silently ignores unknown XML elements during deserialization,

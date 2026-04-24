@@ -1,4 +1,4 @@
-﻿# Contributing to Jellyfin Helper
+# Contributing to Jellyfin Helper
 
 Thank you for your interest in contributing! This document covers the project architecture, design patterns, build system, API reference, and development workflow.
 
@@ -267,6 +267,7 @@ serviceCollection.AddSingleton<IRecommendationEngine, Engine>();
 serviceCollection.AddSingleton<IRecommendationCacheService, RecommendationCacheService>();
 serviceCollection.AddSingleton<IUserActivityInsightsService, UserActivityInsightsService>();
 serviceCollection.AddSingleton<IUserActivityCacheService, UserActivityCacheService>();
+serviceCollection.AddSingleton<IRecommendationPlaylistService, RecommendationPlaylistService>();
 ```
 
 The `IScoringStrategy` is always resolved as `EnsembleScoringStrategy`, which internally wraps Heuristic, Learned, and Neural strategies with adaptive blending. The ensemble automatically adjusts the blend ratio based on training data quality.
@@ -461,6 +462,7 @@ All endpoints require admin authorization (`RequiresElevation`) except `/Transla
 | **Seerr Cleanup Age (days)** | Max request age before deletion | 365 |
 | **Recommendations Task Mode** | Activate / DryRun / Deactivate | DryRun |
 | **MaxRecommendationsPerUser** | Maximum number of recommendations returned per user | 20 |
+| **SyncRecommendationsToPlaylist** | Sync recommendations to native Jellyfin playlists | Off |
 | **Ensemble Alpha Min** | Minimum ML blend factor (0 = pure heuristic) | 0.3 |
 | **Ensemble Alpha Max** | Maximum ML blend factor (1 = pure ML) | 0.75 |
 | **Ensemble Genre Penalty Floor** | Minimum score multiplier for zero-genre-overlap items (0–1) | 0.10 |
@@ -482,7 +484,7 @@ Sub-tasks executed in order (each respecting its configured task mode):
 3. Orphaned Subtitle Cleanup
 4. Link Repair (.strm files & symlinks)
 5. Seerr Cleanup (removes unavailable Overseerr/Jellyseerr media requests)
-6. Smart Recommendations Generation (ML-based per-user recommendations)
+6. Smart Recommendations Generation (ML-based per-user recommendations + optional playlist sync)
 7. User Activity Aggregation (play counts, completion, favorites, genre distribution)
 8. Trash Purge (if enabled)
 9. Post-Cleanup Statistics Scan (auto-refreshes and persists stats)
@@ -583,6 +585,7 @@ Sub-tasks executed in order (each respecting its configured task mode):
 - **Parental rating enforcement** — Respects Jellyfin's per-user `MaxParentalRating` setting. Candidates exceeding the user's rating limit are excluded before scoring, ensuring children with restricted profiles only receive age-appropriate recommendations. Works dynamically with all rating systems (FSK, MPAA, BBFC, etc.) via Jellyfin's numeric `InheritedParentalRatingValue`
 - **Candidate filtering** — Excludes already-watched items, series with watched episodes, and items above the user's parental rating; scores all eligible unwatched candidates against the user's profile
 - **Configurable** — `RecommendationsTaskMode` (DryRun/Activate/Deactivate); defaults to 20 recommendations per user (API accepts 1–100 via `maxResults` query parameter)
+- **Playlist sync** â€” Optional feature that creates native Jellyfin playlists per user containing recommended items in score-ranked order. Playlists appear in all Jellyfin clients (Web, Android, TV). Automatically cleaned up when disabled. Toggle in Settings is greyed out unless Recommendations TaskMode is set to Activate
 - **Disk-persisted state** — Learned weights (`ml_weights.json`), ensemble state (`ensemble_state.json`), and recommendation cache (`jellyfin-helper-recommendations-latest.json`) are all persisted to survive server restarts
 
 ### User Activity Insights

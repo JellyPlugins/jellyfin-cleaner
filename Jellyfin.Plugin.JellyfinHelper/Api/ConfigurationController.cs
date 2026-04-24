@@ -309,6 +309,7 @@ public class ConfigurationController : ControllerBase
         config.OrphanedSubtitleTaskMode = request.OrphanedSubtitleTaskMode;
         config.LinkRepairTaskMode = request.LinkRepairTaskMode;
         config.RecommendationsTaskMode = request.RecommendationsTaskMode;
+        config.SyncRecommendationsToPlaylist = request.SyncRecommendationsToPlaylist;
         config.SeerrCleanupTaskMode = request.SeerrCleanupTaskMode;
 
         config.UseTrash = request.UseTrash;

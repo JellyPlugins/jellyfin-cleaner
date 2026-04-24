@@ -165,6 +165,13 @@ public class BackupData
     [JsonPropertyName("recommendationsTaskMode")]
     public string RecommendationsTaskMode { get; set; } = "DryRun";
 
+    /// <summary>
+    ///     Gets or sets a value indicating whether recommendation results are synced
+    ///     to per-user Jellyfin playlists visible in the native UI.
+    /// </summary>
+    [JsonPropertyName("syncRecommendationsToPlaylist")]
+    public bool SyncRecommendationsToPlaylist { get; set; }
+
     // === Historical Data ===
 
     /// <summary>

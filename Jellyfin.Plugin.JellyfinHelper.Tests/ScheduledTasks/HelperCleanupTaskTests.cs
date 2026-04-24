@@ -4,6 +4,7 @@ using Jellyfin.Plugin.JellyfinHelper.Services.Activity;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.Link;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
+using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Playlist;
 using Jellyfin.Plugin.JellyfinHelper.Services.Seerr;
 using Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 using System.Collections.ObjectModel;
@@ -104,6 +105,7 @@ public class HelperCleanupTaskTests : IDisposable
             .Setup(e => e.GetAllRecommendations(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .Returns(new Collection<RecommendationResult>());
         var recsCacheMock = new Mock<IRecommendationCacheService>();
+        var playlistServiceMock = new Mock<IRecommendationPlaylistService>();
 
         _task = new HelperCleanupTask(
             libraryManagerMock.Object,
@@ -121,7 +123,8 @@ public class HelperCleanupTaskTests : IDisposable
             userActivityInsightsMock.Object,
             userActivityCacheMock.Object,
             recsEngineMock.Object,
-            recsCacheMock.Object);
+            recsCacheMock.Object,
+            playlistServiceMock.Object);
     }
 
     public void Dispose()
