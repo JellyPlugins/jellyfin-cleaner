@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
+using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Playlist;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
@@ -47,6 +48,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public override void OnUninstalling()
     {
         CleanupDataFiles();
+        CleanupRecommendationPlaylists();
         base.OnUninstalling();
     }
 
@@ -114,6 +116,52 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Best effort — if the data directory is inaccessible, nothing we can do.
+        }
+    }
+
+    /// <summary>
+    ///     Removes all recommendation playlist folders created by this plugin.
+    ///     Jellyfin stores playlists as subdirectories under <c>{DataPath}/playlists/</c>.
+    ///     Managed playlists are identified by the
+    ///     <see cref="RecommendationPlaylistService.PlaylistNamePrefix"/> folder name prefix.
+    ///     This is a best-effort filesystem cleanup — the Jellyfin library database may still
+    ///     reference these playlists until the next library scan, at which point the stale
+    ///     entries will be removed automatically.
+    /// </summary>
+    private void CleanupRecommendationPlaylists()
+    {
+        try
+        {
+            var playlistsPath = Path.Combine(_applicationPaths.DataPath, "playlists");
+            if (!Directory.Exists(playlistsPath))
+            {
+                return;
+            }
+
+            foreach (var dir in Directory.GetDirectories(playlistsPath))
+            {
+                var folderName = Path.GetFileName(dir);
+                if (folderName == null
+                    || !folderName.StartsWith(
+                        RecommendationPlaylistService.PlaylistNamePrefix,
+                        StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    Directory.Delete(dir, recursive: true);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // Best effort — folder may be locked or permission-restricted.
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort — if the playlists directory is inaccessible, nothing we can do.
         }
     }
 }

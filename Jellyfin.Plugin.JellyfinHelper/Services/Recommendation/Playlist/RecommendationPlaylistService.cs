@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Playlists;
 using MediaBrowser.Model.Playlists;
@@ -64,11 +65,10 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
         ArgumentNullException.ThrowIfNull(results);
 
         var syncResult = new PlaylistSyncResult();
-        var playlistName = BuildPlaylistName();
 
         _pluginLog.LogInfo(
             "PlaylistSync",
-            $"Starting playlist sync for {results.Count} users. Playlist name: '{playlistName}'",
+            $"Starting playlist sync for {results.Count} users.",
             _logger);
 
         foreach (var result in results)
@@ -86,16 +86,27 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
                 {
                     _pluginLog.LogDebug(
                         "PlaylistSync",
-                        $"No recommendations for user '{result.UserName}' â€” skipping playlist creation.",
+                        $"No recommendations for user '{result.UserName}' — skipping playlist creation.",
                         _logger);
                     continue;
                 }
 
-                // Create new playlist with items in score-ranked order
-                var itemIds = result.Recommendations
-                    .OrderByDescending(r => r.Score)
-                    .Select(r => r.ItemId)
-                    .ToArray();
+                // Create new playlist with items in score-ranked order.
+                // Series items are resolved to their first episode to prevent Jellyfin's
+                // PlaylistManager from expanding the entire series into individual episodes.
+                var itemIds = ResolvePlaylistItemIds(result.Recommendations);
+
+                if (itemIds.Length == 0)
+                {
+                    _pluginLog.LogDebug(
+                        "PlaylistSync",
+                        $"No playable items resolved for user '{result.UserName}' — skipping playlist creation.",
+                        _logger);
+                    continue;
+                }
+
+                // Build a personalized playlist name per user to avoid filesystem name collisions
+                var playlistName = BuildPlaylistName(result.UserName);
 
                 var request = new PlaylistCreationRequest
                 {
@@ -192,14 +203,93 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
     }
 
     /// <summary>
-    ///     Builds the dynamic playlist name including a date-based suffix.
-    ///     Uses ISO week number for weekly scheduling context.
-    ///     Example: "Recommended -- Week 17, 2026".
+    ///     Builds the playlist name personalized with the user's display name.
+    ///     This ensures each user gets a uniquely named playlist on disk,
+    ///     preventing Jellyfin from auto-suffixing duplicate folder names.
+    ///     Example: "🎬 Recommended for Alice".
     /// </summary>
+    /// <param name="userName">The user's display name.</param>
     /// <returns>The full playlist name.</returns>
-    internal static string BuildPlaylistName()
+    internal static string BuildPlaylistName(string userName)
     {
-        return PlaylistNamePrefix + " for you";
+        return PlaylistNamePrefix + " for " + (string.IsNullOrWhiteSpace(userName) ? "you" : userName);
+    }
+
+    /// <summary>
+    ///     Resolves recommendation item IDs into playable playlist item IDs.
+    ///     <para>
+    ///         Jellyfin's <see cref="IPlaylistManager"/> expands container items (Series, Seasons)
+    ///         into all their child episodes when added to a playlist. This means adding a Series ID
+    ///         results in every single episode appearing individually in the playlist.
+    ///     </para>
+    ///     <para>
+    ///         To prevent this, Series recommendations are resolved to their first episode (S01E01).
+    ///         This gives the user a single representative entry per series that they can navigate
+    ///         from, rather than flooding the playlist with hundreds of episodes.
+    ///     </para>
+    ///     <para>
+    ///         Movies and other non-series items are passed through unchanged.
+    ///     </para>
+    /// </summary>
+    /// <param name="recommendations">The score-ranked recommendations to resolve.</param>
+    /// <returns>An array of playable item IDs suitable for playlist creation.</returns>
+    internal Guid[] ResolvePlaylistItemIds(IEnumerable<RecommendedItem> recommendations)
+    {
+        var resolvedIds = new List<Guid>();
+
+        foreach (var rec in recommendations.OrderByDescending(r => r.Score))
+        {
+            if (string.Equals(rec.ItemType, "Series", StringComparison.OrdinalIgnoreCase))
+            {
+                // Resolve series to its first episode to avoid playlist explosion.
+                // Query for the first episode (sorted by season/episode index) of this series.
+                var firstEpisode = ResolveFirstEpisodeForSeries(rec.ItemId);
+
+                if (firstEpisode.HasValue)
+                {
+                    resolvedIds.Add(firstEpisode.Value);
+                    _pluginLog.LogDebug(
+                        "PlaylistSync",
+                        $"Resolved series '{rec.Name}' to first episode (ID: {firstEpisode.Value}).",
+                        _logger);
+                }
+                else
+                {
+                    // Fallback: if no episode found, skip this series to avoid the expansion problem.
+                    // This can happen for empty series or series with no indexed episodes.
+                    _pluginLog.LogDebug(
+                        "PlaylistSync",
+                        $"Could not resolve first episode for series '{rec.Name}' (ID: {rec.ItemId}) — skipping.",
+                        _logger);
+                }
+            }
+            else
+            {
+                // Movies and other playable items — use directly
+                resolvedIds.Add(rec.ItemId);
+            }
+        }
+
+        return resolvedIds.ToArray();
+    }
+
+    /// <summary>
+    ///     Finds the first episode of a series by querying the library for episodes
+    ///     belonging to the given series ID, sorted by season and episode index.
+    /// </summary>
+    /// <param name="seriesId">The Jellyfin series item ID.</param>
+    /// <returns>The ID of the first episode, or null if no episodes exist.</returns>
+    internal Guid? ResolveFirstEpisodeForSeries(Guid seriesId)
+    {
+        var episodes = _libraryManager.GetItemList(new InternalItemsQuery
+        {
+            IncludeItemTypes = [BaseItemKind.Episode],
+            AncestorIds = [seriesId],
+            Limit = 1,
+            IsFolder = false
+        });
+
+        return episodes.Count > 0 ? episodes[0].Id : null;
     }
 
     /// <summary>
@@ -213,12 +303,14 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Find all playlists owned by this user that match our prefix
+        // Load ALL playlists visible to this user without SearchTerm filtering.
+        // Jellyfin's search index does not reliably match Unicode characters (emoji prefix),
+        // which caused old playlists to survive deletion and accumulate with suffixed names
+        // like "Recommended for you1", "Recommended for you11", etc.
         var existingPlaylists = _libraryManager.GetItemList(new InternalItemsQuery
         {
             IncludeItemTypes = [BaseItemKind.Playlist],
-            User = _userManager.GetUserById(userId),
-            SearchTerm = PlaylistNamePrefix
+            User = _userManager.GetUserById(userId)
         });
 
         var removed = 0;
@@ -226,7 +318,8 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Double-check the name starts with our prefix to avoid false positives
+            // Match our managed playlists by prefix. This also catches Jellyfin's auto-deduplicated
+            // names like "Recommended for you1", "Recommended for you11", etc.
             if (playlist.Name == null || !playlist.Name.StartsWith(PlaylistNamePrefix, StringComparison.Ordinal))
             {
                 continue;

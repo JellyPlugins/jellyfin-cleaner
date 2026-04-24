@@ -190,7 +190,7 @@ public sealed class Engine : IRecommendationEngine
         foreach (var candidate in candidates)
         {
             // Parental rating filter — skip items the user is not allowed to see
-            if (maxParentalRating.HasValue && candidate.InheritedParentalRatingValue > maxParentalRating.Value)
+            if (ExceedsMaxRating(candidate, maxParentalRating))
             {
                 continue;
             }
@@ -364,7 +364,7 @@ public sealed class Engine : IRecommendationEngine
             // Uses Jellyfin's InheritedParentalRatingValue which cascades from parent items
             // (e.g., a series rating applies to all its episodes).
             // This ensures children with restricted profiles only get age-appropriate recommendations.
-            if (userMaxRating.HasValue && candidate.InheritedParentalRatingValue > userMaxRating.Value)
+            if (ExceedsMaxRating(candidate, userMaxRating))
             {
                 continue;
             }
@@ -552,6 +552,22 @@ public sealed class Engine : IRecommendationEngine
             candidate, explanation, genrePreferences, preferredPeople, preferredStudios, peopleLookup);
 
         return (candidate, explanation.FinalScore, reason, reasonKey, relatedItem);
+    }
+
+    /// <summary>
+    ///     Returns true when the candidate's parental rating exceeds the user's maximum,
+    ///     or when the candidate has no rating at all (unrated items are treated as unrestricted
+    ///     and must be excluded for restricted profiles).
+    /// </summary>
+    private static bool ExceedsMaxRating(BaseItem candidate, int? maxRating)
+    {
+        if (!maxRating.HasValue)
+        {
+            return false;
+        }
+
+        return !candidate.InheritedParentalRatingValue.HasValue
+               || candidate.InheritedParentalRatingValue.Value > maxRating.Value;
     }
 
     /// <summary>

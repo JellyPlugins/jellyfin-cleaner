@@ -93,17 +93,20 @@ internal static class ReasonResolver
             return ("Highly rated", "reasonHighlyRated", null);
         }
 
-        if (string.Equals(dominant, "UserRating", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(dominant, "UserRating", StringComparison.OrdinalIgnoreCase)
+            && explanation.UserRatingContribution > EngineConstants.ReasonScoreThreshold)
         {
             return ("Matches your personal ratings", "reasonUserRating", null);
         }
 
-        if (string.Equals(dominant, "Recency", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(dominant, "Recency", StringComparison.OrdinalIgnoreCase)
+            && explanation.RecencyContribution > EngineConstants.ReasonScoreThreshold)
         {
             return ("Recently released", "reasonRecent", null);
         }
 
-        if (string.Equals(dominant, "YearProximity", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(dominant, "YearProximity", StringComparison.OrdinalIgnoreCase)
+            && explanation.YearProximityContribution > EngineConstants.ReasonScoreThreshold)
         {
             return ("Matches the era of content you enjoy", "reasonYearProximity", null);
         }

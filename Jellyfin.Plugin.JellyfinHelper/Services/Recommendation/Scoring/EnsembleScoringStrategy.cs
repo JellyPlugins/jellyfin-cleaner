@@ -429,6 +429,16 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                         }
                     }
                 }
+                else if (_neural is not null && !neuralTrained && _neuralBeta > 0)
+                {
+                    // Neural strategy failed to train this round while learned succeeded —
+                    // decay β to avoid stale influence, analogous to the learned-failure branch.
+                    _neuralBeta *= 0.5;
+                    if (_neuralBeta < NeuralBetaMinFloor)
+                    {
+                        _neuralBeta = 0.0;
+                    }
+                }
             }
 
             // Log training quality metrics for transparency using structured logging
