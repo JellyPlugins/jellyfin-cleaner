@@ -150,7 +150,7 @@ public class UserActivityCacheServiceTests : IDisposable
     {
         // Save first so the service produces its real cache file path, then corrupt it.
         _cacheService.SaveResult(new UserActivityResult());
-        var cacheFile = Directory.GetFiles(_tempDir, "*.json").First();
+        var cacheFile = Directory.GetFiles(_tempDir, "*.json").Single();
         File.WriteAllText(cacheFile, "NOT VALID JSON {{{");
 
         var result = _cacheService.LoadResult();

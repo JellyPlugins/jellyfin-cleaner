@@ -73,9 +73,9 @@ public class WatchHistoryServiceTests
     [Fact]
     public void GetAllUserWatchProfiles_ExceptionInBuildProfile_SkipsUserAndContinues()
     {
-        var user1 = CreateMockUser("alice");
-        var user2 = CreateMockUser("bob-throws");
-        var user3 = CreateMockUser("charlie");
+        var user1 = CreateTestUser("alice");
+        var user2 = CreateTestUser("bob-throws");
+        var user3 = CreateTestUser("charlie");
 
         _mockUserManager
             .Setup(m => m.Users)
@@ -109,8 +109,8 @@ public class WatchHistoryServiceTests
     [Fact]
     public void GetAllUserWatchProfiles_ReturnsProfilesForAllValidUsers()
     {
-        var user1 = CreateMockUser("alice");
-        var user2 = CreateMockUser("bob");
+        var user1 = CreateTestUser("alice");
+        var user2 = CreateTestUser("bob");
 
         _mockUserManager
             .Setup(m => m.Users)
@@ -154,7 +154,7 @@ public class WatchHistoryServiceTests
     [Fact]
     public void BuildProfile_MoviePlayed_IncrementsMovieCount()
     {
-        var user = CreateMockUser("alice");
+        var user = CreateTestUser("alice");
 
         _mockUserManager
             .Setup(m => m.GetUserById(user.Id))
@@ -198,7 +198,7 @@ public class WatchHistoryServiceTests
     [Fact]
     public void BuildProfile_EpisodesFromSameSeries_CountsSeriesOnce()
     {
-        var user = CreateMockUser("bob");
+        var user = CreateTestUser("bob");
 
         _mockUserManager
             .Setup(m => m.GetUserById(user.Id))
@@ -247,7 +247,7 @@ public class WatchHistoryServiceTests
     [Fact]
     public void BuildProfile_GenreDistribution_CountsCorrectly()
     {
-        var user = CreateMockUser("charlie");
+        var user = CreateTestUser("charlie");
 
         _mockUserManager
             .Setup(m => m.GetUserById(user.Id))
@@ -291,7 +291,7 @@ public class WatchHistoryServiceTests
     [Fact]
     public void BuildProfile_UnplayedItems_AreExcluded()
     {
-        var user = CreateMockUser("dave");
+        var user = CreateTestUser("dave");
 
         _mockUserManager
             .Setup(m => m.GetUserById(user.Id))
@@ -328,7 +328,7 @@ public class WatchHistoryServiceTests
 
     // --- Helpers ---
 
-    private static Jellyfin.Database.Implementations.Entities.User CreateMockUser(string username)
+    private static Jellyfin.Database.Implementations.Entities.User CreateTestUser(string username)
     {
         return new Jellyfin.Database.Implementations.Entities.User(username, "default", "default")
         {

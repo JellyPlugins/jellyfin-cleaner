@@ -48,7 +48,11 @@ internal static class ContentScoring
     ///     Computes a recency score based on how recently the item was added or premiered.
     ///     Newer items get a slight boost.
     /// </summary>
-    /// <param name="itemDate">The item's premiere or creation date.</param>
+    /// <param name="itemDate">
+    ///     The item's premiere or creation date. Should be <see cref="DateTimeKind.Utc"/>.
+    ///     <see cref="DateTimeKind.Unspecified"/> values are subtracted from <see cref="DateTime.UtcNow"/>
+    ///     without conversion, effectively treating them as UTC.
+    /// </param>
     /// <param name="now">
     ///     Reference point for "now" (defaults to <see cref="DateTime.UtcNow"/>).
     ///     Exposed for deterministic unit testing.

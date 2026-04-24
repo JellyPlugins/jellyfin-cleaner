@@ -1046,6 +1046,11 @@ public sealed class ScoringStrategyTests : IDisposable
 
         Assert.NotNull(strategy.LearnedStrategy);
         Assert.NotNull(strategy.HeuristicStrategy);
+
+        // Training should persist weights to the configured path, proving propagation.
+        Assert.True(strategy.Train(GenerateTrainingExamples(30)));
+        Assert.True(File.Exists(weightsPath),
+            "weightsPath should have been forwarded to LearnedScoringStrategy and used for persistence.");
     }
 
     [Fact]
@@ -2047,9 +2052,11 @@ public sealed class ScoringStrategyTests : IDisposable
         var examples = GenerateTrainingExamples(160);
         ensemble.Train(examples);
 
-        // After sufficient training, neural beta should be > 0
+        // After sufficient training above the activation threshold, neural beta should be strictly positive.
         var beta = ensemble.CurrentNeuralBeta;
-        Assert.True(beta >= 0, $"Neural beta should be >= 0, was {beta:F4}");
+        Assert.True(beta > 0, $"Neural beta should be > 0 after activation, was {beta:F4}");
+        Assert.True(beta <= EnsembleScoringStrategy.NeuralMaxBetaFraction,
+            $"Neural beta should not exceed max fraction, was {beta:F4}");
 
         // Score should still be in valid range
         var features = new CandidateFeatures
@@ -2304,6 +2311,10 @@ public sealed class ScoringStrategyTests : IDisposable
         // Train more — beta should increase (or stay same if quality gate blocks it)
         ensemble.Train(GenerateTrainingExamples(100));
         var betaAt155 = ensemble.CurrentNeuralBeta;
+
+        // Verify activation actually happened before checking monotonicity
+        Assert.True(betaAt55 > 0 || betaAt155 > 0,
+            $"Neural beta should activate after sufficient training: betaAt55={betaAt55:F4}, betaAt155={betaAt155:F4}");
 
         // With more data, beta should be >= what it was before
         Assert.True(betaAt155 >= betaAt55,

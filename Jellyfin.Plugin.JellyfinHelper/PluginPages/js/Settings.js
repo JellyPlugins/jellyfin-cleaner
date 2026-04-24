@@ -182,7 +182,7 @@ function loadSettings() {
         // Playlist sync toggle - greyed out if Recommendations is not Activate
         var recsActive = (cfg.RecommendationsTaskMode || 'DryRun') === 'Activate';
         h += '<div class="playlist-sync-wrapper" id="playlistSyncWrapper" style="margin:0.3em 0 0.8em 0;' + (!recsActive ? 'opacity:0.5;pointer-events:none;' : '') + '">';
-        h += '<div class="checkbox-row"><input type="checkbox" id="cfgSyncPlaylist"' + (cfg.SyncRecommendationsToPlaylist ? ' checked' : '') + '><label for="cfgSyncPlaylist">' + T('syncPlaylistToggle', 'Sync recommendations to Jellyfin playlist') + '</label></div>';
+        h += '<div class="checkbox-row"><input type="checkbox" id="cfgSyncPlaylist"' + (cfg.SyncRecommendationsToPlaylist ? ' checked' : '') + (!recsActive ? ' disabled' : '') + '><label for="cfgSyncPlaylist">' + T('syncPlaylistToggle', 'Sync recommendations to Jellyfin playlist') + '</label></div>';
         h += '<div class="help-text">' + T('syncPlaylistHelp', 'Creates a per-user playlist visible in the Jellyfin UI. Updated on each scheduled run.') + '</div>';
         h += '<div class="help-text playlist-sync-disabled-hint" style="' + (recsActive ? 'display:none;' : '') + '">' + T('syncPlaylistDisabledHint', 'Set Recommendations to Activate to enable this option.') + '</div>';
         h += '</div>';

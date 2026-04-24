@@ -209,7 +209,18 @@ public class RecommendationPlaylistServiceTests
     public async Task UpdatePlaylists_ItemsOrderedByScoreDescending()
     {
         var userId = Guid.NewGuid();
-        var result = CreateResult(userId, "Alice", 3);
+        // Use non-descending scores to verify the service actually sorts by score
+        var result = new RecommendationResult
+        {
+            UserId = userId,
+            UserName = "Alice",
+            Recommendations = new Collection<RecommendedItem>
+            {
+                new() { ItemId = Guid.NewGuid(), Name = "Low",  ItemType = "Movie", Score = 0.30 },
+                new() { ItemId = Guid.NewGuid(), Name = "High", ItemType = "Movie", Score = 0.95 },
+                new() { ItemId = Guid.NewGuid(), Name = "Mid",  ItemType = "Movie", Score = 0.60 }
+            }
+        };
         var results = new List<RecommendationResult> { result };
 
         SetupPlaylistQuery();

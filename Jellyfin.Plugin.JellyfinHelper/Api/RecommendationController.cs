@@ -71,19 +71,20 @@ public class RecommendationController : ControllerBase
         }
 
         var config = _configService.GetConfiguration();
-        // Use config default if not specified via query parameter
-        maxPerUser = Math.Clamp(maxPerUser <= 0 ? config.MaxRecommendationsPerUser : maxPerUser, 1, 100);
+        var configuredMax = Math.Clamp(config.MaxRecommendationsPerUser, 1, 100);
+        // Use config default if not specified via query parameter; used only for trimming the response
+        var requestedMax = Math.Clamp(maxPerUser <= 0 ? configuredMax : maxPerUser, 1, 100);
 
         var cached = _cacheService.LoadResults();
         if (cached is not null)
         {
-            // Apply maxPerUser limit to cached results as well
-            var trimmed = TrimRecommendations(cached, maxPerUser);
+            // Apply requested limit to cached results
+            var trimmed = TrimRecommendations(cached, requestedMax);
             return Ok(trimmed);
         }
 
-        // No cache available — generate on demand
-        var results = _engine.GetAllRecommendations(maxPerUser, cancellationToken);
+        // No cache available — generate at the configured max so the cache is not under-filled
+        var results = _engine.GetAllRecommendations(configuredMax, cancellationToken);
 
         // Only persist to cache when TaskMode is Activate (not DryRun)
         if (config.RecommendationsTaskMode == TaskMode.Activate)
@@ -91,7 +92,7 @@ public class RecommendationController : ControllerBase
             _cacheService.SaveResults(results);
         }
 
-        return Ok(results);
+        return Ok(TrimRecommendations(results, requestedMax));
     }
 
     /// <summary>

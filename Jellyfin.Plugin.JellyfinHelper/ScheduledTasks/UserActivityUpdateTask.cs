@@ -47,6 +47,8 @@ public class UserActivityUpdateTask
     /// <returns>A completed task.</returns>
     public Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken, TaskMode taskMode = TaskMode.Activate)
     {
+        ArgumentNullException.ThrowIfNull(progress);
+
         // Deactivate mode: true no-op — skip all expensive work
         if (taskMode == TaskMode.Deactivate)
         {

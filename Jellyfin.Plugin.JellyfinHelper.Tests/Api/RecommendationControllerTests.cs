@@ -79,10 +79,11 @@ public class RecommendationControllerTests
         _mockEngine.Setup(e => e.GetAllRecommendations(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .Returns(new Collection<RecommendationResult>());
 
-        // maxPerUser=200 should be clamped to 100
+        // maxPerUser=200 is clamped to 100 for response trimming,
+        // but the engine receives configuredMax (20) to avoid under-filling the cache.
         _controller.GetAllRecommendations(200);
 
-        _mockEngine.Verify(e => e.GetAllRecommendations(100, It.IsAny<CancellationToken>()), Times.Once);
+        _mockEngine.Verify(e => e.GetAllRecommendations(20, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // === GetUserRecommendations ===
@@ -139,7 +140,8 @@ public class RecommendationControllerTests
         var result = _controller.GetUserRecommendations(Guid.Empty);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
-        Assert.Contains("userId", badRequest.Value?.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(badRequest.Value);
+        Assert.Contains("userId", badRequest.Value!.ToString() ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
 
     // === GetUserWatchProfile ===
@@ -174,7 +176,8 @@ public class RecommendationControllerTests
         var result = _controller.GetUserWatchProfile(Guid.Empty);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
-        Assert.Contains("userId", badRequest.Value?.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(badRequest.Value);
+        Assert.Contains("userId", badRequest.Value!.ToString() ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
 
     // === 503 Disabled ===

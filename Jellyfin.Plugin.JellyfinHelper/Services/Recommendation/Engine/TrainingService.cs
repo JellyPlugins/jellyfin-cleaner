@@ -581,6 +581,8 @@ internal sealed class TrainingService
             }
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var trained = (strategy is ITrainableStrategy trainable) && trainable.Train(trainingExamples);
 
         if (trained)

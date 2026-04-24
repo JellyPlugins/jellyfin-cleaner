@@ -346,4 +346,7 @@ CSS and JS files are injected in a specific order defined in `HtmlComposer.cs`:
 ### New API Endpoint
 
 1. Create or extend a controller in `Api/`
-2. Use `[
+2. Use `[Authorize(Policy = "RequiresElevation")]` for admin-only endpoints where applicable
+3. Add request/response DTOs and validation
+4. Register required services in `PluginServiceRegistrator.cs`
+5. Add integration/unit tests for success and failure paths
