@@ -135,7 +135,7 @@ internal sealed class TrainingService
                 continue;
             }
 
-            var (genrePreferences, coOccurrence, collaborativeMax, avgYear) = perUserCache[userProfile.UserId];
+            var (genrePreferences, coOccurrence, collaborativeMax, avgYear, genreExposure) = perUserCache[userProfile.UserId];
 
             // Build preferred people/studios/tags from the user's watch profile using cached data.
             // This mirrors what Engine.GenerateForUser() does with live BaseItem data.
@@ -261,6 +261,13 @@ internal sealed class TrainingService
                     TagSimilarity = tagSimilarity
                 };
 
+                // Genre exposure features: compute from cached per-user analysis
+                var (underexposure, dominanceRatio, affinityGap) =
+                    PreferenceBuilder.ComputeGenreExposureFeatures(rec.Genres ?? [], genreExposure);
+                features.GenreUnderexposure = underexposure;
+                features.GenreDominanceRatio = dominanceRatio;
+                features.GenreAffinityGap = affinityGap;
+
                 double label;
                 if (wasWatched)
                 {
@@ -327,7 +334,7 @@ internal sealed class TrainingService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var (genrePreferences, coOccurrence, collaborativeMax, avgYear) = perUserCache[userProfile.UserId];
+            var (genrePreferences, coOccurrence, collaborativeMax, avgYear, genreExposureOrganic) = perUserCache[userProfile.UserId];
 
             // Resolve the per-user recommended set; users with no previous results get an empty set
             if (!recommendedItemIdsByUser.TryGetValue(userProfile.UserId, out var recommendedItemIds))
@@ -461,6 +468,13 @@ internal sealed class TrainingService
                     IsWeekend = w.LastPlayedDate?.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday,
                     TagSimilarity = tagSimilarity
                 };
+
+                // Genre exposure features: compute from cached per-user analysis (mirrors Phase 1)
+                var (organicUnderexp, organicDomRatio, organicAffGap) =
+                    PreferenceBuilder.ComputeGenreExposureFeatures(w.Genres ?? [], genreExposureOrganic);
+                features.GenreUnderexposure = organicUnderexp;
+                features.GenreDominanceRatio = organicDomRatio;
+                features.GenreAffinityGap = organicAffGap;
 
                 // Organic watches are strong positive signals — label based on completion.
                 // Favorite-only items (not played) get an explicit positive label since

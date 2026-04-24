@@ -1016,4 +1016,267 @@ public class RecommendationEngineTests
         Assert.True(double.IsFinite(score), $"Score should be finite, got {score}");
         Assert.True(score >= 0.0 && score <= 1.0, $"Score should be in [0, 1], got {score}");
     }
+
+    // ============================================================
+    // Genre Exposure Analysis Tests
+    // ============================================================
+
+    [Fact]
+    public void BuildGenreExposureAnalysis_InsufficientHistory_ReturnsInvalid()
+    {
+        var profile = new UserWatchProfile();
+        // Add only 10 items (below MinWatchCountForGenreExposure = 30)
+        for (var i = 0; i < 10; i++)
+        {
+            profile.WatchedItems.Add(new WatchedItemInfo
+            {
+                ItemId = Guid.NewGuid(),
+                Played = true,
+                Genres = ["Action"]
+            });
+        }
+
+        var prefs = PreferenceBuilder.BuildGenrePreferenceVector(profile);
+        var analysis = PreferenceBuilder.BuildGenreExposureAnalysis(prefs, profile);
+
+        Assert.False(analysis.IsValid);
+    }
+
+    [Fact]
+    public void BuildGenreExposureAnalysis_SufficientHistory_ReturnsValid()
+    {
+        var profile = new UserWatchProfile();
+        // Add 40 items (above MinWatchCountForGenreExposure = 30)
+        for (var i = 0; i < 30; i++)
+        {
+            profile.WatchedItems.Add(new WatchedItemInfo
+            {
+                ItemId = Guid.NewGuid(),
+                Played = true,
+                Genres = ["Action"],
+                LastPlayedDate = DateTime.UtcNow.AddDays(-i)
+            });
+        }
+
+        for (var i = 0; i < 10; i++)
+        {
+            profile.WatchedItems.Add(new WatchedItemInfo
+            {
+                ItemId = Guid.NewGuid(),
+                Played = true,
+                Genres = ["Drama"],
+                LastPlayedDate = DateTime.UtcNow.AddDays(-i)
+            });
+        }
+
+        var prefs = PreferenceBuilder.BuildGenrePreferenceVector(profile);
+        var analysis = PreferenceBuilder.BuildGenreExposureAnalysis(prefs, profile);
+
+        Assert.True(analysis.IsValid);
+        Assert.True(analysis.DominantGenres.Count > 0);
+        Assert.True(analysis.AveragePreferenceWeight > 0);
+    }
+
+    [Fact]
+    public void ComputeGenreExposureFeatures_InvalidAnalysis_ReturnsAllZero()
+    {
+        var invalidAnalysis = new PreferenceBuilder.GenreExposureAnalysis
+        {
+            UnderexposedGenres = new HashSet<string>(),
+            DominantGenres = new HashSet<string>(),
+            AveragePreferenceWeight = 0,
+            GenrePreferences = new Dictionary<string, double>(),
+            IsValid = false
+        };
+
+        var (underexposure, dominance, gap) =
+            PreferenceBuilder.ComputeGenreExposureFeatures(new[] { "Animation" }, invalidAnalysis);
+
+        Assert.Equal(0.0, underexposure);
+        Assert.Equal(0.0, dominance);
+        Assert.Equal(0.0, gap);
+    }
+
+    [Fact]
+    public void ComputeGenreExposureFeatures_EmptyGenres_ReturnsAllZero()
+    {
+        var validAnalysis = new PreferenceBuilder.GenreExposureAnalysis
+        {
+            UnderexposedGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Animation" },
+            DominantGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Action" },
+            AveragePreferenceWeight = 0.5,
+            GenrePreferences = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase) { { "Action", 1.0 } },
+            IsValid = true
+        };
+
+        var (underexposure, dominance, gap) =
+            PreferenceBuilder.ComputeGenreExposureFeatures(Array.Empty<string>(), validAnalysis);
+
+        Assert.Equal(0.0, underexposure);
+        Assert.Equal(0.0, dominance);
+        Assert.Equal(0.0, gap);
+    }
+
+    [Fact]
+    public void ComputeGenreExposureFeatures_AllDominantGenres_HighDominanceZeroUnderexposure()
+    {
+        var analysis = new PreferenceBuilder.GenreExposureAnalysis
+        {
+            UnderexposedGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Animation" },
+            DominantGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Action", "Drama", "Thriller" },
+            AveragePreferenceWeight = 0.5,
+            GenrePreferences = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Action", 1.0 },
+                { "Drama", 0.8 },
+                { "Thriller", 0.6 }
+            },
+            IsValid = true
+        };
+
+        // Candidate with all dominant genres
+        var (underexposure, dominance, gap) =
+            PreferenceBuilder.ComputeGenreExposureFeatures(new[] { "Action", "Drama" }, analysis);
+
+        Assert.Equal(0.0, underexposure); // None are underexposed
+        Assert.Equal(1.0, dominance); // All 2/2 genres are in top-3
+        Assert.Equal(0.0, gap); // Candidate avg (0.9) > overall avg (0.5)
+    }
+
+    [Fact]
+    public void ComputeGenreExposureFeatures_AnimationForActionUser_ShowsUnderexposure()
+    {
+        // Simulates: user watches lots of Action (dominant), rarely watches Animation (underexposed)
+        var analysis = new PreferenceBuilder.GenreExposureAnalysis
+        {
+            UnderexposedGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Animation", "Horror" },
+            DominantGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Action", "SciFi", "Adventure" },
+            AveragePreferenceWeight = 0.4,
+            GenrePreferences = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Action", 1.0 },
+                { "SciFi", 0.7 },
+                { "Adventure", 0.5 },
+                { "Drama", 0.3 },
+                { "Animation", 0.02 },
+                { "Horror", 0.01 }
+            },
+            IsValid = true
+        };
+
+        // "Spider-Man: Into the Spider-Verse" — Animation + Action + Adventure
+        var (underexposure, dominance, gap) =
+            PreferenceBuilder.ComputeGenreExposureFeatures(new[] { "Animation", "Action", "Adventure" }, analysis);
+
+        // 1/3 genres (Animation) is underexposed
+        Assert.Equal(1.0 / 3.0, underexposure, 4);
+        // 2/3 genres (Action, Adventure) are dominant
+        Assert.Equal(2.0 / 3.0, dominance, 4);
+        // Candidate avg weight = (0.02 + 1.0 + 0.5) / 3 ≈ 0.507 > avg 0.4 → gap = 0
+        Assert.Equal(0.0, gap, 4);
+    }
+
+    [Fact]
+    public void ComputeGenreExposureFeatures_PureAnimationFilm_HighUnderexposure()
+    {
+        // Pure animation film for an action user — strong underexposure signal
+        var analysis = new PreferenceBuilder.GenreExposureAnalysis
+        {
+            UnderexposedGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Animation", "Family" },
+            DominantGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Action", "SciFi", "Thriller" },
+            AveragePreferenceWeight = 0.5,
+            GenrePreferences = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Action", 1.0 },
+                { "SciFi", 0.8 },
+                { "Thriller", 0.6 },
+                { "Animation", 0.01 },
+                { "Family", 0.01 }
+            },
+            IsValid = true
+        };
+
+        // "Frozen" — Animation + Family
+        var (underexposure, dominance, gap) =
+            PreferenceBuilder.ComputeGenreExposureFeatures(new[] { "Animation", "Family" }, analysis);
+
+        Assert.Equal(1.0, underexposure); // Both genres are underexposed
+        Assert.Equal(0.0, dominance); // Neither genre is in top-3
+        Assert.True(gap > 0.5, $"AffinityGap should be high for pure animation, got {gap:F4}");
+    }
+
+    [Fact]
+    public void ComputeGenreExposureFeatures_CaseInsensitive()
+    {
+        var analysis = new PreferenceBuilder.GenreExposureAnalysis
+        {
+            UnderexposedGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "animation" },
+            DominantGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ACTION" },
+            AveragePreferenceWeight = 0.5,
+            GenrePreferences = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "action", 1.0 },
+                { "animation", 0.01 }
+            },
+            IsValid = true
+        };
+
+        var (underexposure, dominance, _) =
+            PreferenceBuilder.ComputeGenreExposureFeatures(new[] { "Animation", "Action" }, analysis);
+
+        Assert.Equal(0.5, underexposure, 4); // 1/2 underexposed (case-insensitive match)
+        Assert.Equal(0.5, dominance, 4); // 1/2 dominant (case-insensitive match)
+    }
+
+    [Fact]
+    public void GenreExposureFeatures_DefaultToZero_InCandidateFeatures()
+    {
+        // Verify that new features default to 0 in CandidateFeatures
+        var features = new CandidateFeatures();
+        Assert.Equal(0.0, features.GenreUnderexposure);
+        Assert.Equal(0.0, features.GenreDominanceRatio);
+        Assert.Equal(0.0, features.GenreAffinityGap);
+    }
+
+    [Fact]
+    public void GenreExposureFeatures_ClampToZeroOne()
+    {
+        var features = new CandidateFeatures
+        {
+            GenreUnderexposure = 1.5,
+            GenreDominanceRatio = -0.5,
+            GenreAffinityGap = 2.0
+        };
+
+        Assert.Equal(1.0, features.GenreUnderexposure);
+        Assert.Equal(0.0, features.GenreDominanceRatio);
+        Assert.Equal(1.0, features.GenreAffinityGap);
+    }
+
+    [Fact]
+    public void GenreExposureFeatures_InFeatureVector_AtCorrectIndices()
+    {
+        var features = new CandidateFeatures
+        {
+            GenreUnderexposure = 0.33,
+            GenreDominanceRatio = 0.67,
+            GenreAffinityGap = 0.5
+        };
+
+        var vector = features.ToVector();
+
+        Assert.Equal(0.33, vector[(int)FeatureIndex.GenreUnderexposure], 10);
+        Assert.Equal(0.67, vector[(int)FeatureIndex.GenreDominanceRatio], 10);
+        Assert.Equal(0.5, vector[(int)FeatureIndex.GenreAffinityGap], 10);
+    }
+
+    [Fact]
+    public void DefaultWeights_GenreExposure_HasCorrectValues()
+    {
+        var weights = DefaultWeights.CreateWeightArray();
+
+        Assert.Equal(-0.08, weights[(int)FeatureIndex.GenreUnderexposure], 10);
+        Assert.Equal(0.10, weights[(int)FeatureIndex.GenreDominanceRatio], 10);
+        Assert.Equal(-0.05, weights[(int)FeatureIndex.GenreAffinityGap], 10);
+    }
 }
