@@ -595,6 +595,11 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
             // Graceful fallback to defaults on I/O error — log for diagnostics
             _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to load state");
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            // Graceful fallback to defaults on access denied — log for diagnostics
+            _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to load state (access denied)");
+        }
         catch (JsonException ex)
         {
             // Graceful fallback to defaults on parse error — log for diagnostics
@@ -647,6 +652,11 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         {
             // Non-critical — log for diagnostics but don't fail
             _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to save state");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            // Non-critical — log for diagnostics but don't fail
+            _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to save state (access denied)");
         }
         catch (JsonException ex)
         {

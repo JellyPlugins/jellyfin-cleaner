@@ -810,6 +810,11 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
             // Graceful fallback to default weights on I/O error — log for diagnostics
             _logger?.LogWarning(ex, "LearnedScoringStrategy: Failed to load weights");
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            // Graceful fallback to default weights on access denied — log for diagnostics
+            _logger?.LogWarning(ex, "LearnedScoringStrategy: Failed to load weights (access denied)");
+        }
         catch (JsonException ex)
         {
             // Graceful fallback to default weights on parse error — log for diagnostics
@@ -860,6 +865,11 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
         {
             // Non-critical — log for diagnostics but don't fail
             _logger?.LogWarning(ex, "LearnedScoringStrategy: Failed to save weights");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            // Non-critical — log for diagnostics but don't fail
+            _logger?.LogWarning(ex, "LearnedScoringStrategy: Failed to save weights (access denied)");
         }
         catch (JsonException ex)
         {

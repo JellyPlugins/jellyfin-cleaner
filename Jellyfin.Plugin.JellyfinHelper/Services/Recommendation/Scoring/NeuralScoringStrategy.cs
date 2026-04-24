@@ -1129,6 +1129,10 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
         {
             _logger?.LogWarning(ex, "NeuralScoringStrategy: Failed to load weights");
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger?.LogWarning(ex, "NeuralScoringStrategy: Failed to load weights (access denied)");
+        }
         catch (JsonException ex)
         {
             _logger?.LogWarning(ex, "NeuralScoringStrategy: Failed to parse weights");
@@ -1176,6 +1180,10 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
         catch (IOException ex)
         {
             _logger?.LogWarning(ex, "NeuralScoringStrategy: Failed to save weights");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger?.LogWarning(ex, "NeuralScoringStrategy: Failed to save weights (access denied)");
         }
         catch (JsonException ex)
         {
