@@ -94,7 +94,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
             var config = Plugin.Instance?.Configuration;
             var alphaMin = config?.EnsembleAlphaMin ?? 0.3;
-            var alphaMax = config?.EnsembleAlphaMax ?? 0.8;
+            var alphaMax = config?.EnsembleAlphaMax ?? EnsembleScoringStrategy.DefaultAlphaMax;
             var genrePenaltyFloor = config?.EnsembleGenrePenaltyFloor ?? 0.10;
 
             var learned = sp.GetRequiredService<LearnedScoringStrategy>();

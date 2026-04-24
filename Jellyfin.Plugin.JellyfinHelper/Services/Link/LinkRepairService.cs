@@ -341,7 +341,10 @@ public class LinkRepairService : ILinkRepairService
                             "LinkRepair",
                             $"[Dry Run] Would repair link file: {fileResult.LinkFilePath} | {fileResult.OriginalTargetPath} -> {newTargetPath}",
                             _logger);
-                        fileResult.Status = LinkFileStatus.Broken;
+                        // Mark as Repaired (not Broken) so dry-run summary correctly reports
+                        // "Would repair: N" instead of inflating the Broken count.
+                        // LinkFileStatus.Repaired covers both actual repairs and dry-run candidates.
+                        fileResult.Status = LinkFileStatus.Repaired;
                     }
                     else
                     {

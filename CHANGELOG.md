@@ -37,7 +37,6 @@ and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin
 - **Trends Tab** — "Largest" and "Recent" sections in the Trends tab were displaying the total size of the library in the tree view instead of the sum of the displayed objects.
 - **Plugin Log** — More precise logs if trash is activated.
 - **Plugin Uninstall** — Uninstalling the plugin did not remove the plugin's data files, which could lead to stale data if the plugin was reinstalled later. Now all plugin-related data files are cleaned up on uninstallation.
-- **Link Repair** — The Link Repair task gave "Repaired" feedback in Dry Run mode, which was misleading. It now correctly indicates "Broken" in Dry Run mode and only "Repaired" when actually activated.
 ---
 
 ## [1.2.1.0] — 2026-04-20

@@ -300,6 +300,12 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
         // precomputedVectors (no shared state), then assigned to instance fields
         // INSIDE the lock below. Score()/ScoreWithExplanation() read these fields
         // under the same lock, so there is no race condition.
+        //
+        // TODO: For stricter cross-validation, standardization statistics should be computed
+        // per-fold (only from the training fold) rather than from all examples. The current
+        // approach leaks validation data into the standardization, making the loss estimate
+        // slightly optimistic. In practice, the impact is minimal for this linear model
+        // because the loss is only used for soft alpha-dampening in the ensemble layer.
         double[]? featureMeans = null;
         double[]? featureStdDevs = null;
 
@@ -749,26 +755,33 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
                     return;
                 }
 
-                _weights = data.Weights;
-                _bias = data.Bias;
-                _trainingGeneration = data.TrainingGeneration;
+                // Lock field assignments for consistency with Score()/Train() which
+                // read these fields under the same lock. While TryLoadWeights() is
+                // currently only called from the constructor (before the object is shared),
+                // the lock ensures correctness if the call site ever changes.
+                lock (_syncRoot)
+                {
+                    _weights = data.Weights;
+                    _bias = data.Bias;
+                    _trainingGeneration = data.TrainingGeneration;
 
-                if (meansValid && stdDevsValid && bothNullOrBothPresent
-                    && (data.FeatureMeans is null || AllFinite(data.FeatureMeans))
-                    && (data.FeatureStdDevs is null || AllFinite(data.FeatureStdDevs)))
-                {
-                    _featureMeans = data.FeatureMeans;
-                    _featureStdDevs = data.FeatureStdDevs;
-                }
-                else
-                {
-                    // Mismatched stats — discard them, scoring will use raw features
-                    _featureMeans = null;
-                    _featureStdDevs = null;
-                    _logger?.LogWarning(
-                        "LearnedScoringStrategy: Discarding mismatched standardization stats (means={MeansLen}, stdDevs={StdDevsLen})",
-                        data.FeatureMeans?.Length ?? -1,
-                        data.FeatureStdDevs?.Length ?? -1);
+                    if (meansValid && stdDevsValid && bothNullOrBothPresent
+                        && (data.FeatureMeans is null || AllFinite(data.FeatureMeans))
+                        && (data.FeatureStdDevs is null || AllFinite(data.FeatureStdDevs)))
+                    {
+                        _featureMeans = data.FeatureMeans;
+                        _featureStdDevs = data.FeatureStdDevs;
+                    }
+                    else
+                    {
+                        // Mismatched stats — discard them, scoring will use raw features
+                        _featureMeans = null;
+                        _featureStdDevs = null;
+                        _logger?.LogWarning(
+                            "LearnedScoringStrategy: Discarding mismatched standardization stats (means={MeansLen}, stdDevs={StdDevsLen})",
+                            data.FeatureMeans?.Length ?? -1,
+                            data.FeatureStdDevs?.Length ?? -1);
+                    }
                 }
             }
             else if (data is not null)
