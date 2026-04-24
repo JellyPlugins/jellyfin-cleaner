@@ -71,6 +71,11 @@ internal static class DiversityReranker
             List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)> candidates,
             int count)
     {
+        if (count <= 0)
+        {
+            return new List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>();
+        }
+
         if (candidates.Count <= count)
         {
             return candidates.OrderByDescending(c => c.Score).ToList();

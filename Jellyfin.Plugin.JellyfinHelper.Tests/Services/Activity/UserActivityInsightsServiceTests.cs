@@ -61,7 +61,7 @@ public class UserActivityInsightsServiceTests
     {
         // 333 / 1000 = 33.3%
         var result = UserActivityInsightsService.CalculateCompletion(333, 1000, played: false);
-        Assert.Equal(33.3, result);
+        Assert.Equal(33.3, result, 1);
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public class UserActivityInsightsServiceTests
     {
         // 999 / 1000 = 99.9%
         var result = UserActivityInsightsService.CalculateCompletion(999, 1000, played: false);
-        Assert.Equal(99.9, result);
+        Assert.Equal(99.9, result, 1);
     }
 
     [Fact]

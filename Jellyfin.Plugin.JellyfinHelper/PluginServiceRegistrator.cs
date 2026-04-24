@@ -18,6 +18,7 @@ using Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyfinHelper;
 
@@ -56,7 +57,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<IArrIntegrationService, ArrIntegrationService>();
         serviceCollection.AddSingleton<ISeerrIntegrationService, SeerrIntegrationService>();
         serviceCollection.AddSingleton<IWatchHistoryService, WatchHistoryService>();
-        serviceCollection.AddSingleton(_ =>
+        serviceCollection.AddSingleton(sp =>
         {
             var dataPath = Plugin.Instance?.DataFolderPath;
             string? weightsPath = null;
@@ -65,9 +66,10 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
                 weightsPath = Path.Join(dataPath, "ml_weights.json");
             }
 
-            return new LearnedScoringStrategy(weightsPath);
+            var logger = sp.GetRequiredService<ILogger<LearnedScoringStrategy>>();
+            return new LearnedScoringStrategy(weightsPath, logger);
         });
-        serviceCollection.AddSingleton(_ =>
+        serviceCollection.AddSingleton(sp =>
         {
             var dataPath = Plugin.Instance?.DataFolderPath;
             string? neuralWeightsPath = null;
@@ -76,7 +78,8 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
                 neuralWeightsPath = Path.Join(dataPath, "neural_weights.json");
             }
 
-            return new NeuralScoringStrategy(neuralWeightsPath);
+            var logger = sp.GetRequiredService<ILogger<NeuralScoringStrategy>>();
+            return new NeuralScoringStrategy(neuralWeightsPath, logger);
         });
         serviceCollection.AddSingleton(_ =>
         {
@@ -93,9 +96,9 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             }
 
             var config = Plugin.Instance?.Configuration;
-            var alphaMin = config?.EnsembleAlphaMin ?? 0.3;
+            var alphaMin = config?.EnsembleAlphaMin ?? EnsembleScoringStrategy.DefaultAlphaMin;
             var alphaMax = config?.EnsembleAlphaMax ?? EnsembleScoringStrategy.DefaultAlphaMax;
-            var genrePenaltyFloor = config?.EnsembleGenrePenaltyFloor ?? 0.10;
+            var genrePenaltyFloor = config?.EnsembleGenrePenaltyFloor ?? EnsembleScoringStrategy.DefaultGenrePenaltyFloor;
 
             var learned = sp.GetRequiredService<LearnedScoringStrategy>();
             var heuristic = sp.GetRequiredService<HeuristicScoringStrategy>();

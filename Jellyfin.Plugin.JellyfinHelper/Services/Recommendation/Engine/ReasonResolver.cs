@@ -148,16 +148,18 @@ internal static class ReasonResolver
         }
 
         return candidate.Genres
-            .Where(g => genrePreferences.ContainsKey(g))
-            .OrderByDescending(g => genrePreferences.GetValueOrDefault(g, 0))
+            .Select(g => (Genre: g, Score: genrePreferences.TryGetValue(g, out var s) ? s : (double?)null))
+            .Where(x => x.Score.HasValue)
+            .OrderByDescending(x => x.Score!.Value)
+            .Select(x => x.Genre)
             .FirstOrDefault();
     }
 
     /// <summary>
     ///     Resolves a concrete person name from the candidate that matches the user's preferred people.
-    ///     Uses the candidate's Studios array as a proxy — people data is not directly available
-    ///     on BaseItem without a library manager query. For named person reasons, the caller
-    ///     can pass a peopleLookup-derived set of preferred people names.
+    ///     Uses the pre-built <paramref name="peopleLookup"/> (item ID → person names) to avoid
+    ///     library-manager queries during scoring. Requires both <paramref name="preferredPeople"/>
+    ///     and <paramref name="peopleLookup"/> to be non-null to return a match.
     ///     Returns the first matching person name, or null if no match or data unavailable.
     /// </summary>
     private static string? ResolveMatchedPerson(

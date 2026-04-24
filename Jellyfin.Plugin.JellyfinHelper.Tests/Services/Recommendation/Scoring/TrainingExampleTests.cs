@@ -91,6 +91,52 @@ public sealed class TrainingExampleTests
     }
 
     // ============================================================
+    // Non-Finite Input Tests (NaN, Infinity)
+    // ============================================================
+
+    [Fact]
+    public void Label_NaN_ClampsToZero()
+    {
+        var example = new TrainingExample { Features = new CandidateFeatures(), Label = double.NaN };
+        Assert.Equal(0.0, example.Label);
+    }
+
+    [Fact]
+    public void Label_PositiveInfinity_ClampsToZero()
+    {
+        var example = new TrainingExample { Features = new CandidateFeatures(), Label = double.PositiveInfinity };
+        Assert.Equal(0.0, example.Label);
+    }
+
+    [Fact]
+    public void Label_NegativeInfinity_ClampsToZero()
+    {
+        var example = new TrainingExample { Features = new CandidateFeatures(), Label = double.NegativeInfinity };
+        Assert.Equal(0.0, example.Label);
+    }
+
+    [Fact]
+    public void SampleWeight_NaN_ClampsToZero()
+    {
+        var example = new TrainingExample { Features = new CandidateFeatures(), SampleWeight = double.NaN };
+        Assert.Equal(0.0, example.SampleWeight);
+    }
+
+    [Fact]
+    public void SampleWeight_PositiveInfinity_ClampsToZero()
+    {
+        var example = new TrainingExample { Features = new CandidateFeatures(), SampleWeight = double.PositiveInfinity };
+        Assert.Equal(0.0, example.SampleWeight);
+    }
+
+    [Fact]
+    public void SampleWeight_NegativeInfinity_ClampsToZero()
+    {
+        var example = new TrainingExample { Features = new CandidateFeatures(), SampleWeight = double.NegativeInfinity };
+        Assert.Equal(0.0, example.SampleWeight);
+    }
+
+    // ============================================================
     // ComputeTemporalWeight Tests
     // ============================================================
 

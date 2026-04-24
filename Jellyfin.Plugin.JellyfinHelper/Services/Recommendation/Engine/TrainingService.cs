@@ -501,9 +501,12 @@ internal sealed class TrainingService
             if (oldExamples.Count > 0)
             {
                 var rng = Random.Shared;
-                var sampleCount = Math.Max(1, (int)(oldExamples.Count * EngineConstants.IncrementalOldSampleRatio));
+                var sampleCount = Math.Clamp(
+                    (int)(oldExamples.Count * EngineConstants.IncrementalOldSampleRatio),
+                    1,
+                    oldExamples.Count);
 
-                for (var i = 0; i < Math.Min(sampleCount, oldExamples.Count); i++)
+                for (var i = 0; i < sampleCount; i++)
                 {
                     var j = rng.Next(i, oldExamples.Count);
                     (oldExamples[i], oldExamples[j]) = (oldExamples[j], oldExamples[i]);

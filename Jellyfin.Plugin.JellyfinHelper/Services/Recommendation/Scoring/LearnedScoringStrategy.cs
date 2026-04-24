@@ -60,6 +60,9 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
     /// <summary>Early stopping improvement threshold (avoids triggering on noise).</summary>
     internal const double EarlyStoppingMinDelta = 1e-6;
 
+    /// <summary>Maximum epochs when early stopping is disabled (fewer epochs to avoid overfitting on small datasets).</summary>
+    internal const int MaxEpochsWithoutEarlyStopping = 15;
+
     /// <summary>
     ///     Minimum number of examples before Z-score standardization is applied.
     ///     Below this threshold, raw features are used to avoid unstable statistics.
@@ -581,7 +584,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
         var bestWeights = (double[])_weights.Clone();
         var bestBias = _bias;
 
-        var maxEpochs = useEarlyStopping ? MaxTrainingEpochs : Math.Min(MaxTrainingEpochs, 15);
+        var maxEpochs = useEarlyStopping ? MaxTrainingEpochs : MaxEpochsWithoutEarlyStopping;
 
         for (var epoch = 0; epoch < maxEpochs; epoch++)
         {
