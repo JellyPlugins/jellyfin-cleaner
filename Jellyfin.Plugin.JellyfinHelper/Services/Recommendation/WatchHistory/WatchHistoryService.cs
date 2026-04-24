@@ -77,7 +77,7 @@ public sealed class WatchHistoryService : IWatchHistoryService
             {
                 profiles.Add(BuildProfile(user, allItems, allSeries));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
             {
                 _pluginLog.LogWarning(
                     "WatchHistory",

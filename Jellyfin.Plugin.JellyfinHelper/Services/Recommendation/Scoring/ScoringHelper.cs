@@ -126,7 +126,10 @@ internal static class ScoringHelper
         var studioContrib = GetContribution(vector, weights, FeatureIndex.StudioMatch);
 
         // Interaction + minor features (genreCount, isSeries, genre×rating, genre×collab, completionRatio, isAbandoned, hasInteraction, seriesProgression, popularity, dayOfWeek, hourOfDay, isWeekend, tagSimilarity)
-        var interactionContrib = GuardScore(
+        // Each GetContribution already returns 0.0 for non-finite products, so the sum should
+        // always be finite. Use 0.0 (not NaNFallbackScore) as defensive fallback to avoid
+        // injecting a neutral-looking 0.5 into an additive contribution term.
+        var interactionSum =
             GetContribution(vector, weights, FeatureIndex.GenreCountNormalized) +
             GetContribution(vector, weights, FeatureIndex.IsSeries) +
             GetContribution(vector, weights, FeatureIndex.GenreRatingInteraction) +
@@ -141,7 +144,8 @@ internal static class ScoringHelper
             GetContribution(vector, weights, FeatureIndex.IsWeekend) +
             GetContribution(vector, weights, FeatureIndex.TagSimilarity) +
             GetContribution(vector, weights, FeatureIndex.PeopleGenreInteraction) +
-            GetContribution(vector, weights, FeatureIndex.RecencyRatingInteraction));
+            GetContribution(vector, weights, FeatureIndex.RecencyRatingInteraction);
+        var interactionContrib = double.IsFinite(interactionSum) ? interactionSum : 0.0;
 
         // Compute FinalScore from the sum of contributions + bias instead of re-calling
         // ComputeRawScore. This ensures FinalScore is always consistent with the individual

@@ -76,11 +76,22 @@ internal static class PreferenceBuilder
         // Merge GenreDistribution as base weights for genres not covered by WatchedItems.
         // This ensures backward compatibility and catches genres from items whose
         // WatchedItemInfo has no Genres array (e.g. episodes inheriting parent series genres).
-        foreach (var (genre, count) in profile.GenreDistribution)
+        // Counts are scaled into the same 0–1 dynamic range as watch-derived weights
+        // so they supplement rather than dominate after normalization.
+        if (profile.GenreDistribution.Count > 0)
         {
-            if (!vector.ContainsKey(genre) && count > 0)
+            var maxCount = profile.GenreDistribution.Values.Max();
+            if (maxCount > 0)
             {
-                vector[genre] = count;
+                foreach (var (genre, count) in profile.GenreDistribution)
+                {
+                    if (string.IsNullOrWhiteSpace(genre) || count <= 0 || vector.ContainsKey(genre))
+                    {
+                        continue;
+                    }
+
+                    vector[genre] = (double)count / maxCount;
+                }
             }
         }
 

@@ -13,7 +13,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Activity;
 ///     as <see cref="Recommendation.RecommendationCacheService" />.
 ///     Cache is refreshed each time the scheduled task runs.
 /// </summary>
-public class UserActivityCacheService : IUserActivityCacheService
+public sealed class UserActivityCacheService : IUserActivityCacheService
 {
     private const string CacheFileName = "jellyfin-helper-useractivity-latest.json";
 

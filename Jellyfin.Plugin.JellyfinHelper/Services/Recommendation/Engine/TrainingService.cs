@@ -118,6 +118,8 @@ internal sealed class TrainingService
 
         foreach (var prevResult in previousResults)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (!profileLookup.TryGetValue(prevResult.UserId, out var watchedIds))
             {
                 continue;
@@ -319,6 +321,8 @@ internal sealed class TrainingService
         var organicCount = 0;
         foreach (var userProfile in allProfiles)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var (genrePreferences, coOccurrence, collaborativeMax, avgYear) = perUserCache[userProfile.UserId];
 
             // Resolve the per-user recommended set; users with no previous results get an empty set
