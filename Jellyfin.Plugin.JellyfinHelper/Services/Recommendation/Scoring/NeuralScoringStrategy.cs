@@ -80,7 +80,7 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
     internal const int MaxEpochsWithoutEarlyStopping = 20;
 
     /// <summary>Schema version for persisted weights. Increment on architecture changes.</summary>
-    internal const int CurrentWeightsVersion = 5;
+    internal const int CurrentWeightsVersion = 6;
 
     /// <summary>Legacy constant kept for backward compatibility with tests. Maps to <see cref="Hidden3Size"/>.</summary>
     internal const int HiddenSize = Hidden3Size;

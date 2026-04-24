@@ -76,6 +76,31 @@ public enum FeatureIndex
 
     /// <summary>Recency × Rating interaction: new + highly rated = trending content.</summary>
     RecencyRatingInteraction = 22,
+
+    /// <summary>
+    ///     Genre underexposure ratio (0–1). Fraction of the candidate's genres that fall
+    ///     in the bottom tier of the user's watch distribution (below 2% watch share).
+    ///     0 = all candidate genres are regularly watched, 1 = all candidate genres are rarely watched.
+    ///     Defaults to 0 (neutral) when watch history is too small (&lt; 30 items).
+    /// </summary>
+    GenreUnderexposure = 23,
+
+    /// <summary>
+    ///     Genre dominance ratio (0–1). Fraction of the candidate's genres that appear
+    ///     in the user's top-3 most-watched genres.
+    ///     0 = no overlap with core genres, 1 = all candidate genres are in the user's top-3.
+    ///     Defaults to 0 (neutral) when watch history is too small (&lt; 30 items).
+    /// </summary>
+    GenreDominanceRatio = 24,
+
+    /// <summary>
+    ///     Genre affinity gap (0–1). How far below the user's average genre preference
+    ///     the candidate's genres are. Measures the "distance from comfort zone."
+    ///     0 = candidate genres are at or above the user's average preference,
+    ///     1 = candidate genres are far below the user's average.
+    ///     Defaults to 0 (neutral) when watch history is too small (&lt; 30 items).
+    /// </summary>
+    GenreAffinityGap = 25,
 }
 
 /// <summary>
@@ -87,7 +112,7 @@ public sealed class CandidateFeatures
     /// <summary>
     ///     The number of features produced by <see cref="ToVector"/>.
     /// </summary>
-    public const int FeatureCount = 23;
+    public const int FeatureCount = 26;
 
     /// <summary>
     ///     Normalization ceiling for genre count (items with ≥ this many genres map to 1.0).
@@ -114,6 +139,9 @@ public sealed class CandidateFeatures
     private double _dayOfWeekAffinity;
     private double _hourOfDayAffinity;
     private double _tagSimilarity;
+    private double _genreUnderexposure;
+    private double _genreDominanceRatio;
+    private double _genreAffinityGap;
 
     /// <summary>Gets or sets the genre similarity score (0–1). Values are clamped to [0, 1]; NaN defaults to 0.</summary>
     public double GenreSimilarity
@@ -222,6 +250,44 @@ public sealed class CandidateFeatures
     }
 
     /// <summary>
+    ///     Gets or sets the genre underexposure ratio (0–1).
+    ///     Fraction of the candidate's genres that fall in the bottom tier of the user's
+    ///     watch distribution (below the underexposure threshold, typically 2% watch share).
+    ///     0 = all candidate genres are regularly watched, 1 = all candidate genres are rarely watched.
+    ///     Defaults to 0 (neutral) when watch history is too small.
+    /// </summary>
+    public double GenreUnderexposure
+    {
+        get => _genreUnderexposure;
+        set => _genreUnderexposure = Clamp01(value);
+    }
+
+    /// <summary>
+    ///     Gets or sets the genre dominance ratio (0–1).
+    ///     Fraction of the candidate's genres that appear in the user's top-3 most-watched genres.
+    ///     0 = no overlap with core genres, 1 = all candidate genres are in the user's top-3.
+    ///     Defaults to 0 (neutral) when watch history is too small.
+    /// </summary>
+    public double GenreDominanceRatio
+    {
+        get => _genreDominanceRatio;
+        set => _genreDominanceRatio = Clamp01(value);
+    }
+
+    /// <summary>
+    ///     Gets or sets the genre affinity gap (0–1).
+    ///     How far below the user's average genre preference the candidate's genres are.
+    ///     0 = candidate genres are at or above the user's average preference,
+    ///     1 = candidate genres are far below the user's average.
+    ///     Defaults to 0 (neutral) when watch history is too small.
+    /// </summary>
+    public double GenreAffinityGap
+    {
+        get => _genreAffinityGap;
+        set => _genreAffinityGap = Clamp01(value);
+    }
+
+    /// <summary>
     ///     Clamps a value to [0, 1], returning <paramref name="defaultWhenNaN"/> if the value is NaN or Infinity.
     ///     Math.Clamp does not normalize NaN — it preserves it — so this helper prevents
     ///     NaN from flowing into interaction terms and poisoning learned/neural scoring.
@@ -283,5 +349,8 @@ public sealed class CandidateFeatures
         buffer[(int)FeatureIndex.TagSimilarity] = TagSimilarity;
         buffer[(int)FeatureIndex.PeopleGenreInteraction] = PeopleSimilarity * GenreSimilarity;
         buffer[(int)FeatureIndex.RecencyRatingInteraction] = RecencyScore * RatingScore;
+        buffer[(int)FeatureIndex.GenreUnderexposure] = GenreUnderexposure;
+        buffer[(int)FeatureIndex.GenreDominanceRatio] = GenreDominanceRatio;
+        buffer[(int)FeatureIndex.GenreAffinityGap] = GenreAffinityGap;
     }
 }

@@ -133,6 +133,31 @@ public static class DefaultWeights
     /// </summary>
     public const double RecencyRatingInteraction = 0.03;
 
+    /// <summary>
+    ///     Negative weight for genre underexposure signal.
+    ///     Items whose genres the user rarely watches receive a soft penalty.
+    ///     Deliberately mild (-0.08) to avoid over-penalizing genres the user
+    ///     simply hasn't explored yet — "rarely watched" ≠ "disliked".
+    /// </summary>
+    public const double GenreUnderexposure = -0.08;
+
+    /// <summary>
+    ///     Positive weight for genre dominance ratio signal.
+    ///     Items matching the user's core genres (top-3) get a boost.
+    ///     Complements GenreSimilarity with a "strength of preference" signal
+    ///     rather than just "breadth of match".
+    /// </summary>
+    public const double GenreDominanceRatio = 0.10;
+
+    /// <summary>
+    ///     Negative weight for genre affinity gap signal.
+    ///     Items whose genres are well below the user's average preference weight
+    ///     receive a soft penalty. Measures "distance from comfort zone."
+    ///     Mild negative weight (-0.05) because a large gap might just mean
+    ///     the user hasn't discovered the genre yet.
+    /// </summary>
+    public const double GenreAffinityGap = -0.05;
+
     /// <summary>Default bias term for the learned strategy.</summary>
     public const double Bias = 0.05;
 
@@ -166,6 +191,9 @@ public static class DefaultWeights
         weights[(int)FeatureIndex.TagSimilarity] = TagSimilarity;
         weights[(int)FeatureIndex.PeopleGenreInteraction] = PeopleGenreInteraction;
         weights[(int)FeatureIndex.RecencyRatingInteraction] = RecencyRatingInteraction;
+        weights[(int)FeatureIndex.GenreUnderexposure] = GenreUnderexposure;
+        weights[(int)FeatureIndex.GenreDominanceRatio] = GenreDominanceRatio;
+        weights[(int)FeatureIndex.GenreAffinityGap] = GenreAffinityGap;
         return weights;
     }
 }

@@ -35,7 +35,7 @@ public sealed class ScoringStrategyTests : IDisposable
     // ============================================================
 
     [Fact]
-    public void CandidateFeatures_ToVector_Returns23Elements()
+    public void CandidateFeatures_ToVector_ReturnsCorrectValues()
     {
         var features = new CandidateFeatures
         {
@@ -57,7 +57,7 @@ public sealed class ScoringStrategyTests : IDisposable
 
         var vector = features.ToVector();
 
-        Assert.Equal(23, vector.Length);
+        Assert.Equal(CandidateFeatures.FeatureCount, vector.Length);
         Assert.Equal(0.8, vector[0]); // genre
         Assert.Equal(0.5, vector[1]); // collab
         Assert.Equal(0.7, vector[2]); // rating
@@ -81,11 +81,11 @@ public sealed class ScoringStrategyTests : IDisposable
     }
 
     [Fact]
-    public void CandidateFeatures_ToVector_SeriesFlag()
+    public void CandidateFeatures_ToVector_Returns26Elements()
     {
-        var features = new CandidateFeatures { IsSeries = true };
+        var features = new CandidateFeatures();
         var vector = features.ToVector();
-        Assert.Equal(1.0, vector[6]);
+        Assert.Equal(26, vector.Length);
     }
 
     [Fact]

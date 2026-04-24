@@ -105,7 +105,8 @@ internal sealed class TrainingService
             Dictionary<string, double> GenrePreferences,
             Dictionary<Guid, double> CoOccurrence,
             double CollaborativeMax,
-            double AvgYear)>();
+            double AvgYear,
+            PreferenceBuilder.GenreExposureAnalysis GenreExposure)>();
 
         foreach (var profile in allProfiles)
         {
@@ -113,7 +114,8 @@ internal sealed class TrainingService
             var co = CollaborativeFilter.BuildCollaborativeMap(profile, allProfiles, precomputedUserSets);
             var cm = co.Count > 0 ? co.Values.Max() : 0;
             var ay = ContentScoring.ComputeAverageYear(profile);
-            perUserCache[profile.UserId] = (gp, co, cm, ay);
+            var ge = PreferenceBuilder.BuildGenreExposureAnalysis(gp, profile);
+            perUserCache[profile.UserId] = (gp, co, cm, ay, ge);
         }
 
         foreach (var prevResult in previousResults)

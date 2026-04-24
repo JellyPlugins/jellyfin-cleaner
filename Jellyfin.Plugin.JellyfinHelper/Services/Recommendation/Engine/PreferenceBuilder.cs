@@ -242,4 +242,158 @@ internal static class PreferenceBuilder
 
         return people;
     }
+
+    /// <summary>
+    ///     Builds the genre exposure analysis for a user. This is computed once per user
+    ///     and reused for all candidate items to avoid redundant computation.
+    ///     Returns a neutral (invalid) analysis when the user has insufficient watch history.
+    /// </summary>
+    /// <param name="genrePreferences">The user's normalized genre preference vector from <see cref="BuildGenrePreferenceVector"/>.</param>
+    /// <param name="profile">The user's watch profile.</param>
+    /// <returns>A reusable genre exposure analysis.</returns>
+    internal static GenreExposureAnalysis BuildGenreExposureAnalysis(
+        Dictionary<string, double> genrePreferences,
+        UserWatchProfile profile)
+    {
+        // Insufficient history → all features default to 0 (neutral)
+        if (profile.WatchedItems.Count < EngineConstants.MinWatchCountForGenreExposure
+            || genrePreferences.Count == 0)
+        {
+            return new GenreExposureAnalysis
+            {
+                UnderexposedGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                DominantGenres = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                AveragePreferenceWeight = 0,
+                GenrePreferences = genrePreferences,
+                IsValid = false
+            };
+        }
+
+        // Compute total genre weight for share calculation
+        var totalWeight = 0.0;
+        foreach (var weight in genrePreferences.Values)
+        {
+            totalWeight += weight;
+        }
+
+        // Identify underexposed genres: those with < threshold share of total weight
+        var underexposed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (totalWeight > 0)
+        {
+            foreach (var (genre, weight) in genrePreferences)
+            {
+                if (weight / totalWeight < EngineConstants.GenreUnderexposureThreshold)
+                {
+                    underexposed.Add(genre);
+                }
+            }
+        }
+
+        // Identify top-N dominant genres by preference weight
+        var dominant = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var sortedGenres = genrePreferences
+            .OrderByDescending(kvp => kvp.Value)
+            .Take(EngineConstants.GenreDominanceTopN);
+        foreach (var kvp in sortedGenres)
+        {
+            dominant.Add(kvp.Key);
+        }
+
+        // Average preference weight across all genres
+        var avgWeight = totalWeight / genrePreferences.Count;
+
+        return new GenreExposureAnalysis
+        {
+            UnderexposedGenres = underexposed,
+            DominantGenres = dominant,
+            AveragePreferenceWeight = avgWeight,
+            GenrePreferences = genrePreferences,
+            IsValid = true
+        };
+    }
+
+    /// <summary>
+    ///     Computes the three genre exposure features for a single candidate item.
+    ///     Uses a pre-built <see cref="GenreExposureAnalysis"/> to avoid redundant computation.
+    ///     All three features are soft, continuous values in [0, 1] — they never hard-block
+    ///     any genre, only provide graduated signals that the ML models can learn to weight.
+    /// </summary>
+    /// <param name="candidateGenres">The genres of the candidate item.</param>
+    /// <param name="analysis">The pre-built genre exposure analysis for the user.</param>
+    /// <returns>A tuple of (underexposure, dominanceRatio, affinityGap) all in [0, 1].</returns>
+    internal static (double Underexposure, double DominanceRatio, double AffinityGap) ComputeGenreExposureFeatures(
+        IReadOnlyList<string> candidateGenres,
+        GenreExposureAnalysis analysis)
+    {
+        // Insufficient data or no candidate genres → all neutral
+        if (!analysis.IsValid || candidateGenres.Count == 0)
+        {
+            return (0.0, 0.0, 0.0);
+        }
+
+        var underexposedCount = 0;
+        var dominantCount = 0;
+        var candidateWeightSum = 0.0;
+
+        foreach (var genre in candidateGenres)
+        {
+            if (analysis.UnderexposedGenres.Contains(genre))
+            {
+                underexposedCount++;
+            }
+
+            if (analysis.DominantGenres.Contains(genre))
+            {
+                dominantCount++;
+            }
+
+            // Look up the user's preference weight for this genre (0 if never watched)
+            analysis.GenrePreferences.TryGetValue(genre, out var weight);
+            candidateWeightSum += weight;
+        }
+
+        // GenreUnderexposure: fraction of candidate genres that are underexposed
+        var underexposure = (double)underexposedCount / candidateGenres.Count;
+
+        // GenreDominanceRatio: fraction of candidate genres in user's top-N
+        var dominanceRatio = (double)dominantCount / candidateGenres.Count;
+
+        // GenreAffinityGap: how far below the user's average the candidate's genres are
+        // Candidate average weight vs. user's overall average weight
+        var candidateAvgWeight = candidateWeightSum / candidateGenres.Count;
+        var affinityGap = 0.0;
+        if (analysis.AveragePreferenceWeight > 0 && candidateAvgWeight < analysis.AveragePreferenceWeight)
+        {
+            // Normalize: 0 = at average, 1 = zero weight (complete gap)
+            affinityGap = 1.0 - (candidateAvgWeight / analysis.AveragePreferenceWeight);
+        }
+
+        return (
+            Math.Clamp(underexposure, 0.0, 1.0),
+            Math.Clamp(dominanceRatio, 0.0, 1.0),
+            Math.Clamp(affinityGap, 0.0, 1.0));
+    }
+
+    /// <summary>
+    ///     Pre-computed genre exposure analysis for a user, reusable across all candidate items.
+    ///     Built once per user by <see cref="BuildGenreExposureAnalysis"/> and passed to
+    ///     <see cref="ComputeGenreExposureFeatures"/> for each candidate.
+    /// </summary>
+    internal sealed class GenreExposureAnalysis
+    {
+        /// <summary>Gets the set of underexposed genres (below threshold watch share).</summary>
+        internal required HashSet<string> UnderexposedGenres { get; init; }
+
+        /// <summary>Gets the user's top-N dominant genres by watch count.</summary>
+        internal required HashSet<string> DominantGenres { get; init; }
+
+        /// <summary>Gets the average preference weight across all genres.</summary>
+        internal required double AveragePreferenceWeight { get; init; }
+
+        /// <summary>Gets the full genre preference vector for per-genre weight lookups.</summary>
+        internal required Dictionary<string, double> GenrePreferences { get; init; }
+
+        /// <summary>Gets a value indicating whether the analysis is valid (user has enough history).</summary>
+        internal required bool IsValid { get; init; }
+    }
 }

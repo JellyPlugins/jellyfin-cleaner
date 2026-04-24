@@ -346,6 +346,7 @@ public sealed class Engine : IRecommendationEngine
         var preferredStudios = PreferenceBuilder.BuildStudioPreferenceSet(userProfile, candidateLookup);
         var preferredPeople = PreferenceBuilder.BuildPeoplePreferenceSet(userProfile, peopleLookup);
         var preferredTags = PreferenceBuilder.BuildTagPreferenceSet(userProfile, candidateLookup);
+        var genreExposure = PreferenceBuilder.BuildGenreExposureAnalysis(genrePreferences, userProfile);
 
         // Score each unwatched candidate
         var scored = new List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>();
@@ -395,7 +396,8 @@ public sealed class Engine : IRecommendationEngine
                 preferredStudios,
                 preferredPeople,
                 preferredTags,
-                peopleLookup));
+                peopleLookup,
+                genreExposure));
         }
 
         scored = DiversityReranker.DeduplicateSeries(scored);
@@ -456,7 +458,8 @@ public sealed class Engine : IRecommendationEngine
         HashSet<string> preferredStudios,
         HashSet<string> preferredPeople,
         HashSet<string> preferredTags,
-        Dictionary<Guid, HashSet<string>> peopleLookup)
+        Dictionary<Guid, HashSet<string>> peopleLookup,
+        PreferenceBuilder.GenreExposureAnalysis genreExposure)
     {
         var genreScore = SimilarityComputer.ComputeGenreSimilarity(candidate.Genres ?? [], genrePreferences);
         var collabScore = ContentScoring.ComputeCollaborativeScore(candidate.Id, coOccurrence, collaborativeMax);
@@ -529,6 +532,14 @@ public sealed class Engine : IRecommendationEngine
             IsWeekend = DateTime.UtcNow.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday,
             TagSimilarity = SimilarityComputer.ComputeTagSimilarity(candidate, preferredTags)
         };
+
+        // Genre exposure features: soft signals for genre distribution awareness
+        // Computed once per user (genreExposure), applied per candidate (O(genres) per item)
+        var (underexposure, dominanceRatio, affinityGap) =
+            PreferenceBuilder.ComputeGenreExposureFeatures(candidate.Genres ?? [], genreExposure);
+        features.GenreUnderexposure = underexposure;
+        features.GenreDominanceRatio = dominanceRatio;
+        features.GenreAffinityGap = affinityGap;
 
         var explanation = strategy.ScoreWithExplanation(features);
 

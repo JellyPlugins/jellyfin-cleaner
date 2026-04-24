@@ -47,6 +47,28 @@ internal static class EngineConstants
     internal const double YearProximityDenominator = 200.0;
 
     /// <summary>
+    ///     Minimum number of watched items required before genre exposure features
+    ///     (GenreUnderexposure, GenreDominanceRatio, GenreAffinityGap) are computed.
+    ///     Below this threshold, all three features default to 0 (neutral) to avoid
+    ///     drawing conclusions from insufficient data.
+    /// </summary>
+    internal const int MinWatchCountForGenreExposure = 30;
+
+    /// <summary>
+    ///     Genre watch share threshold below which a genre is considered "underexposed."
+    ///     A genre representing less than 2% of the user's total watches is rarely watched.
+    ///     This is deliberately low to avoid penalizing genres that the user watches
+    ///     occasionally — only genres with very minimal or zero presence are flagged.
+    /// </summary>
+    internal const double GenreUnderexposureThreshold = 0.02;
+
+    /// <summary>
+    ///     Number of top genres to consider as the user's "dominant" genres.
+    ///     The GenreDominanceRatio feature measures overlap with these top-N genres.
+    /// </summary>
+    internal const int GenreDominanceTopN = 3;
+
+    /// <summary>
     ///     Maximum allowed recommendations per user (upper clamp for input validation).
     ///     Distinct from <c>PluginConfiguration.MaxRecommendationsPerUser</c> which is the
     ///     user-chosen value (default 20). This constant defines the hard upper bound.
