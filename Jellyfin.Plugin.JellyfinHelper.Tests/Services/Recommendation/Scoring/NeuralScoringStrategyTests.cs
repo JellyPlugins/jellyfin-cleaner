@@ -1,4 +1,6 @@
-﻿using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
+﻿using System.IO;
+using System.Security;
+using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Recommendation.Scoring;
@@ -20,9 +22,16 @@ public sealed class NeuralScoringStrategyTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_tempDir))
+        try
         {
-            Directory.Delete(_tempDir, true);
+            if (Directory.Exists(_tempDir))
+            {
+                Directory.Delete(_tempDir, true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
+        {
+            // Best effort — directory may be locked or already removed on CI.
         }
     }
 

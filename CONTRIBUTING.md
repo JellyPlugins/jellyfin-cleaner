@@ -22,7 +22,7 @@ Thank you for your interest in contributing! This guide covers everything you ne
 ### Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- [Jellyfin Server 10.10.x](https://jellyfin.org/docs/general/administration/installing) (for runtime testing)
+- [Jellyfin Server 10.11.x](https://jellyfin.org/docs/general/administration/installing) (for runtime testing)
 - Recommended: [JetBrains Rider](https://www.jetbrains.com/rider/) or [Visual Studio 2022+](https://visualstudio.microsoft.com/)
 - Recommended: [Node.js 18+](https://nodejs.org/) (for JavaScript linting)
 

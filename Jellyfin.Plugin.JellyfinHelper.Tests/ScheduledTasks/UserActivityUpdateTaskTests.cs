@@ -63,10 +63,8 @@ public class UserActivityUpdateTaskTests
         // Act
         await sut.ExecuteAsync(progress.Object, CancellationToken.None);
 
-        // Assert — progress should include 10, 80, 100
-        Assert.Contains(10.0, reportedValues);
-        Assert.Contains(80.0, reportedValues);
-        Assert.Contains(100.0, reportedValues);
+        // Assert — progress is reported monotonically: 10, 80, 100
+        Assert.Equal(new[] { 10.0, 80.0, 100.0 }, reportedValues);
     }
 
     [Fact]

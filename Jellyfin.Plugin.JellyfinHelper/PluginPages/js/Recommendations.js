@@ -107,9 +107,13 @@ function renderRecommendationCard(rec, rank) {
     html += '<div class="recs-item-reason"><span class="recs-reason-label">' + T('recsReason', 'Why') + ':</span> ';
     var reasonText = rec.ReasonKey ? T(rec.ReasonKey, rec.Reason || '') : (rec.Reason || T('recsReasonGeneric', 'Based on your viewing history'));
     // Replace {0}, {1}, ... placeholders with parts from RelatedItemName (split on " | ")
+    // Uses a single-pass regex to prevent cascading replacements when a part contains "{1}" etc.
     if (rec.RelatedItemName) {
         var parts = rec.RelatedItemName.split(' | ');
-        for (var p = 0; p < parts.length; p++) { reasonText = reasonText.split('{' + p + '}').join(parts[p]); }
+        reasonText = reasonText.replace(/\{(\d+)\}/g, function (m, idx) {
+            var i = parseInt(idx, 10);
+            return (i >= 0 && i < parts.length) ? parts[i] : m;
+        });
     }
     html += escHtml(reasonText) + '</div>';
     html += '<div class="recs-item-score ' + scoreClass + '"><div class="recs-score-bar" style="width:' + scorePercent + '%"></div>';

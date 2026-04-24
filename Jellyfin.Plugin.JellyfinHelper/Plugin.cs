@@ -141,9 +141,8 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             foreach (var dir in Directory.GetDirectories(playlistsPath))
             {
                 var folderName = Path.GetFileName(dir);
-                if (folderName == null
-                    || !folderName.StartsWith(
-                        RecommendationPlaylistService.PlaylistNamePrefix,
+                if (!folderName.StartsWith(
+                        RecommendationPlaylistService.PlaylistNamePrefix + " for ",
                         StringComparison.Ordinal))
                 {
                     continue;

@@ -275,5 +275,9 @@ public class RecommendationControllerTests
         var data = Assert.IsAssignableFrom<List<UserWatchProfile>>(ok.Value);
         Assert.Single(data);
         Assert.Empty(data[0].WatchedItems); // stripped for lean response
+
+        // Verify the source profiles were not mutated (lean copy, not in-place strip)
+        Assert.Single(profiles[0].WatchedItems);
+        Assert.Equal("Movie A", profiles[0].WatchedItems[0].Name);
     }
 }

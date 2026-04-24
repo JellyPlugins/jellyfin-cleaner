@@ -355,9 +355,10 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Match our managed playlists by prefix. This also catches Jellyfin's auto-deduplicated
-            // names like "Recommended for you1", "Recommended for you11", etc.
-            if (playlist.Name == null || !playlist.Name.StartsWith(PlaylistNamePrefix, StringComparison.Ordinal))
+            // Match our managed playlists by prefix + " for " to avoid accidentally matching
+            // user-authored playlists that happen to start with the same emoji prefix.
+            // This also catches Jellyfin's auto-deduplicated names like "...for Alice1", etc.
+            if (playlist.Name == null || !playlist.Name.StartsWith(PlaylistNamePrefix + " for ", StringComparison.Ordinal))
             {
                 continue;
             }

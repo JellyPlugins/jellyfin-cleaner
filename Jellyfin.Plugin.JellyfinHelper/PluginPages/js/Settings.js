@@ -724,6 +724,8 @@ function attachAutoSaveHandlers() {
                                 wrapper.style.opacity = isActive ? '' : '0.5';
                                 wrapper.style.pointerEvents = isActive ? '' : 'none';
                             }
+                            var chk = document.getElementById('cfgSyncPlaylist');
+                            if (chk) chk.disabled = !isActive;
                             var hint = document.querySelector('.playlist-sync-disabled-hint');
                             if (hint) hint.style.display = isActive ? 'none' : '';
                         }
