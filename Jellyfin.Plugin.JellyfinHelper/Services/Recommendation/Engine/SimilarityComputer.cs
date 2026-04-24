@@ -184,18 +184,11 @@ internal sealed class SimilarityComputer
             return 0;
         }
 
-        var intersection = 0;
         // Iterate over the smaller set for efficiency
         var (smaller, larger) = candidatePeople.Count <= preferredPeople.Count
             ? (candidatePeople, preferredPeople)
             : (preferredPeople, candidatePeople);
-        foreach (var name in smaller)
-        {
-            if (larger.Contains(name))
-            {
-                intersection++;
-            }
-        }
+        var intersection = smaller.Count(name => larger.Contains(name));
 
         var minSize = Math.Min(candidatePeople.Count, preferredPeople.Count);
         return minSize > 0 ? (double)intersection / minSize : 0;
@@ -234,16 +227,9 @@ internal sealed class SimilarityComputer
             return 0;
         }
 
-        var intersection = 0;
         // Iterate over the smaller set for efficiency
         var (smaller, larger) = setA.Count <= setB.Count ? (setA, setB) : (setB, setA);
-        foreach (var g in smaller)
-        {
-            if (larger.Contains(g))
-            {
-                intersection++;
-            }
-        }
+        var intersection = smaller.Count(g => larger.Contains(g));
 
         var union = setA.Count + setB.Count - intersection;
         return union > 0 ? (double)intersection / union : 0;
