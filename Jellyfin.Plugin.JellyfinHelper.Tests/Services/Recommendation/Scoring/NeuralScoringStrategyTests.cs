@@ -495,7 +495,7 @@ public sealed class NeuralScoringStrategyTests : IDisposable
     [Fact]
     public void PersistsWeights_ToFile()
     {
-        var weightsPath = Path.Combine(_tempDir, "neural_weights.json");
+        var weightsPath = Path.Join(_tempDir, "neural_weights.json");
         var strategy = new NeuralScoringStrategy(weightsPath);
 
         var examples = GenerateExamples(20);
@@ -519,7 +519,7 @@ public sealed class NeuralScoringStrategyTests : IDisposable
     [Fact]
     public void LoadsWeights_FromFile()
     {
-        var weightsPath = Path.Combine(_tempDir, "neural_weights2.json");
+        var weightsPath = Path.Join(_tempDir, "neural_weights2.json");
 
         var strategy1 = new NeuralScoringStrategy(weightsPath);
         var examples = GenerateExamples(20);
@@ -549,7 +549,7 @@ public sealed class NeuralScoringStrategyTests : IDisposable
     [Fact]
     public void LoadedWeights_ProduceSameScore()
     {
-        var weightsPath = Path.Combine(_tempDir, "neural_weights3.json");
+        var weightsPath = Path.Join(_tempDir, "neural_weights3.json");
 
         var strategy1 = new NeuralScoringStrategy(weightsPath);
         var examples = GenerateExamples(20);
@@ -575,7 +575,7 @@ public sealed class NeuralScoringStrategyTests : IDisposable
     [Fact]
     public void GracefulFallback_OnCorruptFile()
     {
-        var weightsPath = Path.Combine(_tempDir, "corrupt_neural.json");
+        var weightsPath = Path.Join(_tempDir, "corrupt_neural.json");
         File.WriteAllText(weightsPath, "not valid json {{{");
 
         var strategy = new NeuralScoringStrategy(weightsPath);
@@ -598,7 +598,7 @@ public sealed class NeuralScoringStrategyTests : IDisposable
     [Fact]
     public void VersionMismatch_DiscardsWeights()
     {
-        var weightsPath = Path.Combine(_tempDir, "old_version.json");
+        var weightsPath = Path.Join(_tempDir, "old_version.json");
 
         var fakeData = new NeuralScoringStrategy.NeuralWeightsData
         {

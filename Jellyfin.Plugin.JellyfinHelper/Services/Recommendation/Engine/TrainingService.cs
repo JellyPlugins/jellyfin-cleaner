@@ -505,7 +505,7 @@ internal sealed class TrainingService
                 // Organic watches are strong positive signals — label based on completion.
                 // Favorite-only items (not played) get an explicit positive label since
                 // favoriting signals interest even without playback evidence.
-                var label = (!w.Played && w.IsFavorite)
+                var label = !w.Played
                     ? 0.65
                     : ContentScoring.ComputeEngagementLabel(completionRatio);
 
