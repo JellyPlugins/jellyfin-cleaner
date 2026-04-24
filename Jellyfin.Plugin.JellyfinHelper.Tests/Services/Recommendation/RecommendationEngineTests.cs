@@ -577,10 +577,10 @@ public class RecommendationEngineTests
         // Action should be boosted (temporal weight + favorite boost + PlayCount boost)
         // Comedy comes from GenreDistribution fallback (count=5)
         // Both should be present; Action should have a higher weight than Comedy after normalization
-        Assert.True(vector.ContainsKey("Action"), "Action should be in vector");
-        Assert.True(vector.ContainsKey("Comedy"), "Comedy should be in vector");
-        Assert.True(vector["Action"] > vector["Comedy"],
-            $"Action ({vector["Action"]:F4}) should be higher than Comedy ({vector["Comedy"]:F4}) due to favorite boost");
+        Assert.True(vector.TryGetValue("Action", out var actionWeight), "Action should be in vector");
+        Assert.True(vector.TryGetValue("Comedy", out var comedyWeight), "Comedy should be in vector");
+        Assert.True(actionWeight > comedyWeight,
+            $"Action ({actionWeight:F4}) should be higher than Comedy ({comedyWeight:F4}) due to favorite boost");
     }
 
     [Fact]
@@ -652,8 +652,8 @@ public class RecommendationEngineTests
 
         // uniqueItem should have accumulated Jaccard weight from both other users
         // Each user shares 3/4 items with user → Jaccard = 0.75, total = 1.5
-        Assert.True(map.ContainsKey(uniqueItem));
-        Assert.Equal(1.5, map[uniqueItem], 4);
+        Assert.True(map.TryGetValue(uniqueItem, out var uniqueItemScore));
+        Assert.Equal(1.5, uniqueItemScore, 4);
     }
 
     // â”€â”€ PeopleSimilarity Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

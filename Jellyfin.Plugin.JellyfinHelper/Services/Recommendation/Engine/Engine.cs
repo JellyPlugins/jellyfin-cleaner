@@ -286,14 +286,11 @@ public sealed class Engine : IRecommendationEngine
             IsFolder = false
         });
 
-        var seriesIdsWithEpisodes = new HashSet<Guid>();
-        foreach (var ep in allEpisodes)
-        {
-            if (ep is MediaBrowser.Controller.Entities.TV.Episode episode && episode.SeriesId != Guid.Empty)
-            {
-                seriesIdsWithEpisodes.Add(episode.SeriesId);
-            }
-        }
+        var seriesIdsWithEpisodes = allEpisodes
+            .OfType<MediaBrowser.Controller.Entities.TV.Episode>()
+            .Select(episode => episode.SeriesId)
+            .Where(seriesId => seriesId != Guid.Empty)
+            .ToHashSet();
 
         var skippedSeries = 0;
         foreach (var s in series)
