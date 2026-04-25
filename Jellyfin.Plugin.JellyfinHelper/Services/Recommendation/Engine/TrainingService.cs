@@ -490,7 +490,9 @@ internal sealed class TrainingService
                     continue;
                 }
 
-                // === Standalone items (movies, series-level favorites without episode rows) ===
+                // === Standalone items (movies, series-level favorites without SeriesId) ===
+                // Note: w.SeriesId is guaranteed null here because the if (w.SeriesId.HasValue)
+                // block above always exits with `continue`. Only non-series items reach this point.
                 var collabScore = ContentScoring.ComputeCollaborativeScore(w.ItemId, coOccurrence, collaborativeMax);
                 var ratingScore = ContentScoring.NormalizeRating(w.CommunityRating);
                 // Gate completion fallback on w.Played to avoid mis-labeling favorite-only items
@@ -509,67 +511,31 @@ internal sealed class TrainingService
                     completionRatio = 0.0;
                 }
 
-                // Treat episodes as series-level items when they have a SeriesId.
-                // Organic watch history is typically episode rows, not series rows,
-                // so checking only ItemType == "Series" would miss virtually all organic
-                // series data. By also checking SeriesId, episodes contribute their
-                // series progression boost and IsSeries feature correctly.
-                var isSeries = string.Equals(w.ItemType, "Series", StringComparison.OrdinalIgnoreCase)
-                    || w.SeriesId.HasValue;
-
-                // For series-level lookups, use SeriesId when available (episode rows),
-                // fall back to ItemId (actual series rows from favorites).
-                var seriesLookupId = w.SeriesId ?? w.ItemId;
+                var isSeries = string.Equals(w.ItemType, "Series", StringComparison.OrdinalIgnoreCase);
 
                 // Compute PeopleSimilarity from cached data (organic item may have been previously recommended).
-                // Try both the item's own ID and its SeriesId for people lookup matches.
                 var peopleSimilarity = cachedPeopleLookup.TryGetValue(w.ItemId, out var organicPeople)
                     ? SimilarityComputer.ComputePeopleSimilarity(organicPeople, preferredPeopleOrganic)
-                    : (w.SeriesId.HasValue && cachedPeopleLookup.TryGetValue(w.SeriesId.Value, out var seriesPeople)
-                        ? SimilarityComputer.ComputePeopleSimilarity(seriesPeople, preferredPeopleOrganic)
-                        : 0.0);
+                    : 0.0;
 
-                // Compute StudioMatch — look up organic item in precomputed studio/tag lookups.
-                // Try both the item's own ID and its SeriesId.
+                // Compute StudioMatch and TagSimilarity from precomputed lookups (by item ID only).
                 var studioMatch = false;
                 var tagSimilarity = 0.0;
 
-                // Check item's own ID first, then series ID for studios
-                IReadOnlyList<string>? organicStudios = null;
-                IReadOnlyList<string>? organicTags = null;
-                if (itemStudiosLookup.TryGetValue(w.ItemId, out var s1))
-                {
-                    organicStudios = s1;
-                }
-                else if (w.SeriesId.HasValue && itemStudiosLookup.TryGetValue(w.SeriesId.Value, out var s2))
-                {
-                    organicStudios = s2;
-                }
-
-                if (itemTagsLookup.TryGetValue(w.ItemId, out var t1))
-                {
-                    organicTags = t1;
-                }
-                else if (w.SeriesId.HasValue && itemTagsLookup.TryGetValue(w.SeriesId.Value, out var t2))
-                {
-                    organicTags = t2;
-                }
-
-                if (organicStudios is { Count: > 0 })
+                if (itemStudiosLookup.TryGetValue(w.ItemId, out var organicStudios) && organicStudios.Count > 0)
                 {
                     studioMatch = organicStudios.Any(s => preferredStudiosOrganic.Contains(s));
                 }
 
-                if (organicTags is { Count: > 0 })
+                if (itemTagsLookup.TryGetValue(w.ItemId, out var organicTags) && organicTags.Count > 0)
                 {
                     tagSimilarity = ComputeTagSimilarityFromCache(organicTags, preferredTagsOrganic);
                 }
 
-                // Series progression boost for organic series items.
-                // Uses SeriesId for episode rows so the lookup actually finds matching entries
-                // in the seriesEpisodeLookupOrganic dictionary (keyed by SeriesId).
+                // Series progression boost: for standalone items without SeriesId,
+                // use ItemId for the lookup (actual series rows from favorites).
                 var seriesProgressionBoost = 0.0;
-                if (isSeries && seriesEpisodeLookupOrganic.TryGetValue(seriesLookupId, out var organicEps))
+                if (isSeries && seriesEpisodeLookupOrganic.TryGetValue(w.ItemId, out var organicEps))
                 {
                     var playedEps = organicEps.Count(e => e.Played);
                     if (organicEps.Count > 0)
