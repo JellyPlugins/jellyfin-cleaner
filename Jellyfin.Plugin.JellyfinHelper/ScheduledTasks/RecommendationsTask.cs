@@ -151,11 +151,7 @@ public class RecommendationsTask
                         $"Playlist sync: {syncResult.PlaylistsCreated} created, {syncResult.TotalItemsAdded} items added, {syncResult.OldPlaylistsRemoved} old removed.",
                         _logger);
                 }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
+                catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException and not StackOverflowException)
                 {
                     _pluginLog.LogWarning("Recommendations", "Playlist sync failed — recommendations were saved but playlists could not be updated.", ex, _logger);
                 }

@@ -62,7 +62,7 @@ public sealed class UserActivityCacheService : IUserActivityCacheService
                     $"Saved activity result with {result.TotalItemsWithActivity} items to {_cacheFilePath}",
                     _logger);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
             {
                 try
                 {

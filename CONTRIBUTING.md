@@ -138,13 +138,19 @@ Jellyfin.Plugin.JellyfinHelper/
 ├── PluginServiceRegistrator.cs  # DI registration for all services
 ├── MediaExtensions.cs           # Extension methods for media analysis
 ├── Api/
-│   ├── ConfigController.cs
-│   ├── StatisticsController.cs
-│   ├── CleanupController.cs
-│   ├── TrashController.cs
-│   ├── BackupController.cs
-│   ├── RecommendationController.cs  # ML recommendations API
-│   └── UserActivityController.cs    # User activity insights API
+│   ├── ArrIntegrationController.cs      # Radarr/Sonarr integration API
+│   ├── BackupController.cs              # Backup/restore API
+│   ├── CleanupStatisticsController.cs   # Cleanup statistics API
+│   ├── ConfigurationController.cs       # Plugin configuration API
+│   ├── GrowthTimelineController.cs      # Library growth timeline API
+│   ├── LibraryInsightsController.cs     # Library insights API
+│   ├── LogsController.cs               # Plugin logs API
+│   ├── MediaStatisticsController.cs     # Media statistics API
+│   ├── RecommendationController.cs      # ML recommendations API
+│   ├── SeerrController.cs              # Jellyseerr/Overseerr integration API
+│   ├── TranslationsController.cs        # i18n translations API
+│   ├── TrashController.cs               # Trash bin API
+│   └── UserActivityController.cs        # User activity insights API
 ├── Configuration/
 │   ├── PluginConfiguration.cs   # All config properties with defaults
 │   ├── TaskMode.cs              # Deactivate / DryRun / Activate enum
