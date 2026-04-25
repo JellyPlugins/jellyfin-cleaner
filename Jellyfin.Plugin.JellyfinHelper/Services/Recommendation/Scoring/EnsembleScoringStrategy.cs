@@ -372,7 +372,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         var result = _learned.Train(examples);
 
         // Also train neural strategy if available (independent of learned success)
-        var neuralTrained = _neural is ITrainableStrategy trainableNeural && trainableNeural.Train(examples);
+        var neuralTrained = _neural is not null && _neural.Train(examples);
 
         if (result)
         {

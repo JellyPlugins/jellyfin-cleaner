@@ -173,39 +173,27 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>
     ///     Gets or sets the minimum alpha value for the ensemble scoring strategy.
     ///     Controls the lower bound of learned model blending (0–1). Default is 0.3.
-    ///     Out-of-range values are clamped. Enforces AlphaMin ≤ AlphaMax.
+    ///     Out-of-range values are clamped to [0, 1].
+    ///     The min ≤ max invariant is enforced by <see cref="NormalizeAlphaRange"/>
+    ///     after deserialization, not by the setter, to avoid XML element-order dependency.
     /// </summary>
     public double EnsembleAlphaMin
     {
         get => _ensembleAlphaMin;
-        set
-        {
-            _ensembleAlphaMin = Math.Clamp(value, 0.0, 1.0);
-            // Ensure min ≤ max invariant
-            if (_ensembleAlphaMin > _ensembleAlphaMax)
-            {
-                _ensembleAlphaMax = _ensembleAlphaMin;
-            }
-        }
+        set => _ensembleAlphaMin = Math.Clamp(value, 0.0, 1.0);
     }
 
     /// <summary>
     ///     Gets or sets the maximum alpha value for the ensemble scoring strategy.
     ///     Controls the upper bound of learned model blending (0–1). Default is 0.75.
-    ///     Out-of-range values are clamped. Enforces AlphaMin ≤ AlphaMax.
+    ///     Out-of-range values are clamped to [0, 1].
+    ///     The min ≤ max invariant is enforced by <see cref="NormalizeAlphaRange"/>
+    ///     after deserialization, not by the setter, to avoid XML element-order dependency.
     /// </summary>
     public double EnsembleAlphaMax
     {
         get => _ensembleAlphaMax;
-        set
-        {
-            _ensembleAlphaMax = Math.Clamp(value, 0.0, 1.0);
-            // Ensure min ≤ max invariant
-            if (_ensembleAlphaMax < _ensembleAlphaMin)
-            {
-                _ensembleAlphaMin = _ensembleAlphaMax;
-            }
-        }
+        set => _ensembleAlphaMax = Math.Clamp(value, 0.0, 1.0);
     }
 
     /// <summary>

@@ -80,6 +80,9 @@ public class UserActivityUpdateTaskTests
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             sut.ExecuteAsync(progress.Object, cts.Token));
+
+        _insightsMock.Verify(x => x.BuildActivityReport(), Times.Never);
+        _cacheMock.Verify(x => x.SaveResult(It.IsAny<UserActivityResult>()), Times.Never);
     }
 
     [Fact]

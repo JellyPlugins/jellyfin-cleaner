@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
+using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Engine;
 using Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Playlist;
 using Microsoft.Extensions.Logging;
 
@@ -137,7 +138,7 @@ public class RecommendationsTask
         progress.Report(20);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var maxPerUser = Math.Clamp(config.MaxRecommendationsPerUser, 1, 100);
+        var maxPerUser = Math.Clamp(config.MaxRecommendationsPerUser, 1, EngineConstants.MaxRecommendationsPerUserLimit);
         var results = _recsEngine.GetAllRecommendations(maxPerUser, cancellationToken);
 
         progress.Report(80);

@@ -10,7 +10,7 @@ using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Services.Activity;
 
-public class UserActivityCacheServiceTests : IDisposable
+public sealed class UserActivityCacheServiceTests : IDisposable
 {
     private readonly UserActivityCacheService _cacheService;
     private readonly string _tempDir;
@@ -49,8 +49,6 @@ public class UserActivityCacheServiceTests : IDisposable
         {
             // best-effort cleanup
         }
-
-        GC.SuppressFinalize(this);
     }
 
     [Fact]

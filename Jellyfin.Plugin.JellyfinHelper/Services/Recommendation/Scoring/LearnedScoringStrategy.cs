@@ -810,14 +810,13 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
                 // the lock ensures correctness if the call site ever changes.
                 lock (_syncRoot)
                 {
-                    _weights = data.Weights;
-                    _bias = data.Bias;
-                    _trainingGeneration = data.TrainingGeneration;
-
                     if (meansValid && stdDevsValid && bothNullOrBothPresent
                         && (data.FeatureMeans is null || AllFinite(data.FeatureMeans))
                         && (data.FeatureStdDevs is null || AllFinite(data.FeatureStdDevs)))
                     {
+                        _weights = data.Weights;
+                        _bias = data.Bias;
+                        _trainingGeneration = data.TrainingGeneration;
                         _featureMeans = data.FeatureMeans;
                         _featureStdDevs = data.FeatureStdDevs;
                     }
@@ -828,6 +827,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
                         // to defaults and let the next Train() call re-fit from scratch.
                         _weights = DefaultWeights.CreateWeightArray();
                         _bias = DefaultWeights.Bias;
+                        _trainingGeneration = 0;
                         _featureMeans = null;
                         _featureStdDevs = null;
                         _logger?.LogWarning(
