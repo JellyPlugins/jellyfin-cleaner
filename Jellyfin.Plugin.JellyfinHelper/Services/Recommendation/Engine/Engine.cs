@@ -427,6 +427,27 @@ public sealed class Engine : IRecommendationEngine
         var preferredTags = PreferenceBuilder.BuildTagPreferenceSet(userProfile, candidateLookup);
         var genreExposure = PreferenceBuilder.BuildGenreExposureAnalysis(genrePreferences, userProfile);
 
+        // Pre-compute per-item genre, people, and studio sets for watched items.
+        // Used by ContentNearestNeighborScore to find the most similar watched item for each candidate.
+        // Built once per user, O(1) per-candidate lookup via parallel list indices.
+        var watchedGenreSets = new List<HashSet<string>>();
+        var watchedPeopleSets = new List<HashSet<string>>();
+        var watchedStudioSets = new List<HashSet<string>>();
+        foreach (var w in userProfile.WatchedItems.Where(w => w.Played || w.IsFavorite))
+        {
+            watchedGenreSets.Add(w.Genres.Count > 0
+                ? new HashSet<string>(w.Genres, StringComparer.OrdinalIgnoreCase)
+                : []);
+
+            // People: resolve from peopleLookup (which maps item IDs to person name sets)
+            watchedPeopleSets.Add(peopleLookup.TryGetValue(w.ItemId, out var wp) ? wp : []);
+
+            // Studios: resolve from candidateLookup (which maps item IDs to BaseItems with Studios)
+            watchedStudioSets.Add(candidateLookup.TryGetValue(w.ItemId, out var wi) && wi.Studios is { Length: > 0 }
+                ? new HashSet<string>(wi.Studios, StringComparer.OrdinalIgnoreCase)
+                : []);
+        }
+
         // Score each unwatched candidate
         var scored = new List<(BaseItem Item, double Score, string Reason, string ReasonKey, string? RelatedItem)>();
         var candidateIndex = 0;
@@ -478,7 +499,10 @@ public sealed class Engine : IRecommendationEngine
                 preferredPeople,
                 preferredTags,
                 peopleLookup,
-                genreExposure));
+                genreExposure,
+                watchedGenreSets,
+                watchedPeopleSets,
+                watchedStudioSets));
         }
 
         scored = DiversityReranker.DeduplicateSeries(scored);
@@ -540,7 +564,10 @@ public sealed class Engine : IRecommendationEngine
         HashSet<string> preferredPeople,
         HashSet<string> preferredTags,
         Dictionary<Guid, HashSet<string>> peopleLookup,
-        PreferenceBuilder.GenreExposureAnalysis genreExposure)
+        PreferenceBuilder.GenreExposureAnalysis genreExposure,
+        List<HashSet<string>> watchedGenreSets,
+        List<HashSet<string>> watchedPeopleSets,
+        List<HashSet<string>> watchedStudioSets)
     {
         var genreScore = SimilarityComputer.ComputeGenreSimilarity(candidate.Genres ?? [], genrePreferences);
         var collabScore = ContentScoring.ComputeCollaborativeScore(candidate.Id, coOccurrence, collaborativeMax);
@@ -626,7 +653,16 @@ public sealed class Engine : IRecommendationEngine
             IsWeekend = DateTime.UtcNow.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday,
             TagSimilarity = SimilarityComputer.ComputeTagSimilarity(candidate, preferredTags),
             LibraryAddedRecency = libraryAddedRecency,
-            CriticRatingScore = ContentScoring.NormalizeCriticRating(candidate.CriticRating)
+            CriticRatingScore = ContentScoring.NormalizeCriticRating(candidate.CriticRating),
+            // Content-based nearest-neighbor: composite item-to-item similarity (genre 50%, people 30%, studio 20%)
+            // against the user's most similar watched item. Captures item-level affinity as a fine-tuning signal.
+            ContentNearestNeighborScore = ContentScoring.ComputeContentNearestNeighborScore(
+                new HashSet<string>(candidate.Genres ?? [], StringComparer.OrdinalIgnoreCase),
+                peopleLookup.TryGetValue(candidate.Id, out var candidatePeopleForNn) ? candidatePeopleForNn : null,
+                candidate.Studios is { Length: > 0 } ? new HashSet<string>(candidate.Studios, StringComparer.OrdinalIgnoreCase) : null,
+                watchedGenreSets,
+                watchedPeopleSets,
+                watchedStudioSets)
         };
 
         // Genre exposure features: soft signals for genre distribution awareness

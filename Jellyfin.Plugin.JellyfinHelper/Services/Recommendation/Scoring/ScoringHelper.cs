@@ -145,7 +145,8 @@ internal static class ScoringHelper
             GetContribution(vector, weights, FeatureIndex.TagSimilarity) +
             GetContribution(vector, weights, FeatureIndex.PeopleGenreInteraction) +
             GetContribution(vector, weights, FeatureIndex.RecencyRatingInteraction) +
-            GetContribution(vector, weights, FeatureIndex.CriticRatingScore);
+            GetContribution(vector, weights, FeatureIndex.CriticRatingScore) +
+            GetContribution(vector, weights, FeatureIndex.ContentNearestNeighborScore);
         var interactionContrib = double.IsFinite(interactionSum) ? interactionSum : 0.0;
 
         // Compute FinalScore from the sum of contributions + bias instead of re-calling

@@ -115,6 +115,16 @@ public enum FeatureIndex
     ///     critic consensus. 0.5 (neutral) when not available.
     /// </summary>
     CriticRatingScore = 27,
+
+    /// <summary>
+    ///     Content-based nearest-neighbor score (0–1). Measures how similar this candidate
+    ///     is to the user's most similar watched item using a composite of genre Jaccard (50%),
+    ///     people/cast Jaccard (30%), and studio overlap (20%). Unlike GenreSimilarity which
+    ///     compares against the aggregated user profile, this captures item-to-item affinity:
+    ///     "Is there a specific item the user watched that is very similar to this candidate?"
+    ///     0 = no watched item shares genres, people, or studios with this candidate.
+    /// </summary>
+    ContentNearestNeighborScore = 28,
 }
 
 /// <summary>
@@ -126,7 +136,7 @@ public sealed class CandidateFeatures
     /// <summary>
     ///     The number of features produced by <see cref="ToVector"/>.
     /// </summary>
-    public const int FeatureCount = 28;
+    public const int FeatureCount = 29;
 
     /// <summary>
     ///     Normalization ceiling for genre count (items with ≥ this many genres map to 1.0).
@@ -158,6 +168,7 @@ public sealed class CandidateFeatures
     private double _genreAffinityGap;
     private double _libraryAddedRecency;
     private double _criticRatingScore = 0.5;
+    private double _contentNearestNeighborScore;
 
     /// <summary>Gets or sets the genre similarity score (0–1). Values are clamped to [0, 1]; NaN defaults to 0.</summary>
     public double GenreSimilarity
@@ -329,6 +340,19 @@ public sealed class CandidateFeatures
     }
 
     /// <summary>
+    ///     Gets or sets the content-based nearest-neighbor score (0–1).
+    ///     Composite similarity between this candidate and the user's most similar watched item,
+    ///     combining genre Jaccard (50%), people/cast Jaccard (30%), and studio overlap (20%).
+    ///     Captures item-to-item affinity rather than profile-to-item similarity.
+    ///     Values are clamped to [0, 1]; NaN defaults to 0.
+    /// </summary>
+    public double ContentNearestNeighborScore
+    {
+        get => _contentNearestNeighborScore;
+        set => _contentNearestNeighborScore = Clamp01(value);
+    }
+
+    /// <summary>
     ///     Clamps a value to [0, 1], returning <paramref name="defaultWhenNaN"/> if the value is NaN or Infinity.
     ///     Math.Clamp does not normalize NaN — it preserves it — so this helper prevents
     ///     NaN from flowing into interaction terms and poisoning learned/neural scoring.
@@ -397,5 +421,6 @@ public sealed class CandidateFeatures
         buffer[(int)FeatureIndex.GenreAffinityGap] = GenreAffinityGap;
         buffer[(int)FeatureIndex.LibraryAddedRecency] = LibraryAddedRecency;
         buffer[(int)FeatureIndex.CriticRatingScore] = CriticRatingScore;
+        buffer[(int)FeatureIndex.ContentNearestNeighborScore] = ContentNearestNeighborScore;
     }
 }

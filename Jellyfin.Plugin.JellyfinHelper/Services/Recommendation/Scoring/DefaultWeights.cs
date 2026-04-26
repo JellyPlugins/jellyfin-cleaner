@@ -175,6 +175,16 @@ public static class DefaultWeights
     /// </summary>
     public const double CriticRatingScore = 0.03;
 
+    /// <summary>
+    ///     Weight for content-based nearest-neighbor signal.
+    ///     Composite item-to-item similarity (genre 50%, people 30%, studio 20%) between
+    ///     the candidate and the user's most similar watched item. Near-neutral initial
+    ///     weight (0.02) because it partially overlaps with GenreSimilarity and PeopleSimilarity
+    ///     at the profile level — this feature adds the item-to-item perspective. The ML model
+    ///     can learn the optimal weight through training.
+    /// </summary>
+    public const double ContentNearestNeighborScore = 0.02;
+
     /// <summary>Default bias term for the learned strategy.</summary>
     public const double Bias = 0.05;
 
@@ -231,6 +241,7 @@ public static class DefaultWeights
         Set(FeatureIndex.GenreAffinityGap, GenreAffinityGap);
         Set(FeatureIndex.LibraryAddedRecency, LibraryAddedRecency);
         Set(FeatureIndex.CriticRatingScore, CriticRatingScore);
+        Set(FeatureIndex.ContentNearestNeighborScore, ContentNearestNeighborScore);
 
         // Guard: detect missing per-index assignments. The count check above catches
         // new enum values without FeatureCount bump, but this catches the more likely
