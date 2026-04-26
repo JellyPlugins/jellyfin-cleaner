@@ -338,7 +338,7 @@ public class PreferenceBuilderTests
         };
 
         // Candidate genres with whitespace entries should be filtered
-        var (underexposure, dominance, gap) =
+        var (underexposure, dominance, _) =
             PreferenceBuilder.ComputeGenreExposureFeatures(["", " ", "Action"], analysis);
 
         // Only "Action" counts as a valid genre

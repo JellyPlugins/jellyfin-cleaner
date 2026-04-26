@@ -166,7 +166,9 @@ public class UserActivityControllerTests
 
         var result = _controller.GetUserActivity(Guid.NewGuid());
 
-        Assert.IsType<OkObjectResult>(result.Result);
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var data = Assert.IsType<List<UserActivitySummary>>(ok.Value);
+        Assert.Empty(data);
     }
 
     [Fact]

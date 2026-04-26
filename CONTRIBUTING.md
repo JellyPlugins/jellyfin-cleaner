@@ -325,7 +325,7 @@ configPage.template.html (shell with placeholders)
     → configPage.html       (generated, do not edit directly)
 ```
 
-The `HtmlComposer` MSBuild task (`BuildTasks/HtmlComposer.cs`) runs during build:
+The `ComposeConfigPage` MSBuild task (`BuildTasks/ComposeConfigPage.cs`) runs during build:
 
 1. Reads `configPage.template.html`
 2. Finds `/* __CSS_MODULES__ */` placeholder → injects all CSS files (ordered)
@@ -334,7 +334,7 @@ The `HtmlComposer` MSBuild task (`BuildTasks/HtmlComposer.cs`) runs during build
 
 ### File Ordering
 
-CSS and JS files are injected in a specific order defined in `HtmlComposer.cs`:
+CSS and JS files are injected in a specific order defined in `ComposeConfigPage.cs`:
 
 ```csharp
 // CSS order
@@ -353,7 +353,7 @@ CSS and JS files are injected in a specific order defined in `HtmlComposer.cs`:
 ### Adding a New Tab
 
 1. Create `css/YourTab.css` and `js/YourTab.js`
-2. Add the filenames to the ordering arrays in `HtmlComposer.cs`
+2. Add the filenames to the ordering arrays in `ComposeConfigPage.cs`
 3. Add the tab button and content div to `configPage.template.html`
 4. Register the init function in `Main.js`'s tab routing
 5. Build to regenerate `configPage.html`

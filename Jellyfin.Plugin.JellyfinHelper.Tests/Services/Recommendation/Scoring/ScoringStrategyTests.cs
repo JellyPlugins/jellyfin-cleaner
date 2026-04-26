@@ -518,7 +518,7 @@ public sealed class ScoringStrategyTests : IDisposable
     public void Learned_Train_UpdatesWeights()
     {
         var strategy = new LearnedScoringStrategy();
-        var initialWeights = strategy.CurrentWeights;
+        var initialWeights = (double[])strategy.CurrentWeights.Clone();
         var initialBias = strategy.CurrentBias;
 
         // Create training data: positive examples with high genre similarity

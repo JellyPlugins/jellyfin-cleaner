@@ -94,12 +94,4 @@ public sealed class UserActivitySummary
     ///     Gets the per-user activity details for this item.
     /// </summary>
     public Collection<UserItemActivity> UserActivities { get; init; } = [];
-
-    private static DateTime NormalizeToUtc(DateTime value) =>
-        value.Kind switch
-        {
-            DateTimeKind.Utc => value,
-            DateTimeKind.Local => value.ToUniversalTime(),
-            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
-        };
 }

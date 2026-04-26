@@ -537,6 +537,14 @@ internal sealed class TrainingService
 
                 var isSeries = string.Equals(w.ItemType, "Series", StringComparison.OrdinalIgnoreCase);
 
+                // Guard: if this standalone item is a Series object (w.SeriesId == null, w.ItemType == "Series")
+                // and the series was already emitted via the aggregation path above (episode rows with matching
+                // SeriesId), skip to avoid double-counting the same series with two training examples.
+                if (isSeries && aggregatedSeriesIds.Contains(w.ItemId))
+                {
+                    continue;
+                }
+
                 // Compute PeopleSimilarity from cached data (organic item may have been previously recommended).
                 var peopleSimilarity = cachedPeopleLookup.TryGetValue(w.ItemId, out var organicPeople)
                     ? SimilarityComputer.ComputePeopleSimilarity(organicPeople, preferredPeopleOrganic)
