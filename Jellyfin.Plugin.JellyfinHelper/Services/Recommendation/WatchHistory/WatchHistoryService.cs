@@ -8,6 +8,7 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
@@ -254,6 +255,9 @@ public sealed class WatchHistoryService : IWatchHistoryService
             }
         }
 
+        // Build audio language profile from media stream selections
+        BuildLanguageProfile(profile, user, allItems);
+
         profile.WatchedSeriesCount = watchedSeriesIds.Count;
         profile.AverageCommunityRating = ratingCount > 0 ? Math.Round(ratingSum / ratingCount, 1) : 0;
 
@@ -265,5 +269,163 @@ public sealed class WatchHistoryService : IWatchHistoryService
             _logger);
 
         return profile;
+    }
+
+    /// <summary>
+    ///     Builds the user's audio language preference profile by analyzing which audio tracks
+    ///     were selected vs. which were available on each watched item.
+    ///     Distinguishes "chosen" (user had alternatives and picked this language) from
+    ///     "forced" (this was the only audio language available).
+    /// </summary>
+    /// <param name="profile">The user profile to populate with language data.</param>
+    /// <param name="user">The Jellyfin user entity.</param>
+    /// <param name="allItems">Pre-loaded video items from the library.</param>
+    private void BuildLanguageProfile(
+        UserWatchProfile profile,
+        Jellyfin.Database.Implementations.Entities.User user,
+        IReadOnlyList<BaseItem> allItems)
+    {
+        foreach (var item in allItems)
+        {
+            var userData = _userDataManager.GetUserData(user, item);
+            if (userData is null || (!userData.Played && userData.PlaybackPositionTicks <= 0))
+            {
+                continue;
+            }
+
+            // Get all audio streams for this item
+            List<MediaStream>? audioStreams;
+            try
+            {
+                audioStreams = item.GetMediaStreams()?
+                    .Where(s => s.Type == MediaStreamType.Audio)
+                    .ToList();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
+            {
+                // Graceful: skip items where stream lookup fails (e.g. corrupted metadata)
+                continue;
+            }
+
+            if (audioStreams is null || audioStreams.Count == 0)
+            {
+                continue;
+            }
+
+            // Determine which language was used
+            string? usedLanguage = null;
+
+            if (userData.AudioStreamIndex.HasValue)
+            {
+                // User explicitly selected an audio track
+                var chosenStream = audioStreams
+                    .FirstOrDefault(s => s.Index == userData.AudioStreamIndex.Value);
+                usedLanguage = NormalizeLanguage(chosenStream?.Language);
+            }
+
+            if (string.IsNullOrEmpty(usedLanguage))
+            {
+                // Default track was used (no explicit selection or selection not found)
+                var defaultStream = audioStreams
+                    .FirstOrDefault(s => s.IsDefault) ?? audioStreams[0];
+                usedLanguage = NormalizeLanguage(defaultStream.Language);
+            }
+
+            if (string.IsNullOrEmpty(usedLanguage))
+            {
+                continue;
+            }
+
+            // Count distinct available languages for this item
+            var availableLanguages = audioStreams
+                .Select(s => NormalizeLanguage(s.Language))
+                .Where(l => !string.IsNullOrEmpty(l))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (availableLanguages.Count == 0)
+            {
+                continue;
+            }
+
+            // Classify: chosen (user had alternatives) vs forced (only option)
+            if (!profile.LanguageProfile.TryGetValue(usedLanguage, out var entry))
+            {
+                entry = new LanguageProfileEntry();
+                profile.LanguageProfile[usedLanguage] = entry;
+            }
+
+            if (availableLanguages.Count > 1)
+            {
+                entry.ChosenCount++;
+            }
+            else
+            {
+                entry.ForcedCount++;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Normalizes ISO 639-2/B (3-letter) and ISO 639-3 language codes to ISO 639-1 (2-letter)
+    ///     for consistent cross-item comparison. Codes already in 2-letter form are returned as-is.
+    ///     Returns null for null, empty, or whitespace-only input.
+    /// </summary>
+    /// <param name="language">The raw language code from the media stream metadata.</param>
+    /// <returns>A normalized 2-letter language code, or null if the input is invalid.</returns>
+    internal static string? NormalizeLanguage(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return null;
+        }
+
+        var lower = language.Trim().ToLowerInvariant();
+
+        return lower switch
+        {
+            "ger" or "deu" => "de",
+            "eng" => "en",
+            "jpn" => "ja",
+            "fre" or "fra" => "fr",
+            "spa" => "es",
+            "ita" => "it",
+            "por" => "pt",
+            "rus" => "ru",
+            "chi" or "zho" => "zh",
+            "kor" => "ko",
+            "dut" or "nld" => "nl",
+            "pol" => "pl",
+            "tur" => "tr",
+            "ara" => "ar",
+            "hin" => "hi",
+            "swe" => "sv",
+            "dan" => "da",
+            "nor" or "nob" or "nno" => "no",
+            "fin" => "fi",
+            "hun" => "hu",
+            "ces" or "cze" => "cs",
+            "ron" or "rum" => "ro",
+            "tha" => "th",
+            "vie" => "vi",
+            "ukr" => "uk",
+            "heb" => "he",
+            "ell" or "gre" => "el",
+            "ind" => "id",
+            "msa" or "may" => "ms",
+            "hrv" => "hr",
+            "srp" => "sr",
+            "slk" or "slo" => "sk",
+            "slv" => "sl",
+            "bul" => "bg",
+            "cat" => "ca",
+            "est" => "et",
+            "lav" => "lv",
+            "lit" => "lt",
+            "fas" or "per" => "fa",
+            "urd" => "ur",
+            _ when lower.Length == 2 => lower, // Already ISO 639-1
+            _ => lower // Keep unmapped 3-letter codes as-is
+        };
     }
 }

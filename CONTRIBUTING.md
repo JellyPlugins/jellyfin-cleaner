@@ -141,6 +141,7 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
 │       │   ├── TrainingExampleTests.cs
 │       │   └── RankingMetricsTests.cs
 │       ├── WatchHistory/          # Watch history service tests
+│       │   ├── LanguageAffinityTests.cs
 │       │   └── WatchHistoryServiceTests.cs
 │       ├── RecommendationCacheServiceTests.cs
 │       ├── RecommendationDtoTests.cs
@@ -228,6 +229,7 @@ Jellyfin.Plugin.JellyfinHelper/
 │   │   │   ├── IWatchHistoryService.cs
 │   │   │   ├── WatchHistoryService.cs
 │   │   │   ├── UserWatchProfile.cs
+│   │   │   ├── LanguageAffinity.cs
 │   │   │   └── WatchedItemInfo.cs
 │   │   ├── Playlist/                # Recommendation → Jellyfin playlist sync
 │   │   │   ├── IRecommendationPlaylistService.cs
@@ -302,7 +304,7 @@ Each task receives its mode from `PluginConfiguration` and logs differently base
 The ML recommendation system uses a layered scoring approach:
 
 ```text
-User Watch History → Feature Extraction (28 features) → Scoring Strategy → Ranked Results
+User Watch History → Feature Extraction (29 features) → Scoring Strategy → Ranked Results
                                                               ↑
                                                     ┌─────────┴──────────┐
                                                     │  EnsembleScoringStrategy  │

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
 
@@ -93,4 +95,41 @@ public sealed class UserWatchProfile
     ///     Gets or sets the list of watched items with detailed play data.
     /// </summary>
     public Collection<WatchedItemInfo> WatchedItems { get; set; } = [];
+
+    /// <summary>
+    ///     Gets or sets the audio language preference profile.
+    ///     Maps normalized ISO 639-1 language codes to chosen/forced counts.
+    ///     Built by analyzing which audio tracks the user selected vs. which were available.
+    ///     Key distinction: "chosen" (user had alternatives) vs. "forced" (only option).
+    /// </summary>
+    public Dictionary<string, LanguageProfileEntry> LanguageProfile { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    ///     Gets the user's primary audio language (highest weighted score), or null if no data.
+    ///     Excluded from JSON serialization to avoid redundant data in API responses.
+    /// </summary>
+    [JsonIgnore]
+    public string? PrimaryLanguage => LanguageProfile.Count > 0
+        ? LanguageProfile.MaxBy(kv => kv.Value.WeightedScore).Key
+        : null;
+
+    /// <summary>
+    ///     Gets the set of languages the user has actively chosen (ChosenCount &gt; 0).
+    ///     These represent true preferences — the user had alternatives and picked this language.
+    ///     Excluded from JSON serialization to avoid redundant data in API responses.
+    /// </summary>
+    [JsonIgnore]
+    public HashSet<string> PreferredLanguages => new(
+        LanguageProfile.Where(kv => kv.Value.ChosenCount > 0).Select(kv => kv.Key),
+        StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    ///     Gets the set of languages the user has only used when forced (no alternatives).
+    ///     These represent tolerance, not preference.
+    ///     Excluded from JSON serialization to avoid redundant data in API responses.
+    /// </summary>
+    [JsonIgnore]
+    public HashSet<string> ToleratedLanguages => new(
+        LanguageProfile.Where(kv => kv.Value.ForcedCount > 0 && kv.Value.ChosenCount == 0).Select(kv => kv.Key),
+        StringComparer.OrdinalIgnoreCase);
 }

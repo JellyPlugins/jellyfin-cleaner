@@ -118,6 +118,15 @@ public enum FeatureIndex
     ///     0 = no watched item shares genres, people, or studios with this candidate.
     /// </summary>
     ContentNearestNeighborScore = 27,
+
+    /// <summary>
+    ///     Audio language affinity (0–1). How well the candidate's available audio
+    ///     languages match the user's language preferences.
+    ///     1.0 = primary language available, 0.5 = neutral (no data), 0.1 = only unknown languages.
+    ///     Based on chosen-vs-forced distinction: actively selected languages rank higher
+    ///     than languages the user was forced to use because no alternative was available.
+    /// </summary>
+    LanguageAffinity = 28,
 }
 
 /// <summary>
@@ -129,7 +138,7 @@ public sealed class CandidateFeatures
     /// <summary>
     ///     The number of features produced by <see cref="ToVector"/>.
     /// </summary>
-    public const int FeatureCount = 28;
+    public const int FeatureCount = 29;
 
     /// <summary>
     ///     Normalization ceiling for genre count (items with ≥ this many genres map to 1.0).
@@ -161,6 +170,7 @@ public sealed class CandidateFeatures
     private double _genreAffinityGap;
     private double _libraryAddedRecency;
     private double _contentNearestNeighborScore;
+    private double _languageAffinity = 0.5;
 
     /// <summary>Gets or sets the genre similarity score (0–1). Values are clamped to [0, 1]; NaN defaults to 0.</summary>
     public double GenreSimilarity
@@ -332,6 +342,19 @@ public sealed class CandidateFeatures
     }
 
     /// <summary>
+    ///     Gets or sets the audio language affinity (0–1).
+    ///     How well the candidate's available audio languages match the user's preferences.
+    ///     1.0 = primary language available, 0.5 = neutral (no language data),
+    ///     0.1 = only languages the user has never encountered.
+    ///     Values are clamped to [0, 1]; NaN defaults to 0.5 (neutral).
+    /// </summary>
+    public double LanguageAffinity
+    {
+        get => _languageAffinity;
+        set => _languageAffinity = Clamp01(value, 0.5);
+    }
+
+    /// <summary>
     ///     Clamps a value to [0, 1], returning <paramref name="defaultWhenNaN"/> if the value is NaN or Infinity.
     ///     Math.Clamp does not normalize NaN — it preserves it — so this helper prevents
     ///     NaN from flowing into interaction terms and poisoning learned/neural scoring.
@@ -400,5 +423,6 @@ public sealed class CandidateFeatures
         buffer[(int)FeatureIndex.GenreAffinityGap] = GenreAffinityGap;
         buffer[(int)FeatureIndex.LibraryAddedRecency] = LibraryAddedRecency;
         buffer[(int)FeatureIndex.ContentNearestNeighborScore] = ContentNearestNeighborScore;
+        buffer[(int)FeatureIndex.LanguageAffinity] = LanguageAffinity;
     }
 }

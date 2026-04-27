@@ -138,7 +138,7 @@ public sealed class ScoringStrategyTests : IDisposable
         // IsAbandoned = 0.0 because HasUserInteraction defaults to false
         for (var i = 0; i < vector.Length; i++)
         {
-            if (i == 9 || i == 10) // UserRatingScore, CompletionRatio, CombinedCriticScore default to 0.5
+            if (i == 9 || i == 10 || i == 28) // UserRatingScore, CompletionRatio default to 0.5; LanguageAffinity defaults to 0.5 (neutral)
             {
                 Assert.Equal(0.5, vector[i]);
             }
@@ -204,10 +204,10 @@ public sealed class ScoringStrategyTests : IDisposable
         var features = new CandidateFeatures { UserRatingScore = 0.0 };
 
         var score = strategy.Score(features);
-        // With all features at 0 except CompletionRatio default=0.5 and CombinedCriticScore default=0.5:
-        // raw = 0.5 * CompletionRatio_weight (0.07) + 0.5 * CombinedCriticScore_weight (0.03) = 0.035 + 0.015 = 0.050
+        // With all features at 0 except CompletionRatio default=0.5 and LanguageAffinity default=0.5:
+        // raw = 0.5 * CompletionRatio_weight (0.07) + 0.5 * LanguageAffinity_weight (0.03) = 0.035 + 0.015 = 0.050
         // genre penalty floor = 0.10 → 0.10 * 0.050 = 0.005
-        Assert.Equal(0.0035, score, 4);
+        Assert.Equal(0.005, score, 4);
     }
 
     [Fact]
@@ -219,9 +219,10 @@ public sealed class ScoringStrategyTests : IDisposable
 
         var score = strategy.Score(features);
 
-        // Default CompletionRatio=0.5, CombinedCriticScore=0.5, HasUserInteraction=false → IsAbandoned=0
+        // Default CompletionRatio=0.5, LanguageAffinity=0.5, HasUserInteraction=false → IsAbandoned=0
         var expected = (0.5 * DefaultWeights.GenreSimilarity)
-            + (0.5 * DefaultWeights.CompletionRatio);
+            + (0.5 * DefaultWeights.CompletionRatio)
+            + (0.5 * DefaultWeights.LanguageAffinity);
         Assert.Equal(expected, score, 4);
     }
 
@@ -241,7 +242,7 @@ public sealed class ScoringStrategyTests : IDisposable
             CompletionRatio = 0.0
         };
 
-        // CompletionRatio=0.0, CombinedCriticScore defaults to 0.5 → adds 0.5 * CombinedCriticScore weight
+        // CompletionRatio=0.0, LanguageAffinity defaults to 0.5
         var expected =
             (0.8 * DefaultWeights.GenreSimilarity) +
             (0.6 * DefaultWeights.CollaborativeScore) +
@@ -250,7 +251,8 @@ public sealed class ScoringStrategyTests : IDisposable
             (0.9 * DefaultWeights.YearProximityScore) +
             (0.8 * 0.7 * DefaultWeights.GenreCriticInteraction) +
             (0.8 * 0.6 * DefaultWeights.GenreCollabInteraction) +
-            (0.5 * 0.7 * DefaultWeights.RecencyCriticInteraction);
+            (0.5 * 0.7 * DefaultWeights.RecencyCriticInteraction) +
+            (0.5 * DefaultWeights.LanguageAffinity);
 
         Assert.Equal(expected, strategy.Score(features), 4);
     }
@@ -270,14 +272,15 @@ public sealed class ScoringStrategyTests : IDisposable
             CompletionRatio = 0.0
         };
 
-        // CompletionRatio=0.0, CombinedCriticScore defaults to 0.5
+        // CompletionRatio=0.0, LanguageAffinity defaults to 0.5
         var rawExpected =
             (0.0 * DefaultWeights.GenreSimilarity) +
             (0.5 * DefaultWeights.CollaborativeScore) +
             (0.8 * DefaultWeights.CombinedCriticScore) +
             (0.7 * DefaultWeights.RecencyScore) +
             (0.9 * DefaultWeights.YearProximityScore) +
-            (0.7 * 0.8 * DefaultWeights.RecencyCriticInteraction);
+            (0.7 * 0.8 * DefaultWeights.RecencyCriticInteraction) +
+            (0.5 * DefaultWeights.LanguageAffinity);
 
         // With genrePenaltyFloor=0.10 and GenreSimilarity=0.0, penalty = 0.10
         var expected = rawExpected * 0.10;
@@ -299,14 +302,15 @@ public sealed class ScoringStrategyTests : IDisposable
             CompletionRatio = 0.0
         };
 
-        // CompletionRatio=0.0, CombinedCriticScore defaults to 0.5
+        // CompletionRatio=0.0, LanguageAffinity defaults to 0.5
         var expected =
             (0.0 * DefaultWeights.GenreSimilarity) +
             (0.5 * DefaultWeights.CollaborativeScore) +
             (0.8 * DefaultWeights.CombinedCriticScore) +
             (0.7 * DefaultWeights.RecencyScore) +
             (0.9 * DefaultWeights.YearProximityScore) +
-            (0.7 * 0.8 * DefaultWeights.RecencyCriticInteraction);
+            (0.7 * 0.8 * DefaultWeights.RecencyCriticInteraction) +
+            (0.5 * DefaultWeights.LanguageAffinity);
 
         Assert.Equal(expected, strategy.Score(features), 4);
     }
@@ -492,15 +496,15 @@ public sealed class ScoringStrategyTests : IDisposable
         Assert.Equal(0.09, weights[9]); // user rating
         Assert.Equal(0.07, weights[10]); // completion ratio
         Assert.Equal(-0.04, weights[11]); // isAbandoned
-        Assert.Equal(0.01, weights[12]); // hasInteraction
+        Assert.Equal(0.005, weights[12]); // hasInteraction (micro-trimmed for LanguageAffinity)
         Assert.Equal(0.06, weights[13]); // people similarity
         Assert.Equal(0.02, weights[14]); // studio match
         Assert.Equal(0.06, weights[15]); // seriesProgressionBoost
-        Assert.Equal(0.01, weights[16]); // popularityScore
-        Assert.Equal(0.02, weights[17]); // dayOfWeekAffinity
+        Assert.Equal(0.005, weights[16]); // popularityScore (micro-trimmed for LanguageAffinity)
+        Assert.Equal(0.015, weights[17]); // dayOfWeekAffinity (micro-trimmed for LanguageAffinity)
         Assert.Equal(0.02, weights[18]); // hourOfDayAffinity
-        Assert.Equal(0.01, weights[19]); // isWeekend
-        Assert.Equal(0.02, weights[20]); // tagSimilarity
+        Assert.Equal(0.005, weights[19]); // isWeekend (micro-trimmed for LanguageAffinity)
+        Assert.Equal(0.015, weights[20]); // tagSimilarity (micro-trimmed for LanguageAffinity)
         Assert.Equal(0.03, weights[21]); // peopleGenreInteraction
         Assert.Equal(0.03, weights[22]); // recencyRatingInteraction
         Assert.Equal(-0.12, weights[23]); // genreUnderexposure

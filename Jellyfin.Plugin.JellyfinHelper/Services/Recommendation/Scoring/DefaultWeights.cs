@@ -10,23 +10,23 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 /// </summary>
 public static class DefaultWeights
 {
-    /// <summary>Weight for genre similarity signal (dominant, reduced from 0.23 to give more room to non-genre signals).</summary>
+    /// <summary>Weight for genre similarity signal.</summary>
     public const double GenreSimilarity = 0.20;
 
-    /// <summary>Weight for collaborative filtering signal (reduced from 0.11 to keep individual genre preference dominant).</summary>
+    /// <summary>Weight for collaborative filtering signal.</summary>
     public const double CollaborativeScore = 0.09;
 
     /// <summary>Weight for combined critic score signal (TMDb 55% + Tomatometer 45%).</summary>
     public const double CombinedCriticScore = 0.07;
 
-    /// <summary>Weight for recency signal (increased from 0.05 during genre rebalance).</summary>
+    /// <summary>Weight for recency signal.</summary>
     public const double RecencyScore = 0.06;
 
     /// <summary>Weight for year proximity signal.</summary>
     public const double YearProximityScore = 0.05;
 
     /// <summary>Weight for normalized genre count signal. Near-neutral — ML can learn if it matters.</summary>
-    public const double GenreCountNormalized = 0.01;
+    public const double GenreCountNormalized = 0.005;
 
     /// <summary>
     ///     Weight for series type signal. Near-neutral initial weight — does not blindly prefer
@@ -64,7 +64,7 @@ public static class DefaultWeights
     ///     A small positive weight that gives a slight boost to items the user has some
     ///     history with, allowing the model to distinguish "not yet seen" from "abandoned".
     /// </summary>
-    public const double HasInteraction = 0.01;
+    public const double HasInteraction = 0.005;
 
     /// <summary>
     ///     Weight for people (cast/director) similarity signal (increased from 0.05 during genre rebalance).
@@ -92,14 +92,14 @@ public static class DefaultWeights
     ///     users who have little personal history. The ML model can adjust this weight down as
     ///     personalized signals strengthen.
     /// </summary>
-    public const double PopularityScore = 0.01;
+    public const double PopularityScore = 0.005;
 
     /// <summary>
     ///     Weight for day-of-week affinity signal.
     ///     Captures temporal viewing patterns (e.g., comedies on weekends, dramas on weeknights).
     ///     A small weight so it acts as a tiebreaker rather than a dominant signal.
     /// </summary>
-    public const double DayOfWeekAffinity = 0.02;
+    public const double DayOfWeekAffinity = 0.015;
 
     /// <summary>
     ///     Weight for hour-of-day affinity signal.
@@ -114,7 +114,8 @@ public static class DefaultWeights
     ///     A small contextual weight that allows the model to learn that users
     ///     may prefer different content types on weekends.
     /// </summary>
-    public const double IsWeekend = 0.01;
+    /// <remarks>Micro-trimmed from 0.01 for LanguageAffinity budget.</remarks>
+    public const double IsWeekend = 0.005;
 
     /// <summary>
     ///     Weight for tag-based content similarity signal.
@@ -122,7 +123,7 @@ public static class DefaultWeights
     ///     preferred tags derived from watch history. Complements genre similarity
     ///     with more fine-grained content categorization.
     /// </summary>
-    public const double TagSimilarity = 0.02;
+    public const double TagSimilarity = 0.015;
 
     /// <summary>
     ///     Weight for people × genre interaction (actors you like in genres you prefer).
@@ -176,6 +177,17 @@ public static class DefaultWeights
     ///     can learn the optimal weight through training.
     /// </summary>
     public const double ContentNearestNeighborScore = 0.02;
+
+    /// <summary>
+    ///     Weight for audio language affinity signal.
+    ///     Items available in the user's preferred audio language get a moderate boost.
+    ///     For monolingual libraries (all items same language), this feature is constant
+    ///     and the weight effectively becomes zero (no ranking impact).
+    ///     Budget sourced via proportional micro-trim from 6 near-neutral features
+    ///     (GenreCountNormalized, HasInteraction, PopularityScore, IsWeekend,
+    ///     DayOfWeekAffinity, TagSimilarity) — each trimmed by 0.005, totaling 0.03.
+    /// </summary>
+    public const double LanguageAffinity = 0.03;
 
     /// <summary>Default bias term for the learned strategy.</summary>
     public const double Bias = 0.05;
@@ -233,6 +245,7 @@ public static class DefaultWeights
         Set(FeatureIndex.GenreAffinityGap, GenreAffinityGap);
         Set(FeatureIndex.LibraryAddedRecency, LibraryAddedRecency);
         Set(FeatureIndex.ContentNearestNeighborScore, ContentNearestNeighborScore);
+        Set(FeatureIndex.LanguageAffinity, LanguageAffinity);
 
         // Guard: detect missing per-index assignments. The count check above catches
         // new enum values without FeatureCount bump, but this catches the more likely

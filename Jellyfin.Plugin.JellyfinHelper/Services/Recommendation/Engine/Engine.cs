@@ -663,7 +663,10 @@ public sealed class Engine : IRecommendationEngine
                 candidate.Studios is { Length: > 0 } ? new HashSet<string>(candidate.Studios, StringComparer.OrdinalIgnoreCase) : null,
                 watchedGenreSets,
                 watchedPeopleSets,
-                watchedStudioSets)
+                watchedStudioSets),
+            // Audio language affinity: how well the candidate's audio tracks match the user's
+            // language preferences. Uses chosen-vs-forced distinction from the user's profile.
+            LanguageAffinity = ComputeLanguageAffinity(userProfile, candidate)
         };
 
         // Genre exposure features: soft signals for genre distribution awareness
@@ -685,6 +688,89 @@ public sealed class Engine : IRecommendationEngine
             candidate, explanation, genrePreferences, preferredPeople, preferredStudios, peopleLookup);
 
         return (candidate, explanation.FinalScore, reason, reasonKey, relatedItem);
+    }
+
+    /// <summary>
+    ///     Computes audio language affinity between a candidate's available audio languages
+    ///     and the user's language profile. Returns 0.5 (neutral) when no language data is available.
+    ///     Uses the chosen-vs-forced distinction: primary language = 1.0, preferred = 0.85,
+    ///     tolerated = 0.5, known = 0.3, unknown = 0.1.
+    /// </summary>
+    /// <param name="userProfile">The user's watch profile with language preferences.</param>
+    /// <param name="candidate">The candidate item to evaluate.</param>
+    /// <returns>A language affinity score between 0.1 and 1.0, or 0.5 if no data available.</returns>
+    internal static double ComputeLanguageAffinity(UserWatchProfile userProfile, BaseItem candidate)
+    {
+        // No language profile → neutral (monolingual library or new user)
+        if (userProfile.LanguageProfile.Count == 0)
+        {
+            return 0.5;
+        }
+
+        // Get candidate's available audio languages
+        List<string>? candidateLanguages;
+        try
+        {
+            candidateLanguages = candidate.GetMediaStreams()?
+                .Where(s => s.Type == MediaStreamType.Audio)
+                .Select(s => WatchHistoryService.NormalizeLanguage(s.Language))
+                .Where(l => !string.IsNullOrEmpty(l))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()!;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
+        {
+            return 0.5; // Graceful: no stream data available
+        }
+
+        if (candidateLanguages is null || candidateLanguages.Count == 0)
+        {
+            return 0.5; // No audio stream info → neutral
+        }
+
+        var primaryLang = userProfile.PrimaryLanguage;
+        var preferredLangs = userProfile.PreferredLanguages;
+        var toleratedLangs = userProfile.ToleratedLanguages;
+
+        var bestAffinity = 0.1; // Default: only unknown languages
+
+        foreach (var lang in candidateLanguages)
+        {
+            double affinity;
+
+            if (string.Equals(lang, primaryLang, StringComparison.OrdinalIgnoreCase))
+            {
+                affinity = 1.0; // Primary preference available
+            }
+            else if (preferredLangs.Contains(lang))
+            {
+                affinity = 0.85; // Other actively chosen language
+            }
+            else if (toleratedLangs.Contains(lang))
+            {
+                affinity = 0.5; // Tolerated (only used when forced)
+            }
+            else if (userProfile.LanguageProfile.ContainsKey(lang))
+            {
+                affinity = 0.3; // Somehow known
+            }
+            else
+            {
+                affinity = 0.1; // Completely unknown language
+            }
+
+            if (affinity > bestAffinity)
+            {
+                bestAffinity = affinity;
+            }
+
+            if (bestAffinity >= 1.0)
+            {
+                break; // Can't do better than primary
+            }
+        }
+
+        return bestAffinity;
     }
 
     /// <summary>
