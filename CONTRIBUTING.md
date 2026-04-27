@@ -279,7 +279,7 @@ serviceCollection.AddSingleton<ITrashService, TrashService>();
 serviceCollection.AddSingleton<IPluginConfigurationService, PluginConfigurationService>();
 serviceCollection.AddSingleton<IPluginLogService, PluginLogService>();
 serviceCollection.AddSingleton<IMediaStatisticsService, MediaStatisticsService>();
-// ... etc
+// (additional services omitted for brevity — see PluginServiceRegistrator.cs for the complete list)
 ```
 
 ### TaskMode Pattern

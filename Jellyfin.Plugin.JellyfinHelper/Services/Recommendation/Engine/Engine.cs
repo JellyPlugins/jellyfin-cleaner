@@ -305,6 +305,7 @@ public sealed class Engine : IRecommendationEngine
 
         var seriesIdsWithEpisodes = allEpisodes
             .OfType<Episode>()
+            .Where(episode => !string.IsNullOrEmpty(episode.Path))
             .Select(episode => episode.SeriesId)
             .Where(seriesId => seriesId != Guid.Empty)
             .ToHashSet();

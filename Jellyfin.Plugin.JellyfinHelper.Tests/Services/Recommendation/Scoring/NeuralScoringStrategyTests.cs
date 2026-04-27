@@ -766,7 +766,7 @@ public sealed class NeuralScoringStrategyTests : IDisposable
     }
 
     [Fact]
-    public void CurrentWeightsVersion_Is8()
+    public void CurrentWeightsVersion_Is1()
     {
         Assert.Equal(1, NeuralScoringStrategy.CurrentWeightsVersion);
     }

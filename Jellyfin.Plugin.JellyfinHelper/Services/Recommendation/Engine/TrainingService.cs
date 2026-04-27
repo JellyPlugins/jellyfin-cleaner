@@ -84,6 +84,7 @@ internal sealed class TrainingService
         CancellationToken cancellationToken)
     {
         var allProfiles = _watchHistoryService.GetAllUserWatchProfiles();
+        cancellationToken.ThrowIfCancellationRequested();
 
         // Include both played AND favorited items as positive interactions.
         // A favorited-but-not-played recommended item signals explicit interest
@@ -94,6 +95,8 @@ internal sealed class TrainingService
             profileLookup[profile.UserId] = new HashSet<Guid>(
                 profile.WatchedItems.Where(w => w.Played || w.IsFavorite || w.PlayCount > 0 || w.PlaybackPositionTicks > 0).Select(w => w.ItemId));
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         var seriesLookup = new Dictionary<Guid, HashSet<Guid>>();
         foreach (var profile in allProfiles)
@@ -680,12 +683,19 @@ internal sealed class TrainingService
         // Cross-user negatives sample items recommended to OTHER users that this user never touched,
         // providing genuine "irrelevant for this user" examples with full metadata available.
         var randomNegativeCount = 0;
+        // Deduplicate by ItemId to prevent popular titles (recommended to multiple users)
+        // from appearing multiple times in candidateNegatives, which would overweight them
+        // as negatives purely because they were widely recommended elsewhere.
+        var seenNegItemIds = new HashSet<Guid>();
         var allRecommendedItems = new List<RecommendedItem>();
         foreach (var prevResult in previousResults)
         {
             foreach (var rec in prevResult.Recommendations)
             {
-                allRecommendedItems.Add(rec);
+                if (seenNegItemIds.Add(rec.ItemId))
+                {
+                    allRecommendedItems.Add(rec);
+                }
             }
         }
 

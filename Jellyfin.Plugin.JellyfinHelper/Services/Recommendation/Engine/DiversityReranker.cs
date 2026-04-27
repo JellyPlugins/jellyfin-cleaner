@@ -110,9 +110,9 @@ internal static class DiversityReranker
                 var candidateSet = GetOrCreateGenreSet(remaining[i].Item);
 
                 var maxSimilarity = 0.0;
-                foreach (var selectedItem in selected.Select(s => s.Item))
+                foreach (var selectedEntry in selected)
                 {
-                    var selectedSet = GetOrCreateGenreSet(selectedItem);
+                    var selectedSet = GetOrCreateGenreSet(selectedEntry.Item);
                     var sim = SimilarityComputer.ComputeJaccardFromSets(candidateSet, selectedSet);
                     if (sim > maxSimilarity)
                     {

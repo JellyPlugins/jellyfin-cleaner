@@ -31,14 +31,14 @@ internal static class ContentScoring
 
     /// <summary>
     ///     Normalizes a Rotten Tomatoes critic rating (0–100%) to a 0–1 score.
-    ///     Returns 0.5 (neutral) when the value is null, zero, negative, or NaN.
+    ///     Returns 0.5 (neutral) when the value is null, zero, negative, NaN, or Infinity.
     ///     Jellyfin stores CriticRating as a float? representing the "Tomatometer" percentage.
     /// </summary>
     /// <param name="criticRating">The critic rating value (0–100).</param>
     /// <returns>A normalized score between 0 and 1, or 0.5 if unavailable.</returns>
     internal static double NormalizeCriticRating(float? criticRating)
     {
-        if (!criticRating.HasValue || float.IsNaN(criticRating.Value) || criticRating.Value <= 0)
+        if (!criticRating.HasValue || float.IsNaN(criticRating.Value) || float.IsInfinity(criticRating.Value) || criticRating.Value <= 0)
         {
             return 0.5; // Neutral fallback — does not penalize items without critic data
         }
@@ -53,7 +53,7 @@ internal static class ContentScoring
     /// <returns>A normalized rating between 0 and 1.</returns>
     internal static double NormalizeRating(float? communityRating)
     {
-        if (!communityRating.HasValue || float.IsNaN(communityRating.Value) || communityRating.Value <= 0)
+        if (!communityRating.HasValue || float.IsNaN(communityRating.Value) || float.IsInfinity(communityRating.Value) || communityRating.Value <= 0)
         {
             return 0.5; // neutral default for unrated or NaN items
         }
@@ -114,9 +114,9 @@ internal static class ContentScoring
     /// <returns>A normalized user rating between 0 and 1.</returns>
     internal static double ComputeUserRatingScore(WatchedItemInfo? watchedItem)
     {
-        if (watchedItem?.UserRating is null or <= 0 || double.IsNaN(watchedItem.UserRating.Value))
+        if (watchedItem?.UserRating is null or <= 0 || double.IsNaN(watchedItem.UserRating.Value) || double.IsInfinity(watchedItem.UserRating.Value))
         {
-            return 0.5; // neutral default — no user rating available or NaN
+            return 0.5; // neutral default — no user rating available or NaN/Infinity
         }
 
         // User ratings are typically 0–10, normalize to 0–1
