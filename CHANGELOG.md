@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin plugin ecosystem.
 
 
+## [2.0.0.1] — 2026-04-28
+
+### Improved
+- **Discover Tab** — Recommendations and Watch Activity sections are now collapsible (default: collapsed). Both use the same toggle pattern for consistent UX.
+- **User Switch UX** — Collapsible state (open/closed) is preserved when switching between users in the Discover tab. Content updates in-place without forcing re-open.
+
+---
+
 ## [2.0.0.0] — 2026-04-27
 
 ### Added

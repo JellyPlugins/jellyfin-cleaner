@@ -47,6 +47,7 @@ public sealed class RecommendationCacheService : IRecommendationCacheService
 
         lock (_fileLock)
         {
+            var tempFilePath = _cacheFilePath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
             try
             {
                 var directory = Path.GetDirectoryName(_cacheFilePath);
@@ -56,7 +57,6 @@ public sealed class RecommendationCacheService : IRecommendationCacheService
                 }
 
                 var json = JsonSerializer.Serialize(results, JsonOptions);
-                var tempFilePath = _cacheFilePath + ".tmp";
                 File.WriteAllText(tempFilePath, json);
                 File.Move(tempFilePath, _cacheFilePath, true);
 
@@ -69,7 +69,7 @@ public sealed class RecommendationCacheService : IRecommendationCacheService
             {
                 try
                 {
-                    File.Delete(_cacheFilePath + ".tmp");
+                    File.Delete(tempFilePath);
                 }
                 catch (Exception cleanupEx) when (cleanupEx is IOException or UnauthorizedAccessException)
                 {

@@ -53,7 +53,14 @@ function renderRecommendations(container, results) {
         html += '<option value="' + u + '">' + escHtml(results[u].UserName) + ' (' + (results[u].Recommendations ? results[u].Recommendations.length : 0) + ' ' + T('recsItems', 'items') + ')</option>';
     }
     html += '</select></div>';
+
+    // Collapsible Recommendations section
+    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsGridToggle"><span class="recs-collapsible-arrow">▶</span> 🎯 ' + T('recsGridToggle', 'Recommendations') + ' (<span id="recsGridCount">0</span> ' + T('recsItems', 'items') + ')</button>';
+    html += '<div class="recs-collapsible-body" id="recsGridBody">';
     html += '<div id="recsUserGrid"></div>';
+    html += '</div></div>';
+
+    // Collapsible Watch Activity section
     html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsActivityToggle"><span class="recs-collapsible-arrow">▶</span> 📊 ' + T('recsActivityToggle', 'Watch Activity') + '</button>';
     html += '<div class="recs-collapsible-body" id="recsActivityBody">';
     html += '<div id="recsUserProfile"><div class="loading-overlay" style="padding:0.5em;"><div class="spinner"></div></div></div>';
@@ -69,8 +76,14 @@ function renderRecommendations(container, results) {
             onUserChanged(idx);
         });
     }
+
+    // Toggle for Recommendations collapsible
+    var gridToggleBtn = document.getElementById('recsGridToggle');
+    if (gridToggleBtn) { gridToggleBtn.addEventListener('click', function () { toggleCollapsible('recsGridBody', 'recsGridToggle'); }); }
+
+    // Toggle for Watch Activity collapsible
     var toggleBtn = document.getElementById('recsActivityToggle');
-    if (toggleBtn) { toggleBtn.addEventListener('click', function () { toggleActivityCollapsible(); }); }
+    if (toggleBtn) { toggleBtn.addEventListener('click', function () { toggleCollapsible('recsActivityBody', 'recsActivityToggle'); }); }
 
     // Restore previously selected user from browser storage (fallback: first user)
     var initialIdx = 0;
@@ -88,17 +101,14 @@ function renderRecommendations(container, results) {
 
 function onUserChanged(index) {
     renderUserRecommendations(index);
-    var body = document.getElementById('recsActivityBody');
-    var arrow = document.querySelector('.recs-collapsible-arrow');
-    if (body) body.classList.remove('open');
-    if (arrow) arrow.textContent = '▶';
+    // Keep collapsible states as-is on user change — content updates in place
     loadUserWatchProfile(index);
     loadUserActivity(index);
 }
 
-function toggleActivityCollapsible() {
-    var body = document.getElementById('recsActivityBody');
-    var arrow = document.querySelector('.recs-collapsible-arrow');
+function toggleCollapsible(bodyId, toggleId) {
+    var body = document.getElementById(bodyId);
+    var arrow = document.querySelector('#' + toggleId + ' .recs-collapsible-arrow');
     if (!body) return;
     if (body.classList.contains('open')) {
         body.classList.remove('open');
@@ -111,10 +121,15 @@ function toggleActivityCollapsible() {
 
 function renderUserRecommendations(index) {
     var grid = document.getElementById('recsUserGrid');
+    var countSpan = document.getElementById('recsGridCount');
     if (!grid || !window._recsResults) return;
     var result = window._recsResults[index];
     if (!result) return;
     var recs = result.Recommendations || [];
+
+    // Update the count in the collapsible header
+    if (countSpan) countSpan.textContent = '' + recs.length;
+
     if (recs.length === 0) { grid.innerHTML = '<div class="recs-empty"><p>' + T('recsNoItems', 'No recommendations for this user yet. More watch history is needed.') + '</p></div>'; return; }
     // Sort by score descending so the UI ranking matches the match percentage.
     // The backend uses MMR diversity-reranking which intentionally interleaves genres,
