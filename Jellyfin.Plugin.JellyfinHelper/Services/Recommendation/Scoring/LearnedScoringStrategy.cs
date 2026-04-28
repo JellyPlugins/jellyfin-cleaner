@@ -16,11 +16,14 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 ///     No external ML dependencies required — pure C# implementation.
 /// </summary>
 /// <remarks>
-///     Architecture: 26 input features → 26 weights + 1 bias → clamp(0,1) → score (0–1).
-///     Features include 2 interaction terms (genre×rating, genre×collab), people similarity,
-///     studio match, completion ratio, abandoned flag, has-interaction flag, temporal features,
-///     tag similarity, 2 cross-feature interaction terms (people×genre, recency×rating),
-///     and 3 genre exposure features (underexposure, dominance ratio, affinity gap).
+///     Architecture: 29 input features → 29 weights + 1 bias → clamp(0,1) → score (0–1).
+///     Features include genre similarity, collaborative score, combined critic score, recency,
+///     year proximity, genre count, series flag, 2 interaction terms (genre×critic, genre×collab),
+///     user rating, completion ratio, abandoned flag, has-interaction flag, people similarity,
+///     studio match, series progression boost, popularity, temporal features (day-of-week,
+///     hour-of-day, weekend), tag similarity, 2 cross-feature interaction terms (people×genre,
+///     recency×critic), 3 genre exposure features (underexposure, dominance ratio, affinity gap),
+///     library-added recency, content nearest-neighbor score, and language affinity.
 ///     Training uses mean squared error (MSE) loss with L2 regularization, sample weighting
 ///     (temporal decay), Z-score feature standardization (applied both at training and scoring time),
 ///     and early stopping.
