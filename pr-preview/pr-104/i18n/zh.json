@@ -5,6 +5,7 @@
   "scanPlaceholder": "点击 <strong>扫描媒体库</strong> 来分析您的媒体文件夹。",
   "initializingScan": "正在初始化媒体扫描…",
   "error": "加载统计信息失败。请确保您是管理员。",
+  "statsLoadError": "加载统计信息失败。请确保您是管理员。",
   "tabOverview": "概览",
   "tabCodecs": "编解码器",
   "tabHealth": "健康",

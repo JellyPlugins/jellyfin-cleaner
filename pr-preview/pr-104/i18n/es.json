@@ -5,6 +5,7 @@
   "scanPlaceholder": "Haz clic en <strong>Escanear bibliotecas</strong> para analizar tus carpetas de medios.",
   "initializingScan": "Iniciando escaneo de medios…",
   "error": "Error al cargar estadísticas. Asegúrate de ser administrador.",
+  "statsLoadError": "Error al cargar estadísticas. Asegúrate de ser administrador.",
   "tabOverview": "Resumen",
   "tabCodecs": "Códecs",
   "tabHealth": "Salud",
