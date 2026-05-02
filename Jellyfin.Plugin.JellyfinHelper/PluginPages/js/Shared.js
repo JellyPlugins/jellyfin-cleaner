@@ -5,6 +5,14 @@ var DONUT_COLORS = [
     '#795548', '#607d8b', '#8bc34a', '#00bcd4', '#ff5722'
 ];
 
+// --- Material Icon helper ---
+// Returns a <span> with the Material Symbols font icon.
+// Requires the font to be loaded via CSS (@import or <link>).
+// Falls back gracefully to empty span if font is unavailable.
+function mi(name) {
+    return '<span class="mi"><span class="material-symbols-outlined">' + name + '</span></span>';
+}
+
 var SVG = {
     EYE: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
         + '<ellipse cx="12" cy="12" rx="10" ry="6" fill="none" stroke="currentColor" stroke-width="2"/>'
@@ -24,7 +32,7 @@ function getCssVar(name, fallback) {
     return (v && v.trim()) || fallback || '';
 }
 
-// Translation helper — loaded async from /JellyfinHelper/Translations
+// Translation helper - loaded async from /JellyfinHelper/Translations
 var _translations = {};
 
 function T(key, fallback) {
@@ -148,7 +156,7 @@ function renderTreeLevel(node, level, icon) {
 
         html += '<div class="tree-node">';
         html += '<div class="tree-folder' + (hasContent ? ' tree-toggle" tabindex="0" role="button" aria-expanded="false" onclick="this.parentElement.classList.toggle(\'tree-expanded\');this.setAttribute(\'aria-expanded\',this.parentElement.classList.contains(\'tree-expanded\'))" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}"' : '"') + '>';
-        html += '<span class="tree-icon">' + (hasContent ? '📁' : '📂') + '</span>';
+        html += '<span class="tree-icon">' + (hasContent ? mi('folder') : mi('folder_open')) + '</span>';
         html += '<span class="tree-name">' + escHtml(childName) + '</span> <span class="tree-name-count">(' + countTreeItems(childNode) + ')</span>';
         html += '</div>';
 
@@ -202,7 +210,7 @@ function renderFileTree(result, title) {
         html += '<div class="file-tree-section">';
         html += '<div class="file-tree-section-header"><span class="badge badge-movies">' + T('movies', 'Movies') + '</span> <span class="file-tree-section-count">(' + result.movies.length + ')</span></div>';
         html += '<div class="tree-view">';
-        html += renderTreeLevel(buildPathTree(result.movies, roots.movies), 0, '🎬');
+        html += renderTreeLevel(buildPathTree(result.movies, roots.movies), 0, mi('movie'));
         html += '</div></div>';
     }
 
@@ -210,7 +218,7 @@ function renderFileTree(result, title) {
         html += '<div class="file-tree-section">';
         html += '<div class="file-tree-section-header"><span class="badge badge-tvshows">' + T('tvShows', 'TV Shows') + '</span> <span class="file-tree-section-count">(' + result.tvShows.length + ')</span></div>';
         html += '<div class="tree-view">';
-        html += renderTreeLevel(buildPathTree(result.tvShows, roots.tvShows), 0, '📺');
+        html += renderTreeLevel(buildPathTree(result.tvShows, roots.tvShows), 0, mi('tv'));
         html += '</div></div>';
     }
 
@@ -218,7 +226,7 @@ function renderFileTree(result, title) {
         html += '<div class="file-tree-section">';
         html += '<div class="file-tree-section-header"><span class="badge badge-music">' + T('music', 'Music') + '</span> <span class="file-tree-section-count">(' + result.music.length + ')</span></div>';
         html += '<div class="tree-view">';
-        html += renderTreeLevel(buildPathTree(result.music, roots.music), 0, '🎵');
+        html += renderTreeLevel(buildPathTree(result.music, roots.music), 0, mi('music_note'));
         html += '</div></div>';
     }
 
@@ -226,7 +234,7 @@ function renderFileTree(result, title) {
         html += '<div class="file-tree-section">';
         html += '<div class="file-tree-section-header"><span class="badge badge-other">' + T('other', 'Other') + '</span> <span class="file-tree-section-count">(' + result.other.length + ')</span></div>';
         html += '<div class="tree-view">';
-        html += renderTreeLevel(buildPathTree(result.other, roots.other), 0, '📄');
+        html += renderTreeLevel(buildPathTree(result.other, roots.other), 0, mi('description'));
         html += '</div></div>';
     }
 
@@ -252,10 +260,10 @@ function aggregateDict(libraries, prop) {
 
 /**
  * Reusable auto-save feedback indicator.
- * Shows a brief ✔ or ✘ on top of the given element, then fades out.
- * Can be attached to any element — the indicator is inserted as an overlay.
+ * Shows a brief  or  on top of the given element, then fades out.
+ * Can be attached to any element - the indicator is inserted as an overlay.
  * @param {HTMLElement} element - The element to show the indicator over.
- * @param {boolean} [success=true] - true = green ✔, false = red ✘
+ * @param {boolean} [success=true] - true = green , false = red 
  */
 function showAutoSaveIndicatorOverlay(element, success) {
     if (!element || !element.parentNode) return;
@@ -307,17 +315,17 @@ function removeExistingSaveIndicatorOverlay(element) {
 
 /**
  * Creates a save indicator element with the specified success status.
- * The indicator is styled with a green ✔ for success and a red ✘ for failure.
+ * The indicator is styled with a green  for success and a red  for failure.
  *
  * @param {HTMLElement} element The parent element to which the indicator will be attached.
- * @param {boolean} [success=true] - true = green ✔, false = red ✘
+ * @param {boolean} [success=true] - true = green , false = red 
  * @return {HTMLElement} The created save indicator element.
  */
 function createSaveIndicator(element, success) {
     let indicator = document.createElement('span');
     indicator.style.fontSize = '0.95em';
     indicator.style.color = success !== false ? getCssVar('--color-success', '#2ecc71') : getCssVar('--color-danger', '#e74c3c');
-    indicator.textContent = success !== false ? '✔' : '✘';
+    indicator.textContent = success !== false ? '' : '';
 
     return indicator;
 }
@@ -360,7 +368,7 @@ function calculateFadeDelay(success) {
 
 /**
  * Reusable button feedback for success / error states.
- * Switches the button content to a ✔ or ✘ icon + message, adds a CSS class,
+ * Switches the button content to a  or  icon + message, adds a CSS class,
  * then resets to the original content after a timeout.
  *
  * @param {HTMLElement} btn - The button element.
@@ -372,7 +380,7 @@ function calculateFadeDelay(success) {
  */
 function showButtonFeedback(btn, success, message, originalHtml, timeout) {
     if (!btn) return 0;
-    var icon = success ? '✔' : '✘';
+    var icon = success ? '' : '';
     var cls = success ? 'success' : 'error';
     var delay = timeout || (success ? 3000 : 5000);
     btn.classList.remove('success', 'error');
@@ -385,11 +393,11 @@ function showButtonFeedback(btn, success, message, originalHtml, timeout) {
 }
 
 // ============================================================
-// API Wrapper — centralizes ApiClient.ajax() calls
+// API Wrapper - centralizes ApiClient.ajax() calls
 // ============================================================
 
 /**
- * Default error handler for API calls — logs to console so failures are never silent.
+ * Default error handler for API calls - logs to console so failures are never silent.
  */
 function _apiDefaultError(method, path) {
     return function (err) {
@@ -587,7 +595,7 @@ function formatTimeAgo(utcTimestamp) {
 }
 
 // ============================================================
-// Shared scan data — single source of truth for last scan result
+// Shared scan data - single source of truth for last scan result
 // ============================================================
 
 // noinspection JSUnusedGlobalSymbols
@@ -642,7 +650,7 @@ function collectDictPaths(libraries, prop, key) {
 }
 
 // ============================================================
-// Dialog Helpers — reusable modal dialogs
+// Dialog Helpers - reusable modal dialogs
 // ============================================================
 
 /**

@@ -224,7 +224,7 @@ public class PluginLogService : IPluginLogService
         }
         catch
         {
-            // Plugin not initialized yet — use default
+            // Plugin not initialized yet - use default
         }
 
         return "INFO";

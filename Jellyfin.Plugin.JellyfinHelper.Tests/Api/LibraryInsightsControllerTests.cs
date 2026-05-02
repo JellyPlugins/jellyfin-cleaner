@@ -46,10 +46,10 @@ public class LibraryInsightsControllerTests
             .Setup(s => s.ComputeInsightsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(expected);
 
-        // First call — computes and caches
+        // First call - computes and caches
         await _controller.GetInsightsAsync(CancellationToken.None);
 
-        // Second call — should return cached result without calling service again
+        // Second call - should return cached result without calling service again
         var result = await _controller.GetInsightsAsync(CancellationToken.None);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -68,13 +68,13 @@ public class LibraryInsightsControllerTests
             .Setup(s => s.ComputeInsightsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => ++callCount == 1 ? first : second);
 
-        // First call — computes
+        // First call - computes
         await _controller.GetInsightsAsync(CancellationToken.None);
 
         // Evict cache manually to simulate expiry
         _cache.Remove(LibraryInsightsController.InsightsCacheKey);
 
-        // Second call — should compute again
+        // Second call - should compute again
         var result = await _controller.GetInsightsAsync(CancellationToken.None);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);

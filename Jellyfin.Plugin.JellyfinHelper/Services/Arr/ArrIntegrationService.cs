@@ -83,7 +83,7 @@ public sealed class ArrIntegrationService : IArrIntegrationService
         }
         catch (OperationCanceledException ex)
         {
-            // HttpClient.Timeout elapsed — not a user cancellation
+            // HttpClient.Timeout elapsed - not a user cancellation
             _pluginLog.LogWarning("ArrIntegration", $"Arr connection test timed out for {baseUrl}", ex, _logger);
             return (false, "Connection timed out.");
         }
@@ -243,11 +243,11 @@ public sealed class ArrIntegrationService : IArrIntegrationService
             }
             else if (movie.HasFile)
             {
-                result.InArrOnly.Add($"{movie.Title} ({movie.Year}) — has file on disk");
+                result.InArrOnly.Add($"{movie.Title} ({movie.Year}) - has file on disk");
             }
             else
             {
-                result.InArrOnlyMissing.Add($"{movie.Title} ({movie.Year}) — no file");
+                result.InArrOnlyMissing.Add($"{movie.Title} ({movie.Year}) - no file");
             }
         }
 
@@ -298,11 +298,11 @@ public sealed class ArrIntegrationService : IArrIntegrationService
             else if (series.EpisodeFileCount > 0)
             {
                 result.InArrOnly.Add(
-                    $"{series.Title} ({series.Year}) — {series.EpisodeFileCount}/{series.TotalEpisodeCount} episodes on disk");
+                    $"{series.Title} ({series.Year}) - {series.EpisodeFileCount}/{series.TotalEpisodeCount} episodes on disk");
             }
             else
             {
-                result.InArrOnlyMissing.Add($"{series.Title} ({series.Year}) — no episodes");
+                result.InArrOnlyMissing.Add($"{series.Title} ({series.Year}) - no episodes");
             }
         }
 

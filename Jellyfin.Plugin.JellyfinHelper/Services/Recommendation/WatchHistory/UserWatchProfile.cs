@@ -115,7 +115,7 @@ public sealed class UserWatchProfile
 
     /// <summary>
     ///     Gets the set of languages the user has actively chosen (ChosenCount &gt; 0).
-    ///     These represent true preferences — the user had alternatives and picked this language.
+    ///     These represent true preferences - the user had alternatives and picked this language.
     ///     Excluded from JSON serialization to avoid redundant data in API responses.
     /// </summary>
     [JsonIgnore]

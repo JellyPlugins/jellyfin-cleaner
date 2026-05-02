@@ -5,7 +5,7 @@ var _lastTrendPointData = null;
 
 function formatGranularityLabel(dateStr, granularity) {
     var d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '—';
+    if (isNaN(d.getTime())) return '-';
 
     switch (granularity) {
         case 'yearly':
@@ -125,7 +125,7 @@ function renderTrendChart(timeline) {
     for (var p = 0; p < dataPoints.length; p++) {
         if (dataPoints[p].cumulativeSize > peakSize) peakSize = dataPoints[p].cumulativeSize;
     }
-    // Treat points below 0.5% of peak as "visually zero" — they sit on the 0-line
+    // Treat points below 0.5% of peak as "visually zero" - they sit on the 0-line
     // and clutter the chart with a long flat baseline before actual growth starts
     var zeroThreshold = peakSize * 0.005;
 
@@ -196,7 +196,7 @@ function renderTrendChart(timeline) {
         yTicks.push(Math.round(yMax));
     }
 
-    // Build points — map data against yMax (not rawMax) so points align with grid
+    // Build points - map data against yMax (not rawMax) so points align with grid
     var points = [];
     var step = dataPoints.length > 1 ? chartW / (dataPoints.length - 1) : 0;
     for (var j = 0; j < dataPoints.length; j++) {
@@ -214,7 +214,7 @@ function renderTrendChart(timeline) {
         svg += '<text x="' + (padL - 5) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="10">' + formatBytes(yTicks[g]) + '</text>';
     }
 
-    // Area fill — use theme variable for consistent primary tint
+    // Area fill - use theme variable for consistent primary tint
     var areaFill = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-light').trim() || 'rgba(0,164,220,0.15)';
     var areaPoints = padL + ',' + (padT + chartH) + ' ' + points.join(' ') + ' ' + (padL + (dataPoints.length - 1) * step) + ',' + (padT + chartH);
     svg += '<polygon points="' + areaPoints + '" fill="' + areaFill + '" />';
@@ -223,7 +223,7 @@ function renderTrendChart(timeline) {
     var trendColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#00a4dc';
     svg += '<polyline points="' + points.join(' ') + '" fill="none" stroke="' + trendColor + '" stroke-width="2" />';
 
-    // Invisible interaction overlay — full chart area rect for mouse/touch tracking
+    // Invisible interaction overlay - full chart area rect for mouse/touch tracking
     svg += '<rect class="trend-hit-area" x="' + padL + '" y="' + padT + '" width="' + chartW + '" height="' + chartH + '" fill="transparent" />';
 
     // Small visible dots at each data point (always shown, small)
@@ -235,7 +235,7 @@ function renderTrendChart(timeline) {
         }
     }
 
-    // X-axis labels — dynamically adapt label count to prevent overlap
+    // X-axis labels - dynamically adapt label count to prevent overlap
     var labelCount = Math.min(dataPoints.length, 10);
     // On narrow charts, reduce label count further
     if (dataPoints.length > 20) labelCount = Math.min(labelCount, 7);
@@ -297,7 +297,7 @@ function renderTrendChart(timeline) {
     // Store point data in memory instead of serializing into the DOM
     _lastTrendPointData = pointData;
 
-    // Diff panel — appears below chart on hover, shows delta vs current (last) data point
+    // Diff panel - appears below chart on hover, shows delta vs current (last) data point
     var diffPanel = '<div class="trend-diff-panel">'
         + '<div class="trend-diff-content">'
         + '<div class="trend-diff-compare">'
@@ -409,7 +409,7 @@ function attachTrendInteraction(container) {
         tooltip.querySelector('.tt-size').textContent = sizeLabel;
         tooltip.querySelector('.tt-files').textContent = pt.c + ' ' + T('trendFiles', 'media files');
 
-        // Position tooltip — prefer right side, flip to left if near edge
+        // Position tooltip - prefer right side, flip to left if near edge
         var ttWidth = tooltip.offsetWidth || 120;
         var ttHeight = tooltip.offsetHeight || 50;
         var ttLeft = pixelX + 12;
@@ -499,7 +499,7 @@ function attachTrendInteraction(container) {
         hideTooltip();
     });
 
-    // Touch events — show tooltip on tap/drag, persist after release
+    // Touch events - show tooltip on tap/drag, persist after release
     svgEl.addEventListener('touchstart', function (e) {
         if (e.touches.length === 1) {
             var idx = getPointIndex(e.touches[0].clientX);
@@ -516,7 +516,7 @@ function attachTrendInteraction(container) {
         }
     }, {passive: true});
 
-    // touchend: intentionally no-op — tooltip stays visible until next touch
+    // touchend: intentionally no-op - tooltip stays visible until next touch
 
     svgEl.addEventListener('touchcancel', function () {
         hideTooltip();
@@ -561,14 +561,14 @@ function renderInsightCards(data) {
 
     // --- Largest card ---
     html += '<button class="insight-card" id="insightLargestBtn" type="button" aria-expanded="false">';
-    html += '<span class="insight-icon">💾</span>';
+    html += '<span class="insight-icon">" + mi("save") + "</span>';
     html += '<span class="insight-value">' + formatBytes(data.LargestTotalSize) + '</span>';
     html += '<span class="insight-label">' + T('insightLargest', 'Largest') + '</span>';
     html += '</button>';
 
     // --- Recently card ---
     html += '<button class="insight-card" id="insightRecentBtn" type="button" aria-expanded="false">';
-    html += '<span class="insight-icon">🕐</span>';
+    html += '<span class="insight-icon">" + mi("schedule") + "</span>';
     html += '<span class="insight-value">' + data.RecentTotalCount + '</span>';
     html += '<span class="insight-label">' + T('insightRecent', 'Recently') + '</span>';
     html += '</button>';
@@ -740,17 +740,17 @@ function groupByLibrary(entries) {
 }
 
 function getInsightTypeBadge(collectionType) {
-    if (!collectionType) return '📁';
+    if (!collectionType) return mi('folder');
     var ct = collectionType.toLowerCase();
-    if (ct === 'movies' || ct === 'homevideos' || ct === 'musicvideos') return '🎬';
-    if (ct === 'tvshows') return '📺';
-    return '📁';
+    if (ct === 'movies' || ct === 'homevideos' || ct === 'musicvideos') return mi('movie');
+    if (ct === 'tvshows') return mi('tv');
+    return mi('folder');
 }
 
 function formatInsightDate(isoStr) {
-    if (!isoStr) return '—';
+    if (!isoStr) return '-';
     var d = new Date(isoStr);
-    if (isNaN(d.getTime())) return '—';
+    if (isNaN(d.getTime())) return '-';
     return d.toLocaleDateString(undefined, {
         month: 'short',
         day: 'numeric',

@@ -90,7 +90,7 @@ public class CodecsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_CodecCategoryMap_MusicAudioCodecsExcludesVideo()
     {
-        // musicAudioCodecs should only include music — validate as one contiguous block
+        // musicAudioCodecs should only include music - validate as one contiguous block
         Assert.Matches(
             @"'musicAudioCodecs':\s*\{\s*movies:\s*false,\s*tvShows:\s*false,\s*music:\s*true,\s*other:\s*false\s*\}",
             HtmlContent);

@@ -134,7 +134,7 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
                     }
                 }
 
-                // If there are no videos in this directory at all, skip — subtitles here
+                // If there are no videos in this directory at all, skip - subtitles here
                 // are likely managed by the folder itself (season folder, etc.)
                 // The EmptyMediaFolder task handles entire orphaned folders.
                 if (videoBaseNames.Count == 0)

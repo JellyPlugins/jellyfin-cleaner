@@ -12,7 +12,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 ///     with the heuristic (rule-based) strategy for more robust recommendations.
 ///     Uses a dynamic blending factor (α) that smoothly shifts weight toward the learned
 ///     model as more training data becomes available via a sigmoid function.
-///     Alpha progression is gated by validation loss quality — if the learned model
+///     Alpha progression is gated by validation loss quality - if the learned model
 ///     generalizes poorly, alpha will not advance further.
 ///     Applies the genre-mismatch penalty centrally (once) after blending to avoid
 ///     double-penalization that would occur if each sub-strategy applied it independently.
@@ -37,7 +37,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     /// <summary>
     ///     Default maximum blending factor (learned dominates with abundant data).
     ///     Capped at 0.75 instead of 1.0 so that heuristic rules always contribute at least
-    ///     25% — this guards against overfitting when the ML model has limited diversity.
+    ///     25% - this guards against overfitting when the ML model has limited diversity.
     /// </summary>
     internal const double DefaultAlphaMax = 0.75;
 
@@ -356,7 +356,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     /// <inheritdoc />
     public double Score(CandidateFeatures features)
     {
-        // Snapshot blending factors atomically — sub-strategies handle their own thread safety.
+        // Snapshot blending factors atomically - sub-strategies handle their own thread safety.
         double alpha;
         double beta;
         lock (_syncRoot)
@@ -390,7 +390,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     /// <inheritdoc />
     public ScoreExplanation ScoreWithExplanation(CandidateFeatures features)
     {
-        // Snapshot blending factors atomically — sub-strategies handle their own thread safety.
+        // Snapshot blending factors atomically - sub-strategies handle their own thread safety.
         double alpha;
         double beta;
         lock (_syncRoot)
@@ -466,7 +466,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
 
                 if (qualityGatePassed)
                 {
-                    // Good generalization — let alpha progress at full sigmoid rate
+                    // Good generalization - let alpha progress at full sigmoid rate
                     _alpha = sigmoidAlpha;
                     _qualityGateFrozen = false;
                 }
@@ -507,7 +507,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                     }
                     else
                     {
-                        // Neural not generalizing well — reduce its influence.
+                        // Neural not generalizing well - reduce its influence.
                         // Apply floor to avoid infinitesimal ghost values.
                         _neuralBeta *= 0.5;
                         if (_neuralBeta < NeuralBetaMinFloor)
@@ -518,7 +518,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                 }
                 else if (_neural is not null && !neuralTrained && _neuralBeta > 0)
                 {
-                    // Neural strategy failed to train this round while learned succeeded —
+                    // Neural strategy failed to train this round while learned succeeded -
                     // decay β to avoid stale influence, analogous to the learned-failure branch.
                     _neuralBeta *= 0.5;
                     if (_neuralBeta < NeuralBetaMinFloor)
@@ -727,17 +727,17 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         }
         catch (IOException ex)
         {
-            // Graceful fallback to defaults on I/O error — log for diagnostics
+            // Graceful fallback to defaults on I/O error - log for diagnostics
             _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to load state");
         }
         catch (UnauthorizedAccessException ex)
         {
-            // Graceful fallback to defaults on access denied — log for diagnostics
+            // Graceful fallback to defaults on access denied - log for diagnostics
             _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to load state (access denied)");
         }
         catch (JsonException ex)
         {
-            // Graceful fallback to defaults on parse error — log for diagnostics
+            // Graceful fallback to defaults on parse error - log for diagnostics
             _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to parse state");
         }
     }
@@ -786,17 +786,17 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         }
         catch (IOException ex)
         {
-            // Non-critical — log for diagnostics but don't fail
+            // Non-critical - log for diagnostics but don't fail
             _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to save state");
         }
         catch (UnauthorizedAccessException ex)
         {
-            // Non-critical — log for diagnostics but don't fail
+            // Non-critical - log for diagnostics but don't fail
             _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to save state (access denied)");
         }
         catch (JsonException ex)
         {
-            // Non-critical — log for diagnostics but don't fail
+            // Non-critical - log for diagnostics but don't fail
             _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to serialize state");
         }
     }

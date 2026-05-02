@@ -54,7 +54,7 @@ function loadCleanupStats() {
     apiGet('JellyfinHelper/CleanupStatistics', function (stats) {
         var cleanupContainer = document.getElementById('cleanup-stats-container');
         if (!cleanupContainer) return;
-        var h = '<div class="section-title">🧹 ' + T('cleanupStatistics', 'Cleanup Statistics') + '</div>';
+        var h = '<div class="section-title">" + mi("cleaning_services") + " ' + T('cleanupStatistics', 'Cleanup Statistics') + '</div>';
         h += '<div class="stats-grid">';
         h += '<div class="stat-card highlight"><h3>' + T('totalBytesFreed', 'Total Space Freed') + '</h3>';
         h += '<p class="stat-value">' + formatBytes(stats.TotalBytesFreed) + '</p></div>';
@@ -71,7 +71,7 @@ function loadCleanupStats() {
     }, function () {
         var cleanupContainer = document.getElementById('cleanup-stats-container');
         if (cleanupContainer) {
-            cleanupContainer.innerHTML = '<div class="section-title">🧹 ' + T('cleanupStatistics', 'Cleanup Statistics') + '</div>' +
+            cleanupContainer.innerHTML = '<div class="section-title">" + mi("cleaning_services") + " ' + T('cleanupStatistics', 'Cleanup Statistics') + '</div>' +
                 '<p style="opacity:0.5;">' + T('cleanupStatsError', 'Could not load cleanup statistics.') + '</p>';
         }
     });
@@ -80,40 +80,40 @@ function loadCleanupStats() {
 function fillOverviewData(data) {
     var overviewHtml = '';
     overviewHtml += '<div class="stats-grid">';
-    overviewHtml += '<div class="stat-card"><h3>🎬 ' + T('movieVideoData', 'Video Data — Movies') + '</h3>';
+    overviewHtml += '<div class="stat-card"><h3>" + mi("movie") + " ' + T('movieVideoData', 'Video Data - Movies') + '</h3>';
     overviewHtml += '<p class="stat-value">' + formatBytes(data.TotalMovieVideoSize) + '</p>';
     var movieFiles = 0;
     for (var m = 0; m < data.Movies.length; m++) movieFiles += data.Movies[m].VideoFileCount;
     overviewHtml += '<p class="stat-detail">' + movieFiles + ' ' + (movieFiles === 1 ? T('file', 'file') : T('files', 'files')) + ' ' + T('across', 'across') + ' ' + data.Movies.length + ' ' + T('libraries', 'libraries') + '</p>';
     overviewHtml += '</div>';
 
-    overviewHtml += '<div class="stat-card"><h3>📺 ' + T('tvVideoData', 'Video Data — TV Shows') + '</h3>';
+    overviewHtml += '<div class="stat-card"><h3>" + mi("tv") + " ' + T('tvVideoData', 'Video Data - TV Shows') + '</h3>';
     overviewHtml += '<p class="stat-value">' + formatBytes(data.TotalTvShowVideoSize) + '</p>';
     var tvFiles = 0;
     for (var t = 0; t < data.TvShows.length; t++) tvFiles += data.TvShows[t].VideoFileCount;
     overviewHtml += '<p class="stat-detail">' + tvFiles + ' ' + (tvFiles === 1 ? T('episode', 'episode') : T('episodes', 'episodes')) + ' ' + T('across', 'across') + ' ' + data.TvShows.length + ' ' + T('libraries', 'libraries') + '</p>';
     overviewHtml += '</div>';
 
-    overviewHtml += '<div class="stat-card"><h3>🎵 ' + T('musicAudioData', 'Music / Audio') + '</h3>';
+    overviewHtml += '<div class="stat-card"><h3>" + mi("music_note") + " ' + T('musicAudioData', 'Music / Audio') + '</h3>';
     overviewHtml += '<p class="stat-value">' + formatBytes(data.TotalMusicAudioSize) + '</p>';
     overviewHtml += '<p class="stat-detail">' + data.TotalAudioFileCount + ' ' + (data.TotalAudioFileCount === 1 ? T('file', 'file') : T('files', 'files')) + '</p>';
     overviewHtml += '</div>';
 
-    overviewHtml += '<div class="stat-card"><h3>🖼️ ' + T('trickplayData', 'Trickplay Data') + '</h3>';
+    overviewHtml += '<div class="stat-card"><h3>" + mi("image") + " ' + T('trickplayData', 'Trickplay Data') + '</h3>';
     overviewHtml += '<p class="stat-value">' + formatBytes(data.TotalTrickplaySize) + '</p>';
     var trickplayFolders = 0;
     for (var tp = 0; tp < data.Libraries.length; tp++) trickplayFolders += data.Libraries[tp].TrickplayFolderCount;
     overviewHtml += '<p class="stat-detail">' + trickplayFolders + ' ' + (trickplayFolders === 1 ? T('folder', 'folder') : T('folders', 'folders')) + '</p>';
     overviewHtml += '</div>';
 
-    overviewHtml += '<div class="stat-card"><h3>📝 ' + T('subtitleData', 'Subtitles') + '</h3>';
+    overviewHtml += '<div class="stat-card"><h3>" + mi("edit_note") + " ' + T('subtitleData', 'Subtitles') + '</h3>';
     overviewHtml += '<p class="stat-value">' + formatBytes(data.TotalSubtitleSize) + '</p>';
     var subFiles = 0;
     for (var sb = 0; sb < data.Libraries.length; sb++) subFiles += data.Libraries[sb].SubtitleFileCount;
     overviewHtml += '<p class="stat-detail">' + subFiles + ' ' + (subFiles === 1 ? T('file', 'file') : T('files', 'files')) + '</p>';
     overviewHtml += '</div>';
 
-    overviewHtml += '<div class="stat-card"><h3>📊 ' + T('totalFiles', 'Total Files') + '</h3>';
+    overviewHtml += '<div class="stat-card"><h3>" + mi("bar_chart") + " ' + T('totalFiles', 'Total Files') + '</h3>';
     var totalMediaFiles = data.TotalVideoFileCount + data.TotalAudioFileCount;
     overviewHtml += '<p class="stat-value">' + totalMediaFiles + ' ' + (totalMediaFiles === 1 ? T('mediaFile', 'media file') : T('mediaFiles', 'media files')) + '</p>';
     overviewHtml += '<p class="stat-detail">' + data.TotalVideoFileCount + ' ' + T('video', 'video') + ', ' + data.TotalAudioFileCount + ' ' + T('audio', 'audio') + '</p>';
@@ -122,10 +122,10 @@ function fillOverviewData(data) {
 
     var grandTotal = 0;
     for (var gt = 0; gt < data.Libraries.length; gt++) grandTotal += data.Libraries[gt].TotalSize;
-    overviewHtml += '<div class="section-title">⛃ ' + T('storageDistribution', 'Storage Distribution') + ' — <span class="color-primary">' + formatBytes(grandTotal) + ' ' + T('total', 'Total') + '</span></div>';
+    overviewHtml += '<div class="section-title">" + mi("storage") + " ' + T('storageDistribution', 'Storage Distribution') + ' - <span class="color-primary">' + formatBytes(grandTotal) + ' ' + T('total', 'Total') + '</span></div>';
     overviewHtml += buildBarSegments(data);
 
-    overviewHtml += '<div class="section-title">📚 ' + T('perLibraryBreakdown', 'Per-Library Breakdown') + '</div>';
+    overviewHtml += '<div class="section-title">" + mi("library_books") + " ' + T('perLibraryBreakdown', 'Per-Library Breakdown') + '</div>';
     overviewHtml += '<div class="library-table-wrapper"><table class="library-table">';
     overviewHtml += '<thead><tr>';
     overviewHtml += '<th>' + T('library', 'Library') + '</th><th>' + T('type', 'Type') + '</th><th>' + T('video', 'Video') + '</th><th>' + T('audio', 'Audio') + '</th><th>' + T('subtitles', 'Subtitles') + '</th><th>' + T('images', 'Images') + '</th><th>' + T('trickplay', 'Trickplay') + '</th><th>' + T('total', 'Total') + '</th>';

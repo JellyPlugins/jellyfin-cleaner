@@ -58,7 +58,7 @@ internal static class EngineConstants
     ///     Genre watch share threshold below which a genre is considered "underexposed."
     ///     A genre representing less than 2% of the user's total watches is rarely watched.
     ///     This is deliberately low to avoid penalizing genres that the user watches
-    ///     occasionally — only genres with very minimal or zero presence are flagged.
+    ///     occasionally - only genres with very minimal or zero presence are flagged.
     /// </summary>
     internal const double GenreUnderexposureThreshold = 0.02;
 
@@ -105,7 +105,7 @@ internal static class EngineConstants
     internal const double AbandonedLabel = 0.0;
 
     /// <summary>
-    ///     Label for previously recommended but unwatched items (exposure bias mitigation —
+    ///     Label for previously recommended but unwatched items (exposure bias mitigation -
     ///     user saw the recommendation but didn't engage). Kept very close to zero
     ///     to clearly separate "ignored" from "barely started" (WatchedLabelFloor = 0.5).
     /// </summary>
@@ -184,7 +184,7 @@ internal static class EngineConstants
 
     /// <summary>
     ///     PersonKind types considered for people similarity scoring.
-    ///     Only actors and directors are used — writers/producers are less predictive
+    ///     Only actors and directors are used - writers/producers are less predictive
     ///     of user preference and would add noise to the similarity signal.
     /// </summary>
     internal static readonly IReadOnlyList<PersonKind> RelevantPersonKinds = Array.AsReadOnly(new[] { PersonKind.Actor, PersonKind.Director });

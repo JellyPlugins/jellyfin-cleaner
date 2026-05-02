@@ -66,7 +66,7 @@ public class UserActivityController : ControllerBase
             return Ok(cached);
         }
 
-        // No cache yet — generate on demand and always cache.
+        // No cache yet - generate on demand and always cache.
         var result = _insightsService.BuildActivityReport();
         _cacheService.SaveResult(result);
 

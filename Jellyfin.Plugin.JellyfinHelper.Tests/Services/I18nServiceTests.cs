@@ -408,7 +408,7 @@ public class I18NServiceTests : IDisposable
         Assert.DoesNotContain(entries, e => e.Level == "ERROR");
     }
 
-    // ===== Key count consistency — all languages have same count =====
+    // ===== Key count consistency - all languages have same count =====
 
     [Theory]
     [InlineData("de")]

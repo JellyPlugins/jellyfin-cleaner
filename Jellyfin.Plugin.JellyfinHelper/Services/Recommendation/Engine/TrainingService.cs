@@ -53,14 +53,14 @@ internal sealed class TrainingService
     {
         if (previousResults.Count == 0)
         {
-            _pluginLog.LogInfo("Recommendations", "Training skipped — no previous recommendations available.", _logger);
+            _pluginLog.LogInfo("Recommendations", "Training skipped - no previous recommendations available.", _logger);
             return false;
         }
 
         // Non-blocking guard: skip if another training run is already in progress.
         if (!TrainGate.Wait(0, CancellationToken.None))
         {
-            _pluginLog.LogInfo("Recommendations", "Training skipped — another training run is already in progress.", _logger);
+            _pluginLog.LogInfo("Recommendations", "Training skipped - another training run is already in progress.", _logger);
             return false;
         }
 
@@ -134,7 +134,7 @@ internal sealed class TrainingService
 
         // Pre-compute itemId ? studios and itemId ? tags lookups ONCE from all previous results.
         // This avoids O(users × results × recommendations) rescanning in BuildStudioPreferenceSetFromCache
-        // and BuildTagPreferenceSetFromCache — each user's preference set is now O(watchedItems) instead.
+        // and BuildTagPreferenceSetFromCache - each user's preference set is now O(watchedItems) instead.
         var itemStudiosLookup = new Dictionary<Guid, IReadOnlyList<string>>();
         var itemTagsLookup = new Dictionary<Guid, IReadOnlyList<string>>();
         foreach (var prevResult in previousResults)
@@ -363,7 +363,7 @@ internal sealed class TrainingService
                     else if (features.CompletionRatio > 0
                              && features.CompletionRatio < EngineConstants.AbandonedCompletionThreshold)
                     {
-                        // User started the item but abandoned it early — this is a stronger
+                        // User started the item but abandoned it early - this is a stronger
                         // negative signal than "never seen" (exposure). Active rejection > passive ignore.
                         baseLabel = EngineConstants.AbandonedLabel;
                     }
@@ -372,7 +372,7 @@ internal sealed class TrainingService
                         baseLabel = ContentScoring.ComputeEngagementLabel(features.CompletionRatio);
                     }
 
-                    // Watched shortly after recommendation — boost label (but not abandoned items)
+                    // Watched shortly after recommendation - boost label (but not abandoned items)
                     label = baseLabel > EngineConstants.AbandonedLabel
                         && watchedItemForRec?.LastPlayedDate is not null
                         && (watchedItemForRec.LastPlayedDate.Value - prevResult.GeneratedAt).TotalDays
@@ -557,7 +557,7 @@ internal sealed class TrainingService
 
                 var isSeries = string.Equals(w.ItemType, "Series", StringComparison.OrdinalIgnoreCase);
 
-                // If this standalone series has episode rows in the organic set, skip it —
+                // If this standalone series has episode rows in the organic set, skip it -
                 // the episode-based aggregation path (above) produces richer training signals.
                 // Without this guard, iteration order could cause the standalone row to "win"
                 // the aggregatedSeriesIds race and suppress episode-level aggregation.
@@ -648,13 +648,13 @@ internal sealed class TrainingService
                 features.GenreDominanceRatio = organicDomRatio;
                 features.GenreAffinityGap = organicAffGap;
 
-                // Organic watches are strong positive signals — label based on completion.
+                // Organic watches are strong positive signals - label based on completion.
                 // Favorite-only items (not played, no playback progress) get an explicit positive label.
                 // Items started but abandoned (not played, but has playback progress) get a negative label.
                 double label;
                 if (!w.Played && w.PlaybackPositionTicks > 0 && completionRatio < EngineConstants.AbandonedCompletionThreshold)
                 {
-                    // Started but abandoned — active rejection signal
+                    // Started but abandoned - active rejection signal
                     label = EngineConstants.AbandonedLabel;
                 }
                 else if (!w.Played && w.PlaybackPositionTicks <= 0)
@@ -782,7 +782,7 @@ internal sealed class TrainingService
                         CompletionRatio = 0.5,
                         PeopleSimilarity = negPeopleSimilarity,
                         StudioMatch = negStudioMatch,
-                        // SeriesProgressionBoost stays 0.0 — for cross-user negatives, the user
+                        // SeriesProgressionBoost stays 0.0 - for cross-user negatives, the user
                         // has no episode history for that series, so 0 is the correct value.
                         PopularityScore = collabScore > 0 ? Math.Clamp(collabScore * 0.8, 0.0, 1.0) : combinedCriticScore * 0.3,
                         DayOfWeekAffinity = 0.5,
@@ -804,7 +804,7 @@ internal sealed class TrainingService
                         Features = features,
                         Label = 0.0,
                         GeneratedAtUtc = organicFallbackTimestamp,
-                        SampleWeight = 0.5 // Lower weight than real interactions — we infer irrelevance, not observe it
+                        SampleWeight = 0.5 // Lower weight than real interactions - we infer irrelevance, not observe it
                     });
                     randomNegativeCount++;
                 }
@@ -913,7 +913,7 @@ internal sealed class TrainingService
 
             _pluginLog.LogInfo(
                 "Recommendations",
-                $"Strategy '{strategy.Name}' training completed ({metricsLabel}) — " +
+                $"Strategy '{strategy.Name}' training completed ({metricsLabel}) - " +
                 $"P@{Scoring.RankingMetrics.DefaultK}: {precisionAtK:F3}, " +
                 $"R@{Scoring.RankingMetrics.DefaultK}: {recallAtK:F3}, " +
                 $"NDCG@{Scoring.RankingMetrics.DefaultK}: {ndcgAtK:F3} " +
@@ -1216,7 +1216,7 @@ internal sealed class TrainingService
         double label;
         if (playedEps == 0 && episodes.Any(e => e.PlaybackPositionTicks > 0))
         {
-            // Started some episodes but completed none — series-level abandonment
+            // Started some episodes but completed none - series-level abandonment
             label = completionRatio < EngineConstants.AbandonedCompletionThreshold
                 ? EngineConstants.AbandonedLabel
                 : ContentScoring.ComputeEngagementLabel(completionRatio);

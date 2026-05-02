@@ -45,15 +45,15 @@ public sealed class RecommendationCacheServiceTests : IDisposable
         }
         catch (DirectoryNotFoundException)
         {
-            // Best-effort cleanup — TOCTOU race between Exists check and Delete
+            // Best-effort cleanup - TOCTOU race between Exists check and Delete
         }
         catch (IOException)
         {
-            // Best-effort cleanup — don't fail the test run for transient IO issues
+            // Best-effort cleanup - don't fail the test run for transient IO issues
         }
         catch (UnauthorizedAccessException)
         {
-            // Best-effort cleanup — don't fail the test run for access issues
+            // Best-effort cleanup - don't fail the test run for access issues
         }
     }
 

@@ -32,7 +32,7 @@ function renderArrInstanceRow(type, index, inst) {
     h += '<strong>' + type + ' #' + (index + 1) + '</strong>';
     h += '<button type="button" class="action-btn btn-arr-remove btnRemoveArr" data-type="'
         + type + '" data-index="' + index
-        + '" style="padding:0.2em 0.6em;font-size:0.8em;">✕ ' + T('remove',
+        + '" style="padding:0.2em 0.6em;font-size:0.8em;"> ' + T('remove',
             'Remove') + '</button>';
     h += '</div>';
     var instanceNameId = prefix + '_name';
@@ -49,7 +49,7 @@ function renderArrInstanceRow(type, index, inst) {
         + escAttr(apiKey) + '">';
     h += '<button type="button" class="action-btn btn-arr-test btnTestArr" id="'
         + prefix + '_btnTest" data-type="' + type + '" data-index="' + index
-        + '" style="padding:0.3em 0.8em;font-size:0.85em;">🔌 ' + T(
+        + '" style="padding:0.3em 0.8em;font-size:0.85em;">" + mi("extension") + " ' + T(
             'testConnection', 'Test Connection') + '</button>';
     h += '</div>';
     return h;
@@ -145,7 +145,7 @@ function removeArrInstance(type, index) {
     for (var b = 0; b < testBtns.length; b++) {
         testBtns[b].classList.remove('success', 'error');
         testBtns[b].disabled = false;
-        testBtns[b].innerHTML = '🔌 ' + T('testConnection', 'Test Connection');
+        testBtns[b].innerHTML = mi('extension') + ' ' + T('testConnection', 'Test Connection');
     }
 
     var row = document.querySelector(
@@ -216,7 +216,7 @@ function testArrConnection(type, index) {
     var url = urlEl.value.trim();
     var apiKey = keyEl.value.trim();
 
-    var originalHtml = '🔌 ' + T('testConnection', 'Test Connection');
+    var originalHtml = mi('extension') + ' ' + T('testConnection', 'Test Connection');
 
     var timerKey = type + '_' + index;
     if (_testTimers[timerKey]) {
@@ -322,7 +322,7 @@ function initArrButtons(cfg) {
 
     if (radarrInstances.length > 0) {
         h += '<div style="margin-bottom:1em;">';
-        h += '<h4 style="margin:0 0 0.5em 0;opacity:0.7;">🎬 Radarr</h4>';
+        h += '<h4 style="margin:0 0 0.5em 0;opacity:0.7;">" + mi("movie") + " Radarr</h4>';
         h += '<div class="header-actions" style="flex-wrap:wrap;">';
         for (var r = 0; r < radarrInstances.length; r++) {
             var rName = radarrInstances[r].Name || ('Radarr #' + (r + 1));
@@ -335,7 +335,7 @@ function initArrButtons(cfg) {
 
     if (sonarrInstances.length > 0) {
         h += '<div style="margin-bottom:1em;">';
-        h += '<h4 style="margin:0 0 0.5em 0;opacity:0.7;">📺 Sonarr</h4>';
+        h += '<h4 style="margin:0 0 0.5em 0;opacity:0.7;">" + mi("tv") + " Sonarr</h4>';
         h += '<div class="header-actions" style="flex-wrap:wrap;">';
         for (var s = 0; s < sonarrInstances.length; s++) {
             var sName = sonarrInstances[s].Name || ('Sonarr #' + (s + 1));
@@ -364,7 +364,7 @@ function initArrButtons(cfg) {
 function renderArrSection(icon, titleKey, titleFallback, items) {
     items = Array.isArray(items) ? items : [];
     var h = '<div class="arr-section"><h4>' + icon + ' ' + T(titleKey,
-            titleFallback) + ' — <span class="arr-count">' + items.length
+            titleFallback) + ' - <span class="arr-count">' + items.length
         + '</span></h4>';
     if (items.length > 0) {
         h += '<div class="arr-list"><ul>';
@@ -394,16 +394,16 @@ function compareArr(type, index, label) {
             var instanceLabel = label || type;
             var h = '<h3 style="margin-bottom:0.8em;">' + escHtml(instanceLabel)
                 + '</h3>';
-            h += renderArrSection('✅', 'inBoth', 'In Both', data.InBoth);
-            h += renderArrSection('📦', 'inArrOnly', 'In Arr Only (with file)',
+            h += renderArrSection(mi('check_circle'), 'inBoth', 'In Both', data.InBoth);
+            h += renderArrSection(mi('inventory_2'), 'inArrOnly', 'In Arr Only (with file)',
                 data.InArrOnly);
-            h += renderArrSection('⚠️', 'inArrOnlyMissing', 'In Arr Only (no file)',
+            h += renderArrSection(mi('warning'), 'inArrOnlyMissing', 'In Arr Only (no file)',
                 data.InArrOnlyMissing);
-            h += renderArrSection('🔍', 'inJellyfinOnly', 'In Jellyfin Only',
+            h += renderArrSection(mi('search'), 'inJellyfinOnly', 'In Jellyfin Only',
                 data.InJellyfinOnly);
             resultDiv.innerHTML = h;
         }, function () {
-            resultDiv.innerHTML = '<div class="error-msg">❌ ' + T('arrCompareError',
+            resultDiv.innerHTML = '<div class="error-msg">" + mi("error") + " ' + T('arrCompareError',
                 'Failed to compare. Check settings.') + '</div>';
         });
 }

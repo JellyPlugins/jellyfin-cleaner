@@ -253,7 +253,7 @@ public class RecommendationControllerTests
         var result = _controller.GetAllRecommendations();
 
         Assert.IsType<OkObjectResult>(result.Result);
-        // DryRun should NOT persist to disk — the UI caches in the browser instead
+        // DryRun should NOT persist to disk - the UI caches in the browser instead
         _mockCache.Verify(c => c.SaveResults(It.IsAny<IReadOnlyList<RecommendationResult>>()), Times.Never);
     }
 

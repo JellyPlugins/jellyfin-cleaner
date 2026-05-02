@@ -14,7 +14,7 @@ public enum TaskMode
     Deactivate = 0,
 
     /// <summary>
-    /// The task runs in dry-run mode — it logs what would happen but makes no changes.
+    /// The task runs in dry-run mode - it logs what would happen but makes no changes.
     /// This is the default for all tasks (safe mode).
     /// </summary>
     DryRun = 1,

@@ -87,7 +87,7 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
 
                     _pluginLog.LogDebug(
                         "PlaylistSync",
-                        $"No recommendations for user '{result.UserName}' — skipping playlist creation.",
+                        $"No recommendations for user '{result.UserName}' - skipping playlist creation.",
                         _logger);
                     continue;
                 }
@@ -108,7 +108,7 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
 
                     _pluginLog.LogDebug(
                         "PlaylistSync",
-                        $"No playable items resolved for user '{result.UserName}' — skipping playlist creation.",
+                        $"No playable items resolved for user '{result.UserName}' - skipping playlist creation.",
                         _logger);
                     continue;
                 }
@@ -130,7 +130,7 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
 
                 if (!string.IsNullOrEmpty(playlistResult.Id))
                 {
-                    // New playlist created — now safe to remove old playlists.
+                    // New playlist created - now safe to remove old playlists.
                     var removed = await RemoveUserPlaylistsExceptAsync(
                         result.UserId, playlistResult.Id, cancellationToken).ConfigureAwait(false);
                     syncResult.OldPlaylistsRemoved += removed;
@@ -285,13 +285,13 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
                     skippedCount++;
                     _pluginLog.LogDebug(
                         "PlaylistSync",
-                        $"Could not resolve first episode for series '{rec.Name}' (ID: {rec.ItemId}) — skipping, will backfill.",
+                        $"Could not resolve first episode for series '{rec.Name}' (ID: {rec.ItemId}) - skipping, will backfill.",
                         _logger);
                 }
             }
             else
             {
-                // Movies and other playable items — use directly
+                // Movies and other playable items - use directly
                 resolvedIds.Add(rec.ItemId);
             }
         }

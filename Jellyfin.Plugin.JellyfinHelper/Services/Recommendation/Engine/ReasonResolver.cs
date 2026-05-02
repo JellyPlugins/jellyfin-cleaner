@@ -65,11 +65,11 @@ internal static class ReasonResolver
             return ($"Popular {topGenre} among similar viewers", "reasonGenreAndCollab", topGenre);
         }
 
-        // Recency + Rating: "Trending — new and highly rated"
+        // Recency + Rating: "Trending - new and highly rated"
         if (explanation.RecencyContribution > EngineConstants.ReasonScoreThreshold
             && explanation.RatingContribution > EngineConstants.ReasonScoreThreshold)
         {
-            return ("Trending — new and highly rated", "reasonTrending", null);
+            return ("Trending - new and highly rated", "reasonTrending", null);
         }
 
         // === Single dominant signal reasons ===
@@ -178,7 +178,7 @@ internal static class ReasonResolver
         }
 
         // Use the pre-built people lookup to find which person on this candidate
-        // matches the user's preferred people — avoids expensive library queries.
+        // matches the user's preferred people - avoids expensive library queries.
         if (peopleLookup is not null && peopleLookup.TryGetValue(candidate.Id, out var candidatePeople))
         {
             return candidatePeople.FirstOrDefault(p => preferredPeople.Contains(p));

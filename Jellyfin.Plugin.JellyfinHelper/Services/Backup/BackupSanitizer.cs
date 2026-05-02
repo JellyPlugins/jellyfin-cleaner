@@ -48,17 +48,17 @@ public static class BackupSanitizer
         backup.ExcludedLibraries = TruncateString(backup.ExcludedLibraries, BackupValidator.MaxStringLength);
         backup.TrashFolderPath = TruncateString(backup.TrashFolderPath, BackupValidator.MaxStringLength);
 
-        // Seerr task mode (default is Deactivate, not DryRun — Seerr deletes data)
+        // Seerr task mode (default is Deactivate, not DryRun - Seerr deletes data)
         backup.SeerrCleanupTaskMode = SanitizeTaskMode(backup.SeerrCleanupTaskMode, "Deactivate");
 
-        // Smart Recommendations (only task mode — count and strategy are not backed up)
+        // Smart Recommendations (only task mode - count and strategy are not backed up)
         backup.RecommendationsTaskMode = SanitizeTaskMode(backup.RecommendationsTaskMode);
 
         // Arr instances
         SanitizeArrInstances(backup.RadarrInstances);
         SanitizeArrInstances(backup.SonarrInstances);
 
-        // Timeline data points limit — keep only the newest MaxTimelineDataPoints entries
+        // Timeline data points limit - keep only the newest MaxTimelineDataPoints entries
         if (backup.GrowthTimeline is { DataPoints.Count: > BackupValidator.MaxTimelineDataPoints })
         {
             var kept = backup.GrowthTimeline.DataPoints

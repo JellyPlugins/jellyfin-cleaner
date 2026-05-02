@@ -78,7 +78,7 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
     ///     approach: all previously persisted data points are treated as immutable history,
     ///     and only the current time-bucket is updated with the actual total size/count.
     ///     This ensures that deleting files whose creation dates lie in the past does NOT
-    ///     retroactively alter historical data points — the deletion shows up as a drop
+    ///     retroactively alter historical data points - the deletion shows up as a drop
     ///     at the current point in time.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
@@ -632,7 +632,7 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
     }
 
     /// <summary>
-    ///     Internal struct for timeline construction — a size contribution at a point in time.
+    ///     Internal struct for timeline construction - a size contribution at a point in time.
     /// </summary>
     internal struct FileEntry
     {

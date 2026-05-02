@@ -25,7 +25,7 @@ function initTabs() {
 }
 
 function doTabSwitch(clickedBtn, tabId) {
-    // Cleanup previous tab (e.g. stop auto-refresh timers) — only if leaving the logs tab
+    // Cleanup previous tab (e.g. stop auto-refresh timers) - only if leaving the logs tab
     var previousTab = document.querySelector('.tab-content.active');
     if (previousTab && previousTab.id === 'tab-logs' && typeof destroyLogsTab
         === 'function') {
@@ -69,7 +69,7 @@ function updateLastScanBadge(utcTimestamp) {
         return;
     }
     if (utcTimestamp) {
-        badge.textContent = '🕒 ' + T('lastScan', 'Last Scan') + ': '
+        badge.innerHTML = mi('schedule') + ' ' + T('lastScan', 'Last Scan') + ': '
             + formatTimeAgo(utcTimestamp);
         badge.style.display = '';
     } else {
@@ -85,7 +85,7 @@ function loadLatestStatistics() {
             updateLastScanBadge(data.ScanTimestamp);
         }
     }, function () {
-        // 204 — no persisted data yet, auto-trigger initial scan
+        // 204 - no persisted data yet, auto-trigger initial scan
         console.log('Jellyfin Helper: No persisted statistics (204), triggering initial scan...');
         loadStatistics();
     });
@@ -97,21 +97,21 @@ function renderShell() {
 
     // Tab bar
     html += '<div class="tab-bar">';
-    html += '<button class="tab-btn active" data-tab="overview">📱 ' + T(
+    html += '<button class="tab-btn active" data-tab="overview">" + mi("dashboard") + " ' + T(
         'tabOverview', 'Overview') + '</button>';
-    html += '<button class="tab-btn" data-tab="codecs">🎞️ ' + T('tabCodecs',
+    html += '<button class="tab-btn" data-tab="codecs">" + mi("movie_filter") + " ' + T('tabCodecs',
         'Codecs') + '</button>';
-    html += '<button class="tab-btn" data-tab="health">🩺 ' + T('tabHealth',
+    html += '<button class="tab-btn" data-tab="health">" + mi("health_and_safety") + " ' + T('tabHealth',
         'Health') + '</button>';
-    html += '<button class="tab-btn" data-tab="trends">📈 ' + T('tabTrends',
+    html += '<button class="tab-btn" data-tab="trends">" + mi("trending_up") + " ' + T('tabTrends',
         'Trends') + '</button>';
-    html += '<button class="tab-btn" data-tab="settings">⚙️ ' + T('tabSettings',
+    html += '<button class="tab-btn" data-tab="settings">" + mi("settings") + " ' + T('tabSettings',
         'Settings') + '</button>';
-    html += '<button class="tab-btn" data-tab="arr">🔗 ' + T('tabArr', 'Arr')
+    html += '<button class="tab-btn" data-tab="arr">" + mi("link") + " ' + T('tabArr', 'Arr')
         + '</button>';
-    html += '<button class="tab-btn" data-tab="recommendations" style="display:none;">🤖 ' + T('tabRecommendations',
+    html += '<button class="tab-btn" data-tab="recommendations" style="display:none;">" + mi("smart_toy") + " ' + T('tabRecommendations',
         'Smart Recs') + '</button>';
-    html += '<button class="tab-btn" data-tab="logs">📋 ' + T('tabLogs', 'Logs')
+    html += '<button class="tab-btn" data-tab="logs">" + mi("assignment") + " ' + T('tabLogs', 'Logs')
         + '</button>';
     html += '</div>';
 
@@ -135,7 +135,7 @@ function renderShell() {
 
     // === TRENDS TAB ===
     html += '<div class="tab-content" id="tab-trends">';
-    html += '<div class="section-title">📈 ' + T('trendTitle',
+    html += '<div class="section-title">" + mi("trending_up") + " ' + T('trendTitle',
         'Library Growth Trend') + '</div>';
     html += '<div id="trendChartContainer" class="trend-container"><div class="trend-empty">'
         + T('loadingTrends', 'Loading trend data…') + '</div></div>';
@@ -152,7 +152,7 @@ function renderShell() {
 
     // === ARR TAB ===
     html += '<div class="tab-content" id="tab-arr">';
-    html += '<div class="section-title">🔗 ' + T('arrTitle',
+    html += '<div class="section-title">" + mi("link") + " ' + T('arrTitle',
         'Arr Stack Integration') + '</div>';
     html += '<div id="arrContent">';
     html += '<div id="arrButtons"><div class="loading-overlay" style="padding:1em;"><div class="spinner"></div></div></div>';
@@ -162,7 +162,7 @@ function renderShell() {
 
     // === RECOMMENDATIONS TAB ===
     html += '<div class="tab-content" id="tab-recommendations">';
-    html += '<div class="section-title">🤖 ' + T('recsTitle',
+    html += '<div class="section-title">" + mi("smart_toy") + " ' + T('recsTitle',
         'Smart Recommendations') + '</div>';
     html += '<div id="recsContent"><div class="loading-overlay" style="padding:2em;">'
         + '<div class="spinner"></div>'
@@ -223,7 +223,7 @@ function loadStatistics() {
         }
         var overviewContainer = document.getElementById('overviewContent');
         if (overviewContainer) {
-            overviewContainer.innerHTML = '<div class="error-msg">❌ ' + T('error',
+            overviewContainer.innerHTML = '<div class="error-msg">" + mi("error") + " ' + T('error',
                     'Failed to load statistics. Make sure you are an administrator.')
                 + '</div>';
         }

@@ -163,7 +163,7 @@ public static class BackupValidator
         ValidateTaskMode(result, backup.OrphanedSubtitleTaskMode, "OrphanedSubtitleTaskMode");
         ValidateTaskMode(result, backup.LinkRepairTaskMode, "LinkRepairTaskMode");
         ValidateTaskMode(result, backup.SeerrCleanupTaskMode, "SeerrCleanupTaskMode", "Deactivate");
-        // Recommendations defaults to DryRun — importing an older backup without this field
+        // Recommendations defaults to DryRun - importing an older backup without this field
         // should enable the Discover UI in read-only mode rather than silently activating writes.
         ValidateTaskMode(result, backup.RecommendationsTaskMode, "RecommendationsTaskMode");
 
@@ -183,7 +183,7 @@ public static class BackupValidator
             result.Errors.Add($"TrashRetentionDays out of range: {backup.TrashRetentionDays}. Must be 0–{MaxRetentionDays}.");
         }
 
-        // Older backups do not contain this field and deserialize it as 0 — treat as absent.
+        // Older backups do not contain this field and deserialize it as 0 - treat as absent.
         if (backup.SeerrCleanupAgeDays != 0 &&
             (backup.SeerrCleanupAgeDays < 1 || backup.SeerrCleanupAgeDays > MaxRetentionDays))
         {

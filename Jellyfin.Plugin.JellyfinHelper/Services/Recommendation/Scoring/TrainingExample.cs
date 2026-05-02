@@ -46,7 +46,7 @@ public sealed class TrainingExample
 
     /// <summary>
     ///     Gets or sets the UTC timestamp when the recommendation that produced this example was generated.
-    ///     Used for temporal decay weighting — newer examples are more relevant.
+    ///     Used for temporal decay weighting - newer examples are more relevant.
     ///     Values are normalized to <see cref="DateTimeKind.Utc"/> on assignment.
     /// </summary>
     public DateTime GeneratedAtUtc

@@ -144,7 +144,7 @@ public class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>
     ///     Gets or sets the execution mode for the Smart Recommendations task.
-    ///     Default is <see cref="TaskMode.DryRun" /> (safe mode — generates but does not persist).
+    ///     Default is <see cref="TaskMode.DryRun" /> (safe mode - generates but does not persist).
     /// </summary>
     public TaskMode RecommendationsTaskMode { get; set; } = TaskMode.DryRun;
 
@@ -166,7 +166,7 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public bool SyncRecommendationsToPlaylist { get; set; }
 
-    // RecommendationStrategy removed — Ensemble is always used (combines all methods).
+    // RecommendationStrategy removed - Ensemble is always used (combines all methods).
     // XmlSerializer silently ignores unknown XML elements during deserialization,
     // so previously saved "RecommendationStrategy" values are harmlessly discarded.
 

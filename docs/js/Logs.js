@@ -41,17 +41,17 @@ function renderLogsTab() {
 
     h += '<div class="logs-btn-group">';
     h += '<button class="logs-btn primary" id="btnLogsDownload" title="' + T(
-            'logsDownload', 'Download') + '">📥 ' + T('logsDownload', 'Download')
+            'logsDownload', 'Download') + '">" + mi("download") + " ' + T('logsDownload', 'Download')
         + '</button>';
     h += '<button class="logs-btn danger" id="btnLogsClear" title="' + T(
-        'logsClear', 'Clear') + '">🗑️ ' + T('logsClear', 'Clear') + '</button>';
+        'logsClear', 'Clear') + '">" + mi("delete") + " ' + T('logsClear', 'Clear') + '</button>';
     h += '</div>';
 
     h += '</div>'; // toolbar
 
     // Table
     h += '<div class="logs-table-wrapper" id="logsTableWrapper">';
-    h += '<div class="logs-empty"><div class="logs-empty-icon">📋</div>' + T(
+    h += '<div class="logs-empty"><div class="logs-empty-icon">" + mi("assignment") + "</div>' + T(
         'logsLoading', 'Loading logs...') + '</div>';
     h += '</div>';
 
@@ -220,7 +220,7 @@ function loadLogs() {
         }
 
         if (entries.length === 0) {
-            wrapper.innerHTML = '<div class="logs-empty"><div class="logs-empty-icon">📋</div>'
+            wrapper.innerHTML = '<div class="logs-empty"><div class="logs-empty-icon">" + mi("assignment") + "</div>'
                 + T('logsEmpty', 'No log entries.') + '</div>';
             return;
         }
@@ -259,7 +259,7 @@ function loadLogs() {
         if (requestSeq !== _logsLoadSeq) {
             return;
         }
-        wrapper.innerHTML = '<div class="logs-empty"><div class="logs-empty-icon">⚠️</div>'
+        wrapper.innerHTML = '<div class="logs-empty"><div class="logs-empty-icon">" + mi("warning") + "</div>'
             + T('logsLoadError', 'Failed to load logs.') + '</div>';
     });
 }
@@ -304,7 +304,7 @@ function downloadLogs() {
         // Finding 13: Replace alert() with inline error message for consistent UI
         showButtonFeedback(btn, false,
             T('logsDownloadError', 'Failed to download logs.'),
-            '📥 ' + T('logsDownload', 'Download'), 4000);
+            mi('download') + ' ' + T('logsDownload', 'Download'), 4000);
     });
 }
 
@@ -313,7 +313,7 @@ function clearLogs() {
     removeDialogById('logsClearDialogOverlay');
     var d = createDialogOverlay(
         'logsClearDialogOverlay',
-        '🗑️ ' + T('logsClear', 'Clear Logs'),
+        mi('delete') + ' ' + T('logsClear', 'Clear Logs'),
         getCssVar('--color-danger', '#e74c3c'),
         T('logsClearConfirm', 'Are you sure you want to clear all plugin logs?'),
         false
@@ -323,7 +323,7 @@ function clearLogs() {
             removeDialogById('logsClearDialogOverlay');
         }));
     d.btnRow.appendChild(
-        createDialogBtn('🗑️ ' + T('logsClear', 'Clear'), 'danger', function () {
+        createDialogBtn(mi('delete') + ' ' + T('logsClear', 'Clear'), 'danger', function () {
             removeDialogById('logsClearDialogOverlay');
             apiDelete('JellyfinHelper/Logs', function () {
                 loadLogs();
@@ -333,7 +333,7 @@ function clearLogs() {
                 if (clearBtn) {
                     showButtonFeedback(clearBtn, false,
                         T('logsClearError', 'Failed to clear logs.'),
-                        '🗑️ ' + T('logsClear', 'Clear'), 4000);
+                        mi('delete') + ' ' + T('logsClear', 'Clear'), 4000);
                 }
             });
         }));

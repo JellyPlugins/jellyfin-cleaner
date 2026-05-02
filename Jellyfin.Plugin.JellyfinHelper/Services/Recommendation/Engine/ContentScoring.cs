@@ -40,7 +40,7 @@ internal static class ContentScoring
     {
         if (!criticRating.HasValue || float.IsNaN(criticRating.Value) || float.IsInfinity(criticRating.Value) || criticRating.Value <= 0)
         {
-            return 0.5; // Neutral fallback — does not penalize items without critic data
+            return 0.5; // Neutral fallback - does not penalize items without critic data
         }
 
         return Math.Clamp(criticRating.Value / 100.0, 0.0, 1.0);
@@ -85,7 +85,7 @@ internal static class ContentScoring
             return Math.Clamp(criticRating!.Value / 100.0, 0.0, 1.0);
         }
 
-        return 0.5; // Neither available — neutral fallback
+        return 0.5; // Neither available - neutral fallback
     }
 
     /// <summary>
@@ -158,7 +158,7 @@ internal static class ContentScoring
     {
         if (watchedItem?.UserRating is null or <= 0 || double.IsNaN(watchedItem.UserRating.Value) || double.IsInfinity(watchedItem.UserRating.Value))
         {
-            return 0.5; // neutral default — no user rating available or NaN/Infinity
+            return 0.5; // neutral default - no user rating available or NaN/Infinity
         }
 
         // User ratings are typically 0–10, normalize to 0–1
@@ -180,8 +180,8 @@ internal static class ContentScoring
         var ratio = Math.Clamp(completionRatio, 0.0, 1.0);
 
         // Linear interpolation: floor + ratio * (ceiling - floor)
-        // At 0% completion: WatchedLabelFloor (0.5) — user chose to watch, still positive
-        // At 100% completion: WatchedLabel (0.85) — strong positive signal
+        // At 0% completion: WatchedLabelFloor (0.5) - user chose to watch, still positive
+        // At 100% completion: WatchedLabel (0.85) - strong positive signal
         return EngineConstants.WatchedLabelFloor + (ratio * (EngineConstants.WatchedLabel - EngineConstants.WatchedLabelFloor));
     }
 
@@ -196,7 +196,7 @@ internal static class ContentScoring
     {
         if (watchedItem is null)
         {
-            return 0.0; // not started — neutral for candidates
+            return 0.0; // not started - neutral for candidates
         }
 
         // Jellyfin resets PlaybackPositionTicks to 0 when an item is marked as played,
@@ -208,7 +208,7 @@ internal static class ContentScoring
 
         if (watchedItem.RuntimeTicks <= 0)
         {
-            return 0.0; // no runtime info — neutral for candidates
+            return 0.0; // no runtime info - neutral for candidates
         }
 
         return Math.Clamp((double)watchedItem.PlaybackPositionTicks / watchedItem.RuntimeTicks, 0.0, 1.0);
@@ -294,7 +294,7 @@ internal static class ContentScoring
                 ? ComputeJaccard(candidatePeople, watchedPeopleSets[i])
                 : 0.0;
 
-            // Studio overlap (20% of composite) — binary: any shared studio = 1.0
+            // Studio overlap (20% of composite) - binary: any shared studio = 1.0
             var studioOverlap = 0.0;
             if (candidateStudios is { Count: > 0 } && watchedStudioSets[i].Count > 0)
             {

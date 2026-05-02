@@ -2207,7 +2207,7 @@ public class ClassifyMethodTests
     [InlineData(3840, 2160, "4K")]
     [InlineData(4096, 2160, "4K")]
     [InlineData(1920, 1080, "1080p")]
-    [InlineData(1920, 800, "720p")]   // Cinematic ratio — min dimension is 800
+    [InlineData(1920, 800, "720p")]   // Cinematic ratio - min dimension is 800
     [InlineData(1280, 720, "720p")]
     [InlineData(720, 576, "576p")]
     [InlineData(720, 480, "480p")]
@@ -2239,14 +2239,14 @@ public class ClassifyMethodTests
     [Fact]
     public void ClassifyResolution_UltraWide_2560x1080()
     {
-        // 2560×1080 ultrawide — minDimension=1080, maxDimension=2560
+        // 2560×1080 ultrawide - minDimension=1080, maxDimension=2560
         Assert.Equal("1080p", MediaStatisticsService.ClassifyResolution(2560, 1080));
     }
 
     [Fact]
     public void ClassifyResolution_Narrow720p_960x720()
     {
-        // 960×720 (4:3 at 720p) — minDimension=720, maxDimension=960 (< 1280)
+        // 960×720 (4:3 at 720p) - minDimension=720, maxDimension=960 (< 1280)
         // Matches the (>= 720, _) branch
         Assert.Equal("720p", MediaStatisticsService.ClassifyResolution(960, 720));
     }
@@ -2764,7 +2764,7 @@ public class MetadataExtractionTests
         _libraryManagerMock.Setup(m => m.GetItemList(It.IsAny<InternalItemsQuery>()))
             .Throws(new InvalidOperationException("Database unavailable"));
 
-        // BuildItemLookup is internal virtual — call it directly on the base service
+        // BuildItemLookup is internal virtual - call it directly on the base service
         var baseService = new MediaStatisticsService(
             _libraryManagerMock.Object,
             _fileSystemMock.Object,

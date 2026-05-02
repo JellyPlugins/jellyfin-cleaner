@@ -35,7 +35,7 @@ public class TrashServiceSecurityTests : IDisposable
         Directory.CreateDirectory(sensitiveDir);
         File.WriteAllBytes(Path.Join(sensitiveDir, "secret.txt"), new byte[100]);
 
-        // Attempt path traversal in source path — resolves to _testRoot/sensitive
+        // Attempt path traversal in source path - resolves to _testRoot/sensitive
         var traversalSource = Path.Join(_testRoot, "trash", "..", "sensitive");
         var trashPath = Path.Join(_testRoot, "trash_output");
 
@@ -89,7 +89,7 @@ public class TrashServiceSecurityTests : IDisposable
         var sensitiveFile = Path.Join(_testRoot, "secret.conf");
         File.WriteAllBytes(sensitiveFile, new byte[64]);
 
-        // Attempt path traversal — this resolves to the same file
+        // Attempt path traversal - this resolves to the same file
         var traversalPath = Path.Join(_testRoot, "subdir", "..", "secret.conf");
         var trashPath = Path.Join(_testRoot, "trash_output");
 
@@ -99,12 +99,12 @@ public class TrashServiceSecurityTests : IDisposable
 
         if (result > 0)
         {
-            // File was moved — verify it landed inside the trash folder
+            // File was moved - verify it landed inside the trash folder
             Assert.True(Directory.Exists(trashPath), "Trash output directory should exist");
         }
         else
         {
-            // File was not moved (path not found) — original must still exist
+            // File was not moved (path not found) - original must still exist
             Assert.True(File.Exists(sensitiveFile), "Original file should still exist when nothing was moved");
         }
     }
@@ -137,7 +137,7 @@ public class TrashServiceSecurityTests : IDisposable
         // Create a directory inside trash with a name that looks like a path traversal attempt.
         // We keep it inside the trash folder (no actual ".." resolution) so the test stays
         // isolated within _testRoot and doesn't create directories outside the test sandbox.
-        // PurgeExpiredTrash parses timestamps from directory names — this name has none,
+        // PurgeExpiredTrash parses timestamps from directory names - this name has none,
         // so it should be safely skipped.
         var maliciousDir = Path.Join(trashPath, "..__..__etc");
         Directory.CreateDirectory(maliciousDir);
@@ -165,7 +165,7 @@ public class TrashServiceSecurityTests : IDisposable
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or IOException or UnauthorizedAccessException)
         {
-            // OS correctly rejects null bytes in filenames — this is expected
+            // OS correctly rejects null bytes in filenames - this is expected
         }
 
         var now = new DateTime(2026, 6, 1, 12, 0, 0, DateTimeKind.Utc);

@@ -65,7 +65,7 @@ internal sealed class SimilarityComputer
                         continue;
                     }
 
-                    // Only include actors and directors — other types add noise without predictive value
+                    // Only include actors and directors - other types add noise without predictive value
                     if (!EngineConstants.RelevantPersonKinds.Contains(person.Type))
                     {
                         continue;
@@ -82,7 +82,7 @@ internal sealed class SimilarityComputer
             }
             catch (OperationCanceledException)
             {
-                throw; // Do not swallow cancellation — propagate to caller
+                throw; // Do not swallow cancellation - propagate to caller
             }
             catch (Exception ex)
             {
@@ -141,12 +141,12 @@ internal sealed class SimilarityComputer
                     dotProduct += weight; // candidate component is 1.0
                 }
 
-                // weight == 0: genre is known (user watched it) but normalized to zero —
+                // weight == 0: genre is known (user watched it) but normalized to zero -
                 // not counted as "unknown" since the user has been exposed to it.
             }
             else
             {
-                // Genre is truly absent from the user's preference vector — never watched.
+                // Genre is truly absent from the user's preference vector - never watched.
                 unknownGenreCount++;
             }
         }

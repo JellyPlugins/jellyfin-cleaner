@@ -31,7 +31,7 @@ public class CleanEmptyMediaFoldersTaskTests : CleanupTaskTestBase
             MockTrackingService.Object,
             MockTrashService.Object);
 
-        // Default: DryRun ON — most tests check dry-run log messages
+        // Default: DryRun ON - most tests check dry-run log messages
         // (Config from base class already has DryRun defaults)
     }
 

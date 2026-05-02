@@ -30,7 +30,7 @@ public sealed class Engine : IRecommendationEngine
     private readonly SimilarityComputer _similarityComputer;
     private readonly TrainingService _trainingService;
 
-    // Short-lived cache — populated during GetAllRecommendations and reused by on-demand
+    // Short-lived cache - populated during GetAllRecommendations and reused by on-demand
     // GetRecommendations calls until next batch run invalidates it.
     // Stored as a single immutable snapshot to prevent concurrent readers from mixing data across batches.
     private volatile CandidateSnapshot? _cachedSnapshot;
@@ -66,13 +66,13 @@ public sealed class Engine : IRecommendationEngine
         var userProfile = _watchHistoryService.GetUserWatchProfile(userId);
         if (userProfile is null)
         {
-            // User not found in any watch profile — return null so the controller can 404.
+            // User not found in any watch profile - return null so the controller can 404.
             return null;
         }
 
         if (userProfile.WatchedItems.Count == 0)
         {
-            // Cold-start: user exists but has no watch history — return popular/trending items
+            // Cold-start: user exists but has no watch history - return popular/trending items
             // Reuse cached candidates from the last batch run if available to avoid redundant library queries
             return GenerateColdStartRecommendations(userId, maxResults, userProfile.UserName, _cachedSnapshot?.Candidates, userProfile.MaxParentalRating, userProfile, cancellationToken);
         }
@@ -111,7 +111,7 @@ public sealed class Engine : IRecommendationEngine
             $"Starting recommendation generation for {allProfiles.Count} users using strategy '{_strategy.Name}'...",
             _logger);
 
-        // Process users in parallel — each user's scoring is CPU-bound and independent.
+        // Process users in parallel - each user's scoring is CPU-bound and independent.
         // ConcurrentBag collects results safely; shared read-only data (candidates, peopleLookup,
         // precomputedUserSets) is never mutated so no locking needed.
         var concurrentResults = new ConcurrentBag<RecommendationResult>();
@@ -207,7 +207,7 @@ public sealed class Engine : IRecommendationEngine
                 cancellationToken.ThrowIfCancellationRequested();
             }
 
-            // Parental rating filter — skip items the user is not allowed to see
+            // Parental rating filter - skip items the user is not allowed to see
             if (ExceedsMaxRating(candidate, maxParentalRating))
             {
                 continue;
@@ -215,7 +215,7 @@ public sealed class Engine : IRecommendationEngine
 
             var combinedCriticScore = ContentScoring.ComputeCombinedCriticScore(candidate.CommunityRating, candidate.CriticRating);
             var recencyScore = ContentScoring.ComputeRecencyScore(candidate.PremiereDate ?? candidate.DateCreated);
-            // Cold-start formula: 60% rating, 40% recency — prioritize quality + freshness
+            // Cold-start formula: 60% rating, 40% recency - prioritize quality + freshness
             var score = (0.6 * combinedCriticScore) + (0.4 * recencyScore);
             scored.Add((candidate, score, "Popular and highly rated", "reasonPopular", null));
         }
@@ -394,7 +394,7 @@ public sealed class Engine : IRecommendationEngine
             list.Add(w);
         }
 
-        // Exclude played, favorited, AND started items from candidates — the user already knows these items.
+        // Exclude played, favorited, AND started items from candidates - the user already knows these items.
         // Started items (PlayCount > 0 or PlaybackPositionTicks > 0) appear in Jellyfin's "Continue Watching"
         // and should not waste a recommendation slot. Their genre/studio/tag/people signals still flow
         // into preferences via PreferenceBuilder.
@@ -415,7 +415,7 @@ public sealed class Engine : IRecommendationEngine
 
         var genrePreferences = PreferenceBuilder.BuildGenrePreferenceVector(userProfile);
 
-        // Build O(1) candidate lookup by ID — shared across studio/tag preference building
+        // Build O(1) candidate lookup by ID - shared across studio/tag preference building
         var candidateLookup = new Dictionary<Guid, BaseItem>(allCandidates.Count);
         foreach (var c in allCandidates)
         {
@@ -464,7 +464,7 @@ public sealed class Engine : IRecommendationEngine
                 ct.ThrowIfCancellationRequested();
             }
 
-            // Parental rating filter — skip items the user is not allowed to see.
+            // Parental rating filter - skip items the user is not allowed to see.
             // Uses Jellyfin's InheritedParentalRatingValue which cascades from parent items
             // (e.g., a series rating applies to all its episodes).
             // This ensures children with restricted profiles only get age-appropriate recommendations.
@@ -580,7 +580,7 @@ public sealed class Engine : IRecommendationEngine
         var libraryAddedRecency = ContentScoring.ComputeRecencyScore(candidate.DateCreated);
         var yearScore = ContentScoring.ComputeYearProximity(candidate.ProductionYear, averageYear);
 
-        // Compute user-specific signals — for series candidates, aggregate from watched episodes
+        // Compute user-specific signals - for series candidates, aggregate from watched episodes
         double userRatingScore;
         double completionRatio;
         bool hasUserInteraction;

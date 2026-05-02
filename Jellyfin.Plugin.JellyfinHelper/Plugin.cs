@@ -72,11 +72,11 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     ///     Deletes all persistent data files created by this plugin from the Jellyfin data directory.
     ///     All plugin data files follow the naming convention <c>jellyfin-helper-*.json</c>:
     ///     <list type="bullet">
-    ///         <item><c>jellyfin-helper-statistics-latest.json</c> — media statistics cache</item>
-    ///         <item><c>jellyfin-helper-recommendations-latest.json</c> — recommendation results cache</item>
-    ///         <item><c>jellyfin-helper-useractivity-latest.json</c> — user activity insights cache</item>
-    ///         <item><c>jellyfin-helper-growth-timeline.json</c> — library growth timeline data</item>
-    ///         <item><c>jellyfin-helper-growth-baseline.json</c> — library growth baseline snapshot</item>
+    ///         <item><c>jellyfin-helper-statistics-latest.json</c> - media statistics cache</item>
+    ///         <item><c>jellyfin-helper-recommendations-latest.json</c> - recommendation results cache</item>
+    ///         <item><c>jellyfin-helper-useractivity-latest.json</c> - user activity insights cache</item>
+    ///         <item><c>jellyfin-helper-growth-timeline.json</c> - library growth timeline data</item>
+    ///         <item><c>jellyfin-helper-growth-baseline.json</c> - library growth baseline snapshot</item>
     ///     </list>
     ///     Also removes any leftover <c>.tmp</c> files from atomic write operations.
     /// </summary>
@@ -108,14 +108,14 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    // Best effort — file may be locked or permission-restricted.
+                    // Best effort - file may be locked or permission-restricted.
                     // Skip and continue with the next file.
                 }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Best effort — if the data directory is inaccessible, nothing we can do.
+            // Best effort - if the data directory is inaccessible, nothing we can do.
         }
     }
 
@@ -124,7 +124,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     ///     Jellyfin stores playlists as subdirectories under <c>{DataPath}/playlists/</c>.
     ///     Managed playlists are identified by the
     ///     <see cref="RecommendationPlaylistService.PlaylistNamePrefix"/> folder name prefix.
-    ///     This is a best-effort filesystem cleanup — the Jellyfin library database may still
+    ///     This is a best-effort filesystem cleanup - the Jellyfin library database may still
     ///     reference these playlists until the next library scan, at which point the stale
     ///     entries will be removed automatically.
     /// </summary>
@@ -154,13 +154,13 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    // Best effort — folder may be locked or permission-restricted.
+                    // Best effort - folder may be locked or permission-restricted.
                 }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Best effort — if the playlists directory is inaccessible, nothing we can do.
+            // Best effort - if the playlists directory is inaccessible, nothing we can do.
         }
     }
 }

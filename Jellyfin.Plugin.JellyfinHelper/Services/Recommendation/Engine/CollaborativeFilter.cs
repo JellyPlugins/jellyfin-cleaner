@@ -17,7 +17,7 @@ internal static class CollaborativeFilter
     ///     Called once in batch recommendation generation and shared across all per-user calls
     ///     to avoid rebuilding O(U) HashSets per user (O(U²) total → O(U) total).
     ///     Each set includes both direct item IDs and parent series IDs from episode watches.
-    ///     Items that are favorited (even if not yet played) are also included — they
+    ///     Items that are favorited (even if not yet played) are also included - they
     ///     represent explicit interest and improve user-similarity calculation.
     /// </summary>
     /// <param name="allProfiles">All user watch profiles.</param>
@@ -68,7 +68,7 @@ internal static class CollaborativeFilter
     ///     overlap with this user. Uses true Jaccard similarity (0–1) instead of
     ///     discretized integer weights for better precision.
     ///     When <paramref name="precomputedUserSets"/> is provided (batch mode),
-    ///     uses those sets directly instead of rebuilding them per call — reducing
+    ///     uses those sets directly instead of rebuilding them per call - reducing
     ///     total complexity from O(U²×M) to O(U×M).
     /// </summary>
     /// <param name="userProfile">The target user's watch profile.</param>
@@ -97,7 +97,7 @@ internal static class CollaborativeFilter
         }
 
         // Compute item popularity (how many users watched each item) for IDF weighting.
-        // Items watched by many users contribute less to co-occurrence — a shared niche taste
+        // Items watched by many users contribute less to co-occurrence - a shared niche taste
         // is a stronger signal of real similarity than both watching a mainstream blockbuster.
         // Only computed when precomputedUserSets is available (batch mode); in single-user mode
         // the overhead of a full scan isn't justified.

@@ -220,7 +220,7 @@ public class ConfigurationController : ControllerBase
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // User cancelled via token — stop testing without logging a warning
+            // User cancelled via token - stop testing without logging a warning
         }
         catch (Exception ex) when (ex is HttpRequestException or TimeoutException or OperationCanceledException)
         {
@@ -279,7 +279,7 @@ public class ConfigurationController : ControllerBase
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                return; // User cancelled — stop testing remaining instances
+                return; // User cancelled - stop testing remaining instances
             }
             catch (Exception ex) when (ex is HttpRequestException or TimeoutException or OperationCanceledException)
             {

@@ -30,7 +30,7 @@ public sealed class NeuralScoringStrategyTests : IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
         {
-            // Best effort — directory may be locked or already removed on CI.
+            // Best effort - directory may be locked or already removed on CI.
         }
     }
 

@@ -151,7 +151,7 @@ public sealed class LanguageAffinityTests
         var profile = new UserWatchProfile();
         profile.LanguageProfile["de"] = new LanguageProfileEntry { ChosenCount = 1, ForcedCount = 5 };
 
-        // Has both chosen and forced — NOT tolerated (user actively chose it too)
+        // Has both chosen and forced - NOT tolerated (user actively chose it too)
         Assert.Empty(profile.ToleratedLanguages);
     }
 

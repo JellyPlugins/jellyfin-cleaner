@@ -15,12 +15,12 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 ///     Architecture: 29 inputs → 32 hidden₁ (ReLU) → 16 hidden₂ (ReLU) → 8 hidden₃ (ReLU) → 1 output (Sigmoid) = 1,633 parameters.
 ///     Optimized for NAS/Docker with limited hardware: zero-allocation scoring path,
 ///     pre-allocated training buffers, ~1,560 FP multiplications per score.
-///     No external ML dependencies — pure C# implementation.
+///     No external ML dependencies - pure C# implementation.
 /// </summary>
 /// <remarks>
 ///     Training uses Adam optimizer with L2 regularization, Z-score feature standardization,
 ///     Xavier weight initialization, temporal sample weighting, and early stopping.
-///     Genre-mismatch penalties are NOT applied here — handled centrally by the ensemble layer.
+///     Genre-mismatch penalties are NOT applied here - handled centrally by the ensemble layer.
 ///     Weights are persisted to disk so they survive server restarts.
 /// </remarks>
 public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy, IDisposable
@@ -1234,7 +1234,7 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
 
     /// <summary>
     ///     Logs per-feature importance based on input→hidden1 weight L2 norms.
-    ///     Importance[f] = sqrt(Σ_j weightsIH[j, f]²) — measures how strongly
+    ///     Importance[f] = sqrt(Σ_j weightsIH[j, f]²) - measures how strongly
     ///     each input feature drives hidden layer activations.
     ///     Must be called under write lock.
     /// </summary>

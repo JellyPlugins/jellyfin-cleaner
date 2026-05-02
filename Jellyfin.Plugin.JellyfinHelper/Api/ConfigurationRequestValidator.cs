@@ -45,7 +45,7 @@ public static class ConfigurationRequestValidator
             return $"Maximum {MaxArrInstances} Sonarr instances allowed.";
         }
 
-        // Seerr settings validation — only enforce range when Seerr is actually configured
+        // Seerr settings validation - only enforce range when Seerr is actually configured
         if (!string.IsNullOrWhiteSpace(request.SeerrUrl) &&
             request.SeerrCleanupAgeDays is (< 1 or > MaxDays))
         {

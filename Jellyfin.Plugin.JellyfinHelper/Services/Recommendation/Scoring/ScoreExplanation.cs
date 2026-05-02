@@ -143,7 +143,7 @@ public sealed class ScoreExplanation
         double peopleContrib = 0.0,
         double studioContrib = 0.0)
     {
-        // Allocation-free comparison — this runs per candidate in the scoring hot path.
+        // Allocation-free comparison - this runs per candidate in the scoring hot path.
         var bestName = "Genre";
         var bestValue = Math.Abs(genreContrib);
 

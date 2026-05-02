@@ -54,7 +54,7 @@ public class RecommendationController : ControllerBase
     ///     Returns the latest cached results from the scheduled task.
     ///     If no cache exists, generates fresh recommendations on demand.
     ///     In Activate mode the results are persisted to disk for subsequent requests.
-    ///     In DryRun mode the results are returned but NOT persisted — the UI caches them
+    ///     In DryRun mode the results are returned but NOT persisted - the UI caches them
     ///     in the browser so that tab switches don't trigger re-generation.
     /// </summary>
     /// <param name="maxPerUser">Maximum recommendations per user (default: from config, max: 100).</param>
@@ -85,7 +85,7 @@ public class RecommendationController : ControllerBase
             return Ok(trimmed);
         }
 
-        // No cache available — generate at the configured max so the cache is not under-filled
+        // No cache available - generate at the configured max so the cache is not under-filled
         var results = _engine.GetAllRecommendations(configuredMax, cancellationToken);
 
         // Only persist to disk when TaskMode is Activate (not DryRun).
@@ -128,7 +128,7 @@ public class RecommendationController : ControllerBase
         var config = _configService.GetConfiguration();
         maxResults = Math.Clamp(maxResults <= 0 ? config.MaxRecommendationsPerUser : maxResults, 1, 100);
 
-        // Try cache first — return a copy to avoid mutating the cached object
+        // Try cache first - return a copy to avoid mutating the cached object
         var cached = _cacheService.LoadResults();
         var cachedUser = cached?.FirstOrDefault(r => r.UserId == userId);
         if (cachedUser is not null)

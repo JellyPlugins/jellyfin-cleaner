@@ -356,7 +356,7 @@ public sealed class CandidateFeatures
 
     /// <summary>
     ///     Clamps a value to [0, 1], returning <paramref name="defaultWhenNaN"/> if the value is NaN or Infinity.
-    ///     Math.Clamp does not normalize NaN — it preserves it — so this helper prevents
+    ///     Math.Clamp does not normalize NaN - it preserves it - so this helper prevents
     ///     NaN from flowing into interaction terms and poisoning learned/neural scoring.
     /// </summary>
     private static double Clamp01(double value, double defaultWhenNaN = 0.0) =>

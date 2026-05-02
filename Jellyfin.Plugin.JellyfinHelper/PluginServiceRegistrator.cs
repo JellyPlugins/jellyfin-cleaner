@@ -110,7 +110,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
             return new EnsembleScoringStrategy(learned, heuristic, neural, statePath, alphaMin, alphaMax, genrePenaltyFloor, logger);
         });
-        // Always use Ensemble strategy — no user-selectable strategy choice.
+        // Always use Ensemble strategy - no user-selectable strategy choice.
         // Ensemble combines all methods (Heuristic + Learned + Neural) for best results.
         serviceCollection.AddSingleton<IScoringStrategy>(sp => sp.GetRequiredService<EnsembleScoringStrategy>());
         serviceCollection.AddSingleton<IRecommendationEngine, Engine>();

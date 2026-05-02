@@ -77,7 +77,7 @@ public class RecommendationsTask
     /// <returns>A completed task.</returns>
     public async Task ExecuteAsync(PluginConfiguration config, IProgress<double> progress, CancellationToken cancellationToken)
     {
-        // Deactivate mode: true no-op — skip all expensive work.
+        // Deactivate mode: true no-op - skip all expensive work.
         // However, clean up any previously created recommendation playlists
         // so users who switch from Activate to Deactivate don't keep stale playlists.
         if (config.RecommendationsTaskMode == TaskMode.Deactivate)
@@ -128,12 +128,12 @@ public class RecommendationsTask
             }
             catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException and not OperationCanceledException)
             {
-                _pluginLog.LogWarning("Recommendations", "Strategy training failed — continuing with current weights.", ex, _logger);
+                _pluginLog.LogWarning("Recommendations", "Strategy training failed - continuing with current weights.", ex, _logger);
             }
         }
         else
         {
-            _pluginLog.LogInfo("Recommendations", "Training skipped (DryRun mode — no model updates).", _logger);
+            _pluginLog.LogInfo("Recommendations", "Training skipped (DryRun mode - no model updates).", _logger);
         }
 
         progress.Report(20);
@@ -164,12 +164,12 @@ public class RecommendationsTask
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException and not StackOverflowException)
                 {
-                    _pluginLog.LogWarning("Recommendations", "Playlist sync failed — recommendations were saved but playlists could not be updated.", ex, _logger);
+                    _pluginLog.LogWarning("Recommendations", "Playlist sync failed - recommendations were saved but playlists could not be updated.", ex, _logger);
                 }
             }
             else if (_playlistService != null)
             {
-                // Playlist sync was disabled — clean up any existing playlists from previous runs
+                // Playlist sync was disabled - clean up any existing playlists from previous runs
                 await CleanupOldPlaylistsAsync(cancellationToken).ConfigureAwait(false);
             }
 

@@ -8,7 +8,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 ///     Uses hand-tuned weights from <see cref="DefaultWeights"/> with genre similarity as the dominant signal.
 ///     When used standalone (not via Ensemble), a configurable genre-penalty floor is applied
 ///     so that items with zero genre overlap are penalized.
-///     This strategy does not support learning — weights are constant.
+///     This strategy does not support learning - weights are constant.
 /// </summary>
 public sealed class HeuristicScoringStrategy : IScoringStrategy
 {
@@ -58,7 +58,7 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
             Array.Clear(vector, 0, CandidateFeatures.FeatureCount);
             features.WriteToVector(vector);
 
-            // Bias is intentionally 0.0 for the heuristic strategy — hand-tuned weights
+            // Bias is intentionally 0.0 for the heuristic strategy - hand-tuned weights
             // already produce scores in the desired range without a bias offset.
             var raw = ScoringHelper.ComputeRawScore(vector, WeightsArray, bias: 0.0);
             var score = Math.Clamp(raw, 0.0, 1.0);

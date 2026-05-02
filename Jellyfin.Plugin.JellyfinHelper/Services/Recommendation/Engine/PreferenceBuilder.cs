@@ -26,7 +26,7 @@ internal static class PreferenceBuilder
     ///     Each genre gets a weight based on recency, play count, and favorites.
     ///     Recent watches count more than old ones (180-day half-life exponential decay).
     ///     Re-watched items get a PlayCount boost. Favorites get an additional boost.
-    ///     Items that are favorited but not yet played are also included — the user
+    ///     Items that are favorited but not yet played are also included - the user
     ///     explicitly expressed interest, so their genres should influence preferences.
     /// </summary>
     /// <param name="profile">The user's watch profile.</param>
@@ -40,18 +40,18 @@ internal static class PreferenceBuilder
             return vector;
         }
 
-        // Build genre preferences with temporal decay — recent watches count more
+        // Build genre preferences with temporal decay - recent watches count more
         var now = DateTime.UtcNow;
         foreach (var item in profile.WatchedItems)
         {
-            // Include items that are played OR favorited — favorites signal explicit interest
+            // Include items that are played OR favorited - favorites signal explicit interest
             if ((!item.Played && !item.IsFavorite) || item.Genres is null)
             {
                 continue;
             }
 
             // Compute temporal weight: exponential decay with ~180-day half-life.
-            // Unplayed favorites (IsFavorite && !Played) represent current intent — the user
+            // Unplayed favorites (IsFavorite && !Played) represent current intent - the user
             // explicitly flagged interest without having watched yet, so they should not be
             // age-penalized. Played items without a timestamp are rare edge cases and default
             // to ~1 year as a conservative fallback.
@@ -425,7 +425,7 @@ internal static class PreferenceBuilder
     /// <summary>
     ///     Computes the three genre exposure features for a single candidate item.
     ///     Uses a pre-built <see cref="GenreExposureAnalysis"/> to avoid redundant computation.
-    ///     All three features are soft, continuous values in [0, 1] — they never hard-block
+    ///     All three features are soft, continuous values in [0, 1] - they never hard-block
     ///     any genre, only provide graduated signals that the ML models can learn to weight.
     /// </summary>
     /// <param name="candidateGenres">The genres of the candidate item.</param>

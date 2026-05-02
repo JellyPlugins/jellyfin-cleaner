@@ -223,7 +223,7 @@ public class MediaStatisticsService : IMediaStatisticsService
                     containsVideo = true;
                     videoFiles.Add(file);
 
-                    // Container format tracking (from file extension — this IS the container)
+                    // Container format tracking (from file extension - this IS the container)
                     var container = ext.TrimStart('.').ToUpperInvariant();
                     FileSystemHelper.IncrementCount(stats.ContainerFormats, container);
                     FileSystemHelper.AccumulateValue(stats.ContainerSizes, container, size);
@@ -309,7 +309,7 @@ public class MediaStatisticsService : IMediaStatisticsService
                 }
             }
 
-            // Health checks — per-directory analysis
+            // Health checks - per-directory analysis
             // Boxset/collection libraries are excluded: they are Jellyfin-internal virtual folders
             // that group related movies and typically only contain posters/images, not real media.
             if (!skipHealthChecks)
