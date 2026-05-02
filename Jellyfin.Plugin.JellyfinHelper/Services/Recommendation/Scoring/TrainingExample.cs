@@ -1,4 +1,5 @@
 using System;
+using Jellyfin.Plugin.JellyfinHelper.Services;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 
@@ -34,7 +35,7 @@ public sealed class TrainingExample
     }
 
     /// <summary>
-    ///     Gets or sets the sample weight for this training example (0–1).
+    ///     Gets or sets the sample weight for this training example (0-1).
     ///     Higher weights mean the example has more influence during training.
     ///     Default is 1.0. Values are clamped to [0, 1].
     /// </summary>

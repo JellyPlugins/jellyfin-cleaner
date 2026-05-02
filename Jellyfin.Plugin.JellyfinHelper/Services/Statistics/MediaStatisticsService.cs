@@ -274,7 +274,7 @@ public class MediaStatisticsService : IMediaStatisticsService
             var subDirHasVideo = false;
 
             var config = _configHelper.GetConfig();
-            var trashFolderName = config.TrashFolderPath.Trim()
+            var trashFolderName = (config.TrashFolderPath ?? string.Empty).Trim()
                 .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var fullTrashPath = libraryRoot != null
                 ? Path.GetFullPath(_configHelper.GetTrashPath(libraryRoot))
@@ -605,8 +605,7 @@ public class MediaStatisticsService : IMediaStatisticsService
         {
             (>= 4320, _) => "8K", // 7680×4320 or higher (any orientation)
             (>= 2160, _) => "4K", // 3840×2160 (any orientation)
-            (>= 1080, >= 1920) => "1080p", // standard 1080p and ultrawide (e.g. 2560×1080)
-            (>= 720, >= 1280) => "720p",
+            (>= 1080, _) => "1080p", // any 1080-line source, including anamorphic/panoramic variants
             (>= 720, _) => "720p", // 720p even with narrow width
             (>= 576, _) => "576p",
             (>= 480, _) => "480p",

@@ -381,11 +381,10 @@ function calculateFadeDelay(success) {
  */
 function showButtonFeedback(btn, success, message, originalHtml, timeout) {
     if (!btn) return 0;
-    var icon = success ? '✔' : '✘';
     var cls = success ? 'success' : 'error';
     var delay = timeout || (success ? 3000 : 5000);
     btn.classList.remove('success', 'error');
-    btn.innerHTML = '<span class="btn-icon">' + icon + '</span>' + message;
+    btn.innerHTML = '<span class="btn-icon">' + (success ? mi('check_circle') : mi('error')) + '</span>' + message;
     btn.classList.add(cls);
     return setTimeout(function () {
         btn.innerHTML = originalHtml;

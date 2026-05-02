@@ -866,7 +866,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
                     + "expected={ExpectedVersion}, featureCount={FeatureCount}). Resetting to defaults",
                     data.Version,
                     CurrentWeightsVersion,
-                    data.Weights.Length);
+                    data.Weights?.Length ?? -1);
             }
         }
         catch (IOException ex)

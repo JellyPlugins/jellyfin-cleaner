@@ -50,6 +50,11 @@ internal static class PreferenceBuilder
                 continue;
             }
 
+            if (item.Genres is not { Count: > 0 })
+            {
+                continue;
+            }
+
             // Compute temporal weight: exponential decay with ~180-day half-life.
             // Unplayed favorites (IsFavorite && !Played) represent current intent - the user
             // explicitly flagged interest without having watched yet, so they should not be
@@ -150,6 +155,11 @@ internal static class PreferenceBuilder
         foreach (var item in profile.WatchedItems)
         {
             if (item is { Played: false, IsFavorite: false })
+            {
+                continue;
+            }
+
+            if (item.Genres is not { Count: > 0 })
             {
                 continue;
             }
