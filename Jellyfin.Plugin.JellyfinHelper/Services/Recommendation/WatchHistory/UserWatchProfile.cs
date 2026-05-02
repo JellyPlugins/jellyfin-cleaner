@@ -120,7 +120,7 @@ public sealed class UserWatchProfile
     /// </summary>
     [JsonIgnore]
     public HashSet<string> PreferredLanguages => new(
-        LanguageProfile.Where(kv => kv.Value.ChosenCount > 0).Select(kv => kv.Key),
+        LanguageProfile.Where(kv => kv.Value is { ChosenCount: > 0 }).Select(kv => kv.Key),
         StringComparer.OrdinalIgnoreCase);
 
     /// <summary>

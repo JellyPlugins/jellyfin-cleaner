@@ -597,19 +597,18 @@ public class MediaStatisticsService : IMediaStatisticsService
         var w = width.Value;
         var h = height.Value;
 
-        // Use the larger dimension to handle both landscape and portrait orientations
-        var maxDimension = Math.Max(w, h);
+        // Use the shorter dimension to classify resolution (handles both landscape and portrait orientations)
         var minDimension = Math.Min(w, h);
 
-        return (minDimension, maxDimension) switch
+        return minDimension switch
         {
-            (>= 4320, _) => "8K", // 7680×4320 or higher (any orientation)
-            (>= 2160, _) => "4K", // 3840×2160 (any orientation)
-            (>= 1080, _) => "1080p", // any 1080-line source, including anamorphic/panoramic variants
-            (>= 720, _) => "720p", // 720p even with narrow width
-            (>= 576, _) => "576p",
-            (>= 480, _) => "480p",
-            (> 0, _) => "SD",
+            >= 4320 => "8K", // 7680×4320 or higher (any orientation)
+            >= 2160 => "4K", // 3840×2160 (any orientation)
+            >= 1080 => "1080p", // any 1080-line source, including anamorphic/panoramic variants
+            >= 720 => "720p", // 720p even with narrow width
+            >= 576 => "576p",
+            >= 480 => "480p",
+            > 0 => "SD",
             _ => "Unknown"
         };
     }

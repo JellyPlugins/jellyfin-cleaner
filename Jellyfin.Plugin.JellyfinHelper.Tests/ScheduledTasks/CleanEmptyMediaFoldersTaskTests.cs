@@ -585,13 +585,18 @@ public class CleanEmptyMediaFoldersTaskTests : CleanupTaskTestBase
     [Fact]
     public async Task ExecuteInternalAsync_BoxsetFolder_IsSkipped()
     {
-        const string libraryPath = "/config/data/collections";
-        const string boxsetDir = "/config/data/collections/Star Wars Filmreihe [boxset]";
+        // Use a regular library path (not containing "collections") so the library is not
+        // filtered out at the base-class level. Include a non-metadata file (.srt) so the
+        // folder would otherwise be flagged as orphaned. The [boxset] name guard is the
+        // ONLY reason this folder is skipped.
+        const string libraryPath = "/media/movies";
+        const string boxsetDir = "/media/movies/Star Wars Filmreihe [boxset]";
 
         SetupLibrary(libraryPath);
         SetupTopLevelDirs(libraryPath, ("Star Wars Filmreihe [boxset]", boxsetDir));
 
-        SetupFiles(boxsetDir);
+        // Non-metadata file ensures this would otherwise be flagged as orphaned
+        SetupFiles(boxsetDir, "movie.nfo", "movie.srt");
         SetupSubDirs(boxsetDir);
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);
@@ -602,13 +607,17 @@ public class CleanEmptyMediaFoldersTaskTests : CleanupTaskTestBase
     [Fact]
     public async Task ExecuteInternalAsync_CollectionFolder_IsSkipped()
     {
-        const string libraryPath = "/some/path";
-        const string collectionDir = "/some/path/My Favorites [collection]";
+        // Use a regular library path and include a non-metadata file (.srt) so the folder
+        // would otherwise be flagged as orphaned. The [collection] name guard is the
+        // ONLY reason this folder is skipped.
+        const string libraryPath = "/media/movies";
+        const string collectionDir = "/media/movies/My Favorites [collection]";
 
         SetupLibrary(libraryPath);
         SetupTopLevelDirs(libraryPath, ("My Favorites [collection]", collectionDir));
 
-        SetupFiles(collectionDir, "collection.xml");
+        // Non-metadata file ensures this would otherwise be flagged as orphaned
+        SetupFiles(collectionDir, "collection.xml", "movie.srt");
         SetupSubDirs(collectionDir);
 
         await _task.ExecuteAsync(new Progress<double>(), CancellationToken.None);

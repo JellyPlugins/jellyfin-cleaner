@@ -1110,7 +1110,7 @@ internal sealed class TrainingService
             }
 
             totalInBucket++;
-            if (w.Genres.Any(candidateGenreSet.Contains))
+            if (w.Genres is not null && w.Genres.Any(candidateGenreSet.Contains))
             {
                 matchCount++;
             }
@@ -1207,9 +1207,12 @@ internal sealed class TrainingService
         int? representativeYear = null;
         foreach (var ep in episodes)
         {
-            foreach (var g in ep.Genres)
+            foreach (var g in ep.Genres ?? Array.Empty<string>())
             {
-                allGenres.Add(g);
+                if (!string.IsNullOrWhiteSpace(g))
+                {
+                    allGenres.Add(g);
+                }
             }
 
             // Use the first available production year as representative

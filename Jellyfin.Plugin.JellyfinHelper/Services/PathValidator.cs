@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
@@ -10,6 +11,15 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services;
 /// </summary>
 internal static class PathValidator
 {
+    /// <summary>
+    /// Cached set of invalid filename characters (excluding directory separators).
+    /// Thread-safe: static readonly field initializers are guaranteed to run once.
+    /// </summary>
+    private static readonly HashSet<char> InvalidFileNameChars =
+        Path.GetInvalidFileNameChars()
+            .Where(c => c != Path.DirectorySeparatorChar && c != Path.AltDirectorySeparatorChar)
+            .ToHashSet();
+
     /// <summary>
     /// Validates that a given path does not contain path traversal sequences
     /// and resolves to a location within the allowed base directory.
@@ -72,10 +82,7 @@ internal static class PathValidator
         // which are needed by Path.GetFileName to strip directory components).
         // This avoids passing characters like '\0' into Path.GetFileName, which
         // can behave unexpectedly on some platforms.
-        var invalidChars = Path.GetInvalidFileNameChars()
-            .Where(c => c != Path.DirectorySeparatorChar && c != Path.AltDirectorySeparatorChar)
-            .ToHashSet();
-        var name = new string(fileName.Select(ch => invalidChars.Contains(ch) ? '_' : ch).ToArray());
+        var name = new string(fileName.Select(ch => InvalidFileNameChars.Contains(ch) ? '_' : ch).ToArray());
 
         // Normalize backslashes to forward slashes for cross-platform safety.
         // On Linux, '\' is a valid filename character but could be used in
