@@ -69,8 +69,8 @@ function updateLastScanBadge(utcTimestamp) {
         return;
     }
     if (utcTimestamp) {
-        badge.innerHTML = mi('schedule') + ' ' + T('lastScan', 'Last Scan') + ': '
-            + formatTimeAgo(utcTimestamp);
+        badge.innerHTML = mi('schedule') + ' ';
+        badge.appendChild(document.createTextNode(T('lastScan', 'Last Scan') + ': ' + formatTimeAgo(utcTimestamp)));
         badge.style.display = '';
     } else {
         badge.style.display = 'none';
@@ -223,7 +223,7 @@ function loadStatistics() {
         }
         var overviewContainer = document.getElementById('overviewContent');
         if (overviewContainer) {
-            overviewContainer.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + T('error',
+            overviewContainer.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + T('statsLoadError',
                     'Failed to load statistics. Make sure you are an administrator.')
                 + '</div>';
         }

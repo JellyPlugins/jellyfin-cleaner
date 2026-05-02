@@ -668,7 +668,7 @@ function createDialogOverlay(overlayId, titleText, titleColor, bodyContent, body
 
     var title = document.createElement('h3');
     title.style.cssText = 'margin:0 0 0.8em 0;color:' + titleColor + ';';
-    title.innerHTML = titleText;
+    title.textContent = titleText;
     dialog.appendChild(title);
 
     var body = document.createElement('div');
@@ -694,7 +694,7 @@ function createDialogOverlay(overlayId, titleText, titleColor, bodyContent, body
  */
 function createDialogBtn(text, style, onclick) {
     var btn = document.createElement('button');
-    btn.innerHTML = text;
+    btn.textContent = text;
     var bg = style === 'cancel' ? 'transparent' : style === 'danger' ? getCssVar('--color-danger', '#e74c3c') : style === 'success' ? getCssVar('--color-success', '#2ecc71') : getCssVar('--color-primary', '#00a4dc');
     var border = style === 'cancel' ? '1px solid rgba(255,255,255,0.2)' : 'none';
     btn.style.cssText = 'padding:0.5em 1.2em;border:' + border + ';border-radius:4px;background:' + bg + ';color:#fff;cursor:pointer;font-size:0.9em;';

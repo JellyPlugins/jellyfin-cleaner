@@ -44,7 +44,7 @@ function renderLogsTab() {
             'logsDownload', 'Download') + '">' + mi('download') + ' ' + T('logsDownload', 'Download')
         + '</button>';
     h += '<button class="logs-btn danger" id="btnLogsClear" title="' + T(
-        'logsClear', 'Clear') + '">' + mi('delete') + ' ' + T('logsClear', 'Clear') + '</button>';
+        'logsClear', 'Clear') + '">' + T('logsClear', 'Clear') + '</button>';
     h += '</div>';
 
     h += '</div>'; // toolbar
@@ -313,7 +313,7 @@ function clearLogs() {
     removeDialogById('logsClearDialogOverlay');
     var d = createDialogOverlay(
         'logsClearDialogOverlay',
-        mi('delete') + ' ' + T('logsClear', 'Clear Logs'),
+        T('logsClear', 'Clear Logs'),
         getCssVar('--color-danger', '#e74c3c'),
         T('logsClearConfirm', 'Are you sure you want to clear all plugin logs?'),
         false
@@ -323,7 +323,7 @@ function clearLogs() {
             removeDialogById('logsClearDialogOverlay');
         }));
     d.btnRow.appendChild(
-        createDialogBtn(mi('delete') + ' ' + T('logsClear', 'Clear'), 'danger', function () {
+        createDialogBtn(T('logsClear', 'Clear'), 'danger', function () {
             removeDialogById('logsClearDialogOverlay');
             apiDelete('JellyfinHelper/Logs', function () {
                 loadLogs();
@@ -333,7 +333,7 @@ function clearLogs() {
                 if (clearBtn) {
                     showButtonFeedback(clearBtn, false,
                         T('logsClearError', 'Failed to clear logs.'),
-                        mi('delete') + ' ' + T('logsClear', 'Clear'), 4000);
+                        T('logsClear', 'Clear'), 4000);
                 }
             });
         }));
