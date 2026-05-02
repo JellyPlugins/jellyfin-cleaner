@@ -326,7 +326,7 @@ function createSaveIndicator(element, success) {
     let indicator = document.createElement('span');
     indicator.style.fontSize = '0.95em';
     indicator.style.color = success !== false ? getCssVar('--color-success', '#2ecc71') : getCssVar('--color-danger', '#e74c3c');
-    indicator.textContent = success !== false ? '' : '';
+    indicator.textContent = success !== false ? '✔' : '✘';
 
     return indicator;
 }
@@ -381,7 +381,7 @@ function calculateFadeDelay(success) {
  */
 function showButtonFeedback(btn, success, message, originalHtml, timeout) {
     if (!btn) return 0;
-    var icon = success ? '' : '';
+    var icon = success ? '✔' : '✘';
     var cls = success ? 'success' : 'error';
     var delay = timeout || (success ? 3000 : 5000);
     btn.classList.remove('success', 'error');
