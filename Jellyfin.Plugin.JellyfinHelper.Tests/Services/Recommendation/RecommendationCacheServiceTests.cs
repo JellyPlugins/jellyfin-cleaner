@@ -38,14 +38,11 @@ public sealed class RecommendationCacheServiceTests : IDisposable
     {
         try
         {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, true);
-            }
+            Directory.Delete(_tempDir, true);
         }
         catch (DirectoryNotFoundException)
         {
-            // Best-effort cleanup - TOCTOU race between Exists check and Delete
+            // Best-effort cleanup - directory may already be gone
         }
         catch (IOException)
         {

@@ -205,16 +205,16 @@ public sealed class ScoreExplanation
         }
 
         v = Math.Abs(studioContrib);
-        if (!(v > bestValue))
+        if (v <= bestValue)
         {
-            return bestValue == 0 ? "None" : bestName;
+            return bestValue <= double.Epsilon ? "None" : bestName;
         }
 
         bestName = "Studio";
         bestValue = v;
 
         // When every contribution is zero, no signal is dominant.
-        return bestValue == 0 ? "None" : bestName;
+        return bestValue <= double.Epsilon ? "None" : bestName;
     }
 
     /// <summary>

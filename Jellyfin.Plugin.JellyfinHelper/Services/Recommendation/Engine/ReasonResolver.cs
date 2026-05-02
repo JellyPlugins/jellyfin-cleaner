@@ -139,7 +139,7 @@ internal static class ReasonResolver
         }
 
         if (!string.Equals(dominant, "Studio", StringComparison.OrdinalIgnoreCase)
-            || !(explanation.StudioContribution > EngineConstants.ReasonScoreThreshold))
+            || explanation.StudioContribution <= EngineConstants.ReasonScoreThreshold)
         {
             return ("Recommended for you", "reasonDefault", null);
         }

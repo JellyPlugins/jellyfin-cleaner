@@ -11,7 +11,7 @@ var _mi = {"assignment":"M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H
 function mi(name) {
     var d = _mi[name];
     if (!d) return '';
-    return '<span class="mi"><svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="' + d + '"/></svg></span>';
+    return '<span class="mi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em" focusable="false"><path d="' + d + '"/></svg></span>';
 }
 
 var SVG = {

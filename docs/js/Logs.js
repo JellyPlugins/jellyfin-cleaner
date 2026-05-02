@@ -313,7 +313,7 @@ function clearLogs() {
     removeDialogById('logsClearDialogOverlay');
     var d = createDialogOverlay(
         'logsClearDialogOverlay',
-        T('logsClear', 'Clear Logs'),
+        T('logsClearTitle', 'Clear Logs'),
         getCssVar('--color-danger', '#e74c3c'),
         T('logsClearConfirm', 'Are you sure you want to clear all plugin logs?'),
         false

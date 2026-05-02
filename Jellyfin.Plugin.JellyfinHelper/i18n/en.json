@@ -158,6 +158,7 @@
   "logsAutoRefresh": "Auto-refresh",
   "logsDownload": "Download",
   "logsClear": "Clear",
+  "logsClearTitle": "Clear Logs",
   "logsLoading": "Loading logs...",
   "logsEmpty": "No log entries.",
   "logsLoadError": "Failed to load logs.",

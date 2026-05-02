@@ -158,6 +158,7 @@
   "logsAutoRefresh": "Auto-actualisation",
   "logsDownload": "Télécharger",
   "logsClear": "Effacer",
+  "logsClearTitle": "Effacer les Logs",
   "logsLoading": "Chargement des logs...",
   "logsEmpty": "Aucune entrée de log.",
   "logsLoadError": "Impossible de charger les logs.",

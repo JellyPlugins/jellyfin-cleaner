@@ -367,7 +367,7 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
         var entries = new List<DirectoryEntry>();
         var locations = LibraryPathResolver.GetDistinctLibraryLocations(_libraryManager);
         var config = _configHelper.GetConfig();
-        var trashFolderName = config.TrashFolderPath.Trim()
+        var trashFolderName = (config.TrashFolderPath ?? string.Empty).Trim()
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
         foreach (var location in locations)

@@ -158,6 +158,7 @@
   "logsAutoRefresh": "Otomatik yenile",
   "logsDownload": "İndir",
   "logsClear": "Temizle",
+  "logsClearTitle": "Günlükleri Temizle",
   "logsLoading": "Günlükler yükleniyor...",
   "logsEmpty": "Günlük girişi yok.",
   "logsLoadError": "Günlükler yüklenemedi.",

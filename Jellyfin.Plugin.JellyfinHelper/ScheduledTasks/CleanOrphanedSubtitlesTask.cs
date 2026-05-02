@@ -125,6 +125,11 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
                 }
 
                 // Get all video base names in this directory
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return (deletedCount, bytesFreed);
+                }
+
                 var videoBaseNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var file in files)
                 {

@@ -26,14 +26,11 @@ public sealed class ScoringStrategyTests : IDisposable
     {
         try
         {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, true);
-            }
+            Directory.Delete(_tempDir, true);
         }
         catch (DirectoryNotFoundException)
         {
-            // best-effort cleanup - directory may have been removed between Exists and Delete
+            // best-effort cleanup - directory may already be gone
         }
         catch (IOException)
         {
@@ -43,6 +40,8 @@ public sealed class ScoringStrategyTests : IDisposable
         {
             // best-effort cleanup - permission edge cases on CI
         }
+
+        GC.SuppressFinalize(this);
     }
 
     // ============================================================

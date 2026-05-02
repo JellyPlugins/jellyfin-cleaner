@@ -62,7 +62,7 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
             var score = Math.Clamp(raw, 0.0, 1.0);
 
             // Apply genre penalty when used standalone (shared formula with EnsembleScoringStrategy)
-            if (!(GenrePenaltyFloor < 1.0))
+            if (GenrePenaltyFloor >= 1.0)
             {
                 return score;
             }
@@ -93,7 +93,7 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
             // Apply genre penalty when used standalone (shared formula with EnsembleScoringStrategy).
             // Uses WithPenalty() to scale both FinalScore and all contributions consistently,
             // so that FinalScore = Σ(contributions) × GenrePenaltyMultiplier holds true.
-            if (!(GenrePenaltyFloor < 1.0))
+            if (GenrePenaltyFloor >= 1.0)
             {
                 return explanation;
             }
