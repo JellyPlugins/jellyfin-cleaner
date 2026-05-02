@@ -5,6 +5,7 @@
   "scanPlaceholder": "Klicken Sie auf <strong>Bibliotheken scannen</strong>, um Ihre Medienordner zu analysieren.",
   "initializingScan": "Medienscan wird initialisiert…",
   "error": "Statistiken konnten nicht geladen werden. Stellen Sie sicher, dass Sie Administrator sind.",
+  "statsLoadError": "Statistiken konnten nicht geladen werden. Stellen Sie sicher, dass Sie Administrator sind.",
   "tabOverview": "Übersicht",
   "tabCodecs": "Codecs",
   "tabHealth": "Zustand",

@@ -9,6 +9,12 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 /// </summary>
 public sealed class ScoreExplanation
 {
+    /// <summary>
+    ///     Tolerance for determining if a contribution is effectively zero.
+    ///     Values below this threshold are treated as "no signal".
+    /// </summary>
+    private const double DominantSignalTolerance = 1e-12;
+
     /// <summary>Gets or sets the final blended score (0–1).</summary>
     public double FinalScore { get; set; }
 
@@ -207,14 +213,14 @@ public sealed class ScoreExplanation
         v = Math.Abs(studioContrib);
         if (v <= bestValue)
         {
-            return bestValue <= double.Epsilon ? "None" : bestName;
+            return bestValue <= DominantSignalTolerance ? "None" : bestName;
         }
 
         bestName = "Studio";
         bestValue = v;
 
         // When every contribution is zero, no signal is dominant.
-        return bestValue <= double.Epsilon ? "None" : bestName;
+        return bestValue <= DominantSignalTolerance ? "None" : bestName;
     }
 
     /// <summary>
@@ -225,12 +231,6 @@ public sealed class ScoreExplanation
     {
         return string.Create(
             CultureInfo.InvariantCulture,
-            $"[{StrategyName}] score={FinalScore:F4} " +
-            $"(genre={GenreContribution:F3}, collab={CollaborativeContribution:F3}, " +
-            $"rating={RatingContribution:F3}, recency={RecencyContribution:F3}, " +
-            $"yearProx={YearProximityContribution:F3}, userRating={UserRatingContribution:F3}, " +
-            $"interact={InteractionContribution:F3}, people={PeopleContribution:F3}, " +
-            $"studio={StudioContribution:F3}, penalty={GenrePenaltyMultiplier:F2}) " +
-            $"dominant={DominantSignal}");
+            $"[{StrategyName}] score={FinalScore:F4} (genre={GenreContribution:F3}, collab={CollaborativeContribution:F3}, rating={RatingContribution:F3}, recency={RecencyContribution:F3}, yearProx={YearProximityContribution:F3}, userRating={UserRatingContribution:F3}, interact={InteractionContribution:F3}, people={PeopleContribution:F3}, studio={StudioContribution:F3}, penalty={GenrePenaltyMultiplier:F2}) dominant={DominantSignal}");
     }
 }

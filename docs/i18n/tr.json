@@ -5,6 +5,7 @@
   "scanPlaceholder": "Medya klasörlerinizi analiz etmek için <strong>Kütüphaneleri Tara</strong>'ya tıklayın.",
   "initializingScan": "Medya taraması başlatılıyor…",
   "error": "İstatistikler yüklenemedi. Yönetici olduğunuzdan emin olun.",
+  "statsLoadError": "İstatistikler yüklenemedi. Yönetici olduğunuzdan emin olun.",
   "tabOverview": "Genel Bakış",
   "tabCodecs": "Kodekler",
   "tabHealth": "Sağlık",

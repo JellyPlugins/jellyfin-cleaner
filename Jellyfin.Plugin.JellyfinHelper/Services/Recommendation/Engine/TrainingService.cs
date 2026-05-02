@@ -687,7 +687,7 @@ internal sealed class TrainingService
                     { Played: false, PlaybackPositionTicks: > 0 } when completionRatio <
                                                                        EngineConstants.AbandonedCompletionThreshold =>
                         EngineConstants.AbandonedLabel,
-                    { Played: false, PlaybackPositionTicks: <= 0 } => 0.65,
+                    { Played: false, PlaybackPositionTicks: <= 0, IsFavorite: true } => 0.65,
                     _ => ContentScoring.ComputeEngagementLabel(completionRatio)
                 };
 
@@ -1261,7 +1261,8 @@ internal sealed class TrainingService
                                                                      EngineConstants.AbandonedCompletionThreshold
                 ? EngineConstants.AbandonedLabel
                 : ContentScoring.ComputeEngagementLabel(completionRatio),
-            0 => 0.65,
+            0 when episodes.Any(e => e.IsFavorite) => 0.65,
+            0 => ContentScoring.ComputeEngagementLabel(completionRatio),
             _ => ContentScoring.ComputeEngagementLabel(completionRatio)
         };
 

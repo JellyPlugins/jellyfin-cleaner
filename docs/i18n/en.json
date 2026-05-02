@@ -5,6 +5,7 @@
   "scanPlaceholder": "Click <strong>Scan Libraries</strong> to analyze your media folders.",
   "initializingScan": "Initializing media scan…",
   "error": "Failed to load statistics. Make sure you are an administrator.",
+  "statsLoadError": "Failed to load statistics. Make sure you are an administrator.",
   "tabOverview": "Overview",
   "tabCodecs": "Codecs",
   "tabHealth": "Health",

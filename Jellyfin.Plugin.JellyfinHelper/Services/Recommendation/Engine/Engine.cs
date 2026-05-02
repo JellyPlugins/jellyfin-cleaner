@@ -481,7 +481,7 @@ public sealed class Engine : IRecommendationEngine
         foreach (var w in userProfile.WatchedItems.Where(w => w.Played || w.IsFavorite))
         {
             watchedGenreSets.Add(
-                w.Genres.Count > 0
+                w.Genres is { Count: > 0 }
                     ? new HashSet<string>(w.Genres, StringComparer.OrdinalIgnoreCase)
                     : []);
 

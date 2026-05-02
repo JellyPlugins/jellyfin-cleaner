@@ -52,7 +52,7 @@ internal sealed class SimilarityComputer
             try
             {
                 var people = _libraryManager.GetPeople(candidate);
-                if (people.Count == 0)
+                if (people is null || people.Count == 0)
                 {
                     continue;
                 }
