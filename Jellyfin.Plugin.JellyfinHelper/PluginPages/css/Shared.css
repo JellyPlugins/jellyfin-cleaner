@@ -578,6 +578,18 @@
     text-align: center;
 }
 
+.tree-icon-open {
+    display: none;
+}
+
+.tree-expanded > .tree-folder > .tree-icon-open {
+    display: inline;
+}
+
+.tree-expanded > .tree-folder > .tree-icon-closed {
+    display: none;
+}
+
 .tree-name {
     white-space: nowrap;
     overflow: hidden;
