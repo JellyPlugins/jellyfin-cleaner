@@ -37,7 +37,7 @@ function updateSeerrUIState(isConfigured) {
         ageW.style.pointerEvents = isConfigured ? '' : 'none';
     }
     var count = document.getElementById('arrCountSeerr');
-    if (count) count.textContent = isConfigured ? '' : '';
+    if (count) count.innerHTML = isConfigured ? mi('check_circle') : '';
     var hint = document.querySelector('.seerr-not-configured-hint');
     if (hint) hint.style.display = isConfigured ? 'none' : '';
 }
@@ -216,7 +216,7 @@ function loadSettings() {
         h += '<div class="help-text">' + T('settingsSeerrHelp', 'Connect to Jellyseerr, Overseerr, or Seerr to automatically clean up old media requests.') + '</div>';
         var seerrHasCfg = !!(cfg.SeerrUrl && cfg.SeerrApiKey);
         h += '<div class="arr-collapsible' + (!seerrHasCfg ? ' arr-expanded' : '') + '" id="arrCollapsibleSeerr">';
-        h += renderArrCollapseButton(!seerrHasCfg, SVG.EYE, T('seerrInstance', 'Seerr Instance'), seerrHasCfg ? '' : '', 'Seerr');
+        h += renderArrCollapseButton(!seerrHasCfg, SVG.EYE, T('seerrInstance', 'Seerr Instance'), seerrHasCfg ? mi('check_circle') : '', 'Seerr');
         h += '<div class="arr-collapsible-body" aria-hidden="' + (seerrHasCfg ? 'true' : 'false') + '">';
         h += '<label for="cfgSeerrUrl">' + T('seerrUrl', 'Seerr URL') + '</label>';
         h += '<input type="text" id="cfgSeerrUrl" value="' + escAttr(cfg.SeerrUrl || '') + '" placeholder="http://localhost:5055">';

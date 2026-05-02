@@ -71,8 +71,8 @@ and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin
 ### Added
 - **Seerr Cleanup Task** - New scheduled task (`SeerrCleanupTask`) to automatically clean up unavailable media requests from Overseerr/Jellyseerr. New `Services/Seerr/` domain with `ISeerrIntegrationService`, `SeerrIntegrationService`, and Seerr DTOs. Added `Api/SeerrController.cs` for connection testing (`/JellyfinHelper/Seerr/Test`).
 - **Unsaved Settings Alert** - The settings page now warns users before navigating away with unsaved changes (dirty-tracking via JSON snapshot comparison). Offers "Discard", "Save & Continue", or "Cancel" options.
-- **Collapsible Arr Sections** - Radarr, Sonarr, and Seerr configuration sections are now collapsible with chevron animation, dynamic instance count display (`` / `(n)`), and full localization support.
-- **Auto-Save Dropdowns** - Task mode selects (Trickplay, Empty Folders, Subtitles, Link Repair, Seerr) and the Language dropdown now auto-save on change with inline ``/`` indicator, eliminating the need to click "Save Settings" for quick changes.
+- **Collapsible Arr Sections** - Radarr, Sonarr, and Seerr configuration sections are now collapsible with chevron animation, dynamic instance count display (checkmark / (n)), and full localization support.
+- **Auto-Save Dropdowns** - Task mode selects (Trickplay, Empty Folders, Subtitles, Link Repair, Seerr) and the Language dropdown now auto-save on change with inline checkmark/cross indicator, eliminating the need to click "Save Settings" for quick changes.
 - **Auto-Init Scan** - The Overview page now automatically triggers an initial media scan when no cached statistics are available, eliminating the need to manually click "Scan Libraries" on first visit. The scan button has been redesigned as a compact icon button with a spinning animation during scans.
 - **Scroll Position Restore** - Language change and backup import now preserve the scroll position after UI rebuild, preventing the page from jumping to the top.
 
