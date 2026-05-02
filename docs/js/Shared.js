@@ -261,10 +261,10 @@ function aggregateDict(libraries, prop) {
 
 /**
  * Reusable auto-save feedback indicator.
- * Shows a brief  or  on top of the given element, then fades out.
+ * Shows a brief check_circle or error icon on top of the given element, then fades out.
  * Can be attached to any element - the indicator is inserted as an overlay.
  * @param {HTMLElement} element - The element to show the indicator over.
- * @param {boolean} [success=true] - true = green , false = red 
+ * @param {boolean} [success=true] - true = green check_circle icon, false = red error icon
  */
 function showAutoSaveIndicatorOverlay(element, success) {
     if (!element || !element.parentNode) return;
@@ -316,17 +316,17 @@ function removeExistingSaveIndicatorOverlay(element) {
 
 /**
  * Creates a save indicator element with the specified success status.
- * The indicator is styled with a green  for success and a red  for failure.
+ * The indicator is styled with a green check_circle icon for success and a red error icon for failure.
  *
  * @param {HTMLElement} element The parent element to which the indicator will be attached.
- * @param {boolean} [success=true] - true = green , false = red 
+ * @param {boolean} [success=true] - true = green check_circle icon, false = red error icon
  * @return {HTMLElement} The created save indicator element.
  */
 function createSaveIndicator(element, success) {
     let indicator = document.createElement('span');
     indicator.style.fontSize = '0.95em';
     indicator.style.color = success !== false ? getCssVar('--color-success', '#2ecc71') : getCssVar('--color-danger', '#e74c3c');
-    indicator.textContent = success !== false ? '✔' : '✘';
+    indicator.innerHTML = success !== false ? mi('check_circle') : mi('error');
 
     return indicator;
 }

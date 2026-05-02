@@ -639,9 +639,12 @@ internal sealed class TrainingService
                     }
                 }
 
+                // Null-safe genre access for deserialized cache objects
+                var wGenres = w.Genres ?? Array.Empty<string>();
+
                 var features = new CandidateFeatures
                 {
-                    GenreSimilarity = SimilarityComputer.ComputeGenreSimilarity(w.Genres, genrePreferences),
+                    GenreSimilarity = SimilarityComputer.ComputeGenreSimilarity(wGenres, genrePreferences),
                     CollaborativeScore = collabScore,
                     CombinedCriticScore = combinedCriticScore,
                     // Use content release year for recency (not watch date) to match Phase 1 semantics.
@@ -651,7 +654,7 @@ internal sealed class TrainingService
                         ? ContentScoring.ComputeRecencyScore(new DateTime(recY, 7, 1))
                         : 0.5,
                     YearProximityScore = ContentScoring.ComputeYearProximity(w.Year, avgYear),
-                    GenreCount = w.Genres.Count,
+                    GenreCount = wGenres.Count,
                     IsSeries = isSeries,
                     UserRatingScore = ContentScoring.ComputeUserRatingScore(w),
                     HasUserInteraction = true,
@@ -662,8 +665,8 @@ internal sealed class TrainingService
                     PopularityScore = collabScore > 0
                         ? Math.Clamp(collabScore * 0.8, 0.0, 1.0)
                         : combinedCriticScore * 0.3,
-                    DayOfWeekAffinity = ComputeTrainingTemporalAffinity(w, w.Genres, userProfile, isDay: true),
-                    HourOfDayAffinity = ComputeTrainingTemporalAffinity(w, w.Genres, userProfile, isDay: false),
+                    DayOfWeekAffinity = ComputeTrainingTemporalAffinity(w, wGenres, userProfile, isDay: true),
+                    HourOfDayAffinity = ComputeTrainingTemporalAffinity(w, wGenres, userProfile, isDay: false),
                     IsWeekend = w.LastPlayedDate?.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday,
                     TagSimilarity = tagSimilarity,
                     LibraryAddedRecency = 0.5
@@ -671,7 +674,7 @@ internal sealed class TrainingService
 
                 // Genre exposure features: compute from cached per-user analysis (mirrors Phase 1)
                 var (organicUnderexp, organicDomRatio, organicAffGap) =
-                    PreferenceBuilder.ComputeGenreExposureFeatures(w.Genres, genreExposureOrganic);
+                    PreferenceBuilder.ComputeGenreExposureFeatures(wGenres, genreExposureOrganic);
                 features.GenreUnderexposure = organicUnderexp;
                 features.GenreDominanceRatio = organicDomRatio;
                 features.GenreAffinityGap = organicAffGap;
@@ -789,21 +792,26 @@ internal sealed class TrainingService
                         ? SimilarityComputer.ComputePeopleSimilarity(negPeople, preferredPeopleNeg)
                         : 0.0;
 
+                    // Null-safe access for deserialized cache objects
+                    var negGenres = neg.Genres ?? Array.Empty<string>();
+                    var negStudios = neg.Studios ?? Array.Empty<string>();
+                    var negTags = neg.Tags ?? Array.Empty<string>();
+
                     // Compute StudioMatch and TagSimilarity from cached data (mirrors Phase 1/2).
-                    var negStudioMatch = neg.Studios.Count > 0
-                                         && neg.Studios.Any(preferredStudiosNeg.Contains);
-                    var negTagSimilarity = ComputeTagSimilarityFromCache(neg.Tags, preferredTagsNeg);
+                    var negStudioMatch = negStudios.Count > 0
+                                         && negStudios.Any(preferredStudiosNeg.Contains);
+                    var negTagSimilarity = ComputeTagSimilarityFromCache(negTags, preferredTagsNeg);
 
                     var features = new CandidateFeatures
                     {
-                        GenreSimilarity = SimilarityComputer.ComputeGenreSimilarity(neg.Genres, genrePreferences),
+                        GenreSimilarity = SimilarityComputer.ComputeGenreSimilarity(negGenres, genrePreferences),
                         CollaborativeScore = collabScore,
                         CombinedCriticScore = combinedCriticScore,
                         RecencyScore = neg.PremiereDate.HasValue
                             ? ContentScoring.ComputeRecencyScore(neg.PremiereDate.Value)
                             : 0.5,
                         YearProximityScore = ContentScoring.ComputeYearProximity(neg.Year, avgYear),
-                        GenreCount = neg.Genres.Count,
+                        GenreCount = negGenres.Count,
                         IsSeries = isSeries,
                         UserRatingScore = 0.5,
                         HasUserInteraction = false,
@@ -824,7 +832,7 @@ internal sealed class TrainingService
 
                     // Genre exposure features
                     var (negUnderexp, negDomRatio, negAffGap) =
-                        PreferenceBuilder.ComputeGenreExposureFeatures(neg.Genres, genreExposureNeg);
+                        PreferenceBuilder.ComputeGenreExposureFeatures(negGenres, genreExposureNeg);
                     features.GenreUnderexposure = negUnderexp;
                     features.GenreDominanceRatio = negDomRatio;
                     features.GenreAffinityGap = negAffGap;
