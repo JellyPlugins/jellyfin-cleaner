@@ -191,7 +191,7 @@ function loadSettings() {
         var seerrConfigured = !!(cfg.SeerrUrl && cfg.SeerrApiKey);
         h += '<div class="seerr-task-mode-wrapper" style="' + (!seerrConfigured ? 'opacity:0.5;pointer-events:none;' : '') + '">';
         h += renderTaskModeSelect('cfgSeerrMode', T('seerrCleanup', 'Seerr Cleanup'), cfg.SeerrCleanupTaskMode || 'Deactivate');
-        h += '<div class="help-text seerr-not-configured-hint" style="' + (seerrConfigured ? 'display:none;' : '') + '">" + mi("warning") + " ' + T('seerrNotConfigured', 'Configure Seerr below to enable this task.') + '</div>';
+        h += '<div class="help-text seerr-not-configured-hint" style="' + (seerrConfigured ? 'display:none;' : '') + '">' + mi('warning') + ' ' + T('seerrNotConfigured', 'Configure Seerr below to enable this task.') + '</div>';
         h += '</div>';
 
         h += '<div class="section-title">' + T('settingsTrashTitle', 'Trash settings') + '</div>';
@@ -228,7 +228,7 @@ function loadSettings() {
         h += '<div class="help-text">' + T('seerrCleanupAgeDaysHelp', 'Requests older than this will be deleted. Default: 365 days.') + '</div>';
         h += '</div>';
         h += '<div style="margin-top:0.5em;">';
-        h += '<button type="button" class="action-btn btn-arr-test" id="btnTestSeerr" style="padding:0.3em 1em;font-size:0.85em;">" + mi("extension") + " ' + T('testConnection', 'Test Connection') + '</button>';
+        h += '<button type="button" class="action-btn btn-arr-test" id="btnTestSeerr" style="padding:0.3em 1em;font-size:0.85em;">' + mi('extension') + ' ' + T('testConnection', 'Test Connection') + '</button>';
         h += '</div>';
         h += '</div></div>';
 
@@ -255,11 +255,11 @@ function loadSettings() {
         h += '<div id="settingsMsg" style="margin-top:0.5em;"></div>';
 
         // --- Backup Section ---
-        h += '<div class="section-title">" + mi("save") + " ' + T('settingsBackupTitle', 'Backup & Restore') + '</div>';
+        h += '<div class="section-title">' + mi('save') + ' ' + T('settingsBackupTitle', 'Backup & Restore') + '</div>';
         h += '<div class="help-text">' + T('settingsBackupHelp', 'Export your settings, Arr integrations, and trend data for backup. Import to restore on a fresh installation.') + '</div>';
         h += '<div style="display:flex;gap:0.8em;flex-wrap:wrap;margin:1em 0;">';
-        h += '<button class="action-btn" id="btnBackupExport" style="flex:1;min-width:0;padding:0.5em 1.2em;text-align:center;justify-content:center;">" + mi("download") + " ' + T('backupExport', 'Export Backup') + '</button>';
-        h += '<label class="action-btn" id="btnBackupImportLabel" style="flex:1;min-width:0;padding:0.5em 1.2em;cursor:pointer;margin:0;text-align:center;justify-content:center;">" + mi("upload") + " ' + T('backupImport', 'Import Backup') + '<input type="file" id="btnBackupImportFile" accept=".json,application/json" style="display:none;"></label>';
+        h += '<button class="action-btn" id="btnBackupExport" style="flex:1;min-width:0;padding:0.5em 1.2em;text-align:center;justify-content:center;">' + mi('download') + ' ' + T('backupExport', 'Export Backup') + '</button>';
+        h += '<label class="action-btn" id="btnBackupImportLabel" style="flex:1;min-width:0;padding:0.5em 1.2em;cursor:pointer;margin:0;text-align:center;justify-content:center;">' + mi('upload') + ' ' + T('backupImport', 'Import Backup') + '<input type="file" id="btnBackupImportFile" accept=".json,application/json" style="display:none;"></label>';
         h += '</div>';
         h += '<div id="backupMsg" style="margin-top:0.5em;"></div>';
 
@@ -453,7 +453,7 @@ function showTrashDeleteConfirmation(payload, paths) {
     }));
     d.btnRow.appendChild(createDialogBtn(mi('delete') + ' ' + T('trashDeleteConfirmOk', 'Yes, Delete All'), 'danger', function () {
         removeTrashDialog();
-        msg.innerHTML = '<div style="opacity:0.6;">" + mi("delete") + " ' + T('trashDeleting', 'Deleting trash folders…') + '</div>';
+        msg.innerHTML = '<div style="opacity:0.6;">' + mi('delete') + ' ' + T('trashDeleting', 'Deleting trash folders…') + '</div>';
 
         apiDelete('JellyfinHelper/Trash/Folders', function (result) {
             var summary = '';
@@ -468,7 +468,7 @@ function showTrashDeleteConfirmation(payload, paths) {
             }
             doSaveSettings(payload);
         }, function () {
-            msg.innerHTML = '<div class="error-msg">" + mi("error") + " ' + T('trashDeleteError', 'Failed to delete trash folders.') + '</div>';
+            msg.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + T('trashDeleteError', 'Failed to delete trash folders.') + '</div>';
             saveBtn.disabled = false;
         });
     }));
@@ -515,7 +515,7 @@ function triggerBackupExport() {
             URL.revokeObjectURL(blobUrl);
         }, 5000);
 
-        msg.innerHTML = '<div class="success-msg">" + mi("check_circle") + " ' + T('backupExportSuccess', 'Backup exported successfully.') + '</div>';
+        msg.innerHTML = '<div class="success-msg">' + mi('check_circle') + ' ' + T('backupExportSuccess', 'Backup exported successfully.') + '</div>';
         btn.disabled = false;
         setTimeout(function () {
             msg.innerHTML = '';
@@ -527,7 +527,7 @@ function triggerBackupExport() {
             errorText = escHtml(response.message);
         }
 
-        msg.innerHTML = '<div class="error-msg">" + mi("error") + " ' + errorText + '</div>';
+        msg.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + errorText + '</div>';
         btn.disabled = false;
     });
 }
@@ -537,7 +537,7 @@ function triggerBackupImport(file) {
 
     // Client-side size check (10 MB)
     if (file.size > 10 * 1024 * 1024) {
-        msg.innerHTML = '<div class="error-msg">" + mi("error") + " ' + T('backupFileTooLarge', 'File too large. Maximum size is 10 MB.') + '</div>';
+        msg.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + T('backupFileTooLarge', 'File too large. Maximum size is 10 MB.') + '</div>';
         return;
     }
 
@@ -571,7 +571,7 @@ function removeBackupDialog() {
 
 function doBackupImport(file) {
     var msg = document.getElementById('backupMsg');
-    msg.innerHTML = '<div style="opacity:0.6;">" + mi("upload") + " ' + T('backupImporting', 'Importing backup…') + '</div>';
+    msg.innerHTML = '<div style="opacity:0.6;">' + mi('upload') + ' ' + T('backupImporting', 'Importing backup…') + '</div>';
 
     var reader = new FileReader();
     reader.onload = function (e) {
@@ -581,7 +581,7 @@ function doBackupImport(file) {
         try {
             JSON.parse(json);
         } catch (parseErr) {
-            msg.innerHTML = '<div class="error-msg">" + mi("error") + " ' + T('backupInvalidJson', 'Invalid backup file. The file does not contain valid JSON.') + '</div>';
+            msg.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + T('backupInvalidJson', 'Invalid backup file. The file does not contain valid JSON.') + '</div>';
             return;
         }
 
@@ -601,7 +601,7 @@ function doBackupImport(file) {
             // Show warnings if any
             var warnings = data.Warnings || data.warnings || [];
             if (warnings.length > 0) {
-                successMsg += '<br><span class="color-warning">" + mi("warning") + " ' + warnings.length + ' ' + T('backupWarnings', 'warning(s)') + ':</span>';
+                successMsg += '<br><span class="color-warning">' + mi('warning') + ' ' + warnings.length + ' ' + T('backupWarnings', 'warning(s)') + ':</span>';
                 for (var i = 0; i < Math.min(warnings.length, 5); i++) {
                     successMsg += '<br><span style="opacity:0.7;font-size:0.85em;">• ' + escHtml(warnings[i]) + '</span>';
                 }
@@ -644,11 +644,11 @@ function doBackupImport(file) {
                 }
             } catch (ignored) { /* use default error text */
             }
-            msg.innerHTML = '<div class="error-msg">" + mi("error") + " ' + errorText + '</div>';
+            msg.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + errorText + '</div>';
         });
     };
     reader.onerror = function () {
-        msg.innerHTML = '<div class="error-msg">" + mi("error") + " ' + T('backupImportError', 'Failed to import backup.') + '</div>';
+        msg.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + T('backupImportError', 'Failed to import backup.') + '</div>';
     };
     reader.readAsText(file);
 }

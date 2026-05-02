@@ -477,33 +477,33 @@ function fillCodecsData(data) {
 
     var codecsHtml = '<div class="charts-row">';
     if (hasContainers) {
-        codecsHtml += '<div class="chart-box"><h4>" + mi("inventory_2") + " ' + T('containerFormats', 'Container Formats') + '</h4>';
+        codecsHtml += '<div class="chart-box"><h4>' + mi('inventory_2') + ' ' + T('containerFormats', 'Container Formats') + '</h4>';
         codecsHtml += renderDonutChart(containers, containerSizes, 'containers', data.Libraries, 'ContainerFormats');
         codecsHtml += '</div>';
     }
     if (hasResolutions) {
-        codecsHtml += '<div class="chart-box"><h4>" + mi("straighten") + " ' + T('resolutions', 'Resolutions') + '</h4>';
+        codecsHtml += '<div class="chart-box"><h4>' + mi('straighten') + ' ' + T('resolutions', 'Resolutions') + '</h4>';
         codecsHtml += renderDonutChart(resolutions, resolutionSizes, 'resolutions', videoLibraries, 'Resolutions');
         codecsHtml += '</div>';
     }
     if (hasDynamicRanges) {
-        codecsHtml += '<div class="chart-box"><h4>" + mi("palette") + " ' + T('dynamicRange', 'Dynamic Range') + '</h4>';
+        codecsHtml += '<div class="chart-box"><h4>' + mi('palette') + ' ' + T('dynamicRange', 'Dynamic Range') + '</h4>';
         codecsHtml += renderDonutChart(dynamicRanges, dynamicRangeSizes, 'dynamicRanges', videoLibraries, 'DynamicRanges');
         codecsHtml += '</div>';
     }
     if (hasVideoCodecs) {
-        codecsHtml += '<div class="chart-box"><h4>" + mi("movie") + " ' + T('videoCodecs', 'Video Codecs') + '</h4>';
+        codecsHtml += '<div class="chart-box"><h4>' + mi('movie') + ' ' + T('videoCodecs', 'Video Codecs') + '</h4>';
         codecsHtml += renderDonutChart(videoCodecs, videoCodecSizes, 'videoCodecs', videoLibraries, 'VideoCodecs');
         codecsHtml += '</div>';
     }
     if (hasVideoAudio) {
-        codecsHtml += '<div class="chart-box"><h4>" + mi("volume_up") + " ' + T('videoAudioCodecs', 'Video Audio Codecs') + '</h4>';
+        codecsHtml += '<div class="chart-box"><h4>' + mi('volume_up') + ' ' + T('videoAudioCodecs', 'Video Audio Codecs') + '</h4>';
         codecsHtml += renderDonutChart(videoAudioCodecs, videoAudioCodecSizes, 'videoAudioCodecs', videoLibraries,
             'VideoAudioCodecs');
         codecsHtml += '</div>';
     }
     if (hasMusicAudio) {
-        codecsHtml += '<div class="chart-box"><h4>" + mi("music_note") + " ' + T('musicAudioCodecs', 'Music Audio Codecs') + '</h4>';
+        codecsHtml += '<div class="chart-box"><h4>' + mi('music_note') + ' ' + T('musicAudioCodecs', 'Music Audio Codecs') + '</h4>';
         codecsHtml += renderDonutChart(musicAudioCodecs, musicAudioCodecSizes, 'musicAudioCodecs', musicLibraries,
             'MusicAudioCodecs');
         codecsHtml += '</div>';

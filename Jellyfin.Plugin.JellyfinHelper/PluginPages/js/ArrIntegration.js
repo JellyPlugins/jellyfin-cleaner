@@ -49,7 +49,7 @@ function renderArrInstanceRow(type, index, inst) {
         + escAttr(apiKey) + '">';
     h += '<button type="button" class="action-btn btn-arr-test btnTestArr" id="'
         + prefix + '_btnTest" data-type="' + type + '" data-index="' + index
-        + '" style="padding:0.3em 0.8em;font-size:0.85em;">" + mi("extension") + " ' + T(
+        + '" style="padding:0.3em 0.8em;font-size:0.85em;">' + mi('extension') + ' ' + T(
             'testConnection', 'Test Connection') + '</button>';
     h += '</div>';
     return h;
@@ -322,7 +322,7 @@ function initArrButtons(cfg) {
 
     if (radarrInstances.length > 0) {
         h += '<div style="margin-bottom:1em;">';
-        h += '<h4 style="margin:0 0 0.5em 0;opacity:0.7;">" + mi("movie") + " Radarr</h4>';
+        h += '<h4 style="margin:0 0 0.5em 0;opacity:0.7;">' + mi('movie') + ' Radarr</h4>';
         h += '<div class="header-actions" style="flex-wrap:wrap;">';
         for (var r = 0; r < radarrInstances.length; r++) {
             var rName = radarrInstances[r].Name || ('Radarr #' + (r + 1));
@@ -335,7 +335,7 @@ function initArrButtons(cfg) {
 
     if (sonarrInstances.length > 0) {
         h += '<div style="margin-bottom:1em;">';
-        h += '<h4 style="margin:0 0 0.5em 0;opacity:0.7;">" + mi("tv") + " Sonarr</h4>';
+        h += '<h4 style="margin:0 0 0.5em 0;opacity:0.7;">' + mi('tv') + ' Sonarr</h4>';
         h += '<div class="header-actions" style="flex-wrap:wrap;">';
         for (var s = 0; s < sonarrInstances.length; s++) {
             var sName = sonarrInstances[s].Name || ('Sonarr #' + (s + 1));
@@ -403,7 +403,7 @@ function compareArr(type, index, label) {
                 data.InJellyfinOnly);
             resultDiv.innerHTML = h;
         }, function () {
-            resultDiv.innerHTML = '<div class="error-msg">" + mi("error") + " ' + T('arrCompareError',
+            resultDiv.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + T('arrCompareError',
                 'Failed to compare. Check settings.') + '</div>';
         });
 }

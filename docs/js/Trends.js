@@ -561,14 +561,14 @@ function renderInsightCards(data) {
 
     // --- Largest card ---
     html += '<button class="insight-card" id="insightLargestBtn" type="button" aria-expanded="false">';
-    html += '<span class="insight-icon">" + mi("save") + "</span>';
+    html += '<span class="insight-icon">' + mi('save') + '</span>';
     html += '<span class="insight-value">' + formatBytes(data.LargestTotalSize) + '</span>';
     html += '<span class="insight-label">' + T('insightLargest', 'Largest') + '</span>';
     html += '</button>';
 
     // --- Recently card ---
     html += '<button class="insight-card" id="insightRecentBtn" type="button" aria-expanded="false">';
-    html += '<span class="insight-icon">" + mi("schedule") + "</span>';
+    html += '<span class="insight-icon">' + mi('schedule') + '</span>';
     html += '<span class="insight-value">' + data.RecentTotalCount + '</span>';
     html += '<span class="insight-label">' + T('insightRecent', 'Recently') + '</span>';
     html += '</button>';

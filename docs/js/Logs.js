@@ -41,17 +41,17 @@ function renderLogsTab() {
 
     h += '<div class="logs-btn-group">';
     h += '<button class="logs-btn primary" id="btnLogsDownload" title="' + T(
-            'logsDownload', 'Download') + '">" + mi("download") + " ' + T('logsDownload', 'Download')
+            'logsDownload', 'Download') + '">' + mi('download') + ' ' + T('logsDownload', 'Download')
         + '</button>';
     h += '<button class="logs-btn danger" id="btnLogsClear" title="' + T(
-        'logsClear', 'Clear') + '">" + mi("delete") + " ' + T('logsClear', 'Clear') + '</button>';
+        'logsClear', 'Clear') + '">' + mi('delete') + ' ' + T('logsClear', 'Clear') + '</button>';
     h += '</div>';
 
     h += '</div>'; // toolbar
 
     // Table
     h += '<div class="logs-table-wrapper" id="logsTableWrapper">';
-    h += '<div class="logs-empty"><div class="logs-empty-icon">" + mi("assignment") + "</div>' + T(
+    h += '<div class="logs-empty"><div class="logs-empty-icon">' + mi('assignment') + '</div>' + T(
         'logsLoading', 'Loading logs...') + '</div>';
     h += '</div>';
 
@@ -220,7 +220,7 @@ function loadLogs() {
         }
 
         if (entries.length === 0) {
-            wrapper.innerHTML = '<div class="logs-empty"><div class="logs-empty-icon">" + mi("assignment") + "</div>'
+            wrapper.innerHTML = '<div class="logs-empty"><div class="logs-empty-icon">' + mi('assignment') + '</div>'
                 + T('logsEmpty', 'No log entries.') + '</div>';
             return;
         }
@@ -259,7 +259,7 @@ function loadLogs() {
         if (requestSeq !== _logsLoadSeq) {
             return;
         }
-        wrapper.innerHTML = '<div class="logs-empty"><div class="logs-empty-icon">" + mi("warning") + "</div>'
+        wrapper.innerHTML = '<div class="logs-empty"><div class="logs-empty-icon">' + mi('warning') + '</div>'
             + T('logsLoadError', 'Failed to load logs.') + '</div>';
     });
 }

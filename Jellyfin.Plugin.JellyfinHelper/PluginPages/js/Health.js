@@ -141,7 +141,7 @@ function loadTrashHealthSection() {
 
             var html = '<div id="trashHealthSection">';
             html += '<div class="section-divider" style="margin:1.5em 0;"></div>';
-            html += '<div class="section-title">" + mi("delete") + " ' + T('trashContents',
+            html += '<div class="section-title">' + mi('delete') + ' ' + T('trashContents',
                 'Trash Contents') + '</div>';
 
             // Summary card
@@ -165,7 +165,7 @@ function loadTrashHealthSection() {
                 for (var li = 0; li < data.Libraries.length; li++) {
                     var trashLib = data.Libraries[li];
                     html += '<div style="margin-top:1em;">';
-                    html += '<h4 style="margin:0 0 0.3em 0;opacity:0.8;">" + mi("folder") + " ' + escHtml(
+                    html += '<h4 style="margin:0 0 0.3em 0;opacity:0.8;">' + mi('folder') + ' ' + escHtml(
                             trashLib.LibraryName)
                         + ' <span style="opacity:0.5;font-weight:400;">('
                         + trashLib.Items.length + ' ' + T('items', 'items')
