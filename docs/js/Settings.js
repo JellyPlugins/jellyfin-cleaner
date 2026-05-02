@@ -457,15 +457,19 @@ function showTrashDeleteConfirmation(payload, paths) {
 
         apiDelete('JellyfinHelper/Trash/Folders', function (result) {
             var summary = '';
+            var statusClass = 'success-msg';
             if (result.deleted > 0) {
                 summary += mi('check_circle') + ' ' + T('trashDeletedCount', 'Deleted') + ': ' + result.deleted + ' ' + T('folders', 'folders');
             }
             if (result.failed > 0) {
                 summary += (summary ? ' | ' : '') + mi('error') + ' ' + T('trashFailedCount', 'Failed') + ': ' + result.failed;
+                statusClass = 'error-msg';
             }
-            if (summary) {
-                msg.innerHTML = '<div class="success-msg">' + summary + '</div>';
+            if (!summary) {
+                summary = mi('error') + ' ' + T('trashDeleteError', 'Failed to delete trash folders.');
+                statusClass = 'error-msg';
             }
+            msg.innerHTML = '<div class="' + statusClass + '">' + summary + '</div>';
             doSaveSettings(payload);
         }, function () {
             msg.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + T('trashDeleteError', 'Failed to delete trash folders.') + '</div>';

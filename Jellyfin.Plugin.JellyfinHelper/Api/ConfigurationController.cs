@@ -329,8 +329,8 @@ public class ConfigurationController : ControllerBase
         config.Language = string.IsNullOrWhiteSpace(request.Language) ? "en" : request.Language;
 
         // Seerr settings
-        config.SeerrUrl = request.SeerrUrl.Trim();
-        config.SeerrApiKey = request.SeerrApiKey.Trim();
+        config.SeerrUrl = string.IsNullOrWhiteSpace(request.SeerrUrl) ? string.Empty : request.SeerrUrl.Trim();
+        config.SeerrApiKey = string.IsNullOrWhiteSpace(request.SeerrApiKey) ? string.Empty : request.SeerrApiKey.Trim();
         config.SeerrCleanupAgeDays = string.IsNullOrEmpty(config.SeerrUrl)
             ? 0
             : Math.Clamp(request.SeerrCleanupAgeDays, 1, 3650);

@@ -305,6 +305,11 @@ public static class BackupValidator
         for (var i = 0; i < instances.Count; i++)
         {
             var instance = instances[i];
+            if (instance == null)
+            {
+                result.Errors.Add($"{fieldName}[{i}] is null.");
+                continue;
+            }
 
             var prefix = $"{fieldName}[{i}]";
 
