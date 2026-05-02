@@ -84,7 +84,7 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
         var entries = new List<LibraryInsightEntry>();
         var virtualFolders = _libraryManager.GetVirtualFolders();
         var config = _configHelper.GetConfig();
-        var trashFolderName = (config.TrashFolderPath ?? string.Empty).Trim()
+        var trashFolderName = config.TrashFolderPath.Trim()
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
         foreach (var vf in virtualFolders)
@@ -113,9 +113,16 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
                         .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
                     CollectEntriesFromLocation(
-                        location, libraryName, collectionTypeStr, trashFolderName, fullTrashPath, entries, cancellationToken);
+                        location,
+                        libraryName,
+                        collectionTypeStr,
+                        trashFolderName,
+                        fullTrashPath,
+                        entries,
+                        cancellationToken);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+                                               or NotSupportedException)
                 {
                     _pluginLog.LogWarning("LibraryInsights", $"Could not scan {location}", ex, _logger);
                 }
@@ -177,16 +184,17 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
 
             var changeType = DetermineChangeType(createdUtc, modifiedUtc);
 
-            entries.Add(new LibraryInsightEntry
-            {
-                Name = dirName,
-                Size = totalSize,
-                CreatedUtc = createdUtc,
-                ModifiedUtc = modifiedUtc,
-                LibraryName = libraryName,
-                CollectionType = collectionType,
-                ChangeType = changeType
-            });
+            entries.Add(
+                new LibraryInsightEntry
+                {
+                    Name = dirName,
+                    Size = totalSize,
+                    CreatedUtc = createdUtc,
+                    ModifiedUtc = modifiedUtc,
+                    LibraryName = libraryName,
+                    CollectionType = collectionType,
+                    ChangeType = changeType
+                });
         }
 
         // Collect loose files directly in the library root
@@ -215,16 +223,17 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
             var modifiedUtc = File.GetLastWriteTimeUtc(file.FullName);
             var changeType = DetermineChangeType(createdUtc, modifiedUtc);
 
-            entries.Add(new LibraryInsightEntry
-            {
-                Name = Path.GetFileNameWithoutExtension(file.FullName),
-                Size = file.Length,
-                CreatedUtc = createdUtc,
-                ModifiedUtc = modifiedUtc,
-                LibraryName = libraryName,
-                CollectionType = collectionType,
-                ChangeType = changeType
-            });
+            entries.Add(
+                new LibraryInsightEntry
+                {
+                    Name = Path.GetFileNameWithoutExtension(file.FullName),
+                    Size = file.Length,
+                    CreatedUtc = createdUtc,
+                    ModifiedUtc = modifiedUtc,
+                    LibraryName = libraryName,
+                    CollectionType = collectionType,
+                    ChangeType = changeType
+                });
         }
     }
 
@@ -267,7 +276,7 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
         // === Recent (last 30 days) ===
         var recentQuery = entries
             .Where(e => GetRelevantDate(e) >= cutoff)
-            .OrderByDescending(e => GetRelevantDate(e))
+            .OrderByDescending(GetRelevantDate)
             .ToList();
 
         var recentTotalCount = recentQuery.Count;
@@ -347,7 +356,11 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
     /// <summary>
     ///     Calculates the total size of all files within a directory (recursively).
     /// </summary>
-    private long GetDirectorySize(string directoryPath, string trashFolderName, string fullTrashPath, CancellationToken cancellationToken)
+    private long GetDirectorySize(
+        string directoryPath,
+        string trashFolderName,
+        string fullTrashPath,
+        CancellationToken cancellationToken)
     {
         long total = 0;
         try

@@ -52,7 +52,7 @@ internal sealed class SimilarityComputer
             try
             {
                 var people = _libraryManager.GetPeople(candidate);
-                if (people is null || people.Count == 0)
+                if (people.Count == 0)
                 {
                     continue;
                 }
@@ -182,12 +182,14 @@ internal sealed class SimilarityComputer
         // Factor 0.5 = moderate damping: "never watched" ≠ "dislikes", just less confident.
         // Example: Anime ["Animation", "Action", "Drama"] for an Action/Drama user:
         //   unknownFraction = 1/3, damping = 1 - 0.33 * 0.5 = 0.835 → ~17% reduction.
-        if (unknownGenreCount > 0)
+        if (unknownGenreCount <= 0)
         {
-            var unknownFraction = (double)unknownGenreCount / uniqueCandidateGenres.Count;
-            const double unknownGenreDampingFactor = 0.5;
-            cosineSimilarity *= 1.0 - (unknownFraction * unknownGenreDampingFactor);
+            return cosineSimilarity;
         }
+
+        var unknownFraction = (double)unknownGenreCount / uniqueCandidateGenres.Count;
+        const double unknownGenreDampingFactor = 0.5;
+        cosineSimilarity *= 1.0 - (unknownFraction * unknownGenreDampingFactor);
 
         return cosineSimilarity;
     }

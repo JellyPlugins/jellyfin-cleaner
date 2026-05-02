@@ -494,7 +494,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                 {
                     var neuralValidationLoss = _neural.LastValidationLoss;
                     var neuralQualityOk = !double.IsNaN(neuralValidationLoss)
-                        && neuralValidationLoss <= ValidationLossThreshold;
+                                          && neuralValidationLoss <= ValidationLossThreshold;
 
                     if (neuralQualityOk)
                     {
@@ -533,15 +533,16 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
             MetricsTrend trend;
             lock (_syncRoot)
             {
-                _metricsHistory.Add(new MetricsSnapshot
-                {
-                    Timestamp = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
-                    ValidationLoss = validationLoss,
-                    PrecisionAtK = _learned.LastPrecisionAtK,
-                    RecallAtK = _learned.LastRecallAtK,
-                    NdcgAtK = _learned.LastNdcgAtK,
-                    ExampleCount = examples.Count
-                });
+                _metricsHistory.Add(
+                    new MetricsSnapshot
+                    {
+                        Timestamp = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
+                        ValidationLoss = validationLoss,
+                        PrecisionAtK = _learned.LastPrecisionAtK,
+                        RecallAtK = _learned.LastRecallAtK,
+                        NdcgAtK = _learned.LastNdcgAtK,
+                        ExampleCount = examples.Count
+                    });
                 const int maxHistory = 10;
                 if (_metricsHistory.Count > maxHistory)
                 {
@@ -639,7 +640,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         double genreSimilarity,
         double penaltyFloor = DefaultGenrePenaltyFloor)
     {
-        return ScoringHelper.ComputeSoftGenrePenalty(genreSimilarity, penaltyFloor, GenrePenaltyThreshold);
+        return ScoringHelper.ComputeSoftGenrePenalty(genreSimilarity, penaltyFloor);
     }
 
     /// <summary>
@@ -698,30 +699,32 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         {
             var json = File.ReadAllText(_statePath);
             var data = JsonSerializer.Deserialize<EnsembleStateData>(json);
-            if (data is not null && data.TrainingExampleCount > 0)
+            if (data is null || data.TrainingExampleCount <= 0)
             {
-                lock (_syncRoot)
+                return;
+            }
+
+            lock (_syncRoot)
+            {
+                _trainingExampleCount = data.TrainingExampleCount;
+                _qualityGateFrozen = data.QualityGateFrozen;
+
+                // Restore persisted alpha directly instead of recomputing via sigmoid,
+                // so that the quality-gate freeze state is preserved across restarts.
+                // Only recompute if the persisted alpha is outside the valid range.
+                _alpha = (data.Alpha >= _alphaMin && data.Alpha <= _alphaMax)
+                    ? data.Alpha
+                    : ComputeSigmoidAlpha(_trainingExampleCount, _alphaMin, _alphaMax);
+
+                // Restore neural beta so it survives server restarts
+                if (data.NeuralBeta is >= 0 and <= NeuralMaxBetaFraction)
                 {
-                    _trainingExampleCount = data.TrainingExampleCount;
-                    _qualityGateFrozen = data.QualityGateFrozen;
+                    _neuralBeta = data.NeuralBeta;
+                }
 
-                    // Restore persisted alpha directly instead of recomputing via sigmoid,
-                    // so that the quality-gate freeze state is preserved across restarts.
-                    // Only recompute if the persisted alpha is outside the valid range.
-                    _alpha = (data.Alpha >= _alphaMin && data.Alpha <= _alphaMax)
-                        ? data.Alpha
-                        : ComputeSigmoidAlpha(_trainingExampleCount, _alphaMin, _alphaMax);
-
-                    // Restore neural beta so it survives server restarts
-                    if (data.NeuralBeta >= 0 && data.NeuralBeta <= NeuralMaxBetaFraction)
-                    {
-                        _neuralBeta = data.NeuralBeta;
-                    }
-
-                    if (data.MetricsHistory is { Count: > 0 })
-                    {
-                        _metricsHistory = new List<MetricsSnapshot>(data.MetricsHistory);
-                    }
+                if (data.MetricsHistory is { Count: > 0 })
+                {
+                    _metricsHistory = new List<MetricsSnapshot>(data.MetricsHistory);
                 }
             }
         }
@@ -773,7 +776,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                     Alpha = _alpha,
                     NeuralBeta = _neuralBeta,
                     QualityGateFrozen = _qualityGateFrozen,
-                    MetricsHistory = new List<MetricsSnapshot>(_metricsHistory),
+                    MetricsHistory = [.._metricsHistory],
                     UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)
                 };
 

@@ -1,6 +1,5 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Globalization;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 
@@ -85,7 +84,16 @@ public sealed class ScoreExplanation
             PeopleContribution = blendedPeople,
             StudioContribution = blendedStudio,
             GenrePenaltyMultiplier = 1.0, // Penalty is applied separately after blending
-            DominantSignal = DetermineDominantSignal(blendedGenre, blendedCollab, blendedRating, blendedUserRating, blendedRecency, blendedYearProx, blendedInteraction, blendedPeople, blendedStudio),
+            DominantSignal = DetermineDominantSignal(
+                blendedGenre,
+                blendedCollab,
+                blendedRating,
+                blendedUserRating,
+                blendedRecency,
+                blendedYearProx,
+                blendedInteraction,
+                blendedPeople,
+                blendedStudio),
             StrategyName = StrategyName // Caller can override
         };
     }
@@ -197,11 +205,13 @@ public sealed class ScoreExplanation
         }
 
         v = Math.Abs(studioContrib);
-        if (v > bestValue)
+        if (!(v > bestValue))
         {
-            bestName = "Studio";
-            bestValue = v;
+            return bestValue == 0 ? "None" : bestName;
         }
+
+        bestName = "Studio";
+        bestValue = v;
 
         // When every contribution is zero, no signal is dominant.
         return bestValue == 0 ? "None" : bestName;
@@ -213,12 +223,14 @@ public sealed class ScoreExplanation
     /// <returns>A formatted string with all score components and the dominant signal.</returns>
     public override string ToString()
     {
-        return $"[{StrategyName}] score={FinalScore:F4} " +
-               $"(genre={GenreContribution:F3}, collab={CollaborativeContribution:F3}, " +
-               $"rating={RatingContribution:F3}, recency={RecencyContribution:F3}, " +
-               $"yearProx={YearProximityContribution:F3}, userRating={UserRatingContribution:F3}, " +
-               $"interact={InteractionContribution:F3}, people={PeopleContribution:F3}, " +
-               $"studio={StudioContribution:F3}, penalty={GenrePenaltyMultiplier:F2}) " +
-               $"dominant={DominantSignal}";
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"[{StrategyName}] score={FinalScore:F4} " +
+            $"(genre={GenreContribution:F3}, collab={CollaborativeContribution:F3}, " +
+            $"rating={RatingContribution:F3}, recency={RecencyContribution:F3}, " +
+            $"yearProx={YearProximityContribution:F3}, userRating={UserRatingContribution:F3}, " +
+            $"interact={InteractionContribution:F3}, people={PeopleContribution:F3}, " +
+            $"studio={StudioContribution:F3}, penalty={GenrePenaltyMultiplier:F2}) " +
+            $"dominant={DominantSignal}");
     }
 }

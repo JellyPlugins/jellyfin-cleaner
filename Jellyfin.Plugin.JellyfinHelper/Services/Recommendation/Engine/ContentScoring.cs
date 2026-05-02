@@ -19,7 +19,10 @@ internal static class ContentScoring
     /// <param name="coOccurrence">The collaborative co-occurrence map.</param>
     /// <param name="maxCoOccurrence">The pre-computed maximum co-occurrence value.</param>
     /// <returns>A normalized score between 0 and 1.</returns>
-    internal static double ComputeCollaborativeScore(Guid itemId, Dictionary<Guid, double> coOccurrence, double maxCoOccurrence)
+    internal static double ComputeCollaborativeScore(
+        Guid itemId,
+        Dictionary<Guid, double> coOccurrence,
+        double maxCoOccurrence)
     {
         if (maxCoOccurrence <= 0 || !coOccurrence.TryGetValue(itemId, out var count))
         {
@@ -38,7 +41,8 @@ internal static class ContentScoring
     /// <returns>A normalized score between 0 and 1, or 0.5 if unavailable.</returns>
     internal static double NormalizeCriticRating(float? criticRating)
     {
-        if (!criticRating.HasValue || float.IsNaN(criticRating.Value) || float.IsInfinity(criticRating.Value) || criticRating.Value <= 0)
+        if (!criticRating.HasValue || float.IsNaN(criticRating.Value) || float.IsInfinity(criticRating.Value) ||
+            criticRating.Value <= 0)
         {
             return 0.5; // Neutral fallback - does not penalize items without critic data
         }
@@ -59,24 +63,25 @@ internal static class ContentScoring
     internal static double ComputeCombinedCriticScore(float? communityRating, float? criticRating)
     {
         var hasCommunity = communityRating.HasValue
-            && float.IsFinite(communityRating.Value)
-            && communityRating.Value > 0;
+                           && float.IsFinite(communityRating.Value)
+                           && communityRating.Value > 0;
         var hasCritic = criticRating.HasValue
-            && float.IsFinite(criticRating.Value)
-            && criticRating.Value > 0;
+                        && float.IsFinite(criticRating.Value)
+                        && criticRating.Value > 0;
 
-        if (hasCommunity && hasCritic)
+        switch (hasCommunity)
         {
-            // Both available: 55% TMDb + 45% Tomatometer
-            var tmdb = Math.Clamp(communityRating!.Value / 10.0, 0.0, 1.0);
-            var tomatometer = Math.Clamp(criticRating!.Value / 100.0, 0.0, 1.0);
-            return Math.Clamp((0.55 * tmdb) + (0.45 * tomatometer), 0.0, 1.0);
-        }
+            case true when hasCritic:
+            {
+                // Both available: 55% TMDb + 45% Tomatometer
+                var tmdb = Math.Clamp(communityRating!.Value / 10.0, 0.0, 1.0);
+                var tomatometer = Math.Clamp(criticRating!.Value / 100.0, 0.0, 1.0);
+                return Math.Clamp((0.55 * tmdb) + (0.45 * tomatometer), 0.0, 1.0);
+            }
 
-        if (hasCommunity)
-        {
-            // Only TMDb available
-            return Math.Clamp(communityRating!.Value / 10.0, 0.0, 1.0);
+            case true:
+                // Only TMDb available
+                return Math.Clamp(communityRating!.Value / 10.0, 0.0, 1.0);
         }
 
         if (hasCritic)
@@ -95,7 +100,8 @@ internal static class ContentScoring
     /// <returns>A normalized rating between 0 and 1.</returns>
     internal static double NormalizeRating(float? communityRating)
     {
-        if (!communityRating.HasValue || float.IsNaN(communityRating.Value) || float.IsInfinity(communityRating.Value) || communityRating.Value <= 0)
+        if (!communityRating.HasValue || float.IsNaN(communityRating.Value) ||
+            float.IsInfinity(communityRating.Value) || communityRating.Value <= 0)
         {
             return 0.5; // neutral default for unrated or NaN items
         }
@@ -108,12 +114,12 @@ internal static class ContentScoring
     ///     Newer items get a slight boost.
     /// </summary>
     /// <param name="itemDate">
-    ///     The item's premiere or creation date. Should be <see cref="DateTimeKind.Utc"/>.
-    ///     <see cref="DateTimeKind.Unspecified"/> values are subtracted from <see cref="DateTime.UtcNow"/>
+    ///     The item's premiere or creation date. Should be <see cref="DateTimeKind.Utc" />.
+    ///     <see cref="DateTimeKind.Unspecified" /> values are subtracted from <see cref="DateTime.UtcNow" />
     ///     without conversion, effectively treating them as UTC.
     /// </param>
     /// <param name="now">
-    ///     Reference point for "now" (defaults to <see cref="DateTime.UtcNow"/>).
+    ///     Reference point for "now" (defaults to <see cref="DateTime.UtcNow" />).
     ///     Exposed for deterministic unit testing.
     /// </param>
     /// <returns>A recency score between 0 and 1.</returns>
@@ -156,7 +162,8 @@ internal static class ContentScoring
     /// <returns>A normalized user rating between 0 and 1.</returns>
     internal static double ComputeUserRatingScore(WatchedItemInfo? watchedItem)
     {
-        if (watchedItem?.UserRating is null or <= 0 || double.IsNaN(watchedItem.UserRating.Value) || double.IsInfinity(watchedItem.UserRating.Value))
+        if (watchedItem?.UserRating is null or <= 0 || double.IsNaN(watchedItem.UserRating.Value) ||
+            double.IsInfinity(watchedItem.UserRating.Value))
         {
             return 0.5; // neutral default - no user rating available or NaN/Infinity
         }
@@ -167,13 +174,16 @@ internal static class ContentScoring
 
     /// <summary>
     ///     Computes a completion-ratio-modulated engagement label for watched items.
-    ///     Instead of a flat label, this interpolates between <see cref="EngineConstants.WatchedLabelFloor"/>
-    ///     and <see cref="EngineConstants.WatchedLabel"/> based on how much of the item the user completed.
+    ///     Instead of a flat label, this interpolates between <see cref="EngineConstants.WatchedLabelFloor" />
+    ///     and <see cref="EngineConstants.WatchedLabel" /> based on how much of the item the user completed.
     ///     This gives the model richer gradient signal: fully-watched items get ~0.85,
     ///     while barely-started items still get a positive label (~0.5) since the user chose to watch.
     /// </summary>
     /// <param name="completionRatio">The watch completion ratio (0–1).</param>
-    /// <returns>An engagement label between <see cref="EngineConstants.WatchedLabelFloor"/> and <see cref="EngineConstants.WatchedLabel"/>.</returns>
+    /// <returns>
+    ///     An engagement label between <see cref="EngineConstants.WatchedLabelFloor" /> and
+    ///     <see cref="EngineConstants.WatchedLabel" />.
+    /// </returns>
     internal static double ComputeEngagementLabel(double completionRatio)
     {
         // Clamp input to valid range
@@ -182,7 +192,8 @@ internal static class ContentScoring
         // Linear interpolation: floor + ratio * (ceiling - floor)
         // At 0% completion: WatchedLabelFloor (0.5) - user chose to watch, still positive
         // At 100% completion: WatchedLabel (0.85) - strong positive signal
-        return EngineConstants.WatchedLabelFloor + (ratio * (EngineConstants.WatchedLabel - EngineConstants.WatchedLabelFloor));
+        return EngineConstants.WatchedLabelFloor +
+               (ratio * (EngineConstants.WatchedLabel - EngineConstants.WatchedLabelFloor));
     }
 
     /// <summary>

@@ -82,11 +82,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             var logger = sp.GetRequiredService<ILogger<NeuralScoringStrategy>>();
             return new NeuralScoringStrategy(neuralWeightsPath, logger);
         });
-        serviceCollection.AddSingleton(_ =>
-        {
-            // When used inside Ensemble, disable standalone genre penalty (penalty = 1.0)
-            return new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
-        });
+        serviceCollection.AddSingleton(_ => new HeuristicScoringStrategy(genrePenaltyFloor: 1.0));
         serviceCollection.AddSingleton(sp =>
         {
             var dataPath = Plugin.Instance?.DataFolderPath;

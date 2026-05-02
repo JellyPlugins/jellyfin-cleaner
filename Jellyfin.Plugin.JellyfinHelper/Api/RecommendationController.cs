@@ -69,7 +69,9 @@ public class RecommendationController : ControllerBase
     {
         if (!IsRecommendationsEnabled())
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Smart Recommendations are disabled in plugin configuration.");
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                "Smart Recommendations are disabled in plugin configuration.");
         }
 
         var config = _configService.GetConfiguration();
@@ -117,7 +119,9 @@ public class RecommendationController : ControllerBase
     {
         if (!IsRecommendationsEnabled())
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Smart Recommendations are disabled in plugin configuration.");
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                "Smart Recommendations are disabled in plugin configuration.");
         }
 
         if (userId == Guid.Empty)
@@ -177,7 +181,9 @@ public class RecommendationController : ControllerBase
     {
         if (!IsRecommendationsEnabled())
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Smart Recommendations are disabled in plugin configuration.");
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                "Smart Recommendations are disabled in plugin configuration.");
         }
 
         if (userId == Guid.Empty)
@@ -205,7 +211,9 @@ public class RecommendationController : ControllerBase
     {
         if (!IsRecommendationsEnabled())
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Smart Recommendations are disabled in plugin configuration.");
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                "Smart Recommendations are disabled in plugin configuration.");
         }
 
         var profiles = _watchHistoryService.GetAllUserWatchProfiles();
@@ -235,7 +243,9 @@ public class RecommendationController : ControllerBase
     /// <param name="results">The full recommendation results (not modified).</param>
     /// <param name="maxPerUser">Maximum recommendations per user.</param>
     /// <returns>A new collection with trimmed recommendation counts.</returns>
-    private static IReadOnlyList<RecommendationResult> TrimRecommendations(IReadOnlyList<RecommendationResult> results, int maxPerUser)
+    private static IReadOnlyList<RecommendationResult> TrimRecommendations(
+        IReadOnlyList<RecommendationResult> results,
+        int maxPerUser)
     {
         var needsTrim = results.Any(r => r.Recommendations.Count > maxPerUser);
         if (!needsTrim)
@@ -248,17 +258,18 @@ public class RecommendationController : ControllerBase
         {
             if (r.Recommendations.Count > maxPerUser)
             {
-                trimmed.Add(new RecommendationResult
-                {
-                    UserId = r.UserId,
-                    UserName = r.UserName,
-                    Profile = r.Profile,
-                    ScoringStrategy = r.ScoringStrategy,
-                    ScoringStrategyKey = r.ScoringStrategyKey,
-                    GeneratedAt = r.GeneratedAt,
-                    Recommendations = new Collection<RecommendedItem>(
-                        r.Recommendations.Take(maxPerUser).ToList())
-                });
+                trimmed.Add(
+                    new RecommendationResult
+                    {
+                        UserId = r.UserId,
+                        UserName = r.UserName,
+                        Profile = r.Profile,
+                        ScoringStrategy = r.ScoringStrategy,
+                        ScoringStrategyKey = r.ScoringStrategyKey,
+                        GeneratedAt = r.GeneratedAt,
+                        Recommendations = new Collection<RecommendedItem>(
+                            r.Recommendations.Take(maxPerUser).ToList())
+                    });
             }
             else
             {
@@ -277,6 +288,6 @@ public class RecommendationController : ControllerBase
     private bool IsRecommendationsEnabled()
     {
         var config = _configService.GetConfiguration();
-        return config.RecommendationsTaskMode != Configuration.TaskMode.Deactivate;
+        return config.RecommendationsTaskMode != TaskMode.Deactivate;
     }
 }

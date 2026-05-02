@@ -135,8 +135,7 @@ public sealed class ArrIntegrationService : IArrIntegrationService
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var movies = JsonSerializer.Deserialize<List<RadarrMovieDto>>(json, JsonOptions) ??
-                         new List<RadarrMovieDto>();
+            var movies = JsonSerializer.Deserialize<List<RadarrMovieDto>>(json, JsonOptions) ?? [];
 
             return movies.Select(m => new ArrMovie
             {
@@ -173,7 +172,7 @@ public sealed class ArrIntegrationService : IArrIntegrationService
     {
         if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(apiKey))
         {
-            return new List<ArrSeries>();
+            return [];
         }
 
         try
@@ -187,8 +186,7 @@ public sealed class ArrIntegrationService : IArrIntegrationService
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var series = JsonSerializer.Deserialize<List<SonarrSeriesDto>>(json, JsonOptions) ??
-                         new List<SonarrSeriesDto>();
+            var series = JsonSerializer.Deserialize<List<SonarrSeriesDto>>(json, JsonOptions) ?? [];
 
             return series.Select(s => new ArrSeries
             {

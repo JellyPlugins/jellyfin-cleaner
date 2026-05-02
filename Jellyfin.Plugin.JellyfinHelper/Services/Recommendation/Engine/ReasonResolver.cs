@@ -46,12 +46,16 @@ internal static class ReasonResolver
 
         // Genre + People: "Featuring actors you like in Action"
         if (topGenre is not null
-            && explanation.GenreContribution > EngineConstants.ReasonScoreThreshold
-            && explanation.PeopleContribution > EngineConstants.ReasonScoreThreshold)
+            && explanation is
+            {
+                GenreContribution: > EngineConstants.ReasonScoreThreshold,
+                PeopleContribution: > EngineConstants.ReasonScoreThreshold
+            })
         {
             if (matchedPerson is not null)
             {
-                return ($"Featuring {matchedPerson} in {topGenre}", "reasonGenreAndPerson", $"{matchedPerson} | {topGenre}");
+                return ($"Featuring {matchedPerson} in {topGenre}", "reasonGenreAndPerson",
+                    $"{matchedPerson} | {topGenre}");
             }
 
             return ($"Features actors you like in {topGenre}", "reasonGenreAndPeople", topGenre);
@@ -59,15 +63,21 @@ internal static class ReasonResolver
 
         // Genre + Collaborative: "Popular Action among similar viewers"
         if (topGenre is not null
-            && explanation.GenreContribution > EngineConstants.ReasonScoreThreshold
-            && explanation.CollaborativeContribution > EngineConstants.ReasonScoreThreshold)
+            && explanation is
+            {
+                GenreContribution: > EngineConstants.ReasonScoreThreshold,
+                CollaborativeContribution: > EngineConstants.ReasonScoreThreshold
+            })
         {
             return ($"Popular {topGenre} among similar viewers", "reasonGenreAndCollab", topGenre);
         }
 
         // Recency + Rating: "Trending - new and highly rated"
-        if (explanation.RecencyContribution > EngineConstants.ReasonScoreThreshold
-            && explanation.RatingContribution > EngineConstants.ReasonScoreThreshold)
+        if (explanation is
+            {
+                RecencyContribution: > EngineConstants.ReasonScoreThreshold,
+                RatingContribution: > EngineConstants.ReasonScoreThreshold
+            })
         {
             return ("Trending - new and highly rated", "reasonTrending", null);
         }
@@ -128,18 +138,18 @@ internal static class ReasonResolver
             return ("Features actors/directors you enjoy", "reasonPeople", null);
         }
 
-        if (string.Equals(dominant, "Studio", StringComparison.OrdinalIgnoreCase)
-            && explanation.StudioContribution > EngineConstants.ReasonScoreThreshold)
+        if (!string.Equals(dominant, "Studio", StringComparison.OrdinalIgnoreCase)
+            || !(explanation.StudioContribution > EngineConstants.ReasonScoreThreshold))
         {
-            if (matchedStudio is not null)
-            {
-                return ($"From {matchedStudio}", "reasonStudioNamed", matchedStudio);
-            }
-
-            return ("From a studio you enjoy", "reasonStudio", null);
+            return ("Recommended for you", "reasonDefault", null);
         }
 
-        return ("Recommended for you", "reasonDefault", null);
+        if (matchedStudio is not null)
+        {
+            return ($"From {matchedStudio}", "reasonStudioNamed", matchedStudio);
+        }
+
+        return ("From a studio you enjoy", "reasonStudio", null);
     }
 
     /// <summary>
@@ -181,7 +191,7 @@ internal static class ReasonResolver
         // matches the user's preferred people - avoids expensive library queries.
         if (peopleLookup is not null && peopleLookup.TryGetValue(candidate.Id, out var candidatePeople))
         {
-            return candidatePeople.FirstOrDefault(p => preferredPeople.Contains(p));
+            return candidatePeople.FirstOrDefault(preferredPeople.Contains);
         }
 
         return null;
@@ -194,7 +204,7 @@ internal static class ReasonResolver
     private static string? ResolveMatchedStudio(BaseItem candidate, HashSet<string>? preferredStudios)
     {
         if (preferredStudios is null || preferredStudios.Count == 0
-            || candidate.Studios is not { Length: > 0 })
+                                     || candidate.Studios is not { Length: > 0 })
         {
             return null;
         }
@@ -220,9 +230,11 @@ internal static class ReasonResolver
             WatchedSeriesCount = profile.WatchedSeriesCount,
             TotalWatchTimeTicks = profile.TotalWatchTimeTicks,
             LastActivityDate = profile.LastActivityDate,
-            GenreDistribution = new Dictionary<string, int>(profile.GenreDistribution, profile.GenreDistribution.Comparer),
+            GenreDistribution = new Dictionary<string, int>(
+                profile.GenreDistribution,
+                profile.GenreDistribution.Comparer),
             FavoriteCount = profile.FavoriteCount,
-            FavoriteSeriesIds = new HashSet<Guid>(profile.FavoriteSeriesIds),
+            FavoriteSeriesIds = [..profile.FavoriteSeriesIds],
             AverageCommunityRating = profile.AverageCommunityRating,
             MaxParentalRating = profile.MaxParentalRating,
             WatchedItems = []

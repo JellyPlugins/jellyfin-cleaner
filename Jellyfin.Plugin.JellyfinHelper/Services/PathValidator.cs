@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Jellyfin.Plugin.JellyfinHelper.Services.PluginLog;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services;
@@ -72,14 +73,8 @@ internal static class PathValidator
         // This avoids passing characters like '\0' into Path.GetFileName, which
         // can behave unexpectedly on some platforms.
         var invalidChars = Path.GetInvalidFileNameChars();
-        var name = fileName;
-        foreach (var c in invalidChars)
-        {
-            if (c != Path.DirectorySeparatorChar && c != Path.AltDirectorySeparatorChar)
-            {
-                name = name.Replace(c, '_');
-            }
-        }
+        var name = invalidChars.Where(c => c != Path.DirectorySeparatorChar && c != Path.AltDirectorySeparatorChar)
+            .Aggregate(fileName, (current, c) => current.Replace(c, '_'));
 
         // Normalize backslashes to forward slashes for cross-platform safety.
         // On Linux, '\' is a valid filename character but could be used in

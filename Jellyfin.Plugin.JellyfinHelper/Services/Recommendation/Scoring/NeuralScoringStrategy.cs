@@ -95,7 +95,7 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
 
     private readonly ILogger? _logger;
     private readonly ReaderWriterLockSlim _rwLock = new(LockRecursionPolicy.SupportsRecursion);
-    private readonly object _syncRoot = new();
+    private readonly Lock _syncRoot = new();
     private readonly string? _weightsPath;
 
     /// <summary>Thread-local scratch buffers to avoid contention on the hot Score() path.</summary>
@@ -527,7 +527,7 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
             var valCount = Math.Max(MinValidationExamples, (int)(examples.Count * ValidationSplitRatio));
             valCount = Math.Min(valCount, examples.Count - MinTrainingExamples);
             var useEarlyStopping = valCount >= MinValidationExamples
-                && examples.Count - valCount >= MinTrainingExamples;
+                                   && examples.Count - valCount >= MinTrainingExamples;
 
             var rng = new Random(42 + _trainingGeneration);
             _trainingGeneration++;
@@ -597,7 +597,9 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
             var h2Err = new double[Hidden2Size];
             var h3Err = new double[Hidden3Size];
 
-            var maxEpochs = useEarlyStopping ? MaxTrainingEpochs : Math.Min(MaxTrainingEpochs, MaxEpochsWithoutEarlyStopping);
+            var maxEpochs = useEarlyStopping
+                ? MaxTrainingEpochs
+                : Math.Min(MaxTrainingEpochs, MaxEpochsWithoutEarlyStopping);
 
             for (var epoch = 0; epoch < maxEpochs; epoch++)
             {
@@ -694,7 +696,8 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                         var g = (outErr * h3Act[k]) + (L2Lambda * _weightsH3O[k]);
                         _mWH3O![k] = (AdamBeta1 * _mWH3O[k]) + ((1 - AdamBeta1) * g);
                         _vWH3O![k] = (AdamBeta2 * _vWH3O[k]) + ((1 - AdamBeta2) * g * g);
-                        _weightsH3O[k] -= DefaultLearningRate * (_mWH3O[k] / bc1) / (Math.Sqrt(_vWH3O[k] / bc2) + AdamEpsilon);
+                        _weightsH3O[k] -= DefaultLearningRate * (_mWH3O[k] / bc1) /
+                                          (Math.Sqrt(_vWH3O[k] / bc2) + AdamEpsilon);
                         _weightsH3O[k] = Math.Clamp(_weightsH3O[k], -WeightClamp, WeightClamp);
                     }
 
@@ -716,7 +719,8 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                             var g = (h3Err[k] * h2Act[j]) + (L2Lambda * _weightsH2H3[p]);
                             _mWH2H3![p] = (AdamBeta1 * _mWH2H3[p]) + ((1 - AdamBeta1) * g);
                             _vWH2H3![p] = (AdamBeta2 * _vWH2H3[p]) + ((1 - AdamBeta2) * g * g);
-                            _weightsH2H3[p] -= DefaultLearningRate * (_mWH2H3[p] / bc1) / (Math.Sqrt(_vWH2H3[p] / bc2) + AdamEpsilon);
+                            _weightsH2H3[p] -= DefaultLearningRate * (_mWH2H3[p] / bc1) /
+                                               (Math.Sqrt(_vWH2H3[p] / bc2) + AdamEpsilon);
                             _weightsH2H3[p] = Math.Clamp(_weightsH2H3[p], -WeightClamp, WeightClamp);
                         }
 
@@ -724,7 +728,8 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                             var g = h3Err[k];
                             _mBH3![k] = (AdamBeta1 * _mBH3[k]) + ((1 - AdamBeta1) * g);
                             _vBH3![k] = (AdamBeta2 * _vBH3[k]) + ((1 - AdamBeta2) * g * g);
-                            _biasH3[k] -= DefaultLearningRate * (_mBH3[k] / bc1) / (Math.Sqrt(_vBH3[k] / bc2) + AdamEpsilon);
+                            _biasH3[k] -= DefaultLearningRate * (_mBH3[k] / bc1) /
+                                          (Math.Sqrt(_vBH3[k] / bc2) + AdamEpsilon);
                             _biasH3[k] = Math.Clamp(_biasH3[k], -WeightClamp, WeightClamp);
                         }
                     }
@@ -739,7 +744,8 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                             var g = (h2Err[k] * h1Act[j]) + (L2Lambda * _weightsH1H2[p]);
                             _mWH1H2![p] = (AdamBeta1 * _mWH1H2[p]) + ((1 - AdamBeta1) * g);
                             _vWH1H2![p] = (AdamBeta2 * _vWH1H2[p]) + ((1 - AdamBeta2) * g * g);
-                            _weightsH1H2[p] -= DefaultLearningRate * (_mWH1H2[p] / bc1) / (Math.Sqrt(_vWH1H2[p] / bc2) + AdamEpsilon);
+                            _weightsH1H2[p] -= DefaultLearningRate * (_mWH1H2[p] / bc1) /
+                                               (Math.Sqrt(_vWH1H2[p] / bc2) + AdamEpsilon);
                             _weightsH1H2[p] = Math.Clamp(_weightsH1H2[p], -WeightClamp, WeightClamp);
                         }
 
@@ -747,7 +753,8 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                             var g = h2Err[k];
                             _mBH2![k] = (AdamBeta1 * _mBH2[k]) + ((1 - AdamBeta1) * g);
                             _vBH2![k] = (AdamBeta2 * _vBH2[k]) + ((1 - AdamBeta2) * g * g);
-                            _biasH2[k] -= DefaultLearningRate * (_mBH2[k] / bc1) / (Math.Sqrt(_vBH2[k] / bc2) + AdamEpsilon);
+                            _biasH2[k] -= DefaultLearningRate * (_mBH2[k] / bc1) /
+                                          (Math.Sqrt(_vBH2[k] / bc2) + AdamEpsilon);
                             _biasH2[k] = Math.Clamp(_biasH2[k], -WeightClamp, WeightClamp);
                         }
                     }
@@ -762,7 +769,8 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                             var g = (h1Err[j] * vec[i]) + (L2Lambda * _weightsIH[p]);
                             _mWIH![p] = (AdamBeta1 * _mWIH[p]) + ((1 - AdamBeta1) * g);
                             _vWIH![p] = (AdamBeta2 * _vWIH[p]) + ((1 - AdamBeta2) * g * g);
-                            _weightsIH[p] -= DefaultLearningRate * (_mWIH[p] / bc1) / (Math.Sqrt(_vWIH[p] / bc2) + AdamEpsilon);
+                            _weightsIH[p] -= DefaultLearningRate * (_mWIH[p] / bc1) /
+                                             (Math.Sqrt(_vWIH[p] / bc2) + AdamEpsilon);
                             _weightsIH[p] = Math.Clamp(_weightsIH[p], -WeightClamp, WeightClamp);
                         }
 
@@ -770,7 +778,8 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                             var g = h1Err[j];
                             _mBH1![j] = (AdamBeta1 * _mBH1[j]) + ((1 - AdamBeta1) * g);
                             _vBH1![j] = (AdamBeta2 * _vBH1[j]) + ((1 - AdamBeta2) * g * g);
-                            _biasH1[j] -= DefaultLearningRate * (_mBH1[j] / bc1) / (Math.Sqrt(_vBH1[j] / bc2) + AdamEpsilon);
+                            _biasH1[j] -= DefaultLearningRate * (_mBH1[j] / bc1) /
+                                          (Math.Sqrt(_vBH1[j] / bc2) + AdamEpsilon);
                             _biasH1[j] = Math.Clamp(_biasH1[j], -WeightClamp, WeightClamp);
                         }
                     }
@@ -870,7 +879,7 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
         TrySaveWeights();
 
         // Compute ranking metrics outside the write lock (Score() needs read lock).
-        var (pAtK, rAtK, nAtK) = RankingMetrics.ComputeAll(examples, this, RankingMetrics.DefaultK);
+        var (pAtK, rAtK, nAtK) = RankingMetrics.ComputeAll(examples, this);
         lock (_syncRoot)
         {
             _lastPrecisionAtK = pAtK;
@@ -1130,20 +1139,22 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
             // Validate standardization arrays: both must be null or both must have FeatureCount length.
             // Stale files with mismatched lengths would crash StandardizeSingleVector at scoring time.
             var hasValidStandardization = data is null
-                || (data.FeatureMeans is null && data.FeatureStdDevs is null)
-                || (data.FeatureMeans is { Length: CandidateFeatures.FeatureCount }
-                    && data.FeatureStdDevs is { Length: CandidateFeatures.FeatureCount });
+                                          || (data.FeatureMeans is null && data.FeatureStdDevs is null)
+                                          || data is
+                                          {
+                                              FeatureMeans: { Length: CandidateFeatures.FeatureCount },
+                                              FeatureStdDevs.Length: CandidateFeatures.FeatureCount
+                                          };
 
             if (data is not null
                 && hasValidStandardization
-                && data.Version == CurrentWeightsVersion
-                && data.WeightsIH?.Length == Hidden1Size * CandidateFeatures.FeatureCount
-                && data.BiasH1 is { Length: Hidden1Size }
-                && data.WeightsH1H2?.Length == Hidden2Size * Hidden1Size
-                && data.BiasH2 is { Length: Hidden2Size }
-                && data.WeightsH2H3?.Length == Hidden3Size * Hidden2Size
-                && data.BiasH3 is { Length: Hidden3Size }
-                && data.WeightsH3O is { Length: Hidden3Size })
+                && data is
+                {
+                    Version: CurrentWeightsVersion, WeightsIH.Length: Hidden1Size * CandidateFeatures.FeatureCount,
+                    BiasH1.Length: Hidden1Size, WeightsH1H2.Length: Hidden2Size * Hidden1Size,
+                    BiasH2.Length: Hidden2Size, WeightsH2H3.Length: Hidden3Size * Hidden2Size,
+                    BiasH3.Length: Hidden3Size, WeightsH3O.Length: Hidden3Size
+                })
             {
                 _weightsIH = data.WeightsIH;
                 _biasH1 = data.BiasH1;
@@ -1274,7 +1285,9 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
             parts[i] = string.Format(CultureInfo.InvariantCulture, "{0}={1:F4}", ranked[i].Name, ranked[i].Importance);
         }
 
-        _logger.LogDebug("NeuralScoringStrategy feature importance (L2 norm): {FeatureImportance}", string.Join(", ", parts));
+        _logger.LogDebug(
+            "NeuralScoringStrategy feature importance (L2 norm): {FeatureImportance}",
+            string.Join(", ", parts));
     }
 
     /// <inheritdoc />

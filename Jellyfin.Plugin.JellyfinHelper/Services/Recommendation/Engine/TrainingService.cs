@@ -60,7 +60,10 @@ internal sealed class TrainingService
         // Non-blocking guard: skip if another training run is already in progress.
         if (!TrainGate.Wait(0, CancellationToken.None))
         {
-            _pluginLog.LogInfo("Recommendations", "Training skipped - another training run is already in progress.", _logger);
+            _pluginLog.LogInfo(
+                "Recommendations",
+                "Training skipped - another training run is already in progress.",
+                _logger);
             return false;
         }
 
@@ -93,7 +96,9 @@ internal sealed class TrainingService
         foreach (var profile in allProfiles)
         {
             profileLookup[profile.UserId] = new HashSet<Guid>(
-                profile.WatchedItems.Where(w => w.Played || w.IsFavorite || w.PlayCount > 0 || w.PlaybackPositionTicks > 0).Select(w => w.ItemId));
+                profile.WatchedItems
+                    .Where(w => w.Played || w.IsFavorite || w.PlayCount > 0 || w.PlaybackPositionTicks > 0)
+                    .Select(w => w.ItemId));
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -103,7 +108,8 @@ internal sealed class TrainingService
         {
             var seriesIds = new HashSet<Guid>(
                 profile.WatchedItems
-                    .Where(w => (w.Played || w.IsFavorite || w.PlayCount > 0 || w.PlaybackPositionTicks > 0) && w.SeriesId.HasValue)
+                    .Where(w => (w.Played || w.IsFavorite || w.PlayCount > 0 || w.PlaybackPositionTicks > 0) &&
+                                w.SeriesId.HasValue)
                     .Select(w => w.SeriesId!.Value));
 
             // Also include series-level favorites (user favorited the series itself, not individual episodes)
@@ -127,7 +133,9 @@ internal sealed class TrainingService
             {
                 if (rec.PeopleNames.Count > 0 && !cachedPeopleLookup.ContainsKey(rec.ItemId))
                 {
-                    cachedPeopleLookup[rec.ItemId] = new HashSet<string>(rec.PeopleNames, StringComparer.OrdinalIgnoreCase);
+                    cachedPeopleLookup[rec.ItemId] = new HashSet<string>(
+                        rec.PeopleNames,
+                        StringComparer.OrdinalIgnoreCase);
                 }
             }
         }
@@ -195,7 +203,8 @@ internal sealed class TrainingService
                 continue;
             }
 
-            var (genrePreferences, coOccurrence, collaborativeMax, avgYear, genreExposure) = perUserCache[userProfile.UserId];
+            var (genrePreferences, coOccurrence, collaborativeMax, avgYear, genreExposure) =
+                perUserCache[userProfile.UserId];
 
             // Build preferred people/studios/tags from the user's watch profile using cached data.
             // This mirrors what Engine.GenerateForUser() does with live BaseItem data.
@@ -230,7 +239,7 @@ internal sealed class TrainingService
             foreach (var rec in prevResult.Recommendations)
             {
                 var wasWatched = watchedIds.Contains(rec.ItemId)
-                    || (watchedSeriesIds?.Contains(rec.ItemId) ?? false);
+                                 || (watchedSeriesIds?.Contains(rec.ItemId) ?? false);
 
                 watchedItemLookup.TryGetValue(rec.ItemId, out var watchedItemForRec);
 
@@ -241,49 +250,56 @@ internal sealed class TrainingService
                 double completionRatio;
                 bool hasUserInteraction;
 
-                if (isSeries && seriesEpisodeLookup.TryGetValue(rec.ItemId, out var episodesForScoring))
+                switch (isSeries)
                 {
-                    // For series, watchedItemLookup is keyed by episode IDs so rec.ItemId (series ID)
-                    // usually misses. Use the most-recently-watched episode so temporal features get real timestamps.
-                    watchedItemForRec = episodesForScoring
-                        .OrderByDescending(e => e.LastPlayedDate)
-                        .FirstOrDefault();
+                    case true when seriesEpisodeLookup.TryGetValue(rec.ItemId, out var episodesForScoring):
+                    {
+                        // For series, watchedItemLookup is keyed by episode IDs so rec.ItemId (series ID)
+                        // usually misses. Use the most-recently-watched episode so temporal features get real timestamps.
+                        watchedItemForRec = episodesForScoring
+                            .OrderByDescending(e => e.LastPlayedDate)
+                            .FirstOrDefault();
 
-                    hasUserInteraction = true;
-                    var ratedEpisodes = episodesForScoring.Where(e => e.UserRating is > 0).ToList();
-                    userRatingScore = ratedEpisodes.Count > 0
-                        ? Math.Clamp(ratedEpisodes.Average(e => e.UserRating!.Value) / 10.0, 0.0, 1.0)
-                        : 0.5;
-                    // Average per-episode completion ratios
-                    completionRatio = episodesForScoring.Count > 0
-                        ? Math.Clamp(
-                            episodesForScoring.Average(e => ContentScoring.ComputeCompletionRatio(e)),
-                            0.0,
-                            1.0)
-                        : 0.5;
-                }
-                else if (isSeries && wasWatched && watchedItemForRec is null)
-                {
-                    // Series-level favorite without watched episodes: the user favorited
-                    // the series itself but hasn't played any episodes yet.
-                    // Treat as explicit positive interaction with favorite-appropriate defaults.
-                    hasUserInteraction = true;
-                    userRatingScore = 0.5;
-                    completionRatio = 0.0;
-                }
-                else
-                {
-                    hasUserInteraction = watchedItemForRec is not null;
-                    userRatingScore = ContentScoring.ComputeUserRatingScore(watchedItemForRec);
-                    completionRatio = hasUserInteraction ? ContentScoring.ComputeCompletionRatio(watchedItemForRec) : 0.5;
+                        hasUserInteraction = true;
+                        var ratedEpisodes = episodesForScoring.Where(e => e.UserRating is > 0).ToList();
+                        userRatingScore = ratedEpisodes.Count > 0
+                            ? Math.Clamp(ratedEpisodes.Average(e => e.UserRating!.Value) / 10.0, 0.0, 1.0)
+                            : 0.5;
+                        // Average per-episode completion ratios
+                        completionRatio = episodesForScoring.Count > 0
+                            ? Math.Clamp(
+                                episodesForScoring.Average(ContentScoring.ComputeCompletionRatio),
+                                0.0,
+                                1.0)
+                            : 0.5;
+                        break;
+                    }
+
+                    case true when wasWatched && watchedItemForRec is null:
+                        // Series-level favorite without watched episodes: the user favorited
+                        // the series itself but hasn't played any episodes yet.
+                        // Treat as explicit positive interaction with favorite-appropriate defaults.
+                        hasUserInteraction = true;
+                        userRatingScore = 0.5;
+                        completionRatio = 0.0;
+                        break;
+                    default:
+                        hasUserInteraction = watchedItemForRec is not null;
+                        userRatingScore = ContentScoring.ComputeUserRatingScore(watchedItemForRec);
+                        completionRatio = hasUserInteraction
+                            ? ContentScoring.ComputeCompletionRatio(watchedItemForRec)
+                            : 0.5;
+                        break;
                 }
 
                 // Compute collaborative score for this specific item
                 var collabScore = ContentScoring.ComputeCollaborativeScore(rec.ItemId, coOccurrence, collaborativeMax);
 
                 // Popularity proxy matching Engine.ScoreCandidate() logic
-                var combinedCriticScore = ContentScoring.ComputeCombinedCriticScore(rec.CommunityRating, rec.CriticRating);
-                var popularityScore = collabScore > 0 ? Math.Clamp(collabScore * 0.8, 0.0, 1.0) : combinedCriticScore * 0.3;
+                var combinedCriticScore =
+                    ContentScoring.ComputeCombinedCriticScore(rec.CommunityRating, rec.CriticRating);
+                var popularityScore =
+                    collabScore > 0 ? Math.Clamp(collabScore * 0.8, 0.0, 1.0) : combinedCriticScore * 0.3;
 
                 // Series progression boost
                 var seriesProgressionBoost = 0.0;
@@ -304,7 +320,7 @@ internal sealed class TrainingService
 
                 // Compute StudioMatch from cached data (matches Engine.ScoreCandidate() logic)
                 var studioMatch = rec.Studios.Count > 0
-                    && rec.Studios.Any(s => preferredStudios.Contains(s));
+                                  && rec.Studios.Any(preferredStudios.Contains);
 
                 // Compute TagSimilarity from cached data (matches Engine.ScoreCandidate() logic)
                 var tagSimilarity = ComputeTagSimilarityFromCache(rec.Tags, preferredTags);
@@ -312,14 +328,14 @@ internal sealed class TrainingService
                 // Build the COMPLETE feature vector matching Engine.ScoreCandidate() logic
                 var features = new CandidateFeatures
                 {
-                    GenreSimilarity = SimilarityComputer.ComputeGenreSimilarity(rec.Genres ?? [], genrePreferences),
+                    GenreSimilarity = SimilarityComputer.ComputeGenreSimilarity(rec.Genres, genrePreferences),
                     CollaborativeScore = collabScore,
                     CombinedCriticScore = combinedCriticScore,
                     RecencyScore = rec.PremiereDate.HasValue
                         ? ContentScoring.ComputeRecencyScore(rec.PremiereDate.Value)
                         : 0.5,
                     YearProximityScore = ContentScoring.ComputeYearProximity(rec.Year, avgYear),
-                    GenreCount = rec.Genres?.Count ?? 0,
+                    GenreCount = rec.Genres.Count,
                     IsSeries = isSeries,
                     UserRatingScore = userRatingScore,
                     HasUserInteraction = hasUserInteraction,
@@ -328,8 +344,16 @@ internal sealed class TrainingService
                     StudioMatch = studioMatch,
                     SeriesProgressionBoost = seriesProgressionBoost,
                     PopularityScore = popularityScore,
-                    DayOfWeekAffinity = ComputeTrainingTemporalAffinity(watchedItemForRec, rec.Genres, userProfile, isDay: true),
-                    HourOfDayAffinity = ComputeTrainingTemporalAffinity(watchedItemForRec, rec.Genres, userProfile, isDay: false),
+                    DayOfWeekAffinity = ComputeTrainingTemporalAffinity(
+                        watchedItemForRec,
+                        rec.Genres,
+                        userProfile,
+                        isDay: true),
+                    HourOfDayAffinity = ComputeTrainingTemporalAffinity(
+                        watchedItemForRec,
+                        rec.Genres,
+                        userProfile,
+                        isDay: false),
                     IsWeekend = watchedItemForRec?.LastPlayedDate?.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday,
                     TagSimilarity = tagSimilarity,
                     LibraryAddedRecency = 0.5
@@ -337,7 +361,7 @@ internal sealed class TrainingService
 
                 // Genre exposure features: compute from cached per-user analysis
                 var (underexposure, dominanceRatio, affinityGap) =
-                    PreferenceBuilder.ComputeGenreExposureFeatures(rec.Genres ?? [], genreExposure);
+                    PreferenceBuilder.ComputeGenreExposureFeatures(rec.Genres, genreExposure);
                 features.GenreUnderexposure = underexposure;
                 features.GenreDominanceRatio = dominanceRatio;
                 features.GenreAffinityGap = affinityGap;
@@ -350,38 +374,35 @@ internal sealed class TrainingService
                     // 2. Abandoned (started but stopped early): strong negative signal → 0.0
                     // 3. Normal watch: engagement-proportional label (0.5–0.85)
                     double baseLabel;
-                    if (watchedItemForRec is { IsFavorite: true, Played: false }
-                        && watchedItemForRec.PlaybackPositionTicks <= 0
-                        && watchedItemForRec.PlayCount <= 0)
+                    switch (watchedItemForRec)
                     {
-                        baseLabel = 0.65; // Favorite-only: explicit interest without playback
-                    }
-                    else if (watchedItemForRec is null && isSeries)
-                    {
-                        baseLabel = 0.65; // Series-level favorite without episode data
-                    }
-                    else if (features.CompletionRatio > 0
-                             && features.CompletionRatio < EngineConstants.AbandonedCompletionThreshold)
-                    {
-                        // User started the item but abandoned it early - this is a stronger
-                        // negative signal than "never seen" (exposure). Active rejection > passive ignore.
-                        baseLabel = EngineConstants.AbandonedLabel;
-                    }
-                    else
-                    {
-                        baseLabel = ContentScoring.ComputeEngagementLabel(features.CompletionRatio);
+                        case { IsFavorite: true, Played: false, PlaybackPositionTicks: <= 0, PlayCount: <= 0 }:
+                        // Series-level favorite without episode data
+                        case null when isSeries:
+                            baseLabel = 0.65; // Favorite-only: explicit interest without playback
+                            break;
+                        default:
+                        {
+                            // User started the item but abandoned it early - this is a stronger
+                            // negative signal than "never seen" (exposure). Active rejection > passive ignore.
+                            baseLabel =
+                                features.CompletionRatio is > 0 and < EngineConstants.AbandonedCompletionThreshold
+                                    ? EngineConstants.AbandonedLabel
+                                    : ContentScoring.ComputeEngagementLabel(features.CompletionRatio);
+                            break;
+                        }
                     }
 
                     // Watched shortly after recommendation - boost label (but not abandoned items)
                     label = baseLabel > EngineConstants.AbandonedLabel
-                        && watchedItemForRec?.LastPlayedDate is not null
-                        && (watchedItemForRec.LastPlayedDate.Value - prevResult.GeneratedAt).TotalDays
+                            && watchedItemForRec?.LastPlayedDate is not null
+                            && (watchedItemForRec.LastPlayedDate.Value - prevResult.GeneratedAt).TotalDays
                             <= EngineConstants.RecommendationInfluenceWindowDays
-                        && watchedItemForRec.LastPlayedDate.Value >= prevResult.GeneratedAt
+                            && watchedItemForRec.LastPlayedDate.Value >= prevResult.GeneratedAt
                         ? Math.Max(baseLabel, EngineConstants.RecommendationInfluencedLabel)
                         : baseLabel;
                 }
-                else if (features.CompletionRatio > 0 && features.CompletionRatio < EngineConstants.AbandonedCompletionThreshold)
+                else if (features.CompletionRatio is > 0 and < EngineConstants.AbandonedCompletionThreshold)
                 {
                     label = EngineConstants.AbandonedLabel;
                 }
@@ -390,12 +411,13 @@ internal sealed class TrainingService
                     label = EngineConstants.ExposureLabel;
                 }
 
-                examples.Add(new TrainingExample
-                {
-                    Features = features,
-                    Label = label,
-                    GeneratedAtUtc = prevResult.GeneratedAt
-                });
+                examples.Add(
+                    new TrainingExample
+                    {
+                        Features = features,
+                        Label = label,
+                        GeneratedAtUtc = prevResult.GeneratedAt
+                    });
             }
         }
 
@@ -430,7 +452,8 @@ internal sealed class TrainingService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var (genrePreferences, coOccurrence, collaborativeMax, avgYear, genreExposureOrganic) = perUserCache[userProfile.UserId];
+            var (genrePreferences, coOccurrence, collaborativeMax, avgYear, genreExposureOrganic) =
+                perUserCache[userProfile.UserId];
 
             // Resolve the per-user recommended set; users with no previous results get an empty set
             if (!recommendedItemIdsByUser.TryGetValue(userProfile.UserId, out var recommendedItemIds))
@@ -469,7 +492,8 @@ internal sealed class TrainingService
             var seriesWithOrgEpisodes = new HashSet<Guid>();
             foreach (var candidate in userProfile.WatchedItems.Where(candidate =>
                          candidate.SeriesId.HasValue
-                         && (candidate.Played || candidate.IsFavorite || candidate.PlayCount > 0 || candidate.PlaybackPositionTicks > 0)
+                         && (candidate.Played || candidate.IsFavorite || candidate.PlayCount > 0 ||
+                             candidate.PlaybackPositionTicks > 0)
                          && !recommendedItemIds.Contains(candidate.ItemId)
                          && !recommendedItemIds.Contains(candidate.SeriesId.Value)))
             {
@@ -526,7 +550,6 @@ internal sealed class TrainingService
                             preferredStudiosOrganic,
                             itemTagsLookup,
                             preferredTagsOrganic,
-                            seriesEpisodeLookupOrganic,
                             organicFallbackTimestamp);
                         organicCount++;
                     }
@@ -538,7 +561,10 @@ internal sealed class TrainingService
                 // Note: w.SeriesId is guaranteed null here because the if (w.SeriesId.HasValue)
                 // block above always exits with `continue`. Only non-series items reach this point.
                 var collabScore = ContentScoring.ComputeCollaborativeScore(w.ItemId, coOccurrence, collaborativeMax);
-                var combinedCriticScore = ContentScoring.ComputeCombinedCriticScore(w.CommunityRating, null); // CriticRating not available on WatchedItemInfo
+                var combinedCriticScore =
+                    ContentScoring.ComputeCombinedCriticScore(
+                        w.CommunityRating,
+                        null); // CriticRating not available on WatchedItemInfo
                 // Gate completion fallback on w.Played to avoid mis-labeling favorite-only items
                 // as fully watched. Favorites without playback evidence get 0.0 completion.
                 double completionRatio;
@@ -592,7 +618,7 @@ internal sealed class TrainingService
 
                 if (itemStudiosLookup.TryGetValue(w.ItemId, out var organicStudios) && organicStudios.Count > 0)
                 {
-                    studioMatch = organicStudios.Any(s => preferredStudiosOrganic.Contains(s));
+                    studioMatch = organicStudios.Any(preferredStudiosOrganic.Contains);
                 }
 
                 if (itemTagsLookup.TryGetValue(w.ItemId, out var organicTags) && organicTags.Count > 0)
@@ -615,17 +641,17 @@ internal sealed class TrainingService
 
                 var features = new CandidateFeatures
                 {
-                    GenreSimilarity = SimilarityComputer.ComputeGenreSimilarity(w.Genres ?? [], genrePreferences),
+                    GenreSimilarity = SimilarityComputer.ComputeGenreSimilarity(w.Genres, genrePreferences),
                     CollaborativeScore = collabScore,
                     CombinedCriticScore = combinedCriticScore,
                     // Use content release year for recency (not watch date) to match Phase 1 semantics.
                     // Phase 1 uses rec.PremiereDate; organic items lack premiere metadata so
                     // approximate via ProductionYear, falling back to neutral 0.5.
-                    RecencyScore = w.Year is int recY and >= 1 and <= 9999
+                    RecencyScore = w.Year is { } recY and >= 1 and <= 9999
                         ? ContentScoring.ComputeRecencyScore(new DateTime(recY, 7, 1))
                         : 0.5,
                     YearProximityScore = ContentScoring.ComputeYearProximity(w.Year, avgYear),
-                    GenreCount = w.Genres?.Count ?? 0,
+                    GenreCount = w.Genres.Count,
                     IsSeries = isSeries,
                     UserRatingScore = ContentScoring.ComputeUserRatingScore(w),
                     HasUserInteraction = true,
@@ -633,7 +659,9 @@ internal sealed class TrainingService
                     PeopleSimilarity = peopleSimilarity,
                     StudioMatch = studioMatch,
                     SeriesProgressionBoost = seriesProgressionBoost,
-                    PopularityScore = collabScore > 0 ? Math.Clamp(collabScore * 0.8, 0.0, 1.0) : combinedCriticScore * 0.3,
+                    PopularityScore = collabScore > 0
+                        ? Math.Clamp(collabScore * 0.8, 0.0, 1.0)
+                        : combinedCriticScore * 0.3,
                     DayOfWeekAffinity = ComputeTrainingTemporalAffinity(w, w.Genres, userProfile, isDay: true),
                     HourOfDayAffinity = ComputeTrainingTemporalAffinity(w, w.Genres, userProfile, isDay: false),
                     IsWeekend = w.LastPlayedDate?.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday,
@@ -643,7 +671,7 @@ internal sealed class TrainingService
 
                 // Genre exposure features: compute from cached per-user analysis (mirrors Phase 1)
                 var (organicUnderexp, organicDomRatio, organicAffGap) =
-                    PreferenceBuilder.ComputeGenreExposureFeatures(w.Genres ?? [], genreExposureOrganic);
+                    PreferenceBuilder.ComputeGenreExposureFeatures(w.Genres, genreExposureOrganic);
                 features.GenreUnderexposure = organicUnderexp;
                 features.GenreDominanceRatio = organicDomRatio;
                 features.GenreAffinityGap = organicAffGap;
@@ -651,29 +679,23 @@ internal sealed class TrainingService
                 // Organic watches are strong positive signals - label based on completion.
                 // Favorite-only items (not played, no playback progress) get an explicit positive label.
                 // Items started but abandoned (not played, but has playback progress) get a negative label.
-                double label;
-                if (!w.Played && w.PlaybackPositionTicks > 0 && completionRatio < EngineConstants.AbandonedCompletionThreshold)
+                var label = w switch
                 {
-                    // Started but abandoned - active rejection signal
-                    label = EngineConstants.AbandonedLabel;
-                }
-                else if (!w.Played && w.PlaybackPositionTicks <= 0)
-                {
-                    // Favorite-only: explicit interest without playback
-                    label = 0.65;
-                }
-                else
-                {
-                    label = ContentScoring.ComputeEngagementLabel(completionRatio);
-                }
+                    { Played: false, PlaybackPositionTicks: > 0 } when completionRatio <
+                                                                       EngineConstants.AbandonedCompletionThreshold =>
+                        EngineConstants.AbandonedLabel,
+                    { Played: false, PlaybackPositionTicks: <= 0 } => 0.65,
+                    _ => ContentScoring.ComputeEngagementLabel(completionRatio)
+                };
 
-                examples.Add(new TrainingExample
-                {
-                    Features = features,
-                    Label = label,
-                    GeneratedAtUtc = w.LastPlayedDate ?? organicFallbackTimestamp,
-                    SampleWeight = 0.7 // Slightly lower weight than recommended items to avoid overwhelming
-                });
+                examples.Add(
+                    new TrainingExample
+                    {
+                        Features = features,
+                        Label = label,
+                        GeneratedAtUtc = w.LastPlayedDate ?? organicFallbackTimestamp,
+                        SampleWeight = 0.7 // Slightly lower weight than recommended items to avoid overwhelming
+                    });
                 organicCount++;
             }
         }
@@ -720,7 +742,8 @@ internal sealed class TrainingService
                     userRecommendedIds = new HashSet<Guid>();
                 }
 
-                var (genrePreferences, coOccurrence, collaborativeMax, avgYear, genreExposureNeg) = perUserCache[userProfile.UserId];
+                var (genrePreferences, coOccurrence, collaborativeMax, avgYear, genreExposureNeg) =
+                    perUserCache[userProfile.UserId];
 
                 // Build per-user preference sets for negative feature computation (mirrors Phase 1/2).
                 // Without these, PeopleSimilarity/StudioMatch/TagSimilarity would default to 0.0/false
@@ -749,11 +772,16 @@ internal sealed class TrainingService
                 {
                     // Fisher-Yates partial shuffle to pick without replacement
                     var swapIdx = rngNeg.Next(s, candidateNegatives.Count);
-                    (candidateNegatives[s], candidateNegatives[swapIdx]) = (candidateNegatives[swapIdx], candidateNegatives[s]);
+                    (candidateNegatives[s], candidateNegatives[swapIdx]) =
+                        (candidateNegatives[swapIdx], candidateNegatives[s]);
 
                     var neg = candidateNegatives[s];
-                    var collabScore = ContentScoring.ComputeCollaborativeScore(neg.ItemId, coOccurrence, collaborativeMax);
-                    var combinedCriticScore = ContentScoring.ComputeCombinedCriticScore(neg.CommunityRating, neg.CriticRating);
+                    var collabScore = ContentScoring.ComputeCollaborativeScore(
+                        neg.ItemId,
+                        coOccurrence,
+                        collaborativeMax);
+                    var combinedCriticScore =
+                        ContentScoring.ComputeCombinedCriticScore(neg.CommunityRating, neg.CriticRating);
                     var isSeries = string.Equals(neg.ItemType, "Series", StringComparison.OrdinalIgnoreCase);
 
                     // Compute PeopleSimilarity from cached data (cross-user negative may have metadata).
@@ -763,19 +791,19 @@ internal sealed class TrainingService
 
                     // Compute StudioMatch and TagSimilarity from cached data (mirrors Phase 1/2).
                     var negStudioMatch = neg.Studios.Count > 0
-                        && neg.Studios.Any(s => preferredStudiosNeg.Contains(s));
+                                         && neg.Studios.Any(preferredStudiosNeg.Contains);
                     var negTagSimilarity = ComputeTagSimilarityFromCache(neg.Tags, preferredTagsNeg);
 
                     var features = new CandidateFeatures
                     {
-                        GenreSimilarity = SimilarityComputer.ComputeGenreSimilarity(neg.Genres ?? [], genrePreferences),
+                        GenreSimilarity = SimilarityComputer.ComputeGenreSimilarity(neg.Genres, genrePreferences),
                         CollaborativeScore = collabScore,
                         CombinedCriticScore = combinedCriticScore,
                         RecencyScore = neg.PremiereDate.HasValue
                             ? ContentScoring.ComputeRecencyScore(neg.PremiereDate.Value)
                             : 0.5,
                         YearProximityScore = ContentScoring.ComputeYearProximity(neg.Year, avgYear),
-                        GenreCount = neg.Genres?.Count ?? 0,
+                        GenreCount = neg.Genres.Count,
                         IsSeries = isSeries,
                         UserRatingScore = 0.5,
                         HasUserInteraction = false,
@@ -784,7 +812,9 @@ internal sealed class TrainingService
                         StudioMatch = negStudioMatch,
                         // SeriesProgressionBoost stays 0.0 - for cross-user negatives, the user
                         // has no episode history for that series, so 0 is the correct value.
-                        PopularityScore = collabScore > 0 ? Math.Clamp(collabScore * 0.8, 0.0, 1.0) : combinedCriticScore * 0.3,
+                        PopularityScore = collabScore > 0
+                            ? Math.Clamp(collabScore * 0.8, 0.0, 1.0)
+                            : combinedCriticScore * 0.3,
                         DayOfWeekAffinity = 0.5,
                         HourOfDayAffinity = 0.5,
                         IsWeekend = false,
@@ -794,18 +824,20 @@ internal sealed class TrainingService
 
                     // Genre exposure features
                     var (negUnderexp, negDomRatio, negAffGap) =
-                        PreferenceBuilder.ComputeGenreExposureFeatures(neg.Genres ?? [], genreExposureNeg);
+                        PreferenceBuilder.ComputeGenreExposureFeatures(neg.Genres, genreExposureNeg);
                     features.GenreUnderexposure = negUnderexp;
                     features.GenreDominanceRatio = negDomRatio;
                     features.GenreAffinityGap = negAffGap;
 
-                    examples.Add(new TrainingExample
-                    {
-                        Features = features,
-                        Label = 0.0,
-                        GeneratedAtUtc = organicFallbackTimestamp,
-                        SampleWeight = 0.5 // Lower weight than real interactions - we infer irrelevance, not observe it
-                    });
+                    examples.Add(
+                        new TrainingExample
+                        {
+                            Features = features,
+                            Label = 0.0,
+                            GeneratedAtUtc = organicFallbackTimestamp,
+                            SampleWeight =
+                                0.5 // Lower weight than real interactions - we infer irrelevance, not observe it
+                        });
                     randomNegativeCount++;
                 }
             }
@@ -908,15 +940,16 @@ internal sealed class TrainingService
             var metricsSource = heldOutSplit.Count >= 2 ? heldOutSplit : trainSplit;
             var metricsLabel = heldOutSplit.Count >= 2 ? "validation-set" : "training-set fit";
 
-            var (precisionAtK, recallAtK, ndcgAtK) = Scoring.RankingMetrics.ComputeAll(
-                metricsSource, strategy, Scoring.RankingMetrics.DefaultK);
+            var (precisionAtK, recallAtK, ndcgAtK) = RankingMetrics.ComputeAll(
+                metricsSource,
+                strategy);
 
             _pluginLog.LogInfo(
                 "Recommendations",
                 $"Strategy '{strategy.Name}' training completed ({metricsLabel}) - " +
-                $"P@{Scoring.RankingMetrics.DefaultK}: {precisionAtK:F3}, " +
-                $"R@{Scoring.RankingMetrics.DefaultK}: {recallAtK:F3}, " +
-                $"NDCG@{Scoring.RankingMetrics.DefaultK}: {ndcgAtK:F3} " +
+                $"P@{RankingMetrics.DefaultK}: {precisionAtK:F3}, " +
+                $"R@{RankingMetrics.DefaultK}: {recallAtK:F3}, " +
+                $"NDCG@{RankingMetrics.DefaultK}: {ndcgAtK:F3} " +
                 $"(trained on {trainSplit.Count}, evaluated on {metricsSource.Count} examples).",
                 _logger);
         }
@@ -949,7 +982,7 @@ internal sealed class TrainingService
         {
             // Match the same interaction criteria used by profileLookup (line 95):
             // Played, IsFavorite, PlayCount > 0, or PlaybackPositionTicks > 0.
-            if (!w.Played && !w.IsFavorite && w.PlayCount <= 0 && w.PlaybackPositionTicks <= 0)
+            if (w is { Played: false, IsFavorite: false, PlayCount: <= 0, PlaybackPositionTicks: <= 0 })
             {
                 continue;
             }
@@ -964,12 +997,15 @@ internal sealed class TrainingService
             }
 
             // Also look up studios by the item's series ID (episodes ? series mapping)
-            if (w.SeriesId.HasValue && itemStudiosLookup.TryGetValue(w.SeriesId.Value, out var seriesStudios))
+            if (!w.SeriesId.HasValue ||
+                !itemStudiosLookup.TryGetValue(w.SeriesId.Value, out var seriesStudios))
             {
-                foreach (var s in seriesStudios.Where(static s => !string.IsNullOrWhiteSpace(s)))
-                {
-                    studios.Add(s);
-                }
+                continue;
+            }
+
+            foreach (var s in seriesStudios.Where(static s => !string.IsNullOrWhiteSpace(s)))
+            {
+                studios.Add(s);
             }
         }
 
@@ -992,7 +1028,7 @@ internal sealed class TrainingService
         {
             // Match the same interaction criteria used by profileLookup (line 95):
             // Played, IsFavorite, PlayCount > 0, or PlaybackPositionTicks > 0.
-            if (!w.Played && !w.IsFavorite && w.PlayCount <= 0 && w.PlaybackPositionTicks <= 0)
+            if (w is { Played: false, IsFavorite: false, PlayCount: <= 0, PlaybackPositionTicks: <= 0 })
             {
                 continue;
             }
@@ -1007,12 +1043,14 @@ internal sealed class TrainingService
             }
 
             // Also look up tags by the item's series ID (episodes ? series mapping)
-            if (w.SeriesId.HasValue && itemTagsLookup.TryGetValue(w.SeriesId.Value, out var seriesTags))
+            if (!w.SeriesId.HasValue || !itemTagsLookup.TryGetValue(w.SeriesId.Value, out var seriesTags))
             {
-                foreach (var t in seriesTags.Where(static t => !string.IsNullOrWhiteSpace(t)))
-                {
-                    tags.Add(t);
-                }
+                continue;
+            }
+
+            foreach (var t in seriesTags.Where(static t => !string.IsNullOrWhiteSpace(t)))
+            {
+                tags.Add(t);
             }
         }
 
@@ -1030,9 +1068,9 @@ internal sealed class TrainingService
     /// <param name="isDay">True for day-of-week affinity, false for hour-of-day affinity.</param>
     /// <returns>A temporal affinity score between 0 and 1, or 0.5 if no timestamp is available.</returns>
     private static double ComputeTrainingTemporalAffinity(
-        WatchHistory.WatchedItemInfo? watchedItem,
+        WatchedItemInfo? watchedItem,
         IReadOnlyList<string>? candidateGenres,
-        WatchHistory.UserWatchProfile userProfile,
+        UserWatchProfile userProfile,
         bool isDay)
     {
         if (watchedItem?.LastPlayedDate is null || candidateGenres is null || candidateGenres.Count == 0)
@@ -1056,7 +1094,7 @@ internal sealed class TrainingService
             var inBucket = isDay
                 ? w.LastPlayedDate.Value.DayOfWeek == watchDate.DayOfWeek
                 : TemporalFeatures.GetTimeBucket(w.LastPlayedDate.Value.Hour)
-                    == TemporalFeatures.GetTimeBucket(watchDate.Hour);
+                  == TemporalFeatures.GetTimeBucket(watchDate.Hour);
 
             if (!inBucket)
             {
@@ -1064,7 +1102,7 @@ internal sealed class TrainingService
             }
 
             totalInBucket++;
-            if (w.Genres is not null && w.Genres.Any(g => candidateGenreSet.Contains(g)))
+            if (w.Genres.Any(candidateGenreSet.Contains))
             {
                 matchCount++;
             }
@@ -1100,7 +1138,6 @@ internal sealed class TrainingService
         HashSet<string> preferredStudios,
         Dictionary<Guid, IReadOnlyList<string>> itemTagsLookup,
         HashSet<string> preferredTags,
-        Dictionary<Guid, List<WatchedItemInfo>> seriesEpisodeLookup,
         DateTime organicFallbackTimestamp)
     {
         // Use the most-recently-watched episode for temporal features (mirrors Phase 1 series logic)
@@ -1115,7 +1152,7 @@ internal sealed class TrainingService
         var playedEps = episodes.Count(e => e.Played);
         var completionRatio = episodes.Count > 0
             ? Math.Clamp(
-                episodes.Average(e => ContentScoring.ComputeCompletionRatio(e)),
+                episodes.Average(ContentScoring.ComputeCompletionRatio),
                 0.0,
                 1.0)
             : 0.0;
@@ -1149,7 +1186,7 @@ internal sealed class TrainingService
 
         if (itemStudiosLookup.TryGetValue(seriesId, out var seriesStudios) && seriesStudios.Count > 0)
         {
-            studioMatch = seriesStudios.Any(s => preferredStudios.Contains(s));
+            studioMatch = seriesStudios.Any(preferredStudios.Contains);
         }
 
         if (itemTagsLookup.TryGetValue(seriesId, out var seriesTags) && seriesTags.Count > 0)
@@ -1162,12 +1199,9 @@ internal sealed class TrainingService
         int? representativeYear = null;
         foreach (var ep in episodes)
         {
-            if (ep.Genres is not null)
+            foreach (var g in ep.Genres)
             {
-                foreach (var g in ep.Genres)
-                {
-                    allGenres.Add(g);
-                }
+                allGenres.Add(g);
             }
 
             // Use the first available production year as representative
@@ -1182,7 +1216,7 @@ internal sealed class TrainingService
             CollaborativeScore = collabScore,
             CombinedCriticScore = combinedCriticScore,
             // Use production year for recency (not watch date) to match Phase 1 semantics
-            RecencyScore = representativeYear is int recY and >= 1 and <= 9999
+            RecencyScore = representativeYear is { } recY and >= 1 and <= 9999
                 ? ContentScoring.ComputeRecencyScore(new DateTime(recY, 7, 1))
                 : 0.5,
             YearProximityScore = ContentScoring.ComputeYearProximity(representativeYear, avgYear),
@@ -1213,30 +1247,24 @@ internal sealed class TrainingService
         // - No episodes played (all favorite-only): 0.65 (explicit interest)
         // - Low completion (started but abandoned most episodes): AbandonedLabel (0.0)
         // - Normal completion: engagement-proportional (0.5–0.85)
-        double label;
-        if (playedEps == 0 && episodes.Any(e => e.PlaybackPositionTicks > 0))
+        var label = playedEps switch
         {
-            // Started some episodes but completed none - series-level abandonment
-            label = completionRatio < EngineConstants.AbandonedCompletionThreshold
+            0 when episodes.Any(e => e.PlaybackPositionTicks > 0) => completionRatio <
+                                                                     EngineConstants.AbandonedCompletionThreshold
                 ? EngineConstants.AbandonedLabel
-                : ContentScoring.ComputeEngagementLabel(completionRatio);
-        }
-        else if (playedEps == 0)
-        {
-            label = 0.65; // Favorite-only: explicit interest without playback
-        }
-        else
-        {
-            label = ContentScoring.ComputeEngagementLabel(completionRatio);
-        }
+                : ContentScoring.ComputeEngagementLabel(completionRatio),
+            0 => 0.65,
+            _ => ContentScoring.ComputeEngagementLabel(completionRatio)
+        };
 
-        examples.Add(new TrainingExample
-        {
-            Features = features,
-            Label = label,
-            GeneratedAtUtc = mostRecent?.LastPlayedDate ?? organicFallbackTimestamp,
-            SampleWeight = 0.7 // Slightly lower weight than recommended items to avoid overwhelming
-        });
+        examples.Add(
+            new TrainingExample
+            {
+                Features = features,
+                Label = label,
+                GeneratedAtUtc = mostRecent?.LastPlayedDate ?? organicFallbackTimestamp,
+                SampleWeight = 0.7 // Slightly lower weight than recommended items to avoid overwhelming
+            });
     }
 
     /// <summary>

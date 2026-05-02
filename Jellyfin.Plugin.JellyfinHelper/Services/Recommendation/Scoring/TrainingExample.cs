@@ -52,7 +52,7 @@ public sealed class TrainingExample
     public DateTime GeneratedAtUtc
     {
         get => _generatedAtUtc;
-        set => _generatedAtUtc = Services.DateTimeNormalization.ToUtc(value);
+        set => _generatedAtUtc = DateTimeNormalization.ToUtc(value);
     }
 
     /// <summary>
@@ -68,7 +68,7 @@ public sealed class TrainingExample
     /// <returns>A decay weight between 0 and 1.</returns>
     public double ComputeTemporalWeight(DateTime? referenceTimeUtc = null)
     {
-        var reference = Services.DateTimeNormalization.ToUtc(referenceTimeUtc ?? DateTime.UtcNow);
+        var reference = DateTimeNormalization.ToUtc(referenceTimeUtc ?? DateTime.UtcNow);
         var ageDays = (reference - GeneratedAtUtc).TotalDays;
         if (ageDays <= 0)
         {

@@ -18,8 +18,6 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
     /// </summary>
     private static readonly double[] WeightsArray = DefaultWeights.CreateWeightArray();
 
-    private readonly double _genrePenaltyFloor;
-
     /// <summary>
     ///     Initializes a new instance of the <see cref="HeuristicScoringStrategy"/> class.
     /// </summary>
@@ -30,7 +28,7 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
     /// </param>
     public HeuristicScoringStrategy(double genrePenaltyFloor = 0.10)
     {
-        _genrePenaltyFloor = Math.Clamp(genrePenaltyFloor, 0.0, 1.0);
+        GenrePenaltyFloor = Math.Clamp(genrePenaltyFloor, 0.0, 1.0);
     }
 
     /// <summary>
@@ -38,7 +36,7 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
     ///     Used by <see cref="EnsembleScoringStrategy"/> to validate that the heuristic
     ///     was constructed with penalty disabled (floor = 1.0) to avoid double-penalization.
     /// </summary>
-    internal double GenrePenaltyFloor => _genrePenaltyFloor;
+    internal double GenrePenaltyFloor { get; }
 
     /// <inheritdoc />
     public string Name => "Heuristic (Fixed Weights)";
@@ -64,11 +62,13 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
             var score = Math.Clamp(raw, 0.0, 1.0);
 
             // Apply genre penalty when used standalone (shared formula with EnsembleScoringStrategy)
-            if (_genrePenaltyFloor < 1.0)
+            if (!(GenrePenaltyFloor < 1.0))
             {
-                var penalty = ScoringHelper.ComputeSoftGenrePenalty(features.GenreSimilarity, _genrePenaltyFloor);
-                score *= penalty;
+                return score;
             }
+
+            var penalty = ScoringHelper.ComputeSoftGenrePenalty(features.GenreSimilarity, GenrePenaltyFloor);
+            score *= penalty;
 
             return score;
         }
@@ -93,11 +93,13 @@ public sealed class HeuristicScoringStrategy : IScoringStrategy
             // Apply genre penalty when used standalone (shared formula with EnsembleScoringStrategy).
             // Uses WithPenalty() to scale both FinalScore and all contributions consistently,
             // so that FinalScore = Σ(contributions) × GenrePenaltyMultiplier holds true.
-            if (_genrePenaltyFloor < 1.0)
+            if (!(GenrePenaltyFloor < 1.0))
             {
-                var penalty = ScoringHelper.ComputeSoftGenrePenalty(features.GenreSimilarity, _genrePenaltyFloor);
-                explanation = explanation.WithPenalty(penalty);
+                return explanation;
             }
+
+            var penalty = ScoringHelper.ComputeSoftGenrePenalty(features.GenreSimilarity, GenrePenaltyFloor);
+            explanation = explanation.WithPenalty(penalty);
 
             return explanation;
         }

@@ -262,7 +262,9 @@ public class BackupService : IBackupService
         config.IncludedLibraries = backup.IncludedLibraries;
         config.ExcludedLibraries = backup.ExcludedLibraries;
         config.OrphanMinAgeDays = Math.Clamp(backup.OrphanMinAgeDays, 0, BackupValidator.MaxRetentionDays);
-        config.PluginLogLevel = BackupValidator.ValidLogLevels.Contains(backup.PluginLogLevel) ? backup.PluginLogLevel : "INFO";
+        config.PluginLogLevel = BackupValidator.ValidLogLevels.Contains(backup.PluginLogLevel)
+            ? backup.PluginLogLevel
+            : "INFO";
 
         // Task modes
         config.TrickplayTaskMode = ParseTaskMode(backup.TrickplayTaskMode);
@@ -272,12 +274,14 @@ public class BackupService : IBackupService
         config.SeerrCleanupTaskMode = ParseTaskMode(backup.SeerrCleanupTaskMode, TaskMode.Deactivate);
 
         // Seerr settings
-        config.SeerrUrl = BackupSanitizer.TruncateString(backup.SeerrUrl ?? string.Empty, BackupValidator.MaxUrlLength);
-        config.SeerrApiKey = BackupSanitizer.TruncateString(backup.SeerrApiKey ?? string.Empty, BackupValidator.MaxApiKeyLength);
+        config.SeerrUrl = BackupSanitizer.TruncateString(backup.SeerrUrl, BackupValidator.MaxUrlLength);
+        config.SeerrApiKey = BackupSanitizer.TruncateString(backup.SeerrApiKey, BackupValidator.MaxApiKeyLength);
         if (backup.SeerrCleanupAgeDays != 0)
         {
             config.SeerrCleanupAgeDays = Math.Clamp(
-                backup.SeerrCleanupAgeDays, 1, BackupValidator.MaxRetentionDays);
+                backup.SeerrCleanupAgeDays,
+                1,
+                BackupValidator.MaxRetentionDays);
         }
 
         // Trash settings
@@ -289,7 +293,7 @@ public class BackupService : IBackupService
 
         // Smart Recommendations (only task mode - count and strategy use sensible defaults).
         // Default to DryRun so importing an older backup enables the Discover UI in read-only mode.
-        config.RecommendationsTaskMode = ParseTaskMode(backup.RecommendationsTaskMode, TaskMode.DryRun);
+        config.RecommendationsTaskMode = ParseTaskMode(backup.RecommendationsTaskMode);
 
         // Playlist sync toggle - defaults to false for older backups without this field
         config.SyncRecommendationsToPlaylist = backup.SyncRecommendationsToPlaylist;
@@ -375,7 +379,7 @@ public class BackupService : IBackupService
             // Atomic write: write to a temporary file first, then rename.
             // This prevents data corruption if the process crashes mid-write.
             File.WriteAllText(tempPath, json);
-            File.Move(tempPath, filePath, overwrite: true);
+            File.Move(tempPath, filePath, true);
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

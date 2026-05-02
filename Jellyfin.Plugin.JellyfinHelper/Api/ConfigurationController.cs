@@ -329,8 +329,8 @@ public class ConfigurationController : ControllerBase
         config.Language = string.IsNullOrWhiteSpace(request.Language) ? "en" : request.Language;
 
         // Seerr settings
-        config.SeerrUrl = request.SeerrUrl?.Trim() ?? string.Empty;
-        config.SeerrApiKey = request.SeerrApiKey?.Trim() ?? string.Empty;
+        config.SeerrUrl = request.SeerrUrl.Trim();
+        config.SeerrApiKey = request.SeerrApiKey.Trim();
         config.SeerrCleanupAgeDays = string.IsNullOrEmpty(config.SeerrUrl)
             ? 0
             : Math.Clamp(request.SeerrCleanupAgeDays, 1, 3650);
@@ -346,14 +346,14 @@ public class ConfigurationController : ControllerBase
 
         // Update Radarr instances (clear + re-add from request)
         config.RadarrInstances.Clear();
-        foreach (var instance in request.RadarrInstances ?? Array.Empty<ArrInstanceConfig>())
+        foreach (var instance in request.RadarrInstances)
         {
             config.RadarrInstances.Add(instance);
         }
 
         // Update Sonarr instances (clear + re-add from request)
         config.SonarrInstances.Clear();
-        foreach (var instance in request.SonarrInstances ?? Array.Empty<ArrInstanceConfig>())
+        foreach (var instance in request.SonarrInstances)
         {
             config.SonarrInstances.Add(instance);
         }

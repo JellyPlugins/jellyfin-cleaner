@@ -130,6 +130,6 @@ public sealed class UserWatchProfile
     /// </summary>
     [JsonIgnore]
     public HashSet<string> ToleratedLanguages => new(
-        LanguageProfile.Where(kv => kv.Value.ForcedCount > 0 && kv.Value.ChosenCount == 0).Select(kv => kv.Key),
+        LanguageProfile.Where(kv => kv.Value is { ForcedCount: > 0, ChosenCount: 0 }).Select(kv => kv.Key),
         StringComparer.OrdinalIgnoreCase);
 }

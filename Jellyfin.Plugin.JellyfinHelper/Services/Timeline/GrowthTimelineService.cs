@@ -367,7 +367,7 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
         var entries = new List<DirectoryEntry>();
         var locations = LibraryPathResolver.GetDistinctLibraryLocations(_libraryManager);
         var config = _configHelper.GetConfig();
-        var trashFolderName = (config.TrashFolderPath ?? string.Empty).Trim()
+        var trashFolderName = config.TrashFolderPath.Trim()
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
         foreach (var location in locations)
@@ -401,7 +401,11 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
                     }
 
                     // Sum up all file sizes recursively within this directory
-                    var totalSize = GetDirectorySize(subDir.FullName, trashFolderName, fullTrashPath, cancellationToken);
+                    var totalSize = GetDirectorySize(
+                        subDir.FullName,
+                        trashFolderName,
+                        fullTrashPath,
+                        cancellationToken);
                     if (totalSize > 0)
                     {
                         entries.Add(
@@ -448,7 +452,8 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
                         });
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+                                           or NotSupportedException)
             {
                 _pluginLog.LogWarning("GrowthTimeline", $"Could not scan {location}", ex, _logger);
             }
@@ -462,7 +467,11 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
     ///     Matches .trickplay directories and trash directories by leaf name (relative paths)
     ///     or resolved full path (absolute paths).
     /// </summary>
-    private static bool ShouldSkipDirectory(string fullName, string dirName, string trashFolderName, string fullTrashPath)
+    private static bool ShouldSkipDirectory(
+        string fullName,
+        string dirName,
+        string trashFolderName,
+        string fullTrashPath)
     {
         if (dirName.EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
         {
@@ -484,7 +493,11 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
     /// <summary>
     ///     Calculates the total size of all files within a directory (recursively).
     /// </summary>
-    private long GetDirectorySize(string directoryPath, string trashFolderName, string fullTrashPath, CancellationToken cancellationToken)
+    private long GetDirectorySize(
+        string directoryPath,
+        string trashFolderName,
+        string fullTrashPath,
+        CancellationToken cancellationToken)
     {
         long total = 0;
         try
