@@ -12,6 +12,8 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
 public sealed class UserWatchProfile
 {
     private Dictionary<string, int> _genreDistribution = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, LanguageProfileEntry> _languageProfile = new(StringComparer.OrdinalIgnoreCase);
+    private Collection<WatchedItemInfo> _watchedItems = [];
 
     /// <summary>
     ///     Gets or sets the Jellyfin user ID.
@@ -93,16 +95,28 @@ public sealed class UserWatchProfile
 
     /// <summary>
     ///     Gets or sets the list of watched items with detailed play data.
+    ///     Setter coalesces null to empty to prevent NRE from deserialized cache data.
     /// </summary>
-    public Collection<WatchedItemInfo> WatchedItems { get; set; } = [];
+    public Collection<WatchedItemInfo> WatchedItems
+    {
+        get => _watchedItems;
+        set => _watchedItems = value ?? [];
+    }
 
     /// <summary>
     ///     Gets or sets the audio language preference profile.
     ///     Maps normalized ISO 639-1 language codes to chosen/forced counts.
     ///     Built by analyzing which audio tracks the user selected vs. which were available.
     ///     Key distinction: "chosen" (user had alternatives) vs. "forced" (only option).
+    ///     Setter preserves <see cref="StringComparer.OrdinalIgnoreCase"/> and coalesces null.
     /// </summary>
-    public Dictionary<string, LanguageProfileEntry> LanguageProfile { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, LanguageProfileEntry> LanguageProfile
+    {
+        get => _languageProfile;
+        set => _languageProfile = value is null
+            ? new Dictionary<string, LanguageProfileEntry>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, LanguageProfileEntry>(value, StringComparer.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     ///     Gets the user's primary audio language (highest weighted score), or null if no data.

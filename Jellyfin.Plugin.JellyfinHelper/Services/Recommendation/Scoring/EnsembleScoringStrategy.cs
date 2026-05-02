@@ -875,6 +875,8 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     /// </summary>
     internal sealed class EnsembleStateData
     {
+        private List<MetricsSnapshot> _metricsHistory = [];
+
         /// <summary>Gets or sets the cumulative number of training examples seen.</summary>
         public int TrainingExampleCount { get; set; }
 
@@ -890,8 +892,13 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         /// <summary>Gets or sets the ISO 8601 timestamp of the last update.</summary>
         public string UpdatedAt { get; set; } = string.Empty;
 
-        /// <summary>Gets or sets the rolling history of training metrics (last 10 runs).</summary>
-        public List<MetricsSnapshot> MetricsHistory { get; set; } = [];
+        /// <summary>Gets or sets the rolling history of training metrics (last 10 runs).
+        /// Setter coalesces null to empty to prevent NRE from deserialized state data.</summary>
+        public List<MetricsSnapshot> MetricsHistory
+        {
+            get => _metricsHistory;
+            set => _metricsHistory = value ?? [];
+        }
     }
 
     /// <summary>
