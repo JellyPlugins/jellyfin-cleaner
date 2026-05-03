@@ -22,7 +22,7 @@ function initRecommendationsTab() {
 function loadRecommendations() {
     var container = document.getElementById('recsContent');
     if (!container) return;
-    container.innerHTML = '<div class="loading-overlay" style="padding:2em;"><div class="spinner"></div><p>' + T('loadingRecommendations', 'Loading recommendationsâ€¦') + '</p></div>';
+    container.innerHTML = '<div class="loading-overlay" style="padding:2em;"><div class="spinner"></div><p>' + T('loadingRecommendations', 'Loading recommendations…') + '</p></div>';
     var reqId = ++_recsListReqId;
     apiGet('JellyfinHelper/Recommendations', function (data) {
         if (reqId !== _recsListReqId) return;
@@ -47,7 +47,7 @@ function renderRecommendations(container, results) {
     var html = '';
     var totalRecs = 0, totalUsers = results.length;
     for (var i = 0; i < results.length; i++) { totalRecs += results[i].Recommendations ? results[i].Recommendations.length : 0; }
-    html += '<div class="recs-info-line"><span class="icon-label-inline">' + mi('group') + totalUsers + ' ' + T('recsUsers', 'Users') + '</span><span class="recs-info-sep">Â·</span><span class="icon-label-inline">' + mi('track_changes') + totalRecs + ' ' + T('recsTotal', 'Recommendations') + '</span></div>';
+    html += '<div class="recs-info-line"><span class="icon-label-inline">' + mi('group') + totalUsers + ' ' + T('recsUsers', 'Users') + '</span><span class="recs-info-sep">·</span><span class="icon-label-inline">' + mi('track_changes') + totalRecs + ' ' + T('recsTotal', 'Recommendations') + '</span></div>';
     html += '<div class="recs-user-selector"><label for="recsUserSelect">' + T('recsSelectUser', 'Select User') + ': </label><select id="recsUserSelect" class="recs-select">';
     for (var u = 0; u < results.length; u++) {
         html += '<option value="' + u + '">' + escHtml(results[u].UserName) + ' (' + (results[u].Recommendations ? results[u].Recommendations.length : 0) + ' ' + T('recsItems', 'items') + ')</option>';
@@ -55,13 +55,13 @@ function renderRecommendations(container, results) {
     html += '</select></div>';
 
     // Collapsible Recommendations section
-    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsGridToggle" aria-expanded="false" aria-controls="recsGridBody"><span class="recs-collapsible-arrow">â–¶</span> ' + mi('track_changes') + ' ' + T('recsSubtabRecommendations', 'Recommendations') + ' <span>(<span id="recsGridCount">0</span> ' + T('recsItems', 'items') + ')</span></button>';
+    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsGridToggle" aria-expanded="false" aria-controls="recsGridBody"><span class="recs-collapsible-arrow">▶</span> ' + mi('track_changes') + ' ' + T('recsSubtabRecommendations', 'Recommendations') + ' <span>(<span id="recsGridCount">0</span> ' + T('recsItems', 'items') + ')</span></button>';
     html += '<div class="recs-collapsible-body" id="recsGridBody">';
     html += '<div id="recsUserGrid"></div>';
     html += '</div></div>';
 
     // Collapsible Watch Activity section
-    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsActivityToggle" aria-expanded="false" aria-controls="recsActivityBody"><span class="recs-collapsible-arrow">â–¶</span> ' + mi('bar_chart') + ' ' + T('recsActivityToggle', 'Watch Activity') + '</button>';
+    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsActivityToggle" aria-expanded="false" aria-controls="recsActivityBody"><span class="recs-collapsible-arrow">▶</span> ' + mi('bar_chart') + ' ' + T('recsActivityToggle', 'Watch Activity') + '</button>';
     html += '<div class="recs-collapsible-body" id="recsActivityBody">';
     html += '<div id="recsUserProfile"><div class="loading-overlay" style="padding:0.5em;"><div class="spinner"></div></div></div>';
     html += '<div id="recsUserActivity"><div class="loading-overlay" style="padding:0.5em;"><div class="spinner"></div></div></div>';
@@ -113,11 +113,11 @@ function toggleCollapsible(bodyId, toggleId) {
     if (!body) return;
     if (body.classList.contains('open')) {
         body.classList.remove('open');
-        if (arrow) arrow.textContent = 'â–¶';
+        if (arrow) arrow.textContent = '▶';
         if (toggle) toggle.setAttribute('aria-expanded', 'false');
     } else {
         body.classList.add('open');
-        if (arrow) arrow.textContent = 'â–¼';
+        if (arrow) arrow.textContent = '▼';
         if (toggle) toggle.setAttribute('aria-expanded', 'true');
     }
 }
