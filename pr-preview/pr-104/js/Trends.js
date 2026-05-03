@@ -457,11 +457,8 @@ function attachTrendInteraction(container) {
         // Delta row with percentage
         var deltaSize = currentPt.s - pt.s;
         var deltaFiles = currentPt.c - pt.c;
-        // Only compute percentage when old value is meaningful (>= 1 MB).
-        // Below that threshold the old value is essentially zero and the
-        // percentage becomes astronomically large / meaningless.
-        var MIN_SIZE_FOR_PCT = 1048576; // 1 MB
-        var pctSize = pt.s >= MIN_SIZE_FOR_PCT ? Math.round((deltaSize / pt.s) * 100) : 0;
+        // Percentage = share of growth relative to current total (never exceeds 100%).
+        var pctSize = currentPt.s > 0 ? Math.round((deltaSize / currentPt.s) * 100) : 0;
 
         var sSign = deltaSize > 0 ? '+' : (deltaSize < 0 ? '' : '\u00B1');
         var pctLabel = pctSize !== 0 ? ' (' + (pctSize > 0 ? '+' : '') + pctSize + '%)' : '';
