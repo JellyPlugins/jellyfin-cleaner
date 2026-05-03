@@ -222,4 +222,4 @@ else{console.warn("Mock: unhandled",url);resolve({});}
 };
 
 var _of=window.fetch.bind(window);
-window.fetch=function(url,opts){if(typeof url==="string"&&url.indexOf("mock://")===0){return ApiClient.ajax({url:url,type:(opts&&opts.method)||"GET",dataType:"json"}).then(function(d){var b=typeof d==="string"?d:JSON.stringify(d);return new Response(b,{status:200,headers:{"Content-Type":"application/json"}});});}return _of(url,opts);};
+window.fetch=function(url,opts){if(typeof url==="string"&&url.indexOf("mock://")===0){return ApiClient.ajax({url:url,type:(opts&&opts.method)||"GET",data:opts&&opts.body,dataType:"json"}).then(function(d){var b=typeof d==="string"?d:JSON.stringify(d);return new Response(b,{status:200,headers:{"Content-Type":"application/json"}});});}return _of(url,opts);};

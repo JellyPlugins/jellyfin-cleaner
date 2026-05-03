@@ -259,7 +259,8 @@ function loadSettings() {
         h += '<div class="help-text">' + T('settingsBackupHelp', 'Export your settings, Arr integrations, and trend data for backup. Import to restore on a fresh installation.') + '</div>';
         h += '<div class="export-import-button-container">';
         h += '<button class="action-btn export-import-button" id="btnBackupExport">' + mi('download') + T('backupExport', 'Export Backup') + '</button>';
-        h += '<label class="action-btn export-import-button" id="btnBackupImportLabel">' + mi('upload') + T('backupImport', 'Import Backup') + '<input type="file" id="btnBackupImportFile" accept=".json,application/json" style="display:none;"></label>';
+        h += '<button type="button" class="action-btn export-import-button" id="btnBackupImport">' + mi('upload') + T('backupImport', 'Import Backup') + '</button>';
+        h += '<input type="file" id="btnBackupImportFile" accept=".json,application/json" style="display:none;">';
         h += '</div>';
         h += '<div id="backupMsg" style="margin-top:0.5em;"></div>';
 
@@ -487,7 +488,13 @@ function attachBackupHandlers() {
             triggerBackupExport();
         });
     }
+    var btnImport = document.getElementById('btnBackupImport');
     var fileInput = document.getElementById('btnBackupImportFile');
+    if (btnImport && fileInput) {
+        btnImport.addEventListener('click', function () {
+            fileInput.click();
+        });
+    }
     if (fileInput) {
         fileInput.addEventListener('change', function () {
             if (this.files && this.files.length > 0) {

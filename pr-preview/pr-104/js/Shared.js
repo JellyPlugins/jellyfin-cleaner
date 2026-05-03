@@ -385,7 +385,7 @@ function showButtonFeedback(btn, success, message, originalHtml, timeout) {
     var cls = success ? 'success' : 'error';
     var delay = timeout || (success ? 3000 : 5000);
     btn.classList.remove('success', 'error');
-    btn.innerHTML = '<span class="btn-icon">' + (success ? mi('check_circle') : mi('error')) + '</span>' + message;
+    btn.innerHTML = '<span class="btn-icon">' + (success ? mi('check_circle') : mi('error')) + '</span>' + escHtml(message);
     btn.classList.add(cls);
     return setTimeout(function () {
         btn.innerHTML = originalHtml;
