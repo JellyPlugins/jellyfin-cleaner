@@ -116,6 +116,7 @@ function rebuildUI() {
     loadSettings();
     loadLatestStatistics();
     loadTrendData();
+    loadInsightsData();
 
     // Switch back to the Settings tab after rebuild
     var settingsBtn = document.querySelector('.tab-btn[data-tab="settings"]');
