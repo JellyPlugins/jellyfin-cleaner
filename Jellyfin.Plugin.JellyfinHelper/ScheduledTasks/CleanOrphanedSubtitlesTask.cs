@@ -231,7 +231,10 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
     ///     "Movie Name (2021).en.srt" → "Movie Name (2021)"
     ///     "Movie Name (2021).en.forced.srt" → "Movie Name (2021)"
     ///     "Movie Name (2021).srt" → "Movie Name (2021)"
-    ///     "Movie Name (2021).de.hi.ass" → "Movie Name (2021)".
+    ///     "Movie Name (2021).de.hi.ass" → "Movie Name (2021)"
+    ///     "Movie Name (2021).es-MX.srt" → "Movie Name (2021)"
+    ///     "Movie Name (2021).pt-BR.forced.srt" → "Movie Name (2021)"
+    ///     "Movie Name (2021).zh-Hans.srt" → "Movie Name (2021)".
     /// </summary>
     /// <param name="filePath">The full path to the subtitle file.</param>
     /// <returns>The base name without language and format suffixes.</returns>
@@ -261,15 +264,59 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
 
     /// <summary>
     ///     Determines whether a string segment is a known subtitle suffix (language code or flag).
+    ///     Supports simple codes (e.g., "en", "eng", "forced") as well as BCP-47 regional/script
+    ///     tags (e.g., "es-MX", "pt-BR", "zh-Hans", "sr-Latn").
     ///     Uses explicit allowlists to avoid false positives with non-language segments like "DTS", "HDR", etc.
     /// </summary>
-    private static bool IsSubtitleSuffix(string segment)
+    /// <param name="segment">The dot-separated segment to check.</param>
+    /// <returns>True if the segment is a recognized subtitle suffix; otherwise false.</returns>
+    internal static bool IsSubtitleSuffix(string segment)
     {
         if (string.IsNullOrEmpty(segment))
         {
             return false;
         }
 
-        return MediaExtensions.SubtitleFlags.Contains(segment) || MediaExtensions.KnownLanguageCodes.Contains(segment);
+        // Direct match: known flags (forced, sdh, hi, cc, etc.) or language codes (en, de, eng, deu, etc.)
+        if (MediaExtensions.SubtitleFlags.Contains(segment) || MediaExtensions.KnownLanguageCodes.Contains(segment))
+        {
+            return true;
+        }
+
+        // BCP-47 regional/script tags: "es-MX", "pt-BR", "zh-Hans", "sr-Latn", "en-US", etc.
+        // Format: {known-language-code}-{region-or-script}
+        // - Region subtag: exactly 2 alphabetic characters (ISO 3166-1 alpha-2, e.g., MX, BR, TW, US)
+        // - Script subtag: exactly 4 alphabetic characters (ISO 15924, e.g., Hans, Latn, Cyrl)
+        var hyphenIndex = segment.IndexOf('-', StringComparison.Ordinal);
+        if (hyphenIndex <= 0 || hyphenIndex >= segment.Length - 1)
+        {
+            return false;
+        }
+
+        var langPart = segment[..hyphenIndex];
+        if (!MediaExtensions.KnownLanguageCodes.Contains(langPart))
+        {
+            return false;
+        }
+
+        var subtag = segment[(hyphenIndex + 1)..];
+
+        // Region subtag: exactly 2 alphabetic characters (e.g., MX, BR, TW, US, GB)
+        if (subtag.Length == 2 && char.IsLetter(subtag[0]) && char.IsLetter(subtag[1]))
+        {
+            return true;
+        }
+
+        // Script subtag: exactly 4 alphabetic characters (e.g., Hans, Hant, Latn, Cyrl)
+        if (subtag.Length == 4
+            && char.IsLetter(subtag[0])
+            && char.IsLetter(subtag[1])
+            && char.IsLetter(subtag[2])
+            && char.IsLetter(subtag[3]))
+        {
+            return true;
+        }
+
+        return false;
     }
 }

@@ -12,6 +12,9 @@ and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin
 - **Material Icons** - Replaced all decorative emoji characters in the dashboard UI with Google Material Symbols font icons. Icons now render consistently across all platforms, browsers, and devices including mobile.
 - **Em-dash cleanup** - Replaced all em-dashes with standard hyphens across the entire codebase for consistency.
 
+### Fixed
+- **CleanOrphanedSubtitlesTask** - Path suffix mismatch which caused false deletions.
+
 ---
 
 ## [2.0.0.1] - 2026-04-28
