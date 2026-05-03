@@ -37,7 +37,7 @@ function updateSeerrUIState(isConfigured) {
         ageW.style.pointerEvents = isConfigured ? '' : 'none';
     }
     var count = document.getElementById('arrCountSeerr');
-    if (count) count.textContent = isConfigured ? '✔' : '';
+    if (count) count.innerHTML = isConfigured ? mi('check_circle') : '';
     var hint = document.querySelector('.seerr-not-configured-hint');
     if (hint) hint.style.display = isConfigured ? 'none' : '';
 }
@@ -71,7 +71,7 @@ function checkUnsavedAndProceed(onProceed) {
     removeDialogById('unsavedDialogOverlay');
     var d = createDialogOverlay(
         'unsavedDialogOverlay',
-        '⚠️ ' + T('unsavedChangesTitle', 'Unsaved Changes'),
+        T('unsavedChangesTitle', 'Unsaved Changes'),
         getCssVar('--color-primary', '#00a4dc'),
         T('unsavedChangesMsg', 'You have unsaved settings changes. What would you like to do?'),
         false
@@ -79,12 +79,12 @@ function checkUnsavedAndProceed(onProceed) {
     d.btnRow.appendChild(createDialogBtn(T('cancel', 'Cancel'), 'cancel', function () {
         removeDialogById('unsavedDialogOverlay');
     }));
-    d.btnRow.appendChild(createDialogBtn('🚪 ' + T('discardChanges', 'Discard Changes'), 'danger', function () {
+    d.btnRow.appendChild(createDialogBtn(T('discardChanges', 'Discard Changes'), 'danger', function () {
         removeDialogById('unsavedDialogOverlay');
         _settingsSnapshot = '';
         onProceed();
     }));
-    d.btnRow.appendChild(createDialogBtn('💾 ' + T('saveAndContinue', 'Save & Continue'), 'success', function () {
+    d.btnRow.appendChild(createDialogBtn(T('saveAndContinue', 'Save & Continue'), 'success', function () {
         removeDialogById('unsavedDialogOverlay');
         var payload = buildSettingsPayload();
         doSaveSettings(payload, {onSuccess: onProceed});
@@ -116,6 +116,7 @@ function rebuildUI() {
     loadSettings();
     loadLatestStatistics();
     loadTrendData();
+    loadInsightsData();
 
     // Switch back to the Settings tab after rebuild
     var settingsBtn = document.querySelector('.tab-btn[data-tab="settings"]');
@@ -191,7 +192,7 @@ function loadSettings() {
         var seerrConfigured = !!(cfg.SeerrUrl && cfg.SeerrApiKey);
         h += '<div class="seerr-task-mode-wrapper" style="' + (!seerrConfigured ? 'opacity:0.5;pointer-events:none;' : '') + '">';
         h += renderTaskModeSelect('cfgSeerrMode', T('seerrCleanup', 'Seerr Cleanup'), cfg.SeerrCleanupTaskMode || 'Deactivate');
-        h += '<div class="help-text seerr-not-configured-hint" style="' + (seerrConfigured ? 'display:none;' : '') + '">⚠️ ' + T('seerrNotConfigured', 'Configure Seerr below to enable this task.') + '</div>';
+        h += '<div class="help-text seerr-not-configured-hint" style="' + (seerrConfigured ? 'display:none;' : '') + '">' + T('seerrNotConfigured', 'Configure Seerr below to enable this task.') + '</div>';
         h += '</div>';
 
         h += '<div class="section-title">' + T('settingsTrashTitle', 'Trash settings') + '</div>';
@@ -216,7 +217,7 @@ function loadSettings() {
         h += '<div class="help-text">' + T('settingsSeerrHelp', 'Connect to Jellyseerr, Overseerr, or Seerr to automatically clean up old media requests.') + '</div>';
         var seerrHasCfg = !!(cfg.SeerrUrl && cfg.SeerrApiKey);
         h += '<div class="arr-collapsible' + (!seerrHasCfg ? ' arr-expanded' : '') + '" id="arrCollapsibleSeerr">';
-        h += renderArrCollapseButton(!seerrHasCfg, SVG.EYE, T('seerrInstance', 'Seerr Instance'), seerrHasCfg ? '✔' : '', 'Seerr');
+        h += renderArrCollapseButton(!seerrHasCfg, SVG.EYE, T('seerrInstance', 'Seerr Instance'), seerrHasCfg ? mi('check_circle') : '', 'Seerr');
         h += '<div class="arr-collapsible-body" aria-hidden="' + (seerrHasCfg ? 'true' : 'false') + '">';
         h += '<label for="cfgSeerrUrl">' + T('seerrUrl', 'Seerr URL') + '</label>';
         h += '<input type="text" id="cfgSeerrUrl" value="' + escAttr(cfg.SeerrUrl || '') + '" placeholder="http://localhost:5055">';
@@ -228,7 +229,7 @@ function loadSettings() {
         h += '<div class="help-text">' + T('seerrCleanupAgeDaysHelp', 'Requests older than this will be deleted. Default: 365 days.') + '</div>';
         h += '</div>';
         h += '<div style="margin-top:0.5em;">';
-        h += '<button type="button" class="action-btn btn-arr-test" id="btnTestSeerr" style="padding:0.3em 1em;font-size:0.85em;">🔌 ' + T('testConnection', 'Test Connection') + '</button>';
+        h += '<button type="button" class="action-btn btn-arr-test" id="btnTestSeerr" style="padding:0.3em 1em;font-size:0.85em;">' + mi('extension') + T('testConnection', 'Test Connection') + '</button>';
         h += '</div>';
         h += '</div></div>';
 
@@ -237,7 +238,7 @@ function loadSettings() {
         var radarrInstances = resolveArrInstances(cfg, 'Radarr');
         var radarrCount = radarrInstances.length;
         h += '<div class="arr-collapsible' + (radarrCount === 0 ? ' arr-expanded' : '') + '" id="arrCollapsibleRadarr">';
-        h += renderArrCollapseButton(radarrCount === 0, '<span>🎬</span>', T('radarrInstances', 'Radarr Instances'), createArrCountText(radarrCount), 'Radarr');
+        h += renderArrCollapseButton(radarrCount === 0, mi('movie'), T('radarrInstances', 'Radarr Instances'), createArrCountText(radarrCount), 'Radarr');
         h += '<div class="arr-collapsible-body" aria-hidden="' + (radarrCount === 0 ? 'false' : 'true') + '">';
         h += renderArrInstances('Radarr', radarrInstances);
         h += '</div></div>';
@@ -246,7 +247,7 @@ function loadSettings() {
         var sonarrInstances = resolveArrInstances(cfg, 'Sonarr');
         var sonarrCount = sonarrInstances.length;
         h += '<div class="arr-collapsible' + (sonarrCount === 0 ? ' arr-expanded' : '') + '" id="arrCollapsibleSonarr">';
-        h += renderArrCollapseButton(sonarrCount === 0, '<span>📺</span>', T('sonarrInstances', 'Sonarr Instances'), createArrCountText(sonarrCount), 'Sonarr');
+        h += renderArrCollapseButton(sonarrCount === 0, mi('tv'), T('sonarrInstances', 'Sonarr Instances'), createArrCountText(sonarrCount), 'Sonarr');
         h += '<div class="arr-collapsible-body" aria-hidden="' + (sonarrCount === 0 ? 'false' : 'true') + '">';
         h += renderArrInstances('Sonarr', sonarrInstances);
         h += '</div></div>';
@@ -255,11 +256,12 @@ function loadSettings() {
         h += '<div id="settingsMsg" style="margin-top:0.5em;"></div>';
 
         // --- Backup Section ---
-        h += '<div class="section-title">💾 ' + T('settingsBackupTitle', 'Backup & Restore') + '</div>';
+        h += '<div class="section-title">' + T('settingsBackupTitle', 'Backup & Restore') + '</div>';
         h += '<div class="help-text">' + T('settingsBackupHelp', 'Export your settings, Arr integrations, and trend data for backup. Import to restore on a fresh installation.') + '</div>';
-        h += '<div style="display:flex;gap:0.8em;flex-wrap:wrap;margin:1em 0;">';
-        h += '<button class="action-btn" id="btnBackupExport" style="flex:1;min-width:0;padding:0.5em 1.2em;text-align:center;justify-content:center;">📥 ' + T('backupExport', 'Export Backup') + '</button>';
-        h += '<label class="action-btn" id="btnBackupImportLabel" style="flex:1;min-width:0;padding:0.5em 1.2em;cursor:pointer;margin:0;text-align:center;justify-content:center;">📤 ' + T('backupImport', 'Import Backup') + '<input type="file" id="btnBackupImportFile" accept=".json,application/json" style="display:none;"></label>';
+        h += '<div class="export-import-button-container">';
+        h += '<button class="action-btn export-import-button" id="btnBackupExport">' + mi('download') + T('backupExport', 'Export Backup') + '</button>';
+        h += '<button type="button" class="action-btn export-import-button" id="btnBackupImport">' + mi('upload') + T('backupImport', 'Import Backup') + '</button>';
+        h += '<input type="file" id="btnBackupImportFile" accept=".json,application/json" style="display:none;">';
         h += '</div>';
         h += '<div id="backupMsg" style="margin-top:0.5em;"></div>';
 
@@ -333,7 +335,7 @@ function buildSettingsPayload() {
 /**
  * Save settings to the server.
  * @param {Object} payload - The settings payload from buildSettingsPayload().
- * @param {Object} [options] - Optional. { quiet: true, element: HTMLElement } for auto-save (no button animation, shows ✔/✘ indicator instead).
+ * @param {Object} [options] - Optional. { quiet: true, element: HTMLElement } for auto-save (no button animation, shows / indicator instead).
  */
 function doSaveSettings(payload, options) {
     var quiet = options && options.quiet;
@@ -412,7 +414,7 @@ function showTrashDisableDialog(payload) {
             + '\n\n' + T('trashDisableQuestion', 'What should happen with these folders?');
 
         removeTrashDialog();
-        var d = createDialogOverlay('trashDialogOverlay', '🗑️ ' + T('trashDisableTitle', 'Trash Folders Detected'), getCssVar('--color-danger', '#e74c3c'), bodyText, false);
+        var d = createDialogOverlay('trashDialogOverlay', T('trashDisableTitle', 'Trash Folders Detected'), getCssVar('--color-danger', '#e74c3c'), bodyText, false);
 
         d.btnRow.appendChild(createDialogBtn(T('cancel', 'Cancel'), 'cancel', function () {
             removeTrashDialog();
@@ -420,11 +422,11 @@ function showTrashDisableDialog(payload) {
             if (chk) chk.checked = true;
             saveBtn.disabled = false;
         }));
-        d.btnRow.appendChild(createDialogBtn('📁 ' + T('trashKeep', 'Keep Folders'), 'success', function () {
+        d.btnRow.appendChild(createDialogBtn(T('trashKeep', 'Keep Folders'), 'success', function () {
             removeTrashDialog();
             doSaveSettings(payload);
         }));
-        d.btnRow.appendChild(createDialogBtn('🗑️ ' + T('trashDelete', 'Delete Folders'), 'danger', function () {
+        d.btnRow.appendChild(createDialogBtn(T('trashDelete', 'Delete Folders'), 'danger', function () {
             removeTrashDialog();
             showTrashDeleteConfirmation(payload, paths);
         }));
@@ -443,7 +445,7 @@ function showTrashDeleteConfirmation(payload, paths) {
         + formatPathList(paths)
         + '\n\n' + T('trashDeleteConfirmWarn', 'This action cannot be undone!');
 
-    var d = createDialogOverlay('trashDialogOverlay', '⚠️ ' + T('trashDeleteConfirmTitle', 'Are you sure?'), getCssVar('--color-danger', '#e74c3c'), bodyText, false);
+    var d = createDialogOverlay('trashDialogOverlay', T('trashDeleteConfirmTitle', 'Are you sure?'), getCssVar('--color-danger', '#e74c3c'), bodyText, false);
 
     d.btnRow.appendChild(createDialogBtn(T('cancel', 'Cancel'), 'cancel', function () {
         removeTrashDialog();
@@ -451,24 +453,28 @@ function showTrashDeleteConfirmation(payload, paths) {
         if (chk) chk.checked = true;
         saveBtn.disabled = false;
     }));
-    d.btnRow.appendChild(createDialogBtn('🗑️ ' + T('trashDeleteConfirmOk', 'Yes, Delete All'), 'danger', function () {
+    d.btnRow.appendChild(createDialogBtn(T('trashDeleteConfirmOk', 'Yes, Delete All'), 'danger', function () {
         removeTrashDialog();
-        msg.innerHTML = '<div style="opacity:0.6;">🗑️ ' + T('trashDeleting', 'Deleting trash folders…') + '</div>';
+        msg.innerHTML = '<div style="opacity:0.6;">' + T('trashDeleting', 'Deleting trash folders…') + '</div>';
 
         apiDelete('JellyfinHelper/Trash/Folders', function (result) {
             var summary = '';
+            var statusClass = 'success-msg';
             if (result.deleted > 0) {
-                summary += '✅ ' + T('trashDeletedCount', 'Deleted') + ': ' + result.deleted + ' ' + T('folders', 'folders');
+                summary += mi('check_circle') + ' ' + T('trashDeletedCount', 'Deleted') + ': ' + result.deleted + ' ' + T('folders', 'folders');
             }
             if (result.failed > 0) {
-                summary += (summary ? ' | ' : '') + '❌ ' + T('trashFailedCount', 'Failed') + ': ' + result.failed;
+                summary += (summary ? ' | ' : '') + mi('error') + ' ' + T('trashFailedCount', 'Failed') + ': ' + result.failed;
+                statusClass = 'error-msg';
             }
-            if (summary) {
-                msg.innerHTML = '<div class="success-msg">' + summary + '</div>';
+            if (!summary) {
+                summary = mi('error') + ' ' + T('trashDeleteError', 'Failed to delete trash folders.');
+                statusClass = 'error-msg';
             }
+            msg.innerHTML = '<div class="' + statusClass + '">' + summary + '</div>';
             doSaveSettings(payload);
         }, function () {
-            msg.innerHTML = '<div class="error-msg">❌ ' + T('trashDeleteError', 'Failed to delete trash folders.') + '</div>';
+            msg.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + T('trashDeleteError', 'Failed to delete trash folders.') + '</div>';
             saveBtn.disabled = false;
         });
     }));
@@ -483,7 +489,13 @@ function attachBackupHandlers() {
             triggerBackupExport();
         });
     }
+    var btnImport = document.getElementById('btnBackupImport');
     var fileInput = document.getElementById('btnBackupImportFile');
+    if (btnImport && fileInput) {
+        btnImport.addEventListener('click', function () {
+            fileInput.click();
+        });
+    }
     if (fileInput) {
         fileInput.addEventListener('change', function () {
             if (this.files && this.files.length > 0) {
@@ -515,7 +527,7 @@ function triggerBackupExport() {
             URL.revokeObjectURL(blobUrl);
         }, 5000);
 
-        msg.innerHTML = '<div class="success-msg">✅ ' + T('backupExportSuccess', 'Backup exported successfully.') + '</div>';
+        msg.innerHTML = '<div class="success-msg">' + mi('check_circle') + ' ' + T('backupExportSuccess', 'Backup exported successfully.') + '</div>';
         btn.disabled = false;
         setTimeout(function () {
             msg.innerHTML = '';
@@ -527,7 +539,7 @@ function triggerBackupExport() {
             errorText = escHtml(response.message);
         }
 
-        msg.innerHTML = '<div class="error-msg">❌ ' + errorText + '</div>';
+        msg.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + errorText + '</div>';
         btn.disabled = false;
     });
 }
@@ -537,7 +549,7 @@ function triggerBackupImport(file) {
 
     // Client-side size check (10 MB)
     if (file.size > 10 * 1024 * 1024) {
-        msg.innerHTML = '<div class="error-msg">❌ ' + T('backupFileTooLarge', 'File too large. Maximum size is 10 MB.') + '</div>';
+        msg.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + T('backupFileTooLarge', 'File too large. Maximum size is 10 MB.') + '</div>';
         return;
     }
 
@@ -552,12 +564,12 @@ function showBackupImportConfirmation(file) {
         + '<p><strong>' + T('backupImportConfirmFile', 'File') + ':</strong> ' + escHtml(file.name) + ' (' + formatBytes(file.size) + ')</p>'
         + '<p class="color-danger">' + T('backupImportConfirmWarn', 'This action cannot be undone!') + '</p>';
 
-    var d = createDialogOverlay('backupDialogOverlay', '📤 ' + T('backupImportConfirmTitle', 'Import Backup'), getCssVar('--color-primary', '#00a4dc'), bodyHtml, true);
+    var d = createDialogOverlay('backupDialogOverlay', T('backupImportConfirmTitle', 'Import Backup'), getCssVar('--color-primary', '#00a4dc'), bodyHtml, true);
 
     d.btnRow.appendChild(createDialogBtn(T('cancel', 'Cancel'), 'cancel', function () {
         removeBackupDialog();
     }));
-    d.btnRow.appendChild(createDialogBtn('📤 ' + T('backupImportConfirmOk', 'Yes, Import'), 'warning', function () {
+    d.btnRow.appendChild(createDialogBtn(T('backupImportConfirmOk', 'Yes, Import'), 'warning', function () {
         removeBackupDialog();
         doBackupImport(file);
     }));
@@ -571,7 +583,7 @@ function removeBackupDialog() {
 
 function doBackupImport(file) {
     var msg = document.getElementById('backupMsg');
-    msg.innerHTML = '<div style="opacity:0.6;">📤 ' + T('backupImporting', 'Importing backup…') + '</div>';
+    msg.innerHTML = '<div style="opacity:0.6;">' + T('backupImporting', 'Importing backup…') + '</div>';
 
     var reader = new FileReader();
     reader.onload = function (e) {
@@ -581,7 +593,7 @@ function doBackupImport(file) {
         try {
             JSON.parse(json);
         } catch (parseErr) {
-            msg.innerHTML = '<div class="error-msg">❌ ' + T('backupInvalidJson', 'Invalid backup file. The file does not contain valid JSON.') + '</div>';
+            msg.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + T('backupInvalidJson', 'Invalid backup file. The file does not contain valid JSON.') + '</div>';
             return;
         }
 
@@ -593,7 +605,7 @@ function doBackupImport(file) {
             if (summary.TimelineRestored || summary.timelineRestored) parts.push(T('backupTimelineRestored', 'Growth Timeline'));
             if (summary.BaselineRestored || summary.baselineRestored) parts.push(T('backupBaselineRestored', 'Baseline'));
 
-            var successMsg = '✅ ' + T('backupImportSuccess', 'Backup imported successfully.');
+            var successMsg = mi('check_circle') + ' ' + T('backupImportSuccess', 'Backup imported successfully.');
             if (parts.length > 0) {
                 successMsg += ' (' + parts.join(', ') + ')';
             }
@@ -601,7 +613,7 @@ function doBackupImport(file) {
             // Show warnings if any
             var warnings = data.Warnings || data.warnings || [];
             if (warnings.length > 0) {
-                successMsg += '<br><span class="color-warning">⚠️ ' + warnings.length + ' ' + T('backupWarnings', 'warning(s)') + ':</span>';
+                successMsg += '<br><span class="color-warning">' + warnings.length + ' ' + T('backupWarnings', 'warning(s)') + ':</span>';
                 for (var i = 0; i < Math.min(warnings.length, 5); i++) {
                     successMsg += '<br><span style="opacity:0.7;font-size:0.85em;">• ' + escHtml(warnings[i]) + '</span>';
                 }
@@ -644,11 +656,11 @@ function doBackupImport(file) {
                 }
             } catch (ignored) { /* use default error text */
             }
-            msg.innerHTML = '<div class="error-msg">❌ ' + errorText + '</div>';
+            msg.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + errorText + '</div>';
         });
     };
     reader.onerror = function () {
-        msg.innerHTML = '<div class="error-msg">❌ ' + T('backupImportError', 'Failed to import backup.') + '</div>';
+        msg.innerHTML = '<div class="error-msg">' + mi('error') + ' ' + T('backupImportError', 'Failed to import backup.') + '</div>';
     };
     reader.readAsText(file);
 }
@@ -660,7 +672,7 @@ function attachSeerrHandlers() {
     btn.addEventListener('click', function () {
         var url = (document.getElementById('cfgSeerrUrl') || {}).value || '';
         var key = (document.getElementById('cfgSeerrApiKey') || {}).value || '';
-        var originalHtml = '🔌 ' + T('testConnection', 'Test Connection');
+        var originalHtml = mi('extension') + T('testConnection', 'Test Connection');
 
         if (_seerrTimer) {
             clearTimeout(_seerrTimer);
@@ -697,7 +709,7 @@ function attachSeerrHandlers() {
  * Called after the settings form is rendered.
  */
 function attachAutoSaveHandlers() {
-    // Task mode dropdowns — auto-save on change
+    // Task mode dropdowns - auto-save on change
     var taskModeIds = ['cfgTrickplayMode', 'cfgEmptyFolderMode', 'cfgSubtitleMode', 'cfgLinkMode', 'cfgRecommendationsMode', 'cfgSeerrMode'];
     for (var i = 0; i < taskModeIds.length; i++) {
         (function (id) {
@@ -746,7 +758,7 @@ function attachAutoSaveHandlers() {
         });
     }
 
-    // Language dropdown — auto-save + UI rebuild with scroll restore
+    // Language dropdown - auto-save + UI rebuild with scroll restore
     var langEl = document.getElementById('cfgLang');
     if (langEl) {
         langEl.addEventListener('change', function () {
