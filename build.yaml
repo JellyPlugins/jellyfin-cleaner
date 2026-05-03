@@ -13,4 +13,4 @@ owner: "JellyPlugins"
 artifacts:
   - "Jellyfin.Plugin.JellyfinHelper.dll"
 changelog: >-
-  v2.0.0.2: Replaced all decorative emojis with Material Symbols font icons for consistent cross-platform rendering. Em-dash cleanup across all files. Fixed path suffix mismatch in subtitle cleanup task. 2110 tests.
+  v2.0.0.2: Replaced decorative emojis with Material Symbols font icons for consistent cross-platform rendering. Standardized dash punctuation. Fixed subtitle orphan detection to avoid false deletions. 2110 tests.
