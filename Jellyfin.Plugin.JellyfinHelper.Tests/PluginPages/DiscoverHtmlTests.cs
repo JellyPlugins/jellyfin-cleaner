@@ -128,9 +128,9 @@ public class DiscoverHtmlTests : ConfigPageTestBase
     // === Tab icon ===
 
     [Fact]
-    public void Html_ContainsDiscoverTabEmoji()
+    public void Html_ContainsDiscoverTabSmartToyIcon()
     {
-        // The Discover tab uses the robot emoji 🤖
-        Assert.Contains("🤖", HtmlContent);
+        // The Discover tab uses the smart_toy Material Icon via mi("smart_toy")
+        Assert.Contains("\"smart_toy\"", HtmlContent);
     }
 }

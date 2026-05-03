@@ -163,7 +163,7 @@ public static class BackupValidator
         ValidateTaskMode(result, backup.OrphanedSubtitleTaskMode, "OrphanedSubtitleTaskMode");
         ValidateTaskMode(result, backup.LinkRepairTaskMode, "LinkRepairTaskMode");
         ValidateTaskMode(result, backup.SeerrCleanupTaskMode, "SeerrCleanupTaskMode", "Deactivate");
-        // Recommendations defaults to DryRun — importing an older backup without this field
+        // Recommendations defaults to DryRun - importing an older backup without this field
         // should enable the Discover UI in read-only mode rather than silently activating writes.
         ValidateTaskMode(result, backup.RecommendationsTaskMode, "RecommendationsTaskMode");
 
@@ -173,21 +173,24 @@ public static class BackupValidator
         }
 
         // Numeric range validation
-        if (backup.OrphanMinAgeDays < 0 || backup.OrphanMinAgeDays > MaxRetentionDays)
+        if (backup.OrphanMinAgeDays is < 0 or > MaxRetentionDays)
         {
-            result.Errors.Add($"OrphanMinAgeDays out of range: {backup.OrphanMinAgeDays}. Must be 0–{MaxRetentionDays}.");
+            result.Errors.Add(
+                $"OrphanMinAgeDays out of range: {backup.OrphanMinAgeDays}. Must be 0–{MaxRetentionDays}.");
         }
 
-        if (backup.TrashRetentionDays < 0 || backup.TrashRetentionDays > MaxRetentionDays)
+        if (backup.TrashRetentionDays is < 0 or > MaxRetentionDays)
         {
-            result.Errors.Add($"TrashRetentionDays out of range: {backup.TrashRetentionDays}. Must be 0–{MaxRetentionDays}.");
+            result.Errors.Add(
+                $"TrashRetentionDays out of range: {backup.TrashRetentionDays}. Must be 0–{MaxRetentionDays}.");
         }
 
-        // Older backups do not contain this field and deserialize it as 0 — treat as absent.
+        // Older backups do not contain this field and deserialize it as 0 - treat as absent.
         if (backup.SeerrCleanupAgeDays != 0 &&
-            (backup.SeerrCleanupAgeDays < 1 || backup.SeerrCleanupAgeDays > MaxRetentionDays))
+            backup.SeerrCleanupAgeDays is < 1 or > MaxRetentionDays)
         {
-            result.Errors.Add($"SeerrCleanupAgeDays out of range: {backup.SeerrCleanupAgeDays}. Must be 1–{MaxRetentionDays}.");
+            result.Errors.Add(
+                $"SeerrCleanupAgeDays out of range: {backup.SeerrCleanupAgeDays}. Must be 1–{MaxRetentionDays}.");
         }
 
         // Path traversal check for trash folder
@@ -236,7 +239,11 @@ public static class BackupValidator
         }
     }
 
-    private static void ValidateTaskMode(BackupValidationResult result, string? value, string fieldName, string fallback = "DryRun")
+    private static void ValidateTaskMode(
+        BackupValidationResult result,
+        string? value,
+        string fieldName,
+        string fallback = "DryRun")
     {
         if (!string.IsNullOrEmpty(value) && !ValidTaskModes.Contains(value))
         {

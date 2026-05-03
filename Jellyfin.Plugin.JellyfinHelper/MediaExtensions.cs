@@ -149,7 +149,7 @@ public static class MediaExtensions
     /// </summary>
     internal static HashSet<string> KnownLanguageCodes { get; } = new(StringComparer.OrdinalIgnoreCase)
     {
-        // ISO 639-1 (2-letter) — most common languages
+        // ISO 639-1 (2-letter) - most common languages
         "aa", "ab", "af", "ak", "am", "an", "ar", "as", "av", "ay", "az",
         "ba", "be", "bg", "bh", "bi", "bm", "bn", "bo", "br", "bs",
         "ca", "ce", "ch", "co", "cr", "cs", "cu", "cv", "cy",
@@ -177,7 +177,7 @@ public static class MediaExtensions
         "yi", "yo",
         "za", "zh", "zu",
 
-        // ISO 639-2/B (3-letter) — most commonly used with subtitles
+        // ISO 639-2/B (3-letter) - most commonly used with subtitles
         "ara", "bul", "cat", "ces", "chi", "cze", "dan", "deu", "dut", "ell",
         "eng", "est", "fas", "fin", "fra", "fre", "ger", "gre", "heb", "hin",
         "hrv", "hun", "ice", "isl", "ind", "ita", "jpn", "kor", "lav", "lit",

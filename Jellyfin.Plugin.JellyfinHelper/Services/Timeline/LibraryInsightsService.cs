@@ -93,7 +93,7 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
 
             var collectionType = vf.CollectionType;
 
-            // Skip music and boxset libraries — not relevant for size/recency insights
+            // Skip music and boxset libraries - not relevant for size/recency insights
             if (collectionType is CollectionTypeOptions.music or CollectionTypeOptions.boxsets)
             {
                 continue;
@@ -113,9 +113,16 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
                         .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
                     CollectEntriesFromLocation(
-                        location, libraryName, collectionTypeStr, trashFolderName, fullTrashPath, entries, cancellationToken);
+                        location,
+                        libraryName,
+                        collectionTypeStr,
+                        trashFolderName,
+                        fullTrashPath,
+                        entries,
+                        cancellationToken);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+                                               or NotSupportedException)
                 {
                     _pluginLog.LogWarning("LibraryInsights", $"Could not scan {location}", ex, _logger);
                 }
@@ -167,26 +174,30 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
                 continue;
             }
 
-            var modifiedUtc = Directory.GetLastWriteTimeUtc(subDir.FullName);
-
-            var totalSize = GetDirectorySize(subDir.FullName, trashFolderName, fullTrashPath, cancellationToken);
+            var (totalSize, newestFileTime) = GetDirectorySizeAndNewestTime(
+                subDir.FullName, trashFolderName, fullTrashPath, cancellationToken);
             if (totalSize <= 0)
             {
                 continue;
             }
 
+            // Use the newest file modification time if it's more recent than the directory timestamp
+            var dirModifiedUtc = Directory.GetLastWriteTimeUtc(subDir.FullName);
+            var modifiedUtc = newestFileTime > dirModifiedUtc ? newestFileTime : dirModifiedUtc;
+
             var changeType = DetermineChangeType(createdUtc, modifiedUtc);
 
-            entries.Add(new LibraryInsightEntry
-            {
-                Name = dirName,
-                Size = totalSize,
-                CreatedUtc = createdUtc,
-                ModifiedUtc = modifiedUtc,
-                LibraryName = libraryName,
-                CollectionType = collectionType,
-                ChangeType = changeType
-            });
+            entries.Add(
+                new LibraryInsightEntry
+                {
+                    Name = dirName,
+                    Size = totalSize,
+                    CreatedUtc = createdUtc,
+                    ModifiedUtc = modifiedUtc,
+                    LibraryName = libraryName,
+                    CollectionType = collectionType,
+                    ChangeType = changeType
+                });
         }
 
         // Collect loose files directly in the library root
@@ -215,16 +226,17 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
             var modifiedUtc = File.GetLastWriteTimeUtc(file.FullName);
             var changeType = DetermineChangeType(createdUtc, modifiedUtc);
 
-            entries.Add(new LibraryInsightEntry
-            {
-                Name = Path.GetFileNameWithoutExtension(file.FullName),
-                Size = file.Length,
-                CreatedUtc = createdUtc,
-                ModifiedUtc = modifiedUtc,
-                LibraryName = libraryName,
-                CollectionType = collectionType,
-                ChangeType = changeType
-            });
+            entries.Add(
+                new LibraryInsightEntry
+                {
+                    Name = Path.GetFileNameWithoutExtension(file.FullName),
+                    Size = file.Length,
+                    CreatedUtc = createdUtc,
+                    ModifiedUtc = modifiedUtc,
+                    LibraryName = libraryName,
+                    CollectionType = collectionType,
+                    ChangeType = changeType
+                });
         }
     }
 
@@ -267,7 +279,7 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
         // === Recent (last 30 days) ===
         var recentQuery = entries
             .Where(e => GetRelevantDate(e) >= cutoff)
-            .OrderByDescending(e => GetRelevantDate(e))
+            .OrderByDescending(GetRelevantDate)
             .ToList();
 
         var recentTotalCount = recentQuery.Count;
@@ -345,17 +357,26 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
     }
 
     /// <summary>
-    ///     Calculates the total size of all files within a directory (recursively).
+    ///     Calculates the total size and newest file modification time within a directory (recursively).
     /// </summary>
-    private long GetDirectorySize(string directoryPath, string trashFolderName, string fullTrashPath, CancellationToken cancellationToken)
+    private (long Size, DateTime NewestFileTime) GetDirectorySizeAndNewestTime(
+        string directoryPath,
+        string trashFolderName,
+        string fullTrashPath,
+        CancellationToken cancellationToken)
     {
         long total = 0;
+        var newestTime = DateTime.MinValue;
         try
         {
             foreach (var file in _fileSystem.GetFiles(directoryPath))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 total += file.Length;
+                if (file.LastWriteTimeUtc > newestTime)
+                {
+                    newestTime = file.LastWriteTimeUtc;
+                }
             }
 
             foreach (var subDir in _fileSystem.GetDirectories(directoryPath))
@@ -373,7 +394,13 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
                     continue;
                 }
 
-                total += GetDirectorySize(subDir.FullName, trashFolderName, fullTrashPath, cancellationToken);
+                var (subSize, subNewest) = GetDirectorySizeAndNewestTime(
+                    subDir.FullName, trashFolderName, fullTrashPath, cancellationToken);
+                total += subSize;
+                if (subNewest > newestTime)
+                {
+                    newestTime = subNewest;
+                }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -384,6 +411,6 @@ public sealed class LibraryInsightsService : ILibraryInsightsService
                 _logger);
         }
 
-        return total;
+        return (total, newestTime);
     }
 }

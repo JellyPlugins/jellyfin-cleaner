@@ -25,11 +25,11 @@ public static class DefaultWeights
     /// <summary>Weight for year proximity signal.</summary>
     public const double YearProximityScore = 0.05;
 
-    /// <summary>Weight for normalized genre count signal. Near-neutral — ML can learn if it matters.</summary>
+    /// <summary>Weight for normalized genre count signal. Near-neutral - ML can learn if it matters.</summary>
     public const double GenreCountNormalized = 0.005;
 
     /// <summary>
-    ///     Weight for series type signal. Near-neutral initial weight — does not blindly prefer
+    ///     Weight for series type signal. Near-neutral initial weight - does not blindly prefer
     ///     series over movies. The ML model learns whether the user prefers series based on
     ///     their actual watch patterns.
     /// </summary>
@@ -45,7 +45,7 @@ public static class DefaultWeights
     public const double UserRatingScore = 0.09;
 
     /// <summary>
-    ///     Weight for watch completion ratio (positive signal — rewards fully watched items).
+    ///     Weight for watch completion ratio (positive signal - rewards fully watched items).
     ///     Works together with the companion <see cref="IsAbandoned"/> feature which penalizes
     ///     abandoned ones.
     /// </summary>
@@ -173,7 +173,7 @@ public static class DefaultWeights
     ///     Composite item-to-item similarity (genre 50%, people 30%, studio 20%) between
     ///     the candidate and the user's most similar watched item. Near-neutral initial
     ///     weight (0.02) because it partially overlaps with GenreSimilarity and PeopleSimilarity
-    ///     at the profile level — this feature adds the item-to-item perspective. The ML model
+    ///     at the profile level - this feature adds the item-to-item perspective. The ML model
     ///     can learn the optimal weight through training.
     /// </summary>
     public const double ContentNearestNeighborScore = 0.02;
@@ -185,7 +185,7 @@ public static class DefaultWeights
     ///     and the weight effectively becomes zero (no ranking impact).
     ///     Budget sourced via proportional micro-trim from 6 near-neutral features
     ///     (GenreCountNormalized, HasInteraction, PopularityScore, IsWeekend,
-    ///     DayOfWeekAffinity, TagSimilarity) — each trimmed by 0.005, totaling 0.03.
+    ///     DayOfWeekAffinity, TagSimilarity) - each trimmed by 0.005, totaling 0.03.
     /// </summary>
     public const double LanguageAffinity = 0.03;
 

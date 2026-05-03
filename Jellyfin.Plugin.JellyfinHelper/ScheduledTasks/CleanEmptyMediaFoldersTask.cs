@@ -28,7 +28,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.ScheduledTasks;
 ///         considered orphaned and eligible for deletion when it contains <strong>non-metadata files</strong>
 ///         (e.g. subtitles, text files) but absolutely NO video file anywhere in the tree.
 ///         If at least one video file exists anywhere (even in a deeply nested subdirectory), the entire
-///         folder is left untouched — including subfolders that may not contain videos themselves
+///         folder is left untouched - including subfolders that may not contain videos themselves
 ///         (e.g. empty Season folders created by Sonarr as "wanted" placeholders).
 ///     </para>
 ///     <para>
@@ -95,7 +95,7 @@ public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
 
             foreach (var topDir in topLevelDirs.TakeWhile(_ => !cancellationToken.IsCancellationRequested))
             {
-                // Skip .trickplay folders — they are handled by CleanTrickplayTask
+                // Skip .trickplay folders - they are handled by CleanTrickplayTask
                 if (topDir.Name.EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
@@ -108,7 +108,7 @@ public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
                     continue;
                 }
 
-                // Skip boxset/collection folders — these are Jellyfin-internal and must never be deleted.
+                // Skip boxset/collection folders - these are Jellyfin-internal and must never be deleted.
                 // They typically have "[boxset]" in the folder name or reside under a collections' path.
                 if (topDir.Name.Contains("[boxset]", StringComparison.OrdinalIgnoreCase)
                     || topDir.Name.Contains("[collection]", StringComparison.OrdinalIgnoreCase))
@@ -242,7 +242,7 @@ public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
             var ext = Path.GetExtension(file.FullName);
             if (MediaExtensions.VideoExtensions.Contains(ext))
             {
-                // Video found — no need to scan further (video takes priority)
+                // Video found - no need to scan further (video takes priority)
                 return (true, true, hasAudioFiles, true);
             }
 
@@ -271,7 +271,7 @@ public class CleanEmptyMediaFoldersTask : BaseLibraryCleanupTask
             hasNonMetadataFiles |= subHasNonMetadataFiles;
             if (subHasVideoFiles)
             {
-                // Video found deeper in the tree — no need to scan further
+                // Video found deeper in the tree - no need to scan further
                 return (true, true, hasAudioFiles, true);
             }
         }

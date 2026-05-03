@@ -8,6 +8,8 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Seerr;
 /// </summary>
 internal sealed class SeerrRequestPage
 {
+    private List<SeerrRequest> _results = [];
+
     /// <summary>
     ///     Gets or sets the pagination info.
     /// </summary>
@@ -16,7 +18,12 @@ internal sealed class SeerrRequestPage
 
     /// <summary>
     ///     Gets or sets the list of requests in this page.
+    ///     Setter coalesces null to empty to prevent NRE from external API responses.
     /// </summary>
     [JsonPropertyName("results")]
-    public List<SeerrRequest> Results { get; set; } = [];
+    public List<SeerrRequest> Results
+    {
+        get => _results;
+        set => _results = value ?? [];
+    }
 }

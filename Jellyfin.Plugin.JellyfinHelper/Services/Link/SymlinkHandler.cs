@@ -60,7 +60,7 @@ public class SymlinkHandler : ILinkHandler
             }
             catch (Exception rollbackEx) when (rollbackEx is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
             {
-                // best-effort rollback — ignore errors restoring the original symlink
+                // best-effort rollback - ignore errors restoring the original symlink
             }
 
             throw;

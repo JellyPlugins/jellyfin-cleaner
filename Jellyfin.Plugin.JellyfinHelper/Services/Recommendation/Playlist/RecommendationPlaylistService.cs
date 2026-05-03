@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,7 +10,6 @@ using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Playlists;
 using MediaBrowser.Model.Playlists;
-using MediaBrowser.Model.Querying;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Playlist;
@@ -82,12 +80,13 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
                 if (result.Recommendations.Count == 0)
                 {
                     // Still clean up old playlists when there are no new recommendations
-                    var removedEmpty = await RemoveUserPlaylistsAsync(result.UserId, cancellationToken).ConfigureAwait(false);
+                    var removedEmpty = await RemoveUserPlaylistsAsync(result.UserId, cancellationToken)
+                        .ConfigureAwait(false);
                     syncResult.OldPlaylistsRemoved += removedEmpty;
 
                     _pluginLog.LogDebug(
                         "PlaylistSync",
-                        $"No recommendations for user '{result.UserName}' — skipping playlist creation.",
+                        $"No recommendations for user '{result.UserName}' - skipping playlist creation.",
                         _logger);
                     continue;
                 }
@@ -103,12 +102,13 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
                 {
                     // Clean up stale playlists when no playable items resolve,
                     // so users don't keep seeing outdated recommendations.
-                    var removedStale = await RemoveUserPlaylistsAsync(result.UserId, cancellationToken).ConfigureAwait(false);
+                    var removedStale = await RemoveUserPlaylistsAsync(result.UserId, cancellationToken)
+                        .ConfigureAwait(false);
                     syncResult.OldPlaylistsRemoved += removedStale;
 
                     _pluginLog.LogDebug(
                         "PlaylistSync",
-                        $"No playable items resolved for user '{result.UserName}' — skipping playlist creation.",
+                        $"No playable items resolved for user '{result.UserName}' - skipping playlist creation.",
                         _logger);
                     continue;
                 }
@@ -130,9 +130,11 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
 
                 if (!string.IsNullOrEmpty(playlistResult.Id))
                 {
-                    // New playlist created — now safe to remove old playlists.
+                    // New playlist created - now safe to remove old playlists.
                     var removed = await RemoveUserPlaylistsExceptAsync(
-                        result.UserId, playlistResult.Id, cancellationToken).ConfigureAwait(false);
+                        result.UserId,
+                        playlistResult.Id,
+                        cancellationToken).ConfigureAwait(false);
                     syncResult.OldPlaylistsRemoved += removed;
 
                     syncResult.PlaylistsCreated++;
@@ -285,13 +287,13 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
                     skippedCount++;
                     _pluginLog.LogDebug(
                         "PlaylistSync",
-                        $"Could not resolve first episode for series '{rec.Name}' (ID: {rec.ItemId}) — skipping, will backfill.",
+                        $"Could not resolve first episode for series '{rec.Name}' (ID: {rec.ItemId}) - skipping, will backfill.",
                         _logger);
                 }
             }
             else
             {
-                // Movies and other playable items — use directly
+                // Movies and other playable items - use directly
                 resolvedIds.Add(rec.ItemId);
             }
         }
@@ -315,14 +317,15 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
     /// </summary>
     /// <param name="seriesId">The Jellyfin series item ID.</param>
     /// <returns>The ID of the first episode, or null if no episodes exist.</returns>
-    internal Guid? ResolveFirstEpisodeForSeries(Guid seriesId)
+    private Guid? ResolveFirstEpisodeForSeries(Guid seriesId)
     {
-        var episodes = _libraryManager.GetItemList(new InternalItemsQuery
-        {
-            IncludeItemTypes = [BaseItemKind.Episode],
-            AncestorIds = [seriesId],
-            IsFolder = false
-        });
+        var episodes = _libraryManager.GetItemList(
+            new InternalItemsQuery
+            {
+                IncludeItemTypes = [BaseItemKind.Episode],
+                AncestorIds = [seriesId],
+                IsFolder = false
+            });
 
         // Filter to real Episode objects and deprioritize specials (season 0) so the playlist
         // resolves to an actual playable pilot episode (e.g. S01E01) rather than S00E01.
@@ -354,7 +357,9 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
     ///     Finds and removes recommendation playlists, optionally excluding one.
     /// </summary>
     private Task<int> RemoveUserPlaylistsExceptAsync(
-        Guid userId, string? excludePlaylistId, CancellationToken cancellationToken)
+        Guid userId,
+        string? excludePlaylistId,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -370,11 +375,12 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
         // Jellyfin's search index does not reliably match Unicode characters (emoji prefix),
         // which caused old playlists to survive deletion and accumulate with suffixed names
         // like "Recommended for you1", "Recommended for you11", etc.
-        var existingPlaylists = _libraryManager.GetItemList(new InternalItemsQuery
-        {
-            IncludeItemTypes = [BaseItemKind.Playlist],
-            User = user
-        });
+        var existingPlaylists = _libraryManager.GetItemList(
+            new InternalItemsQuery
+            {
+                IncludeItemTypes = [BaseItemKind.Playlist],
+                User = user
+            });
 
         var removed = 0;
         foreach (var playlist in existingPlaylists)
@@ -403,7 +409,8 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
 
             // Skip the just-created replacement playlist
             if (excludePlaylistId is not null
-                && string.Equals(playlist.Id.ToString("N"), excludePlaylistId, StringComparison.OrdinalIgnoreCase))
+                && Guid.TryParse(excludePlaylistId, out var excludedId)
+                && playlist.Id == excludedId)
             {
                 continue;
             }

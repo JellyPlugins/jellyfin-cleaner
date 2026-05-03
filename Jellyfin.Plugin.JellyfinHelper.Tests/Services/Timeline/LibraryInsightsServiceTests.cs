@@ -109,7 +109,7 @@ public class LibraryInsightsServiceTests
     [Fact]
     public void BuildResult_LargestLimitsPerType()
     {
-        // Create 15 movie entries and 15 tvshow entries — should be limited to 10 each
+        // Create 15 movie entries and 15 tvshow entries - should be limited to 10 each
         var entries = new List<LibraryInsightEntry>();
         for (int i = 0; i < 15; i++)
         {
@@ -298,7 +298,7 @@ public class LibraryInsightsServiceTests
     [Fact]
     public async Task ComputeInsightsAsync_ScansDirectoriesAndReturnsEntries()
     {
-        // Arrange — create a real temp directory so Directory.GetCreationTimeUtc works
+        // Arrange - create a real temp directory so Directory.GetCreationTimeUtc works
         using var tempDir = new TempDirectory();
         tempDir.CreateSubDirectory("My Movie (2025)");
         tempDir.CreateFile("My Movie (2025)/movie.mkv", 500_000);
@@ -370,7 +370,7 @@ public class LibraryInsightsServiceTests
     [Fact]
     public async Task ComputeInsightsAsync_HandlesIOException_Gracefully()
     {
-        // Arrange — set up a location that triggers IOException on GetDirectories
+        // Arrange - set up a location that triggers IOException on GetDirectories
         var libraryManager = TestMockFactory.CreateLibraryManager();
         var fileSystem = TestMockFactory.CreateFileSystem();
         var configHelper = TestMockFactory.CreateCleanupConfigHelper();
@@ -395,7 +395,7 @@ public class LibraryInsightsServiceTests
         var service = new LibraryInsightsService(
             libraryManager.Object, fileSystem.Object, configHelper.Object, pluginLog, logger.Object);
 
-        // Act — should not throw
+        // Act - should not throw
         var result = await service.ComputeInsightsAsync(CancellationToken.None);
 
         // Assert
@@ -407,7 +407,7 @@ public class LibraryInsightsServiceTests
     public async Task ComputeInsightsAsync_EmptyLibrary_ReturnsEmptyResult()
     {
         using var tempDir = new TempDirectory();
-        // Empty directory — no subdirectories, no files
+        // Empty directory - no subdirectories, no files
 
         var service = CreateServiceWithSingleLibrary(tempDir.Path, "Movies", CollectionTypeOptions.movies);
 

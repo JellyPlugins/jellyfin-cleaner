@@ -14,5 +14,5 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.TestFixtures;
 [CollectionDefinition("ConfigOverride")]
 public class ConfigOverrideCollection
 {
-    // Intentionally empty — this class only serves as an anchor for the [CollectionDefinition] attribute.
+    // Intentionally empty - this class only serves as an anchor for the [CollectionDefinition] attribute.
 }

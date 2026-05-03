@@ -49,7 +49,7 @@ public class UserActivityUpdateTask
     {
         ArgumentNullException.ThrowIfNull(progress);
 
-        // Deactivate mode: true no-op — skip all expensive work
+        // Deactivate mode: true no-op - skip all expensive work
         if (taskMode == TaskMode.Deactivate)
         {
             _pluginLog.LogInfo("UserActivity", "User activity update skipped (Deactivated).", _logger);
@@ -78,7 +78,7 @@ public class UserActivityUpdateTask
         }
         else if (taskMode == TaskMode.DryRun)
         {
-            // DryRun: do NOT save to cache — no side effects
+            // DryRun: do NOT save to cache - no side effects
             _pluginLog.LogInfo(
                 "UserActivity",
                 $"User activity update completed (Dry Run): {result.TotalItemsWithActivity} items, " +

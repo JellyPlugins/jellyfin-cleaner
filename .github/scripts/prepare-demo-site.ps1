@@ -19,6 +19,9 @@ Copy-Item (Join-Path $repoRoot 'Jellyfin.Plugin.JellyfinHelper\PluginPages\css\*
 Copy-Item (Join-Path $repoRoot 'Jellyfin.Plugin.JellyfinHelper\PluginPages\js\*.js') $jsTarget -Force
 Copy-Item (Join-Path $repoRoot 'Jellyfin.Plugin.JellyfinHelper\i18n\*.json') $i18nTarget -Force
 
+# Copy demo-only mock data (not part of plugin source, lives in docs/mock/)
+Copy-Item (Join-Path $docsRoot 'mock\mock-data.js') $jsTarget -Force
+
 $noJekyllPath = Join-Path $docsRoot '.nojekyll'
 Set-Content -Path $noJekyllPath -Value '' -NoNewline
 
@@ -33,5 +36,3 @@ Write-Host 'Demo site prepared:'
 Get-ChildItem -Path $docsRoot -Recurse -File |
     Sort-Object FullName |
     ForEach-Object { Write-Host $_.FullName.Substring($repoRoot.Path.Length + 1) }
-
-

@@ -86,7 +86,7 @@ public class I18NServiceTests : IDisposable
 
         var expectedKeys = new[]
         {
-            "scanLibraries", "scanning", "scanDescription", "scanPlaceholder", "initializingScan", "error",
+            "scanLibraries", "scanning", "scanDescription", "scanPlaceholder", "initializingScan",
             "tabOverview", "tabCodecs", "tabHealth", "tabTrends", "tabSettings", "tabArr", "tabLogs",
             "movieVideoData", "tvVideoData", "musicAudioData", "trickplayData", "subtitleData", "subtitles",
             "totalFiles",
@@ -94,7 +94,7 @@ public class I18NServiceTests : IDisposable
             "cleanupStatistics", "totalBytesFreed", "totalItemsDeleted", "lastCleanup", "never",
             "videoCodecs", "videoAudioCodecs", "musicAudioCodecs", "containerFormats", "resolutions", "noData",
             "healthChecks", "noSubtitles", "noImages", "noNfo", "orphanedDirs",
-            "trendTitle", "trendEmpty", "loadingTrends", "trendError", "trendGranularity", "trendFiles",
+            "trendTitle", "trendEmpty", "loadingTrends", "trendError", "statsLoadError", "trendGranularity", "trendFiles",
             "trendEarliest",
             "clickToExpand",
             "settingsGeneralTitle", "settingsTaskTitle", "settingsTrashTitle", "settingsArrTitle",
@@ -408,7 +408,7 @@ public class I18NServiceTests : IDisposable
         Assert.DoesNotContain(entries, e => e.Level == "ERROR");
     }
 
-    // ===== Key count consistency — all languages have same count =====
+    // ===== Key count consistency - all languages have same count =====
 
     [Theory]
     [InlineData("de")]

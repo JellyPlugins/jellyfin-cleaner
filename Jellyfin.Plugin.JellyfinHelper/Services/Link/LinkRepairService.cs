@@ -157,7 +157,7 @@ public class LinkRepairService : ILinkRepairService
         {
             _pluginLog.LogWarning(
                 "LinkRepair",
-                $"Visited directory limit ({MaxVisitedDirectories}) reached — aborting deeper traversal at: {directory}",
+                $"Visited directory limit ({MaxVisitedDirectories}) reached - aborting deeper traversal at: {directory}",
                 logger: _logger);
             return;
         }
@@ -238,7 +238,7 @@ public class LinkRepairService : ILinkRepairService
         }
 
         // Skip URL-based targets only for handlers that legitimately support them (e.g. .strm files).
-        // Symlink targets are always filesystem paths — a "://" in a symlink target is not a URL.
+        // Symlink targets are always filesystem paths - a "://" in a symlink target is not a URL.
         // file:// URIs are excluded because they reference local files and must be validated like paths.
         if (handler.SupportsUrlTargets
             && Uri.TryCreate(targetPath, UriKind.Absolute, out var uri)

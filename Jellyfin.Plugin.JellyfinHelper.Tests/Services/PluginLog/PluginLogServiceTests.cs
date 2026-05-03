@@ -1051,7 +1051,7 @@ public class PluginLogServiceTests : IDisposable
     /// <summary>
     ///     Verifies that changing the log level at runtime takes effect immediately
     ///     without restart. This simulates a user changing PluginLogLevel in Settings
-    ///     and saving — the very next log call should respect the new level.
+    ///     and saving - the very next log call should respect the new level.
     ///     GetConfiguredMinLevel() reads plugin.Configuration.PluginLogLevel live
     ///     on every AddEntry call (no caching), so changes are instant.
     /// </summary>
@@ -1060,7 +1060,7 @@ public class PluginLogServiceTests : IDisposable
     {
         const string src = "__PLT_MidFlight__";
 
-        // Phase 1: Start with ERROR level — only errors stored
+        // Phase 1: Start with ERROR level - only errors stored
         _sut.TestMinLevelOverride = "ERROR";
         _sut.LogDebug(src, "debug-phase1");
         _sut.LogInfo(src, "info-phase1");
@@ -1071,7 +1071,7 @@ public class PluginLogServiceTests : IDisposable
         Assert.Single(phase1);
         Assert.Equal("error-phase1", phase1[0].Message);
 
-        // Phase 2: User changes level to DEBUG — all levels now stored
+        // Phase 2: User changes level to DEBUG - all levels now stored
         _sut.TestMinLevelOverride = "DEBUG";
         _sut.LogDebug(src, "debug-phase2");
         _sut.LogInfo(src, "info-phase2");
@@ -1081,7 +1081,7 @@ public class PluginLogServiceTests : IDisposable
         Assert.Contains(phase2, e => e.Message == "debug-phase2");
         Assert.Contains(phase2, e => e.Message == "info-phase2");
 
-        // Phase 3: User changes level to WARN — debug/info no longer stored
+        // Phase 3: User changes level to WARN - debug/info no longer stored
         _sut.TestMinLevelOverride = "WARN";
         _sut.LogDebug(src, "debug-phase3");
         _sut.LogInfo(src, "info-phase3");
@@ -1108,7 +1108,7 @@ public class PluginLogServiceTests : IDisposable
         _sut.LogDebug(src, "invisible");
         Assert.Empty(_sut.GetEntries(source: src));
 
-        // Lower level — same call now succeeds
+        // Lower level - same call now succeeds
         _sut.TestMinLevelOverride = "DEBUG";
         _sut.LogDebug(src, "visible");
         var entries = _sut.GetEntries(source: src);
@@ -1130,7 +1130,7 @@ public class PluginLogServiceTests : IDisposable
         _sut.LogDebug(src, "stored");
         Assert.Single(_sut.GetEntries(source: src));
 
-        // Raise level — lower levels now blocked
+        // Raise level - lower levels now blocked
         _sut.TestMinLevelOverride = "ERROR";
         _sut.LogDebug(src, "blocked-debug");
         _sut.LogInfo(src, "blocked-info");
@@ -1164,7 +1164,7 @@ public class PluginLogServiceTests : IDisposable
     {
         var config = new PluginConfiguration { PluginLogLevel = "WARN" };
         var sut = TestMockFactory.CreatePluginLogService(config);
-        sut.TestMinLevelOverride = null; // no override — use config service
+        sut.TestMinLevelOverride = null; // no override - use config service
 
         Assert.Equal("WARN", sut.GetConfiguredMinLevel());
     }

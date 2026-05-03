@@ -12,7 +12,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 ///     with the heuristic (rule-based) strategy for more robust recommendations.
 ///     Uses a dynamic blending factor (α) that smoothly shifts weight toward the learned
 ///     model as more training data becomes available via a sigmoid function.
-///     Alpha progression is gated by validation loss quality — if the learned model
+///     Alpha progression is gated by validation loss quality - if the learned model
 ///     generalizes poorly, alpha will not advance further.
 ///     Applies the genre-mismatch penalty centrally (once) after blending to avoid
 ///     double-penalization that would occur if each sub-strategy applied it independently.
@@ -37,7 +37,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     /// <summary>
     ///     Default maximum blending factor (learned dominates with abundant data).
     ///     Capped at 0.75 instead of 1.0 so that heuristic rules always contribute at least
-    ///     25% — this guards against overfitting when the ML model has limited diversity.
+    ///     25% - this guards against overfitting when the ML model has limited diversity.
     /// </summary>
     internal const double DefaultAlphaMax = 0.75;
 
@@ -356,7 +356,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     /// <inheritdoc />
     public double Score(CandidateFeatures features)
     {
-        // Snapshot blending factors atomically — sub-strategies handle their own thread safety.
+        // Snapshot blending factors atomically - sub-strategies handle their own thread safety.
         double alpha;
         double beta;
         lock (_syncRoot)
@@ -390,7 +390,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     /// <inheritdoc />
     public ScoreExplanation ScoreWithExplanation(CandidateFeatures features)
     {
-        // Snapshot blending factors atomically — sub-strategies handle their own thread safety.
+        // Snapshot blending factors atomically - sub-strategies handle their own thread safety.
         double alpha;
         double beta;
         lock (_syncRoot)
@@ -466,7 +466,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
 
                 if (qualityGatePassed)
                 {
-                    // Good generalization — let alpha progress at full sigmoid rate
+                    // Good generalization - let alpha progress at full sigmoid rate
                     _alpha = sigmoidAlpha;
                     _qualityGateFrozen = false;
                 }
@@ -494,7 +494,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                 {
                     var neuralValidationLoss = _neural.LastValidationLoss;
                     var neuralQualityOk = !double.IsNaN(neuralValidationLoss)
-                        && neuralValidationLoss <= ValidationLossThreshold;
+                                          && neuralValidationLoss <= ValidationLossThreshold;
 
                     if (neuralQualityOk)
                     {
@@ -507,7 +507,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                     }
                     else
                     {
-                        // Neural not generalizing well — reduce its influence.
+                        // Neural not generalizing well - reduce its influence.
                         // Apply floor to avoid infinitesimal ghost values.
                         _neuralBeta *= 0.5;
                         if (_neuralBeta < NeuralBetaMinFloor)
@@ -518,7 +518,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                 }
                 else if (_neural is not null && !neuralTrained && _neuralBeta > 0)
                 {
-                    // Neural strategy failed to train this round while learned succeeded —
+                    // Neural strategy failed to train this round while learned succeeded -
                     // decay β to avoid stale influence, analogous to the learned-failure branch.
                     _neuralBeta *= 0.5;
                     if (_neuralBeta < NeuralBetaMinFloor)
@@ -533,15 +533,16 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
             MetricsTrend trend;
             lock (_syncRoot)
             {
-                _metricsHistory.Add(new MetricsSnapshot
-                {
-                    Timestamp = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
-                    ValidationLoss = validationLoss,
-                    PrecisionAtK = _learned.LastPrecisionAtK,
-                    RecallAtK = _learned.LastRecallAtK,
-                    NdcgAtK = _learned.LastNdcgAtK,
-                    ExampleCount = examples.Count
-                });
+                _metricsHistory.Add(
+                    new MetricsSnapshot
+                    {
+                        Timestamp = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
+                        ValidationLoss = validationLoss,
+                        PrecisionAtK = _learned.LastPrecisionAtK,
+                        RecallAtK = _learned.LastRecallAtK,
+                        NdcgAtK = _learned.LastNdcgAtK,
+                        ExampleCount = examples.Count
+                    });
                 const int maxHistory = 10;
                 if (_metricsHistory.Count > maxHistory)
                 {
@@ -639,7 +640,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         double genreSimilarity,
         double penaltyFloor = DefaultGenrePenaltyFloor)
     {
-        return ScoringHelper.ComputeSoftGenrePenalty(genreSimilarity, penaltyFloor, GenrePenaltyThreshold);
+        return ScoringHelper.ComputeSoftGenrePenalty(genreSimilarity, penaltyFloor);
     }
 
     /// <summary>
@@ -698,46 +699,50 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         {
             var json = File.ReadAllText(_statePath);
             var data = JsonSerializer.Deserialize<EnsembleStateData>(json);
-            if (data is not null && data.TrainingExampleCount > 0)
+            if (data is null || data.TrainingExampleCount <= 0)
             {
-                lock (_syncRoot)
+                return;
+            }
+
+            lock (_syncRoot)
+            {
+                _trainingExampleCount = data.TrainingExampleCount;
+                _qualityGateFrozen = data.QualityGateFrozen;
+
+                // Restore persisted alpha directly instead of recomputing via sigmoid,
+                // so that the quality-gate freeze state is preserved across restarts.
+                // Only recompute if the persisted alpha is outside the valid range.
+                _alpha = (data.Alpha >= _alphaMin && data.Alpha <= _alphaMax)
+                    ? data.Alpha
+                    : ComputeSigmoidAlpha(_trainingExampleCount, _alphaMin, _alphaMax);
+
+                // Restore neural beta so it survives server restarts.
+                // Only restore if a neural strategy is actually wired in - otherwise
+                // a stale persisted value would leak into CurrentNeuralBeta and logs.
+                if (_neural is not null && data.NeuralBeta is >= 0 and <= NeuralMaxBetaFraction)
                 {
-                    _trainingExampleCount = data.TrainingExampleCount;
-                    _qualityGateFrozen = data.QualityGateFrozen;
+                    _neuralBeta = data.NeuralBeta;
+                }
 
-                    // Restore persisted alpha directly instead of recomputing via sigmoid,
-                    // so that the quality-gate freeze state is preserved across restarts.
-                    // Only recompute if the persisted alpha is outside the valid range.
-                    _alpha = (data.Alpha >= _alphaMin && data.Alpha <= _alphaMax)
-                        ? data.Alpha
-                        : ComputeSigmoidAlpha(_trainingExampleCount, _alphaMin, _alphaMax);
-
-                    // Restore neural beta so it survives server restarts
-                    if (data.NeuralBeta >= 0 && data.NeuralBeta <= NeuralMaxBetaFraction)
-                    {
-                        _neuralBeta = data.NeuralBeta;
-                    }
-
-                    if (data.MetricsHistory is { Count: > 0 })
-                    {
-                        _metricsHistory = new List<MetricsSnapshot>(data.MetricsHistory);
-                    }
+                if (data.MetricsHistory is { Count: > 0 })
+                {
+                    _metricsHistory = new List<MetricsSnapshot>(data.MetricsHistory);
                 }
             }
         }
         catch (IOException ex)
         {
-            // Graceful fallback to defaults on I/O error — log for diagnostics
+            // Graceful fallback to defaults on I/O error - log for diagnostics
             _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to load state");
         }
         catch (UnauthorizedAccessException ex)
         {
-            // Graceful fallback to defaults on access denied — log for diagnostics
+            // Graceful fallback to defaults on access denied - log for diagnostics
             _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to load state (access denied)");
         }
         catch (JsonException ex)
         {
-            // Graceful fallback to defaults on parse error — log for diagnostics
+            // Graceful fallback to defaults on parse error - log for diagnostics
             _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to parse state");
         }
     }
@@ -773,7 +778,7 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                     Alpha = _alpha,
                     NeuralBeta = _neuralBeta,
                     QualityGateFrozen = _qualityGateFrozen,
-                    MetricsHistory = new List<MetricsSnapshot>(_metricsHistory),
+                    MetricsHistory = [.._metricsHistory],
                     UpdatedAt = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture)
                 };
 
@@ -786,17 +791,17 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         }
         catch (IOException ex)
         {
-            // Non-critical — log for diagnostics but don't fail
+            // Non-critical - log for diagnostics but don't fail
             _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to save state");
         }
         catch (UnauthorizedAccessException ex)
         {
-            // Non-critical — log for diagnostics but don't fail
+            // Non-critical - log for diagnostics but don't fail
             _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to save state (access denied)");
         }
         catch (JsonException ex)
         {
-            // Non-critical — log for diagnostics but don't fail
+            // Non-critical - log for diagnostics but don't fail
             _logger?.LogWarning(ex, "EnsembleScoringStrategy: Failed to serialize state");
         }
     }
@@ -872,6 +877,8 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
     /// </summary>
     internal sealed class EnsembleStateData
     {
+        private List<MetricsSnapshot> _metricsHistory = [];
+
         /// <summary>Gets or sets the cumulative number of training examples seen.</summary>
         public int TrainingExampleCount { get; set; }
 
@@ -887,8 +894,13 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
         /// <summary>Gets or sets the ISO 8601 timestamp of the last update.</summary>
         public string UpdatedAt { get; set; } = string.Empty;
 
-        /// <summary>Gets or sets the rolling history of training metrics (last 10 runs).</summary>
-        public List<MetricsSnapshot> MetricsHistory { get; set; } = [];
+        /// <summary>Gets or sets the rolling history of training metrics (last 10 runs).
+        /// Setter coalesces null to empty to prevent NRE from deserialized state data.</summary>
+        public List<MetricsSnapshot> MetricsHistory
+        {
+            get => _metricsHistory;
+            set => _metricsHistory = value ?? [];
+        }
     }
 
     /// <summary>

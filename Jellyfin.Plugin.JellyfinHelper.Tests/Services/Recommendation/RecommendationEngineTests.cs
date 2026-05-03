@@ -198,9 +198,9 @@ public class RecommendationEngineTests
     }
 
     [Fact]
-    public void NormalizeRating_ZeroRating_ReturnsNeutral()
+    public void NormalizeRating_ZeroRating_ReturnsZero()
     {
-        Assert.Equal(0.5, ContentScoring.NormalizeRating(0f));
+        Assert.Equal(0.0, ContentScoring.NormalizeRating(0f));
     }
 
     [Fact]
@@ -833,7 +833,7 @@ public class RecommendationEngineTests
     [Fact]
     public void ComputeYearProximity_ZeroYear_StillComputes()
     {
-        // Edge case: year 0 vs 2020 — should not throw, returns valid score
+        // Edge case: year 0 vs 2020 - should not throw, returns valid score
         var score = ContentScoring.ComputeYearProximity(0, 2020);
         Assert.True(score >= 0.0 && score <= 1.0, $"Expected valid score, got {score}");
     }

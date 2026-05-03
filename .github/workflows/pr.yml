@@ -79,8 +79,9 @@ jobs:
         cat vuln-report.json
         # Parse JSON output to detect vulnerabilities (SDK-independent, fail-closed)
         VULN_COUNT=$(python3 -c "
-        import json, sys
-        data = json.load(open('vuln-report.json'))
+        import json
+        with open('vuln-report.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
         count = sum(
             len(pkg.get('vulnerabilities') or [])
             for proj in data.get('projects', [])
@@ -91,13 +92,13 @@ jobs:
         ")
         if [ "$VULN_COUNT" -gt 0 ]; then
           echo "::error::Vulnerable NuGet packages detected! ($VULN_COUNT vulnerabilities)"
-          echo "❌ **Vulnerable packages found! ($VULN_COUNT vulnerabilities)**" >> $GITHUB_STEP_SUMMARY
+          echo "[FAIL] **Vulnerable packages found! ($VULN_COUNT vulnerabilities)**" >> $GITHUB_STEP_SUMMARY
           echo '```json' >> $GITHUB_STEP_SUMMARY
           cat vuln-report.json >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           exit 1
         else
-          echo "✅ **No vulnerable packages detected.**" >> $GITHUB_STEP_SUMMARY
+          echo "[PASS] **No vulnerable packages detected.**" >> $GITHUB_STEP_SUMMARY
         fi
 
   test:

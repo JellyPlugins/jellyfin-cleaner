@@ -152,11 +152,12 @@ public class MediaStatisticsService : IMediaStatisticsService
 
         try
         {
-            var allItems = _libraryManager.GetItemList(new InternalItemsQuery
-            {
-                MediaTypes = [MediaType.Video, MediaType.Audio],
-                IsFolder = false
-            });
+            var allItems = _libraryManager.GetItemList(
+                new InternalItemsQuery
+                {
+                    MediaTypes = [MediaType.Video, MediaType.Audio],
+                    IsFolder = false
+                });
             foreach (var item in allItems)
             {
                 if (!string.IsNullOrEmpty(item.Path))
@@ -207,7 +208,8 @@ public class MediaStatisticsService : IMediaStatisticsService
             var videoFiles = new List<FileSystemMetadata>();
             // Cache streams from ExtractVideoMetadata to avoid redundant GetMediaStreams() calls
             // when checking for embedded subtitles later in health checks.
-            var videoStreamsCache = new Dictionary<string, IReadOnlyList<MediaStream>?>(StringComparer.OrdinalIgnoreCase);
+            var videoStreamsCache =
+                new Dictionary<string, IReadOnlyList<MediaStream>?>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var file in files)
             {
@@ -223,7 +225,7 @@ public class MediaStatisticsService : IMediaStatisticsService
                     containsVideo = true;
                     videoFiles.Add(file);
 
-                    // Container format tracking (from file extension — this IS the container)
+                    // Container format tracking (from file extension - this IS the container)
                     var container = ext.TrimStart('.').ToUpperInvariant();
                     FileSystemHelper.IncrementCount(stats.ContainerFormats, container);
                     FileSystemHelper.AccumulateValue(stats.ContainerSizes, container, size);
@@ -309,7 +311,7 @@ public class MediaStatisticsService : IMediaStatisticsService
                 }
             }
 
-            // Health checks — per-directory analysis
+            // Health checks - per-directory analysis
             // Boxset/collection libraries are excluded: they are Jellyfin-internal virtual folders
             // that group related movies and typically only contain posters/images, not real media.
             if (!skipHealthChecks)
@@ -321,9 +323,9 @@ public class MediaStatisticsService : IMediaStatisticsService
                     if (!hasSubs)
                     {
                         foreach (var vf2 in videoFiles.Where(vf2 =>
-                            !HasEmbeddedSubtitles(
-                                vf2.FullName,
-                                videoStreamsCache.GetValueOrDefault(vf2.FullName))))
+                                     !HasEmbeddedSubtitles(
+                                         vf2.FullName,
+                                         videoStreamsCache.GetValueOrDefault(vf2.FullName))))
                         {
                             stats.VideosWithoutSubtitles++;
                             stats.VideosWithoutSubtitlesPaths.Add(vf2.FullName);
@@ -546,7 +548,7 @@ public class MediaStatisticsService : IMediaStatisticsService
     /// <returns><c>true</c> when at least one embedded subtitle stream exists.</returns>
     internal virtual bool HasEmbeddedSubtitles(string filePath, IReadOnlyList<MediaStream>? streams)
     {
-        return streams is not null && streams.Any(s => s.Type == MediaStreamType.Subtitle && !s.IsExternal);
+        return streams is not null && streams.Any(s => s is { Type: MediaStreamType.Subtitle, IsExternal: false });
     }
 
     /// <summary>
@@ -595,20 +597,18 @@ public class MediaStatisticsService : IMediaStatisticsService
         var w = width.Value;
         var h = height.Value;
 
-        // Use the larger dimension to handle both landscape and portrait orientations
-        var maxDimension = Math.Max(w, h);
+        // Use the shorter dimension to classify resolution (handles both landscape and portrait orientations)
         var minDimension = Math.Min(w, h);
 
-        return (minDimension, maxDimension) switch
+        return minDimension switch
         {
-            (>= 4320, _) => "8K",                        // 7680×4320 or higher (any orientation)
-            (>= 2160, _) => "4K",                        // 3840×2160 (any orientation)
-            (>= 1080, >= 1920) => "1080p",                // standard 1080p and ultrawide (e.g. 2560×1080)
-            (>= 720, >= 1280) => "720p",
-            (>= 720, _) => "720p",                        // 720p even with narrow width
-            (>= 576, _) => "576p",
-            (>= 480, _) => "480p",
-            (> 0, _) => "SD",
+            >= 4320 => "8K", // 7680×4320 or higher (any orientation)
+            >= 2160 => "4K", // 3840×2160 (any orientation)
+            >= 1080 => "1080p", // any 1080-line source, including anamorphic/panoramic variants
+            >= 720 => "720p", // 720p even with narrow width
+            >= 576 => "576p",
+            >= 480 => "480p",
+            > 0 => "SD",
             _ => "Unknown"
         };
     }
@@ -696,7 +696,7 @@ public class MediaStatisticsService : IMediaStatisticsService
                 : "TrueHD",
 
             "EAC3" or "E-AC-3" => upperProfile.Contains("ATMOS", StringComparison.Ordinal) ||
-                                   upperProfile.Contains("JOC", StringComparison.Ordinal)
+                                  upperProfile.Contains("JOC", StringComparison.Ordinal)
                 ? "EAC3 Atmos"
                 : "EAC3",
 

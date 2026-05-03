@@ -6,7 +6,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Timeline;
 
 /// <summary>
 ///     Provides pure, stateless aggregation logic for growth timeline data.
-///     All methods are static and operate on data passed in — no I/O, no dependencies.
+///     All methods are static and operate on data passed in - no I/O, no dependencies.
 ///     Used by <see cref="GrowthTimelineService" /> for timeline computation.
 /// </summary>
 public static class TimelineAggregator
@@ -343,10 +343,10 @@ public static class TimelineAggregator
 
         switch (firstNonZero)
         {
-            // All points are zero — return empty (nothing meaningful to show)
+            // All points are zero - return empty (nothing meaningful to show)
             case < 0:
                 return [];
-            // No leading zeros — return as-is
+            // No leading zeros - return as-is
             case 0:
                 return points;
             default:

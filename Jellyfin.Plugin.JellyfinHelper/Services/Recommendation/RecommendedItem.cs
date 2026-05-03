@@ -8,6 +8,11 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation;
 /// </summary>
 public sealed class RecommendedItem
 {
+    private IReadOnlyList<string> _genres = [];
+    private IReadOnlyList<string> _peopleNames = [];
+    private IReadOnlyList<string> _studios = [];
+    private IReadOnlyList<string> _tags = [];
+
     /// <summary>
     ///     Gets or sets the Jellyfin item ID.
     /// </summary>
@@ -45,8 +50,13 @@ public sealed class RecommendedItem
 
     /// <summary>
     ///     Gets or sets the genres associated with this item.
+    ///     Setter coalesces null to empty to prevent NRE from deserialized cache data.
     /// </summary>
-    public IReadOnlyList<string> Genres { get; set; } = [];
+    public IReadOnlyList<string> Genres
+    {
+        get => _genres;
+        set => _genres = value ?? [];
+    }
 
     /// <summary>
     ///     Gets or sets the production year.
@@ -84,20 +94,35 @@ public sealed class RecommendedItem
     ///     Gets or sets the people (cast/director) names associated with this item.
     ///     Stored for training feature parity: allows TrainingService to compute
     ///     PeopleSimilarity from cached recommendations without re-querying the library.
+    ///     Setter coalesces null to empty to prevent NRE from deserialized cache data.
     /// </summary>
-    public IReadOnlyList<string> PeopleNames { get; set; } = [];
+    public IReadOnlyList<string> PeopleNames
+    {
+        get => _peopleNames;
+        set => _peopleNames = value ?? [];
+    }
 
     /// <summary>
     ///     Gets or sets the studio names associated with this item.
     ///     Stored for training feature parity: allows TrainingService to compute
     ///     StudioMatch from cached recommendations without re-querying the library.
+    ///     Setter coalesces null to empty to prevent NRE from deserialized cache data.
     /// </summary>
-    public IReadOnlyList<string> Studios { get; set; } = [];
+    public IReadOnlyList<string> Studios
+    {
+        get => _studios;
+        set => _studios = value ?? [];
+    }
 
     /// <summary>
     ///     Gets or sets the tags associated with this item.
     ///     Stored for training feature parity: allows TrainingService to compute
     ///     TagSimilarity from cached recommendations without re-querying the library.
+    ///     Setter coalesces null to empty to prevent NRE from deserialized cache data.
     /// </summary>
-    public IReadOnlyList<string> Tags { get; set; } = [];
+    public IReadOnlyList<string> Tags
+    {
+        get => _tags;
+        set => _tags = value ?? [];
+    }
 }

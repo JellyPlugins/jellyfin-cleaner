@@ -3,7 +3,7 @@
 // Store last scan data for codec detail clicks
 var _lastCodecData = null;
 
-// Tooltip data store — avoids complex string parsing in DOM attributes
+// Tooltip data store - avoids complex string parsing in DOM attributes
 var _donutTooltipData = {};
 
 // Track which segment currently shows a tooltip (for mobile tap-to-show, tap-again-to-click)
@@ -12,13 +12,13 @@ var _activeTooltipSegmentId = null;
 // Guard: prevent duplicate document-level touchstart listener registration
 var _touchOutsideListenerAttached = false;
 
-// Timestamp of last touchend — used to suppress touch-originated click events cross-browser
+// Timestamp of last touchend - used to suppress touch-originated click events cross-browser
 var _lastTouchEndTime = 0;
 
 // Flag: force scroll-into-view on next panel open (set by donut click, consumed by attachTogglePanelHandlers)
 var _forceScrollOnPanelOpen = false;
 
-// SVG donut tooltip — reads rich data from _donutTooltipData
+// SVG donut tooltip - reads rich data from _donutTooltipData
 function showDonutTooltip(container, evt, segment) {
     var tooltip = container.querySelector('.donut-tooltip');
     if (!tooltip) {
@@ -324,7 +324,7 @@ var CODEC_CATEGORY_MAP = {
     'dynamicRanges': {movies: true, tvShows: true, music: false, other: true}
 };
 
-// Attach click handlers to codec rows — delegates to shared attachTogglePanelHandlers
+// Attach click handlers to codec rows - delegates to shared attachTogglePanelHandlers
 function attachCodecClickHandlers() {
     attachTogglePanelHandlers({
         itemSelector: '.codec-clickable',
@@ -396,13 +396,13 @@ function attachDonutHoverTooltips() {
                     var segId = seg.getAttribute('data-segment-id');
 
                     if (_activeTooltipSegmentId === segId) {
-                        // Second tap on same segment — trigger the click action
+                        // Second tap on same segment - trigger the click action
                         seg.classList.remove('donut-segment-hover');
                         hideDonutTooltip(container);
                         _activeTooltipSegmentId = null;
                         triggerCodecRowForSegment(seg);
                     } else {
-                        // First tap — show tooltip + highlight
+                        // First tap - show tooltip + highlight
                         // Remove highlight from any previously highlighted segment
                         var prevHighlighted = container.querySelectorAll('.donut-segment-hover');
                         for (var h = 0; h < prevHighlighted.length; h++) {
@@ -447,9 +447,9 @@ function fillCodecsData(data) {
     _donutTooltipData = {};
     _activeTooltipSegmentId = null;
 
-    // Video-only libraries (Movies + TV Shows + Other) — used for video-specific charts
+    // Video-only libraries (Movies + TV Shows + Other) - used for video-specific charts
     var videoLibraries = (data.Movies || []).concat(data.TvShows || []).concat(data.Other || []);
-    // Music-only libraries — used for music-specific charts
+    // Music-only libraries - used for music-specific charts
     var musicLibraries = data.Music || [];
 
     var videoCodecs = aggregateDict(videoLibraries, 'VideoCodecs');
@@ -477,33 +477,33 @@ function fillCodecsData(data) {
 
     var codecsHtml = '<div class="charts-row">';
     if (hasContainers) {
-        codecsHtml += '<div class="chart-box"><h4>📦 ' + T('containerFormats', 'Container Formats') + '</h4>';
+        codecsHtml += '<div class="chart-box"><h4>' + mi('inventory_2') + T('containerFormats', 'Container Formats') + '</h4>';
         codecsHtml += renderDonutChart(containers, containerSizes, 'containers', data.Libraries, 'ContainerFormats');
         codecsHtml += '</div>';
     }
     if (hasResolutions) {
-        codecsHtml += '<div class="chart-box"><h4>📐 ' + T('resolutions', 'Resolutions') + '</h4>';
+        codecsHtml += '<div class="chart-box"><h4>' + mi('straighten') + T('resolutions', 'Resolutions') + '</h4>';
         codecsHtml += renderDonutChart(resolutions, resolutionSizes, 'resolutions', videoLibraries, 'Resolutions');
         codecsHtml += '</div>';
     }
     if (hasDynamicRanges) {
-        codecsHtml += '<div class="chart-box"><h4>🌈 ' + T('dynamicRange', 'Dynamic Range') + '</h4>';
+        codecsHtml += '<div class="chart-box"><h4>' + mi('palette') + T('dynamicRange', 'Dynamic Range') + '</h4>';
         codecsHtml += renderDonutChart(dynamicRanges, dynamicRangeSizes, 'dynamicRanges', videoLibraries, 'DynamicRanges');
         codecsHtml += '</div>';
     }
     if (hasVideoCodecs) {
-        codecsHtml += '<div class="chart-box"><h4>🎬 ' + T('videoCodecs', 'Video Codecs') + '</h4>';
+        codecsHtml += '<div class="chart-box"><h4>' + mi('movie') + T('videoCodecs', 'Video Codecs') + '</h4>';
         codecsHtml += renderDonutChart(videoCodecs, videoCodecSizes, 'videoCodecs', videoLibraries, 'VideoCodecs');
         codecsHtml += '</div>';
     }
     if (hasVideoAudio) {
-        codecsHtml += '<div class="chart-box"><h4>🔊 ' + T('videoAudioCodecs', 'Video Audio Codecs') + '</h4>';
+        codecsHtml += '<div class="chart-box"><h4>' + mi('volume_up') + T('videoAudioCodecs', 'Video Audio Codecs') + '</h4>';
         codecsHtml += renderDonutChart(videoAudioCodecs, videoAudioCodecSizes, 'videoAudioCodecs', videoLibraries,
             'VideoAudioCodecs');
         codecsHtml += '</div>';
     }
     if (hasMusicAudio) {
-        codecsHtml += '<div class="chart-box"><h4>🎵 ' + T('musicAudioCodecs', 'Music Audio Codecs') + '</h4>';
+        codecsHtml += '<div class="chart-box"><h4>' + mi('music_note') + T('musicAudioCodecs', 'Music Audio Codecs') + '</h4>';
         codecsHtml += renderDonutChart(musicAudioCodecs, musicAudioCodecSizes, 'musicAudioCodecs', musicLibraries,
             'MusicAudioCodecs');
         codecsHtml += '</div>';

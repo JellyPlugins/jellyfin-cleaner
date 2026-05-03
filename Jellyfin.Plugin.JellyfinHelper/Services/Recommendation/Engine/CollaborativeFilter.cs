@@ -17,7 +17,7 @@ internal static class CollaborativeFilter
     ///     Called once in batch recommendation generation and shared across all per-user calls
     ///     to avoid rebuilding O(U) HashSets per user (O(U²) total → O(U) total).
     ///     Each set includes both direct item IDs and parent series IDs from episode watches.
-    ///     Items that are favorited (even if not yet played) are also included — they
+    ///     Items that are favorited (even if not yet played) are also included - they
     ///     represent explicit interest and improve user-similarity calculation.
     /// </summary>
     /// <param name="allProfiles">All user watch profiles.</param>
@@ -37,7 +37,7 @@ internal static class CollaborativeFilter
     /// <summary>
     ///     Builds a combined watch set (item IDs + series IDs) for a single user profile.
     ///     Used as fallback in single-user mode when precomputed sets are not available.
-    ///     Includes favorited items for the same reasons as <see cref="PrecomputeUserWatchSets"/>.
+    ///     Includes favorited items for the same reasons as <see cref="PrecomputeUserWatchSets" />.
     /// </summary>
     /// <param name="profile">The user's watch profile.</param>
     /// <returns>A set of watched item IDs and parent series IDs.</returns>
@@ -47,7 +47,7 @@ internal static class CollaborativeFilter
         foreach (var w in profile.WatchedItems)
         {
             // Include items that are played OR favorited
-            if (!w.Played && !w.IsFavorite)
+            if (w is { Played: false, IsFavorite: false })
             {
                 continue;
             }
@@ -67,14 +67,14 @@ internal static class CollaborativeFilter
     ///     accumulates Jaccard-weighted similarity from OTHER users who share watch
     ///     overlap with this user. Uses true Jaccard similarity (0–1) instead of
     ///     discretized integer weights for better precision.
-    ///     When <paramref name="precomputedUserSets"/> is provided (batch mode),
-    ///     uses those sets directly instead of rebuilding them per call — reducing
+    ///     When <paramref name="precomputedUserSets" /> is provided (batch mode),
+    ///     uses those sets directly instead of rebuilding them per call - reducing
     ///     total complexity from O(U²×M) to O(U×M).
     /// </summary>
     /// <param name="userProfile">The target user's watch profile.</param>
     /// <param name="allProfiles">All user watch profiles.</param>
     /// <param name="precomputedUserSets">
-    ///     Optional pre-computed watch sets from <see cref="PrecomputeUserWatchSets"/>.
+    ///     Optional pre-computed watch sets from <see cref="PrecomputeUserWatchSets" />.
     ///     When null, sets are computed on-the-fly (single-user mode).
     /// </param>
     /// <returns>A dictionary mapping item IDs to accumulated Jaccard-weighted scores.</returns>
@@ -97,7 +97,7 @@ internal static class CollaborativeFilter
         }
 
         // Compute item popularity (how many users watched each item) for IDF weighting.
-        // Items watched by many users contribute less to co-occurrence — a shared niche taste
+        // Items watched by many users contribute less to co-occurrence - a shared niche taste
         // is a stronger signal of real similarity than both watching a mainstream blockbuster.
         // Only computed when precomputedUserSets is available (batch mode); in single-user mode
         // the overhead of a full scan isn't justified.
@@ -125,7 +125,9 @@ internal static class CollaborativeFilter
 
             // Resolve the other user's combined watch set
             var otherCombinedIds =
-                precomputedUserSets is not null && precomputedUserSets.TryGetValue(otherProfile.UserId, out var otherPrecomputed)
+                precomputedUserSets is not null && precomputedUserSets.TryGetValue(
+                    otherProfile.UserId,
+                    out var otherPrecomputed)
                     ? otherPrecomputed
                     : BuildCombinedWatchSet(otherProfile); // Fallback: build on-the-fly
 
@@ -159,7 +161,8 @@ internal static class CollaborativeFilter
 
                 // IDF boost: weight × (1 / log2(1 + userCount))
                 // log2(1+1)=1.0 (unique), log2(1+5)=2.58, log2(1+50)=5.67
-                if (itemPopularity is not null && itemPopularity.TryGetValue(itemId, out var userCount) && userCount > 1)
+                if (itemPopularity is not null && itemPopularity.TryGetValue(itemId, out var userCount) &&
+                    userCount > 1)
                 {
                     weight *= 1.0 / Math.Log2(1.0 + userCount);
                 }

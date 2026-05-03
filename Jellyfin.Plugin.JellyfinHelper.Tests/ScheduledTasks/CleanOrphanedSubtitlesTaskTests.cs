@@ -8,7 +8,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.ScheduledTasks;
 /// </summary>
 public class CleanOrphanedSubtitlesTaskTests
 {
-    // === GetSubtitleBaseName ===
+    // === GetSubtitleBaseName: simple language codes and flags ===
 
     [Theory]
     [InlineData("/movies/Movie Name (2021).en.srt", "Movie Name (2021)")]
@@ -46,7 +46,6 @@ public class CleanOrphanedSubtitlesTaskTests
     [Fact]
     public void GetSubtitleBaseName_HandlesMultipleLanguageSuffixes()
     {
-        // "Movie.en.forced.default.srt" → "Movie"
         var result = CleanOrphanedSubtitlesTask.GetSubtitleBaseName("/movies/Movie.en.forced.default.srt");
         Assert.Equal("Movie", result);
     }
@@ -75,6 +74,177 @@ public class CleanOrphanedSubtitlesTaskTests
     public void GetSubtitleBaseName_DoesNotStripEncodingOrQualityTokens(string filePath, string expected)
     {
         var result = CleanOrphanedSubtitlesTask.GetSubtitleBaseName(filePath);
+        Assert.Equal(expected, result);
+    }
+
+    // === GetSubtitleBaseName: BCP-47 regional tags ===
+
+    [Theory]
+    [InlineData("/movies/Movie Name (2021).es-MX.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).pt-BR.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).zh-TW.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).zh-CN.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).en-US.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).en-GB.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).fr-CA.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).es-AR.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).de-AT.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).de-CH.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).no-NO.srt", "Movie Name (2021)")]
+    public void GetSubtitleBaseName_StripsBcp47RegionalTags(string filePath, string expected)
+    {
+        var result = CleanOrphanedSubtitlesTask.GetSubtitleBaseName(filePath);
+        Assert.Equal(expected, result);
+    }
+
+    // === GetSubtitleBaseName: BCP-47 script subtags ===
+
+    [Theory]
+    [InlineData("/movies/Movie Name (2021).zh-Hans.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).zh-Hant.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).sr-Latn.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).sr-Cyrl.srt", "Movie Name (2021)")]
+    public void GetSubtitleBaseName_StripsBcp47ScriptTags(string filePath, string expected)
+    {
+        var result = CleanOrphanedSubtitlesTask.GetSubtitleBaseName(filePath);
+        Assert.Equal(expected, result);
+    }
+
+    // === GetSubtitleBaseName: BCP-47 tags combined with flags ===
+
+    [Theory]
+    [InlineData("/movies/Movie Name (2021).es-MX.forced.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).pt-BR.sdh.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).zh-Hans.default.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).en-US.hi.srt", "Movie Name (2021)")]
+    [InlineData("/movies/Movie Name (2021).fr-CA.cc.srt", "Movie Name (2021)")]
+    public void GetSubtitleBaseName_StripsBcp47TagsWithFlags(string filePath, string expected)
+    {
+        var result = CleanOrphanedSubtitlesTask.GetSubtitleBaseName(filePath);
+        Assert.Equal(expected, result);
+    }
+
+    // === Regression: encoding/release tags with hyphens must NOT be stripped ===
+
+    [Theory]
+    [InlineData("/movies/Movie.DTS-HD.srt", "Movie.DTS-HD")]
+    [InlineData("/movies/Movie.DTS-X.srt", "Movie.DTS-X")]
+    [InlineData("/movies/Movie.h264-GROUP.srt", "Movie.h264-GROUP")]
+    [InlineData("/movies/Movie.x264-YIFY.srt", "Movie.x264-YIFY")]
+    [InlineData("/movies/Movie.x265-RARBG.srt", "Movie.x265-RARBG")]
+    [InlineData("/movies/Movie.DD5-1.srt", "Movie.DD5-1")]
+    [InlineData("/movies/Movie.AAC2-0.srt", "Movie.AAC2-0")]
+    public void GetSubtitleBaseName_DoesNotStripHyphenatedEncodingTokens(string filePath, string expected)
+    {
+        var result = CleanOrphanedSubtitlesTask.GetSubtitleBaseName(filePath);
+        Assert.Equal(expected, result);
+    }
+
+    // === Real-world regression: the exact filename from the bug report ===
+
+    [Fact]
+    public void GetSubtitleBaseName_RealWorldBugReport_SpanishLatino()
+    {
+        // Subtitle: Rocky (1976) [...][DTS-HD MA 5.1][...]-seleZen.es-MX.srt
+        // Video:    Rocky (1976) [...][DTS-HD MA 5.1][...]-seleZen.mkv
+        // The dot in "5.1" splits the filename but both files split identically.
+        // After stripping "es-MX" the subtitle base must equal the video base.
+        const string subtitlePath =
+            "/data/media/movies/Rocky (1976)/Rocky (1976) [tmdbid-1366] - [Remux-2160p][DTS-HD MA 5.1][DV HDR10][h265]-seleZen.es-MX.srt";
+
+        const string videoBaseName =
+            "Rocky (1976) [tmdbid-1366] - [Remux-2160p][DTS-HD MA 5.1][DV HDR10][h265]-seleZen";
+
+        var subtitleBase = CleanOrphanedSubtitlesTask.GetSubtitleBaseName(subtitlePath);
+        Assert.Equal(videoBaseName, subtitleBase);
+    }
+
+    // === IsSubtitleSuffix: direct unit tests ===
+
+    [Theory]
+    [InlineData("en", true)]
+    [InlineData("de", true)]
+    [InlineData("eng", true)]
+    [InlineData("deu", true)]
+    [InlineData("ger", true)]
+    [InlineData("spa", true)]
+    [InlineData("forced", true)]
+    [InlineData("sdh", true)]
+    [InlineData("hi", true)]
+    [InlineData("cc", true)]
+    [InlineData("default", true)]
+    public void IsSubtitleSuffix_RecognizesSimpleCodes(string segment, bool expected)
+    {
+        var result = CleanOrphanedSubtitlesTask.IsSubtitleSuffix(segment);
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData("es-MX", true)]
+    [InlineData("pt-BR", true)]
+    [InlineData("zh-TW", true)]
+    [InlineData("zh-CN", true)]
+    [InlineData("en-US", true)]
+    [InlineData("en-GB", true)]
+    [InlineData("fr-CA", true)]
+    [InlineData("de-AT", true)]
+    [InlineData("de-CH", true)]
+    [InlineData("no-NO", true)]
+    [InlineData("es-AR", true)]
+    [InlineData("ja-JP", true)]
+    [InlineData("ko-KR", true)]
+    public void IsSubtitleSuffix_RecognizesBcp47RegionalTags(string segment, bool expected)
+    {
+        var result = CleanOrphanedSubtitlesTask.IsSubtitleSuffix(segment);
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData("zh-Hans", true)]
+    [InlineData("zh-Hant", true)]
+    [InlineData("sr-Latn", true)]
+    [InlineData("sr-Cyrl", true)]
+    [InlineData("az-Latn", true)]
+    [InlineData("uz-Cyrl", true)]
+    public void IsSubtitleSuffix_RecognizesBcp47ScriptTags(string segment, bool expected)
+    {
+        var result = CleanOrphanedSubtitlesTask.IsSubtitleSuffix(segment);
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData("DTS-HD", false)]
+    [InlineData("DTS-X", false)]
+    [InlineData("h264-GROUP", false)]
+    [InlineData("x264-YIFY", false)]
+    [InlineData("x265-RARBG", false)]
+    [InlineData("DD5-1", false)]
+    [InlineData("AAC2-0", false)]
+    [InlineData("DDP5-1", false)]
+    [InlineData("HDR10", false)]
+    [InlineData("REMUX", false)]
+    [InlineData("2160p", false)]
+    [InlineData("BluRay", false)]
+    [InlineData("S01E01", false)]
+    [InlineData("", false)]
+    public void IsSubtitleSuffix_RejectsNonLanguageTokens(string segment, bool expected)
+    {
+        var result = CleanOrphanedSubtitlesTask.IsSubtitleSuffix(segment);
+        Assert.Equal(expected, result);
+    }
+
+    // === Edge case: 3-letter language code with region ===
+
+    [Theory]
+    [InlineData("spa-MX", true)]
+    [InlineData("por-BR", true)]
+    [InlineData("zho-TW", true)]
+    [InlineData("eng-US", true)]
+    [InlineData("deu-AT", true)]
+    [InlineData("fra-CA", true)]
+    public void IsSubtitleSuffix_RecognizesThreeLetterCodeWithRegion(string segment, bool expected)
+    {
+        var result = CleanOrphanedSubtitlesTask.IsSubtitleSuffix(segment);
         Assert.Equal(expected, result);
     }
 }

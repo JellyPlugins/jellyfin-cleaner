@@ -15,7 +15,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
 
 /// <summary>
 ///     Tests for <see cref="ConfigurationController" />.
-///     All tests use mocked <see cref="IPluginConfigurationService" /> — no
+///     All tests use mocked <see cref="IPluginConfigurationService" /> - no
 ///     <c>Plugin.Instance</c> singleton is required, which eliminates flaky
 ///     behaviour caused by shared static state during parallel test execution.
 /// </summary>

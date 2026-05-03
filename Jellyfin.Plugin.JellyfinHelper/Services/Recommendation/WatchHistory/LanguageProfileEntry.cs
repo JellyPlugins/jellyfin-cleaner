@@ -5,7 +5,7 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
 ///     "Chosen" means the user actively selected this language when alternatives were available.
 ///     "Forced" means this was the only audio language on the item.
 ///     This distinction is critical: watching English-only content does not mean the user
-///     prefers English — it means they tolerate it when no other option exists.
+///     prefers English - it means they tolerate it when no other option exists.
 /// </summary>
 public sealed class LanguageProfileEntry
 {

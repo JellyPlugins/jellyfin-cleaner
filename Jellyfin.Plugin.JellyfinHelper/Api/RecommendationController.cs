@@ -54,7 +54,7 @@ public class RecommendationController : ControllerBase
     ///     Returns the latest cached results from the scheduled task.
     ///     If no cache exists, generates fresh recommendations on demand.
     ///     In Activate mode the results are persisted to disk for subsequent requests.
-    ///     In DryRun mode the results are returned but NOT persisted — the UI caches them
+    ///     In DryRun mode the results are returned but NOT persisted - the UI caches them
     ///     in the browser so that tab switches don't trigger re-generation.
     /// </summary>
     /// <param name="maxPerUser">Maximum recommendations per user (default: from config, max: 100).</param>
@@ -69,7 +69,9 @@ public class RecommendationController : ControllerBase
     {
         if (!IsRecommendationsEnabled())
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Smart Recommendations are disabled in plugin configuration.");
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                "Smart Recommendations are disabled in plugin configuration.");
         }
 
         var config = _configService.GetConfiguration();
@@ -85,7 +87,7 @@ public class RecommendationController : ControllerBase
             return Ok(trimmed);
         }
 
-        // No cache available — generate at the configured max so the cache is not under-filled
+        // No cache available - generate at the configured max so the cache is not under-filled
         var results = _engine.GetAllRecommendations(configuredMax, cancellationToken);
 
         // Only persist to disk when TaskMode is Activate (not DryRun).
@@ -117,7 +119,9 @@ public class RecommendationController : ControllerBase
     {
         if (!IsRecommendationsEnabled())
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Smart Recommendations are disabled in plugin configuration.");
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                "Smart Recommendations are disabled in plugin configuration.");
         }
 
         if (userId == Guid.Empty)
@@ -128,7 +132,7 @@ public class RecommendationController : ControllerBase
         var config = _configService.GetConfiguration();
         maxResults = Math.Clamp(maxResults <= 0 ? config.MaxRecommendationsPerUser : maxResults, 1, 100);
 
-        // Try cache first — return a copy to avoid mutating the cached object
+        // Try cache first - return a copy to avoid mutating the cached object
         var cached = _cacheService.LoadResults();
         var cachedUser = cached?.FirstOrDefault(r => r.UserId == userId);
         if (cachedUser is not null)
@@ -177,7 +181,9 @@ public class RecommendationController : ControllerBase
     {
         if (!IsRecommendationsEnabled())
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Smart Recommendations are disabled in plugin configuration.");
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                "Smart Recommendations are disabled in plugin configuration.");
         }
 
         if (userId == Guid.Empty)
@@ -205,7 +211,9 @@ public class RecommendationController : ControllerBase
     {
         if (!IsRecommendationsEnabled())
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Smart Recommendations are disabled in plugin configuration.");
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                "Smart Recommendations are disabled in plugin configuration.");
         }
 
         var profiles = _watchHistoryService.GetAllUserWatchProfiles();
@@ -235,7 +243,9 @@ public class RecommendationController : ControllerBase
     /// <param name="results">The full recommendation results (not modified).</param>
     /// <param name="maxPerUser">Maximum recommendations per user.</param>
     /// <returns>A new collection with trimmed recommendation counts.</returns>
-    private static IReadOnlyList<RecommendationResult> TrimRecommendations(IReadOnlyList<RecommendationResult> results, int maxPerUser)
+    private static IReadOnlyList<RecommendationResult> TrimRecommendations(
+        IReadOnlyList<RecommendationResult> results,
+        int maxPerUser)
     {
         var needsTrim = results.Any(r => r.Recommendations.Count > maxPerUser);
         if (!needsTrim)
@@ -248,17 +258,18 @@ public class RecommendationController : ControllerBase
         {
             if (r.Recommendations.Count > maxPerUser)
             {
-                trimmed.Add(new RecommendationResult
-                {
-                    UserId = r.UserId,
-                    UserName = r.UserName,
-                    Profile = r.Profile,
-                    ScoringStrategy = r.ScoringStrategy,
-                    ScoringStrategyKey = r.ScoringStrategyKey,
-                    GeneratedAt = r.GeneratedAt,
-                    Recommendations = new Collection<RecommendedItem>(
-                        r.Recommendations.Take(maxPerUser).ToList())
-                });
+                trimmed.Add(
+                    new RecommendationResult
+                    {
+                        UserId = r.UserId,
+                        UserName = r.UserName,
+                        Profile = r.Profile,
+                        ScoringStrategy = r.ScoringStrategy,
+                        ScoringStrategyKey = r.ScoringStrategyKey,
+                        GeneratedAt = r.GeneratedAt,
+                        Recommendations = new Collection<RecommendedItem>(
+                            r.Recommendations.Take(maxPerUser).ToList())
+                    });
             }
             else
             {
@@ -277,6 +288,6 @@ public class RecommendationController : ControllerBase
     private bool IsRecommendationsEnabled()
     {
         var config = _configService.GetConfiguration();
-        return config.RecommendationsTaskMode != Configuration.TaskMode.Deactivate;
+        return config.RecommendationsTaskMode != TaskMode.Deactivate;
     }
 }

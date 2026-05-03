@@ -26,7 +26,7 @@ internal static class PreferenceBuilder
     ///     Each genre gets a weight based on recency, play count, and favorites.
     ///     Recent watches count more than old ones (180-day half-life exponential decay).
     ///     Re-watched items get a PlayCount boost. Favorites get an additional boost.
-    ///     Items that are favorited but not yet played are also included — the user
+    ///     Items that are favorited but not yet played are also included - the user
     ///     explicitly expressed interest, so their genres should influence preferences.
     /// </summary>
     /// <param name="profile">The user's watch profile.</param>
@@ -40,18 +40,23 @@ internal static class PreferenceBuilder
             return vector;
         }
 
-        // Build genre preferences with temporal decay — recent watches count more
+        // Build genre preferences with temporal decay - recent watches count more
         var now = DateTime.UtcNow;
         foreach (var item in profile.WatchedItems)
         {
-            // Include items that are played OR favorited — favorites signal explicit interest
-            if ((!item.Played && !item.IsFavorite) || item.Genres is null)
+            // Include items that are played OR favorited - favorites signal explicit interest
+            if (item is { Played: false, IsFavorite: false })
+            {
+                continue;
+            }
+
+            if (item.Genres is not { Count: > 0 })
             {
                 continue;
             }
 
             // Compute temporal weight: exponential decay with ~180-day half-life.
-            // Unplayed favorites (IsFavorite && !Played) represent current intent — the user
+            // Unplayed favorites (IsFavorite && !Played) represent current intent - the user
             // explicitly flagged interest without having watched yet, so they should not be
             // age-penalized. Played items without a timestamp are rare edge cases and default
             // to ~1 year as a conservative fallback.
@@ -149,7 +154,12 @@ internal static class PreferenceBuilder
         var cooccurrence = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
         foreach (var item in profile.WatchedItems)
         {
-            if (!item.Played && !item.IsFavorite)
+            if (item is { Played: false, IsFavorite: false })
+            {
+                continue;
+            }
+
+            if (item.Genres is not { Count: > 0 })
             {
                 continue;
             }
@@ -242,7 +252,7 @@ internal static class PreferenceBuilder
         foreach (var w in userProfile.WatchedItems)
         {
             // Include items that are played OR favorited
-            if (!w.Played && !w.IsFavorite)
+            if (w is { Played: false, IsFavorite: false })
             {
                 continue;
             }
@@ -257,13 +267,15 @@ internal static class PreferenceBuilder
             }
 
             // Also try series match (episodes → parent series)
-            if (w.SeriesId.HasValue && candidateLookup.TryGetValue(w.SeriesId.Value, out var seriesItem)
-                && seriesItem.Studios is { Length: > 0 })
+            if (!w.SeriesId.HasValue || !candidateLookup.TryGetValue(w.SeriesId.Value, out var seriesItem)
+                                     || seriesItem.Studios is not { Length: > 0 })
             {
-                foreach (var s in seriesItem.Studios.Where(static s => !string.IsNullOrWhiteSpace(s)))
-                {
-                    studios.Add(s);
-                }
+                continue;
+            }
+
+            foreach (var s in seriesItem.Studios.Where(static s => !string.IsNullOrWhiteSpace(s)))
+            {
+                studios.Add(s);
             }
         }
 
@@ -287,7 +299,7 @@ internal static class PreferenceBuilder
         foreach (var w in userProfile.WatchedItems)
         {
             // Include items that are played OR favorited
-            if (!w.Played && !w.IsFavorite)
+            if (w is { Played: false, IsFavorite: false })
             {
                 continue;
             }
@@ -302,13 +314,15 @@ internal static class PreferenceBuilder
             }
 
             // Series match (episodes → parent series)
-            if (w.SeriesId.HasValue && candidateLookup.TryGetValue(w.SeriesId.Value, out var seriesItem)
-                && seriesItem.Tags is { Length: > 0 })
+            if (!w.SeriesId.HasValue || !candidateLookup.TryGetValue(w.SeriesId.Value, out var seriesItem)
+                                     || seriesItem.Tags is not { Length: > 0 })
             {
-                foreach (var t in seriesItem.Tags.Where(static t => !string.IsNullOrWhiteSpace(t)))
-                {
-                    tags.Add(t);
-                }
+                continue;
+            }
+
+            foreach (var t in seriesItem.Tags.Where(static t => !string.IsNullOrWhiteSpace(t)))
+            {
+                tags.Add(t);
             }
         }
 
@@ -332,7 +346,7 @@ internal static class PreferenceBuilder
         foreach (var w in userProfile.WatchedItems)
         {
             // Include items that are played OR favorited
-            if (!w.Played && !w.IsFavorite)
+            if (w is { Played: false, IsFavorite: false })
             {
                 continue;
             }
@@ -358,7 +372,10 @@ internal static class PreferenceBuilder
     ///     and reused for all candidate items to avoid redundant computation.
     ///     Returns a neutral (invalid) analysis when the user has insufficient watch history.
     /// </summary>
-    /// <param name="genrePreferences">The user's normalized genre preference vector from <see cref="BuildGenrePreferenceVector"/>.</param>
+    /// <param name="genrePreferences">
+    ///     The user's normalized genre preference vector from
+    ///     <see cref="BuildGenrePreferenceVector" />.
+    /// </param>
     /// <param name="profile">The user's watch profile.</param>
     /// <returns>A reusable genre exposure analysis.</returns>
     internal static GenreExposureAnalysis BuildGenreExposureAnalysis(
@@ -380,11 +397,7 @@ internal static class PreferenceBuilder
         }
 
         // Compute total genre weight for share calculation
-        var totalWeight = 0.0;
-        foreach (var weight in genrePreferences.Values)
-        {
-            totalWeight += weight;
-        }
+        var totalWeight = genrePreferences.Values.Sum();
 
         // Identify underexposed genres: those with < threshold share of total weight
         var underexposed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -424,8 +437,8 @@ internal static class PreferenceBuilder
 
     /// <summary>
     ///     Computes the three genre exposure features for a single candidate item.
-    ///     Uses a pre-built <see cref="GenreExposureAnalysis"/> to avoid redundant computation.
-    ///     All three features are soft, continuous values in [0, 1] — they never hard-block
+    ///     Uses a pre-built <see cref="GenreExposureAnalysis" /> to avoid redundant computation.
+    ///     All three features are soft, continuous values in [0, 1] - they never hard-block
     ///     any genre, only provide graduated signals that the ML models can learn to weight.
     /// </summary>
     /// <param name="candidateGenres">The genres of the candidate item.</param>
@@ -502,8 +515,8 @@ internal static class PreferenceBuilder
 
     /// <summary>
     ///     Pre-computed genre exposure analysis for a user, reusable across all candidate items.
-    ///     Built once per user by <see cref="BuildGenreExposureAnalysis"/> and passed to
-    ///     <see cref="ComputeGenreExposureFeatures"/> for each candidate.
+    ///     Built once per user by <see cref="BuildGenreExposureAnalysis" /> and passed to
+    ///     <see cref="ComputeGenreExposureFeatures" /> for each candidate.
     /// </summary>
     internal sealed class GenreExposureAnalysis
     {

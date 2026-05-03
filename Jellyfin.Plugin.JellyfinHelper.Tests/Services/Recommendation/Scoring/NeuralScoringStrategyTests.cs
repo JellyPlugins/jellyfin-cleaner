@@ -23,15 +23,22 @@ public sealed class NeuralScoringStrategyTests : IDisposable
     {
         try
         {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, true);
-            }
+            Directory.Delete(_tempDir, true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
+        catch (DirectoryNotFoundException)
         {
-            // Best effort — directory may be locked or already removed on CI.
+            // best-effort cleanup - directory may already be gone
         }
+        catch (IOException)
+        {
+            // best-effort cleanup - file may be locked on CI
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // best-effort cleanup - permission edge cases on CI
+        }
+
+        GC.SuppressFinalize(this);
     }
 
     // ============================================================

@@ -58,7 +58,7 @@ internal static class EngineConstants
     ///     Genre watch share threshold below which a genre is considered "underexposed."
     ///     A genre representing less than 2% of the user's total watches is rarely watched.
     ///     This is deliberately low to avoid penalizing genres that the user watches
-    ///     occasionally — only genres with very minimal or zero presence are flagged.
+    ///     occasionally - only genres with very minimal or zero presence are flagged.
     /// </summary>
     internal const double GenreUnderexposureThreshold = 0.02;
 
@@ -105,7 +105,7 @@ internal static class EngineConstants
     internal const double AbandonedLabel = 0.0;
 
     /// <summary>
-    ///     Label for previously recommended but unwatched items (exposure bias mitigation —
+    ///     Label for previously recommended but unwatched items (exposure bias mitigation -
     ///     user saw the recommendation but didn't engage). Kept very close to zero
     ///     to clearly separate "ignored" from "barely started" (WatchedLabelFloor = 0.5).
     /// </summary>
@@ -114,15 +114,15 @@ internal static class EngineConstants
     /// <summary>
     ///     Number of days after a recommendation within which a watch is considered
     ///     "recommendation-influenced". Items watched within this window receive a
-    ///     higher training label (<see cref="RecommendationInfluencedLabel"/>) to
+    ///     higher training label (<see cref="RecommendationInfluencedLabel" />) to
     ///     reward the model for successfully influencing user behavior.
     /// </summary>
     internal const double RecommendationInfluenceWindowDays = 7.0;
 
     /// <summary>
     ///     Training label for items that were recommended AND watched within the
-    ///     <see cref="RecommendationInfluenceWindowDays"/> window. Higher than
-    ///     <see cref="WatchedLabel"/> (0.85) to provide a stronger positive signal
+    ///     <see cref="RecommendationInfluenceWindowDays" /> window. Higher than
+    ///     <see cref="WatchedLabel" /> (0.85) to provide a stronger positive signal
     ///     for recommendation-influenced watches.
     /// </summary>
     internal const double RecommendationInfluencedLabel = 0.90;
@@ -177,15 +177,18 @@ internal static class EngineConstants
     internal const int RandomNegativeSamplesPerUser = 5;
 
     /// <summary>
-    ///     Exponential decay constant for recency scoring, derived from <see cref="RecencyHalfLifeDays"/>.
+    ///     Exponential decay constant for recency scoring, derived from <see cref="RecencyHalfLifeDays" />.
     ///     Computed as ln(2) / halfLife so that exp(-λ × halfLife) = 0.5 exactly.
     /// </summary>
     internal static readonly double RecencyDecayConstant = Math.Log(2.0) / RecencyHalfLifeDays;
 
     /// <summary>
     ///     PersonKind types considered for people similarity scoring.
-    ///     Only actors and directors are used — writers/producers are less predictive
+    ///     Only actors and directors are used - writers/producers are less predictive
     ///     of user preference and would add noise to the similarity signal.
     /// </summary>
-    internal static readonly IReadOnlyList<PersonKind> RelevantPersonKinds = Array.AsReadOnly(new[] { PersonKind.Actor, PersonKind.Director });
+    internal static readonly IReadOnlyList<PersonKind> RelevantPersonKinds = Array.AsReadOnly(
+    [
+        PersonKind.Actor, PersonKind.Director
+    ]);
 }

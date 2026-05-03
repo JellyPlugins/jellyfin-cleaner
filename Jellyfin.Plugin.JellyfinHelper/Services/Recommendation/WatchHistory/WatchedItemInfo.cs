@@ -8,6 +8,8 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.WatchHistory;
 /// </summary>
 public sealed class WatchedItemInfo
 {
+    private IReadOnlyList<string> _genres = [];
+
     /// <summary>
     ///     Gets or sets the Jellyfin item ID.
     /// </summary>
@@ -65,8 +67,13 @@ public sealed class WatchedItemInfo
 
     /// <summary>
     ///     Gets or sets the genres associated with this item.
+    ///     Setter coalesces null to empty to prevent NRE from deserialized cache data.
     /// </summary>
-    public IReadOnlyList<string> Genres { get; set; } = [];
+    public IReadOnlyList<string> Genres
+    {
+        get => _genres;
+        set => _genres = value ?? [];
+    }
 
     /// <summary>
     ///     Gets or sets the production year.

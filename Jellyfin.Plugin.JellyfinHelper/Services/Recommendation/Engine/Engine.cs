@@ -25,17 +25,17 @@ public sealed class Engine : IRecommendationEngine
     private readonly ILibraryManager _libraryManager;
     private readonly ILogger<Engine> _logger;
     private readonly IPluginLogService _pluginLog;
-    private readonly IScoringStrategy _strategy;
-    private readonly IWatchHistoryService _watchHistoryService;
     private readonly SimilarityComputer _similarityComputer;
+    private readonly IScoringStrategy _strategy;
     private readonly TrainingService _trainingService;
+    private readonly IWatchHistoryService _watchHistoryService;
 
-    // Short-lived cache — populated during GetAllRecommendations and reused by on-demand
+    // Short-lived cache - populated during GetAllRecommendations and reused by on-demand
     // GetRecommendations calls until next batch run invalidates it.
     // Stored as a single immutable snapshot to prevent concurrent readers from mixing data across batches.
     private volatile CandidateSnapshot? _cachedSnapshot;
 
-    /// <summary>Initializes a new instance of the <see cref="Engine"/> class.</summary>
+    /// <summary>Initializes a new instance of the <see cref="Engine" /> class.</summary>
     /// <param name="watchHistoryService">The watch history service.</param>
     /// <param name="libraryManager">The Jellyfin library manager.</param>
     /// <param name="pluginLog">The plugin log service.</param>
@@ -58,7 +58,10 @@ public sealed class Engine : IRecommendationEngine
     }
 
     /// <inheritdoc />
-    public RecommendationResult? GetRecommendations(Guid userId, int maxResults = 20, CancellationToken cancellationToken = default)
+    public RecommendationResult? GetRecommendations(
+        Guid userId,
+        int maxResults = 20,
+        CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         maxResults = Math.Clamp(maxResults, 1, EngineConstants.MaxRecommendationsPerUserLimit);
@@ -66,15 +69,22 @@ public sealed class Engine : IRecommendationEngine
         var userProfile = _watchHistoryService.GetUserWatchProfile(userId);
         if (userProfile is null)
         {
-            // User not found in any watch profile — return null so the controller can 404.
+            // User not found in any watch profile - return null so the controller can 404.
             return null;
         }
 
         if (userProfile.WatchedItems.Count == 0)
         {
-            // Cold-start: user exists but has no watch history — return popular/trending items
+            // Cold-start: user exists but has no watch history - return popular/trending items
             // Reuse cached candidates from the last batch run if available to avoid redundant library queries
-            return GenerateColdStartRecommendations(userId, maxResults, userProfile.UserName, _cachedSnapshot?.Candidates, userProfile.MaxParentalRating, userProfile, cancellationToken);
+            return GenerateColdStartRecommendations(
+                userId,
+                maxResults,
+                userProfile.UserName,
+                _cachedSnapshot?.Candidates,
+                userProfile.MaxParentalRating,
+                userProfile,
+                cancellationToken);
         }
 
         var allProfiles = _watchHistoryService.GetAllUserWatchProfiles();
@@ -83,15 +93,30 @@ public sealed class Engine : IRecommendationEngine
         var snapshot = _cachedSnapshot;
         var candidates = snapshot?.Candidates ?? LoadCandidateItems();
         var peopleLookup = snapshot?.PeopleLookup ?? _similarityComputer.BuildCandidatePeopleLookup(candidates);
-        return GenerateForUser(userProfile, allProfiles, candidates, peopleLookup, maxResults, _strategy, null, cancellationToken);
+        return GenerateForUser(
+            userProfile,
+            allProfiles,
+            candidates,
+            peopleLookup,
+            maxResults,
+            _strategy,
+            null,
+            cancellationToken);
     }
 
     /// <inheritdoc />
-    public bool TrainStrategy(IReadOnlyList<RecommendationResult> previousResults, bool incremental = false, CancellationToken cancellationToken = default)
-        => _trainingService.Train(_strategy, previousResults, incremental, cancellationToken);
+    public bool TrainStrategy(
+        IReadOnlyList<RecommendationResult> previousResults,
+        bool incremental = false,
+        CancellationToken cancellationToken = default)
+    {
+        return _trainingService.Train(_strategy, previousResults, incremental, cancellationToken);
+    }
 
     /// <inheritdoc />
-    public IReadOnlyList<RecommendationResult> GetAllRecommendations(int maxResultsPerUser = 20, CancellationToken cancellationToken = default)
+    public IReadOnlyList<RecommendationResult> GetAllRecommendations(
+        int maxResultsPerUser = 20,
+        CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         maxResultsPerUser = Math.Clamp(maxResultsPerUser, 1, EngineConstants.MaxRecommendationsPerUserLimit);
@@ -111,7 +136,7 @@ public sealed class Engine : IRecommendationEngine
             $"Starting recommendation generation for {allProfiles.Count} users using strategy '{_strategy.Name}'...",
             _logger);
 
-        // Process users in parallel — each user's scoring is CPU-bound and independent.
+        // Process users in parallel - each user's scoring is CPU-bound and independent.
         // ConcurrentBag collects results safely; shared read-only data (candidates, peopleLookup,
         // precomputedUserSets) is never mutated so no locking needed.
         var concurrentResults = new ConcurrentBag<RecommendationResult>();
@@ -128,7 +153,14 @@ public sealed class Engine : IRecommendationEngine
                 try
                 {
                     var result = profile.WatchedItems.Count == 0
-                        ? GenerateColdStartRecommendations(profile.UserId, maxResultsPerUser, profile.UserName, candidates, profile.MaxParentalRating, profile, cancellationToken)
+                        ? GenerateColdStartRecommendations(
+                            profile.UserId,
+                            maxResultsPerUser,
+                            profile.UserName,
+                            candidates,
+                            profile.MaxParentalRating,
+                            profile,
+                            cancellationToken)
                         : GenerateForUser(
                             profile,
                             allProfiles,
@@ -173,7 +205,7 @@ public sealed class Engine : IRecommendationEngine
     /// <param name="userName">Optional user display name for the result metadata.</param>
     /// <param name="preloadedCandidates">
     ///     Optional pre-loaded candidate list from the batch path.
-    ///     When null, candidates are loaded fresh via <see cref="LoadCandidateItems"/>.
+    ///     When null, candidates are loaded fresh via <see cref="LoadCandidateItems" />.
     /// </param>
     /// <param name="maxParentalRating">
     ///     Optional maximum parental rating for the user.
@@ -181,12 +213,12 @@ public sealed class Engine : IRecommendationEngine
     /// </param>
     /// <param name="userProfile">
     ///     Optional user watch profile. When provided, a stripped copy is included in the result
-    ///     for consistency with <see cref="GenerateForUser"/>. Cold-start users have empty
+    ///     for consistency with <see cref="GenerateForUser" />. Cold-start users have empty
     ///     WatchedItems but their profile still carries UserId, UserName, MaxParentalRating etc.
     /// </param>
     /// <param name="cancellationToken">Token for cooperative cancellation during large candidate scans.</param>
     /// <returns>A recommendation result with popular/trending items.</returns>
-    internal RecommendationResult GenerateColdStartRecommendations(
+    private RecommendationResult GenerateColdStartRecommendations(
         Guid userId,
         int maxResults,
         string? userName = null,
@@ -207,15 +239,17 @@ public sealed class Engine : IRecommendationEngine
                 cancellationToken.ThrowIfCancellationRequested();
             }
 
-            // Parental rating filter — skip items the user is not allowed to see
+            // Parental rating filter - skip items the user is not allowed to see
             if (ExceedsMaxRating(candidate, maxParentalRating))
             {
                 continue;
             }
 
-            var combinedCriticScore = ContentScoring.ComputeCombinedCriticScore(candidate.CommunityRating, candidate.CriticRating);
+            var combinedCriticScore = ContentScoring.ComputeCombinedCriticScore(
+                candidate.CommunityRating,
+                candidate.CriticRating);
             var recencyScore = ContentScoring.ComputeRecencyScore(candidate.PremiereDate ?? candidate.DateCreated);
-            // Cold-start formula: 60% rating, 40% recency — prioritize quality + freshness
+            // Cold-start formula: 60% rating, 40% recency - prioritize quality + freshness
             var score = (0.6 * combinedCriticScore) + (0.4 * recencyScore);
             scored.Add((candidate, score, "Popular and highly rated", "reasonPopular", null));
         }
@@ -242,7 +276,10 @@ public sealed class Engine : IRecommendationEngine
             })
             .ToList();
 
-        _pluginLog.LogInfo("Recommendations", $"Generated {topItems.Count} cold-start recommendations for user '{userId}' (no watch history)", _logger);
+        _pluginLog.LogInfo(
+            "Recommendations",
+            $"Generated {topItems.Count} cold-start recommendations for user '{userId}' (no watch history)",
+            _logger);
 
         return new RecommendationResult
         {
@@ -260,19 +297,21 @@ public sealed class Engine : IRecommendationEngine
     ///     Loads all candidate items (movies and series) from the library.
     /// </summary>
     /// <returns>A list of candidate base items.</returns>
-    internal List<BaseItem> LoadCandidateItems()
+    private List<BaseItem> LoadCandidateItems()
     {
-        var movies = _libraryManager.GetItemList(new InternalItemsQuery
-        {
-            IncludeItemTypes = [BaseItemKind.Movie],
-            IsFolder = false
-        });
+        var movies = _libraryManager.GetItemList(
+            new InternalItemsQuery
+            {
+                IncludeItemTypes = [BaseItemKind.Movie],
+                IsFolder = false
+            });
 
-        var series = _libraryManager.GetItemList(new InternalItemsQuery
-        {
-            IncludeItemTypes = [BaseItemKind.Series],
-            IsFolder = true
-        });
+        var series = _libraryManager.GetItemList(
+            new InternalItemsQuery
+            {
+                IncludeItemTypes = [BaseItemKind.Series],
+                IsFolder = true
+            });
 
         var candidates = new List<BaseItem>(movies.Count + series.Count);
 
@@ -300,11 +339,12 @@ public sealed class Engine : IRecommendationEngine
         // Performance: load all episodes in a single query and collect distinct SeriesIds,
         // rather than querying per-series (N queries → 1 query). This is O(E) in memory
         // but avoids N round-trips to the database on slow NAS/Docker systems.
-        var allEpisodes = _libraryManager.GetItemList(new InternalItemsQuery
-        {
-            IncludeItemTypes = [BaseItemKind.Episode],
-            IsFolder = false
-        });
+        var allEpisodes = _libraryManager.GetItemList(
+            new InternalItemsQuery
+            {
+                IncludeItemTypes = [BaseItemKind.Episode],
+                IsFolder = false
+            });
 
         var seriesIdsWithEpisodes = allEpisodes
             .OfType<Episode>()
@@ -359,7 +399,7 @@ public sealed class Engine : IRecommendationEngine
     /// </param>
     /// <param name="ct">Cancellation token for cooperative cancellation.</param>
     /// <returns>A recommendation result for the user.</returns>
-    internal RecommendationResult GenerateForUser(
+    private RecommendationResult GenerateForUser(
         UserWatchProfile userProfile,
         Collection<UserWatchProfile> allProfiles,
         List<BaseItem> allCandidates,
@@ -394,7 +434,7 @@ public sealed class Engine : IRecommendationEngine
             list.Add(w);
         }
 
-        // Exclude played, favorited, AND started items from candidates — the user already knows these items.
+        // Exclude played, favorited, AND started items from candidates - the user already knows these items.
         // Started items (PlayCount > 0 or PlaybackPositionTicks > 0) appear in Jellyfin's "Continue Watching"
         // and should not waste a recommendation slot. Their genre/studio/tag/people signals still flow
         // into preferences via PreferenceBuilder.
@@ -404,7 +444,8 @@ public sealed class Engine : IRecommendationEngine
                 .Select(w => w.ItemId));
         var watchedSeriesIds = new HashSet<Guid>(
             userProfile.WatchedItems
-                .Where(w => (w.Played || w.IsFavorite || w.PlayCount > 0 || w.PlaybackPositionTicks > 0) && w.SeriesId.HasValue)
+                .Where(w => (w.Played || w.IsFavorite || w.PlayCount > 0 || w.PlaybackPositionTicks > 0) &&
+                            w.SeriesId.HasValue)
                 .Select(w => w.SeriesId!.Value));
 
         // Also include series-level favorites (user favorited the series itself, not individual episodes)
@@ -415,7 +456,7 @@ public sealed class Engine : IRecommendationEngine
 
         var genrePreferences = PreferenceBuilder.BuildGenrePreferenceVector(userProfile);
 
-        // Build O(1) candidate lookup by ID — shared across studio/tag preference building
+        // Build O(1) candidate lookup by ID - shared across studio/tag preference building
         var candidateLookup = new Dictionary<Guid, BaseItem>(allCandidates.Count);
         foreach (var c in allCandidates)
         {
@@ -439,17 +480,19 @@ public sealed class Engine : IRecommendationEngine
         var watchedStudioSets = new List<HashSet<string>>();
         foreach (var w in userProfile.WatchedItems.Where(w => w.Played || w.IsFavorite))
         {
-            watchedGenreSets.Add(w.Genres.Count > 0
-                ? new HashSet<string>(w.Genres, StringComparer.OrdinalIgnoreCase)
-                : []);
+            watchedGenreSets.Add(
+                w.Genres is { Count: > 0 }
+                    ? new HashSet<string>(w.Genres, StringComparer.OrdinalIgnoreCase)
+                    : []);
 
             // People: resolve from peopleLookup (which maps item IDs to person name sets)
             watchedPeopleSets.Add(peopleLookup.TryGetValue(w.ItemId, out var wp) ? wp : []);
 
             // Studios: resolve from candidateLookup (which maps item IDs to BaseItems with Studios)
-            watchedStudioSets.Add(candidateLookup.TryGetValue(w.ItemId, out var wi) && wi.Studios is { Length: > 0 }
-                ? new HashSet<string>(wi.Studios, StringComparer.OrdinalIgnoreCase)
-                : []);
+            watchedStudioSets.Add(
+                candidateLookup.TryGetValue(w.ItemId, out var wi) && wi.Studios is { Length: > 0 }
+                    ? new HashSet<string>(wi.Studios, StringComparer.OrdinalIgnoreCase)
+                    : []);
         }
 
         // Score each unwatched candidate
@@ -464,7 +507,7 @@ public sealed class Engine : IRecommendationEngine
                 ct.ThrowIfCancellationRequested();
             }
 
-            // Parental rating filter — skip items the user is not allowed to see.
+            // Parental rating filter - skip items the user is not allowed to see.
             // Uses Jellyfin's InheritedParentalRatingValue which cascades from parent items
             // (e.g., a series rating applies to all its episodes).
             // This ensures children with restricted profiles only get age-appropriate recommendations.
@@ -488,24 +531,25 @@ public sealed class Engine : IRecommendationEngine
                 continue;
             }
 
-            scored.Add(ScoreCandidate(
-                candidate,
-                userProfile,
-                strategy,
-                genrePreferences,
-                coOccurrence,
-                collaborativeMax,
-                averageYear,
-                watchedItemLookup,
-                seriesEpisodeLookup,
-                preferredStudios,
-                preferredPeople,
-                preferredTags,
-                peopleLookup,
-                genreExposure,
-                watchedGenreSets,
-                watchedPeopleSets,
-                watchedStudioSets));
+            scored.Add(
+                ScoreCandidate(
+                    candidate,
+                    userProfile,
+                    strategy,
+                    genrePreferences,
+                    coOccurrence,
+                    collaborativeMax,
+                    averageYear,
+                    watchedItemLookup,
+                    seriesEpisodeLookup,
+                    preferredStudios,
+                    preferredPeople,
+                    preferredTags,
+                    peopleLookup,
+                    genreExposure,
+                    watchedGenreSets,
+                    watchedPeopleSets,
+                    watchedStudioSets));
         }
 
         scored = DiversityReranker.DeduplicateSeries(scored);
@@ -575,12 +619,13 @@ public sealed class Engine : IRecommendationEngine
     {
         var genreScore = SimilarityComputer.ComputeGenreSimilarity(candidate.Genres ?? [], genrePreferences);
         var collabScore = ContentScoring.ComputeCollaborativeScore(candidate.Id, coOccurrence, collaborativeMax);
-        var combinedCriticScore = ContentScoring.ComputeCombinedCriticScore(candidate.CommunityRating, candidate.CriticRating);
+        var combinedCriticScore =
+            ContentScoring.ComputeCombinedCriticScore(candidate.CommunityRating, candidate.CriticRating);
         var recencyScore = ContentScoring.ComputeRecencyScore(candidate.PremiereDate ?? candidate.DateCreated);
         var libraryAddedRecency = ContentScoring.ComputeRecencyScore(candidate.DateCreated);
         var yearScore = ContentScoring.ComputeYearProximity(candidate.ProductionYear, averageYear);
 
-        // Compute user-specific signals — for series candidates, aggregate from watched episodes
+        // Compute user-specific signals - for series candidates, aggregate from watched episodes
         double userRatingScore;
         double completionRatio;
         bool hasUserInteraction;
@@ -608,9 +653,11 @@ public sealed class Engine : IRecommendationEngine
             completionRatio = hasUserInteraction ? ContentScoring.ComputeCompletionRatio(watchedItem) : 0.5;
         }
 
-        var studioMatch = candidate.Studios is { Length: > 0 } && candidate.Studios.Any(s => preferredStudios.Contains(s));
+        var studioMatch = candidate.Studios is { Length: > 0 } &&
+                          candidate.Studios.Any(s => preferredStudios.Contains(s));
         var peopleSimilarity = peopleLookup.TryGetValue(candidate.Id, out var candidatePeople)
-            ? SimilarityComputer.ComputePeopleSimilarity(candidatePeople, preferredPeople) : 0.0;
+            ? SimilarityComputer.ComputePeopleSimilarity(candidatePeople, preferredPeople)
+            : 0.0;
 
         // Series progression boost: structurally 0 during scoring because series with any
         // Played/IsFavorite episodes are excluded at line 446 (Jellyfin's "Next Up" handles them).
@@ -619,7 +666,8 @@ public sealed class Engine : IRecommendationEngine
         // maintain feature vector parity with TrainingService (which computes real progression
         // values from cached recommendation data where the series IS known to be watched).
         var seriesProgressionBoost = 0.0;
-        if (candidate is Series candidateSeries && seriesEpisodeLookup.TryGetValue(candidateSeries.Id, out var progressionEps))
+        if (candidate is Series candidateSeries &&
+            seriesEpisodeLookup.TryGetValue(candidateSeries.Id, out var progressionEps))
         {
             var playedEps = progressionEps.Count(e => e.Played);
             if (progressionEps.Count > 0)
@@ -662,7 +710,9 @@ public sealed class Engine : IRecommendationEngine
             ContentNearestNeighborScore = ContentScoring.ComputeContentNearestNeighborScore(
                 new HashSet<string>(candidate.Genres ?? [], StringComparer.OrdinalIgnoreCase),
                 peopleLookup.TryGetValue(candidate.Id, out var candidatePeopleForNn) ? candidatePeopleForNn : null,
-                candidate.Studios is { Length: > 0 } ? new HashSet<string>(candidate.Studios, StringComparer.OrdinalIgnoreCase) : null,
+                candidate.Studios is { Length: > 0 }
+                    ? new HashSet<string>(candidate.Studios, StringComparer.OrdinalIgnoreCase)
+                    : null,
                 watchedGenreSets,
                 watchedPeopleSets,
                 watchedStudioSets),
@@ -687,7 +737,12 @@ public sealed class Engine : IRecommendationEngine
         }
 
         var (reason, reasonKey, relatedItem) = ReasonResolver.DetermineReason(
-            candidate, explanation, genrePreferences, preferredPeople, preferredStudios, peopleLookup);
+            candidate,
+            explanation,
+            genrePreferences,
+            preferredPeople,
+            preferredStudios,
+            peopleLookup);
 
         return (candidate, explanation.FinalScore, reason, reasonKey, relatedItem);
     }

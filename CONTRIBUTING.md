@@ -1,5 +1,5 @@
 <!--
-  CONTRIBUTING.md — Contributor guidelines for the Jellyfin Helper plugin.
+  CONTRIBUTING.md - Contributor guidelines for the Jellyfin Helper plugin.
   This file uses UTF-8 encoding and may contain emoji characters.
   If your editor shows garbled characters, ensure UTF-8 is set.
 -->
@@ -43,7 +43,7 @@ After building, copy the output DLL to your Jellyfin plugin directory:
 cp Jellyfin.Plugin.JellyfinHelper/bin/Debug/net9.0/Jellyfin.Plugin.JellyfinHelper.dll \
    ~/.local/share/jellyfin/plugins/JellyfinHelper/
 
-# Linux (system service / package install — path may vary by distro)
+# Linux (system service / package install - path may vary by distro)
 # sudo cp Jellyfin.Plugin.JellyfinHelper/bin/Debug/net9.0/Jellyfin.Plugin.JellyfinHelper.dll \
 #    /var/lib/jellyfin/plugins/JellyfinHelper/
 
@@ -282,7 +282,7 @@ serviceCollection.AddSingleton<ITrashService, TrashService>();
 serviceCollection.AddSingleton<IPluginConfigurationService, PluginConfigurationService>();
 serviceCollection.AddSingleton<IPluginLogService, PluginLogService>();
 serviceCollection.AddSingleton<IMediaStatisticsService, MediaStatisticsService>();
-// (additional services omitted for brevity — see PluginServiceRegistrator.cs for the complete list)
+// (additional services omitted for brevity - see PluginServiceRegistrator.cs for the complete list)
 ```
 
 ### TaskMode Pattern
@@ -292,9 +292,9 @@ All cleanup tasks follow the three-mode pattern:
 ```csharp
 public enum TaskMode
 {
-    Deactivate,  // Skip entirely — no work done
-    DryRun,      // Analyze and report — no changes made
-    Activate     // Full execution — changes applied
+    Deactivate,  // Skip entirely - no work done
+    DryRun,      // Analyze and report - no changes made
+    Activate     // Full execution - changes applied
 }
 ```
 
@@ -375,14 +375,14 @@ CSS and JS files are injected in a specific order defined in `ComposeConfigPage.
 
 ### Important Rules
 
-- **Never edit `configPage.html` directly** — it's overwritten on every build
+- **Never edit `configPage.html` directly** - it's overwritten on every build
 - **Always edit the source files** in `css/`, `js/`, or `configPage.template.html`
 - The `docs/` folder contains a **copy** of the plugin pages for the documentation site
 - After changing plugin pages, copy updated files to `docs/` as well
 
 ### JavaScript Guidelines
 
-- All JS runs inside an IIFE (Immediately Invoked Function Expression) — no global pollution
+- All JS runs inside an IIFE (Immediately Invoked Function Expression) - no global pollution
 - Prefer `var` for broader compatibility; `const`/`let` and arrow functions are acceptable
   in utility/helper code (e.g., `Shared.js`) where Jellyfin web client supports ES6+
 - Use `T('key', 'fallback')` for all user-visible strings (i18n support)
@@ -394,7 +394,7 @@ CSS and JS files are injected in a specific order defined in `ComposeConfigPage.
 - Prefix all classes with the tab name (e.g., `recs-*` for Recommendations)
 - Support both dark and light modes via `@media (prefers-color-scheme: light)`
 - Use relative units (`em`, `%`) for responsive layouts
-- Keep specificity low — avoid `!important`
+- Keep specificity low - avoid `!important`
 
 ## Adding a New Feature
 

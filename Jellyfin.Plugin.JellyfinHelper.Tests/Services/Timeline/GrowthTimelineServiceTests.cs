@@ -647,7 +647,7 @@ public class GrowthTimelineServiceTests
         // The deleted-directory detection uses the same comparer as the baseline
         // dictionary (OrdinalIgnoreCase on Windows, Ordinal on Linux).
         // On Windows, "/movies/Avatar" and "/movies/avatar" are the same path.
-        // On Linux, they are two distinct paths — a case change IS a delete + create.
+        // On Linux, they are two distinct paths - a case change IS a delete + create.
         var baseline = new GrowthTimelineBaseline
         {
             FirstScanTimestamp = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),

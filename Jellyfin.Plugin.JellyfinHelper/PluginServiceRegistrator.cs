@@ -82,11 +82,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             var logger = sp.GetRequiredService<ILogger<NeuralScoringStrategy>>();
             return new NeuralScoringStrategy(neuralWeightsPath, logger);
         });
-        serviceCollection.AddSingleton(_ =>
-        {
-            // When used inside Ensemble, disable standalone genre penalty (penalty = 1.0)
-            return new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
-        });
+        serviceCollection.AddSingleton(_ => new HeuristicScoringStrategy(genrePenaltyFloor: 1.0));
         serviceCollection.AddSingleton(sp =>
         {
             var dataPath = Plugin.Instance?.DataFolderPath;
@@ -110,7 +106,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
             return new EnsembleScoringStrategy(learned, heuristic, neural, statePath, alphaMin, alphaMax, genrePenaltyFloor, logger);
         });
-        // Always use Ensemble strategy — no user-selectable strategy choice.
+        // Always use Ensemble strategy - no user-selectable strategy choice.
         // Ensemble combines all methods (Heuristic + Learned + Neural) for best results.
         serviceCollection.AddSingleton<IScoringStrategy>(sp => sp.GetRequiredService<EnsembleScoringStrategy>());
         serviceCollection.AddSingleton<IRecommendationEngine, Engine>();

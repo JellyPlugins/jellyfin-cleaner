@@ -64,7 +64,7 @@ public class UserActivityUpdateTaskTests
         // Act
         await sut.ExecuteAsync(progress.Object, CancellationToken.None);
 
-        // Assert — progress is reported monotonically: 10, 80, 100
+        // Assert - progress is reported monotonically: 10, 80, 100
         Assert.Equal(new[] { 10.0, 80.0, 100.0 }, reportedValues);
     }
 
@@ -97,7 +97,7 @@ public class UserActivityUpdateTaskTests
         // Act
         await sut.ExecuteAsync(new Progress<double>(), CancellationToken.None, Configuration.TaskMode.DryRun);
 
-        // Assert — dry-run still builds the report but does NOT persist to cache
+        // Assert - dry-run still builds the report but does NOT persist to cache
         _insightsMock.Verify(x => x.BuildActivityReport(), Times.Once);
         _cacheMock.Verify(x => x.SaveResult(It.IsAny<UserActivityResult>()), Times.Never);
     }
@@ -105,13 +105,13 @@ public class UserActivityUpdateTaskTests
     [Fact]
     public async Task Execute_Deactivate_DoesNotBuildReportOrSaveCache()
     {
-        // Arrange — no mock setup needed: BuildActivityReport should never be called
+        // Arrange - no mock setup needed: BuildActivityReport should never be called
         var sut = CreateSut();
 
         // Act
         await sut.ExecuteAsync(new Progress<double>(), CancellationToken.None, Configuration.TaskMode.Deactivate);
 
-        // Assert — Deactivate is a true no-op: no report building, no cache save
+        // Assert - Deactivate is a true no-op: no report building, no cache save
         _insightsMock.Verify(x => x.BuildActivityReport(), Times.Never);
         _cacheMock.Verify(x => x.SaveResult(It.IsAny<UserActivityResult>()), Times.Never);
     }

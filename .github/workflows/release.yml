@@ -45,8 +45,9 @@ jobs:
         cat vuln-report.json
         # Parse JSON output to detect vulnerabilities (SDK-independent, fail-closed)
         VULN_COUNT=$(python3 -c "
-        import json, sys
-        data = json.load(open('vuln-report.json'))
+        import json
+        with open('vuln-report.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
         count = sum(
             len(pkg.get('vulnerabilities') or [])
             for proj in data.get('projects', [])
@@ -57,13 +58,13 @@ jobs:
         ")
         if [ "$VULN_COUNT" -gt 0 ]; then
           echo "::error::Vulnerable NuGet packages detected! Release blocked. ($VULN_COUNT vulnerabilities)"
-          echo "❌ **Vulnerable packages found — release blocked! ($VULN_COUNT vulnerabilities)**" >> $GITHUB_STEP_SUMMARY
+          echo "[FAIL] **Vulnerable packages found - release blocked! ($VULN_COUNT vulnerabilities)**" >> $GITHUB_STEP_SUMMARY
           echo '```json' >> $GITHUB_STEP_SUMMARY
           cat vuln-report.json >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           exit 1
         else
-          echo "✅ **No vulnerable packages detected.**" >> $GITHUB_STEP_SUMMARY
+          echo "[PASS] **No vulnerable packages detected.**" >> $GITHUB_STEP_SUMMARY
         fi
 
   test:
@@ -136,7 +137,7 @@ jobs:
       run: |
         if git ls-remote --tags origin | grep -q "refs/tags/${VERSION}$"; then
           echo "TAG_EXISTS=true" >> $GITHUB_ENV
-          echo "::notice::Tag $VERSION already exists — skipping build and release."
+          echo "::notice::Tag $VERSION already exists - skipping build and release."
         else
           echo "TAG_EXISTS=false" >> $GITHUB_ENV
         fi
@@ -249,7 +250,7 @@ jobs:
       run: |
         if git ls-remote --tags origin | grep -q "refs/tags/${VERSION}$"; then
           echo "TAG_EXISTS=true" >> $GITHUB_ENV
-          echo "::notice::Tag $VERSION already exists — skipping release."
+          echo "::notice::Tag $VERSION already exists - skipping release."
         else
           echo "TAG_EXISTS=false" >> $GITHUB_ENV
         fi
@@ -376,9 +377,9 @@ jobs:
         body: |
           Automated PR to update `manifest.json` and `build.yaml` with release metadata for version `${{ env.VERSION }}`.
 
-          - ✅ Checksum: `${{ env.CHECKSUM }}`
-          - ✅ Timestamp: updated
-          - ✅ Source URL: updated
+          - [PASS] Checksum: `${{ env.CHECKSUM }}`
+          - [PASS] Timestamp: updated
+          - [PASS] Source URL: updated
 
           This PR was created automatically by the release workflow.
         branch: chore/update-metadata-${{ env.VERSION }}

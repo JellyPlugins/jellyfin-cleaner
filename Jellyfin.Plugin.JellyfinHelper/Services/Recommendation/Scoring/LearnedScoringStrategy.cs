@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
@@ -11,9 +12,9 @@ namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 /// <summary>
 ///     Adaptive ML scoring strategy using a linear model with learned weights.
 ///     Learns personalized feature weights from user watch history via stochastic gradient descent (SGD).
-///     Genre-mismatch penalties are NOT applied here — they are handled centrally by the
+///     Genre-mismatch penalties are NOT applied here - they are handled centrally by the
 ///     ensemble layer to avoid double-penalization.
-///     No external ML dependencies required — pure C# implementation.
+///     No external ML dependencies required - pure C# implementation.
 /// </summary>
 /// <remarks>
 ///     Architecture: 29 input features → 29 weights + 1 bias → clamp(0,1) → score (0–1).
@@ -85,7 +86,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
     private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
 
     private readonly ILogger? _logger;
-    private readonly object _syncRoot = new();
+    private readonly Lock _syncRoot = new();
     private readonly string? _weightsPath;
     private double _bias;
     private double _lastValidationLoss = double.NaN;
@@ -117,9 +118,10 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
         _weightsPath = weightsPath;
         _logger = logger;
 
-        // Initialize with genre-dominant weights — genre match is the strongest signal
+        // Initialize with genre-dominant weights - genre match is the strongest signal
         _weights = DefaultWeights.CreateWeightArray();
-        _bias = DefaultWeights.Bias; // positive bias; note raw score may exceed 1.0 with all features at max and is clamped
+        _bias = DefaultWeights
+            .Bias; // positive bias; note raw score may exceed 1.0 with all features at max and is clamped
 
         // Try to load persisted weights
         TryLoadWeights();
@@ -357,7 +359,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
                 // === K-fold cross-validation for reliable loss estimation ===
                 // Each fold computes standardization statistics from its TRAINING fold only,
                 // preventing validation data from leaking into the feature normalization.
-                // rawVectors is never mutated — each fold clones into working copies.
+                // rawVectors is never mutated - each fold clones into working copies.
                 var foldSize = examples.Count / KFoldCount;
                 var savedWeights = (double[])_weights.Clone();
                 var savedBias = _bias;
@@ -461,11 +463,11 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
             LogFeatureImportance();
         } // release _syncRoot before disk I/O and ranking metrics to avoid blocking concurrent Score() calls
 
-        // Compute ranking metrics OUTSIDE the lock — ComputeAll() calls Score() internally,
+        // Compute ranking metrics OUTSIDE the lock - ComputeAll() calls Score() internally,
         // which acquires _syncRoot. While Monitor is reentrant (no deadlock), holding the lock
         // during the entire scoring loop unnecessarily blocks all concurrent Score() callers.
         // This mirrors the pattern used by NeuralScoringStrategy.Train().
-        var (pAtK, rAtK, nAtK) = RankingMetrics.ComputeAll(examples, this, RankingMetrics.DefaultK);
+        var (pAtK, rAtK, nAtK) = RankingMetrics.ComputeAll(examples, this);
         lock (_syncRoot)
         {
             _lastPrecisionAtK = pAtK;
@@ -473,7 +475,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
             _lastNdcgAtK = nAtK;
         }
 
-        // Persist outside the lock — TrySaveWeights() takes its own lock for
+        // Persist outside the lock - TrySaveWeights() takes its own lock for
         // a brief snapshot, then performs serialization and file I/O without
         // holding the scoring lock. This prevents slow disk writes from blocking
         // all concurrent Score()/ScoreWithExplanation() callers.
@@ -542,9 +544,9 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
     /// <param name="stdDevs">The per-feature standard deviations.</param>
     internal static void StandardizeVectors(double[][] vectors, double[] means, double[] stdDevs)
     {
-        for (var i = 0; i < vectors.Length; i++)
+        foreach (var t in vectors)
         {
-            StandardizeSingleVector(vectors[i], means, stdDevs);
+            StandardizeSingleVector(t, means, stdDevs);
         }
     }
 
@@ -663,8 +665,8 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
 
                 // Saturation guard: skip gradient update when the raw score is already
                 // clamped AND the gradient would push it further into saturation.
-                // z <= 0 with error > 0 means predicted < label but score is floored — no escape possible.
-                // z >= 1 with error < 0 means predicted > label but score is ceilinged — no escape possible.
+                // z <= 0 with error > 0 means predicted < label but score is floored - no escape possible.
+                // z >= 1 with error < 0 means predicted > label but score is ceilinged - no escape possible.
                 // The opposite combinations (z <= 0 && error < 0, z >= 1 && error > 0) ARE correctable
                 // because the gradient pulls the raw score back into the [0, 1] range.
                 if ((z <= 0 && error > 0) || (z >= 1 && error < 0))
@@ -686,7 +688,13 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
 
             if (useEarlyStopping && valIndices.Length > 0)
             {
-                var valLoss = ComputeMseLoss(examples, precomputedVectors, effectiveWeights, valIndices, _weights, _bias);
+                var valLoss = ComputeMseLoss(
+                    examples,
+                    precomputedVectors,
+                    effectiveWeights,
+                    valIndices,
+                    _weights,
+                    _bias);
 
                 if (valLoss < bestLoss - EarlyStoppingMinDelta)
                 {
@@ -762,7 +770,9 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
             parts[i] = string.Format(CultureInfo.InvariantCulture, "{0}={1:F4}", ranked[i].Name, ranked[i].Weight);
         }
 
-        _logger.LogDebug("LearnedScoringStrategy feature weights (sorted by |w|): {FeatureWeights}", string.Join(", ", parts));
+        _logger.LogDebug(
+            "LearnedScoringStrategy feature weights (sorted by |w|): {FeatureWeights}",
+            string.Join(", ", parts));
     }
 
     /// <summary>
@@ -770,9 +780,9 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
     /// </summary>
     private static bool AllFinite(double[] values)
     {
-        for (var i = 0; i < values.Length; i++)
+        foreach (var t in values)
         {
-            if (!double.IsFinite(values[i]))
+            if (!double.IsFinite(t))
             {
                 return false;
             }
@@ -795,12 +805,13 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
         {
             var json = File.ReadAllText(_weightsPath);
             var data = JsonSerializer.Deserialize<WeightsData>(json);
-            if (data?.Weights is { Length: CandidateFeatures.FeatureCount }
-                && data.Version == CurrentWeightsVersion)
+            if (data is { Weights: { Length: CandidateFeatures.FeatureCount }, Version: CurrentWeightsVersion })
             {
                 // Validate standardization stats: both must be null together or both exactly FeatureCount long.
-                var meansValid = data.FeatureMeans is null || data.FeatureMeans.Length == CandidateFeatures.FeatureCount;
-                var stdDevsValid = data.FeatureStdDevs is null || data.FeatureStdDevs.Length == CandidateFeatures.FeatureCount;
+                var meansValid = data.FeatureMeans is null ||
+                                 data.FeatureMeans.Length == CandidateFeatures.FeatureCount;
+                var stdDevsValid = data.FeatureStdDevs is null ||
+                                   data.FeatureStdDevs.Length == CandidateFeatures.FeatureCount;
                 var bothNullOrBothPresent = (data.FeatureMeans is null) == (data.FeatureStdDevs is null);
 
                 // Validate all loaded values are finite (not NaN/Infinity).
@@ -831,7 +842,7 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
                     }
                     else
                     {
-                        // Mismatched stats — can't safely apply loaded weights either, because
+                        // Mismatched stats - can't safely apply loaded weights either, because
                         // they may have been trained in standardized space. Reset everything
                         // to defaults and let the next Train() call re-fit from scratch.
                         _weights = DefaultWeights.CreateWeightArray();
@@ -848,29 +859,29 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
             }
             else if (data is not null)
             {
-                // Version mismatch or incompatible weights — reset to defaults.
+                // Version mismatch or incompatible weights - reset to defaults.
                 // This is expected after feature vector changes (version bump).
                 _logger?.LogWarning(
                     "LearnedScoringStrategy: Discarding persisted weights (file version={FileVersion}, "
                     + "expected={ExpectedVersion}, featureCount={FeatureCount}). Resetting to defaults",
                     data.Version,
                     CurrentWeightsVersion,
-                    data.Weights?.Length ?? 0);
+                    data.Weights?.Length ?? -1);
             }
         }
         catch (IOException ex)
         {
-            // Graceful fallback to default weights on I/O error — log for diagnostics
+            // Graceful fallback to default weights on I/O error - log for diagnostics
             _logger?.LogWarning(ex, "LearnedScoringStrategy: Failed to load weights");
         }
         catch (UnauthorizedAccessException ex)
         {
-            // Graceful fallback to default weights on access denied — log for diagnostics
+            // Graceful fallback to default weights on access denied - log for diagnostics
             _logger?.LogWarning(ex, "LearnedScoringStrategy: Failed to load weights (access denied)");
         }
         catch (JsonException ex)
         {
-            // Graceful fallback to default weights on parse error — log for diagnostics
+            // Graceful fallback to default weights on parse error - log for diagnostics
             _logger?.LogWarning(ex, "LearnedScoringStrategy: Failed to parse weights");
         }
     }
@@ -927,11 +938,11 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
                 }
                 catch (IOException)
                 {
-                    // best effort — temp file cleanup is non-critical
+                    // best effort - temp file cleanup is non-critical
                 }
                 catch (UnauthorizedAccessException)
                 {
-                    // best effort — temp file cleanup is non-critical
+                    // best effort - temp file cleanup is non-critical
                 }
 
                 throw;
@@ -939,17 +950,17 @@ public sealed class LearnedScoringStrategy : IScoringStrategy, ITrainableStrateg
         }
         catch (IOException ex)
         {
-            // Non-critical — log for diagnostics but don't fail
+            // Non-critical - log for diagnostics but don't fail
             _logger?.LogWarning(ex, "LearnedScoringStrategy: Failed to save weights");
         }
         catch (UnauthorizedAccessException ex)
         {
-            // Non-critical — log for diagnostics but don't fail
+            // Non-critical - log for diagnostics but don't fail
             _logger?.LogWarning(ex, "LearnedScoringStrategy: Failed to save weights (access denied)");
         }
         catch (JsonException ex)
         {
-            // Non-critical — log for diagnostics but don't fail
+            // Non-critical - log for diagnostics but don't fail
             _logger?.LogWarning(ex, "LearnedScoringStrategy: Failed to serialize weights");
         }
     }

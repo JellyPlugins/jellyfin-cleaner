@@ -30,3 +30,8 @@
     color: var(--color-primary);
 }
 
+/* Additional overrides for .icon-label used in Arr instance headers */
+.arr-integration-instance-header {
+    margin: 0 0 0.5em 0;
+    opacity: 0.7;
+}

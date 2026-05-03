@@ -170,7 +170,7 @@ internal static class ScoringHelper
             InteractionContribution = interactionContrib,
             PeopleContribution = peopleContrib,
             StudioContribution = studioContrib,
-            GenrePenaltyMultiplier = 1.0, // No penalty in individual strategies — applied in Ensemble
+            GenrePenaltyMultiplier = 1.0, // No penalty in individual strategies - applied in Ensemble
             DominantSignal = ScoreExplanation.DetermineDominantSignal(
                 genreContrib, collabContrib, ratingContrib, userRatingContrib, recencyContrib, yearProxContrib, interactionContrib, peopleContrib, studioContrib),
             StrategyName = strategyName

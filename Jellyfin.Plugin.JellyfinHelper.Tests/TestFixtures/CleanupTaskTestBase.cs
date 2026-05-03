@@ -76,7 +76,7 @@ public abstract class CleanupTaskTestBase : IDisposable
 
     public virtual void Dispose()
     {
-        // No static cleanup needed — all state is in mock instances
+        // No static cleanup needed - all state is in mock instances
     }
 
     /// <summary>

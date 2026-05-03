@@ -69,7 +69,7 @@ public class RecommendationsTaskTests
         // Act
         await sut.ExecuteAsync(config, progress.Object, CancellationToken.None);
 
-        // Assert — Deactivate is a true no-op: no training, no generation, no cache save
+        // Assert - Deactivate is a true no-op: no training, no generation, no cache save
         _recsEngineMock.Verify(
             x => x.TrainStrategy(It.IsAny<IReadOnlyList<RecommendationResult>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
             Times.Never);
@@ -99,7 +99,7 @@ public class RecommendationsTaskTests
         // Act
         await sut.ExecuteAsync(config, progress.Object, CancellationToken.None);
 
-        // Assert — DryRun does NOT persist to disk; the UI caches results in the browser instead
+        // Assert - DryRun does NOT persist to disk; the UI caches results in the browser instead
         _recsCacheMock.Verify(x => x.SaveResults(It.IsAny<IReadOnlyList<RecommendationResult>>()), Times.Never);
     }
 
@@ -126,10 +126,10 @@ public class RecommendationsTaskTests
         // Act
         await sut.ExecuteAsync(config, progress.Object, CancellationToken.None);
 
-        // Assert — generation still happens
+        // Assert - generation still happens
         _recsEngineMock.Verify(x => x.GetAllRecommendations(20, It.IsAny<CancellationToken>()), Times.Once);
 
-        // Assert — training failure is logged as a warning
+        // Assert - training failure is logged as a warning
         _pluginLogMock.Verify(
             x => x.LogWarning("Recommendations", It.Is<string>(s => s.Contains("training failed", StringComparison.OrdinalIgnoreCase)), It.IsAny<Exception>(), It.IsAny<ILogger>()),
             Times.Once);
@@ -231,7 +231,7 @@ public class RecommendationsTaskTests
         // Act
         await sut.ExecuteAsync(config, progress.Object, CancellationToken.None);
 
-        // Assert — Deactivate should clean up old playlists when playlist service is available
+        // Assert - Deactivate should clean up old playlists when playlist service is available
         playlistMock.Verify(x => x.RemoveAllRecommendationPlaylistsAsync(It.IsAny<CancellationToken>()), Times.Once);
         // But should NOT generate or train
         _recsEngineMock.Verify(

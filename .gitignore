@@ -17,3 +17,6 @@ Jellyfin.Plugin.JellyfinHelper/PluginPages/configPage.html
 # Build artifacts / local-only files
 _diff_output.txt
 *.DotSettings.user
+docs/css/
+docs/js/
+docs/i18n/

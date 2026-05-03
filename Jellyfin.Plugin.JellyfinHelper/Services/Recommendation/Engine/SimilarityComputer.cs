@@ -65,7 +65,7 @@ internal sealed class SimilarityComputer
                         continue;
                     }
 
-                    // Only include actors and directors — other types add noise without predictive value
+                    // Only include actors and directors - other types add noise without predictive value
                     if (!EngineConstants.RelevantPersonKinds.Contains(person.Type))
                     {
                         continue;
@@ -82,7 +82,7 @@ internal sealed class SimilarityComputer
             }
             catch (OperationCanceledException)
             {
-                throw; // Do not swallow cancellation — propagate to caller
+                throw; // Do not swallow cancellation - propagate to caller
             }
             catch (Exception ex)
             {
@@ -141,12 +141,12 @@ internal sealed class SimilarityComputer
                     dotProduct += weight; // candidate component is 1.0
                 }
 
-                // weight == 0: genre is known (user watched it) but normalized to zero —
+                // weight == 0: genre is known (user watched it) but normalized to zero -
                 // not counted as "unknown" since the user has been exposed to it.
             }
             else
             {
-                // Genre is truly absent from the user's preference vector — never watched.
+                // Genre is truly absent from the user's preference vector - never watched.
                 unknownGenreCount++;
             }
         }
@@ -182,12 +182,14 @@ internal sealed class SimilarityComputer
         // Factor 0.5 = moderate damping: "never watched" ≠ "dislikes", just less confident.
         // Example: Anime ["Animation", "Action", "Drama"] for an Action/Drama user:
         //   unknownFraction = 1/3, damping = 1 - 0.33 * 0.5 = 0.835 → ~17% reduction.
-        if (unknownGenreCount > 0)
+        if (unknownGenreCount == 0)
         {
-            var unknownFraction = (double)unknownGenreCount / uniqueCandidateGenres.Count;
-            const double unknownGenreDampingFactor = 0.5;
-            cosineSimilarity *= 1.0 - (unknownFraction * unknownGenreDampingFactor);
+            return cosineSimilarity;
         }
+
+        var unknownFraction = (double)unknownGenreCount / uniqueCandidateGenres.Count;
+        const double unknownGenreDampingFactor = 0.5;
+        cosineSimilarity *= 1.0 - (unknownFraction * unknownGenreDampingFactor);
 
         return cosineSimilarity;
     }

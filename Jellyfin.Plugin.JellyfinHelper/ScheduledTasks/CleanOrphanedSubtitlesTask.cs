@@ -125,6 +125,11 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
                 }
 
                 // Get all video base names in this directory
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return (deletedCount, bytesFreed);
+                }
+
                 var videoBaseNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var file in files)
                 {
@@ -134,7 +139,7 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
                     }
                 }
 
-                // If there are no videos in this directory at all, skip — subtitles here
+                // If there are no videos in this directory at all, skip - subtitles here
                 // are likely managed by the folder itself (season folder, etc.)
                 // The EmptyMediaFolder task handles entire orphaned folders.
                 if (videoBaseNames.Count == 0)
@@ -226,7 +231,10 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
     ///     "Movie Name (2021).en.srt" → "Movie Name (2021)"
     ///     "Movie Name (2021).en.forced.srt" → "Movie Name (2021)"
     ///     "Movie Name (2021).srt" → "Movie Name (2021)"
-    ///     "Movie Name (2021).de.hi.ass" → "Movie Name (2021)".
+    ///     "Movie Name (2021).de.hi.ass" → "Movie Name (2021)"
+    ///     "Movie Name (2021).es-MX.srt" → "Movie Name (2021)"
+    ///     "Movie Name (2021).pt-BR.forced.srt" → "Movie Name (2021)"
+    ///     "Movie Name (2021).zh-Hans.srt" → "Movie Name (2021)".
     /// </summary>
     /// <param name="filePath">The full path to the subtitle file.</param>
     /// <returns>The base name without language and format suffixes.</returns>
@@ -256,15 +264,63 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
 
     /// <summary>
     ///     Determines whether a string segment is a known subtitle suffix (language code or flag).
+    ///     Supports simple codes (e.g., "en", "eng", "forced") as well as BCP-47 regional/script
+    ///     tags (e.g., "es-MX", "pt-BR", "zh-Hans", "sr-Latn").
     ///     Uses explicit allowlists to avoid false positives with non-language segments like "DTS", "HDR", etc.
     /// </summary>
-    private static bool IsSubtitleSuffix(string segment)
+    /// <param name="segment">The dot-separated segment to check.</param>
+    /// <returns>True if the segment is a recognized subtitle suffix; otherwise false.</returns>
+    internal static bool IsSubtitleSuffix(string segment)
     {
         if (string.IsNullOrEmpty(segment))
         {
             return false;
         }
 
-        return MediaExtensions.SubtitleFlags.Contains(segment) || MediaExtensions.KnownLanguageCodes.Contains(segment);
+        // Direct match: known flags (forced, sdh, hi, cc, etc.) or language codes (en, de, eng, deu, etc.)
+        if (MediaExtensions.SubtitleFlags.Contains(segment) || MediaExtensions.KnownLanguageCodes.Contains(segment))
+        {
+            return true;
+        }
+
+        // BCP-47 regional/script tags: "es-MX", "pt-BR", "zh-Hans", "sr-Latn", "en-US",
+        // "es-419", "zh-Hans-TW", etc.
+        // Supported formats:
+        //   {lang}-{region}         e.g. en-US, pt-BR
+        //   {lang}-{3-digit-region} e.g. es-419
+        //   {lang}-{script}         e.g. zh-Hans, sr-Latn
+        //   {lang}-{script}-{region} e.g. zh-Hans-TW
+        var subtags = segment.Split('-');
+        if (subtags.Length < 2 || subtags.Length > 3)
+        {
+            return false;
+        }
+
+        if (!MediaExtensions.KnownLanguageCodes.Contains(subtags[0]))
+        {
+            return false;
+        }
+
+        // Helper: 2-letter alphabetic region (ISO 3166-1 alpha-2)
+        static bool IsAlphaRegion(string value) =>
+            value.Length == 2 && char.IsLetter(value[0]) && char.IsLetter(value[1]);
+
+        // Helper: 3-digit numeric region (UN M.49, e.g. 419)
+        static bool IsNumericRegion(string value) =>
+            value.Length == 3 && char.IsDigit(value[0]) && char.IsDigit(value[1]) && char.IsDigit(value[2]);
+
+        // Helper: 4-letter script (ISO 15924, e.g. Hans, Latn, Cyrl)
+        static bool IsScript(string value) =>
+            value.Length == 4 && char.IsLetter(value[0]) && char.IsLetter(value[1])
+            && char.IsLetter(value[2]) && char.IsLetter(value[3]);
+
+        if (subtags.Length == 2)
+        {
+            // {lang}-{region} or {lang}-{script}
+            return IsAlphaRegion(subtags[1]) || IsNumericRegion(subtags[1]) || IsScript(subtags[1]);
+        }
+
+        // subtags.Length == 3: {lang}-{script}-{region}
+        return IsScript(subtags[1]) && (IsAlphaRegion(subtags[2]) || IsNumericRegion(subtags[2]));
     }
 }

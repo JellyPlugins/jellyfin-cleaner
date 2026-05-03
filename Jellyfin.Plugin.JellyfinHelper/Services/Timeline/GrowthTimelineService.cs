@@ -78,7 +78,7 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
     ///     approach: all previously persisted data points are treated as immutable history,
     ///     and only the current time-bucket is updated with the actual total size/count.
     ///     This ensures that deleting files whose creation dates lie in the past does NOT
-    ///     retroactively alter historical data points — the deletion shows up as a drop
+    ///     retroactively alter historical data points - the deletion shows up as a drop
     ///     at the current point in time.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
@@ -401,7 +401,11 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
                     }
 
                     // Sum up all file sizes recursively within this directory
-                    var totalSize = GetDirectorySize(subDir.FullName, trashFolderName, fullTrashPath, cancellationToken);
+                    var totalSize = GetDirectorySize(
+                        subDir.FullName,
+                        trashFolderName,
+                        fullTrashPath,
+                        cancellationToken);
                     if (totalSize > 0)
                     {
                         entries.Add(
@@ -448,7 +452,8 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
                         });
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+                                           or NotSupportedException)
             {
                 _pluginLog.LogWarning("GrowthTimeline", $"Could not scan {location}", ex, _logger);
             }
@@ -462,7 +467,11 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
     ///     Matches .trickplay directories and trash directories by leaf name (relative paths)
     ///     or resolved full path (absolute paths).
     /// </summary>
-    private static bool ShouldSkipDirectory(string fullName, string dirName, string trashFolderName, string fullTrashPath)
+    private static bool ShouldSkipDirectory(
+        string fullName,
+        string dirName,
+        string trashFolderName,
+        string fullTrashPath)
     {
         if (dirName.EndsWith(".trickplay", StringComparison.OrdinalIgnoreCase))
         {
@@ -484,7 +493,11 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
     /// <summary>
     ///     Calculates the total size of all files within a directory (recursively).
     /// </summary>
-    private long GetDirectorySize(string directoryPath, string trashFolderName, string fullTrashPath, CancellationToken cancellationToken)
+    private long GetDirectorySize(
+        string directoryPath,
+        string trashFolderName,
+        string fullTrashPath,
+        CancellationToken cancellationToken)
     {
         long total = 0;
         try
@@ -632,7 +645,7 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
     }
 
     /// <summary>
-    ///     Internal struct for timeline construction — a size contribution at a point in time.
+    ///     Internal struct for timeline construction - a size contribution at a point in time.
     /// </summary>
     internal struct FileEntry
     {

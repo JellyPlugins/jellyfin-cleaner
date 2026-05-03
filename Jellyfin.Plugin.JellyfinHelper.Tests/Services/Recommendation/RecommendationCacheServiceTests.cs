@@ -38,22 +38,19 @@ public sealed class RecommendationCacheServiceTests : IDisposable
     {
         try
         {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, true);
-            }
+            Directory.Delete(_tempDir, true);
         }
         catch (DirectoryNotFoundException)
         {
-            // Best-effort cleanup — TOCTOU race between Exists check and Delete
+            // Best-effort cleanup - directory may already be gone
         }
         catch (IOException)
         {
-            // Best-effort cleanup — don't fail the test run for transient IO issues
+            // Best-effort cleanup - don't fail the test run for transient IO issues
         }
         catch (UnauthorizedAccessException)
         {
-            // Best-effort cleanup — don't fail the test run for access issues
+            // Best-effort cleanup - don't fail the test run for access issues
         }
     }
 

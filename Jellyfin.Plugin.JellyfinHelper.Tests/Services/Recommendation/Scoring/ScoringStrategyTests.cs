@@ -26,23 +26,22 @@ public sealed class ScoringStrategyTests : IDisposable
     {
         try
         {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, true);
-            }
+            Directory.Delete(_tempDir, true);
         }
         catch (DirectoryNotFoundException)
         {
-            // best-effort cleanup — directory may have been removed between Exists and Delete
+            // best-effort cleanup - directory may already be gone
         }
         catch (IOException)
         {
-            // best-effort cleanup — file may be locked on CI
+            // best-effort cleanup - file may be locked on CI
         }
         catch (UnauthorizedAccessException)
         {
-            // best-effort cleanup — permission edge cases on CI
+            // best-effort cleanup - permission edge cases on CI
         }
+
+        GC.SuppressFinalize(this);
     }
 
     // ============================================================
@@ -125,7 +124,7 @@ public sealed class ScoringStrategyTests : IDisposable
     {
         var features = new CandidateFeatures { GenreCount = -1 };
         var vector = features.ToVector();
-        // -1/5 = -0.2, Math.Clamp(-0.2, 0.0, 1.0) = 0.0 — clamped to lower bound
+        // -1/5 = -0.2, Math.Clamp(-0.2, 0.0, 1.0) = 0.0 - clamped to lower bound
         Assert.Equal(0.0, vector[5]);
     }
 
@@ -361,7 +360,7 @@ public sealed class ScoringStrategyTests : IDisposable
     {
         // Guard test: ensures every FeatureIndex enum value has an explicit weight assignment
         // in DefaultWeights.CreateWeightArray(). If a new FeatureIndex is added without updating
-        // CreateWeightArray, this test will fail — preventing silently unweighted features.
+        // CreateWeightArray, this test will fail - preventing silently unweighted features.
         var weights = DefaultWeights.CreateWeightArray();
         var allIndices = Enum.GetValues<FeatureIndex>();
 
@@ -443,14 +442,14 @@ public sealed class ScoringStrategyTests : IDisposable
 
         var score = strategy.Score(features);
 
-        // Should be a respectable score — no penalty because genre >= threshold
+        // Should be a respectable score - no penalty because genre >= threshold
         Assert.True(score > 0.5, $"High genre match should yield high score, got {score:F4}");
     }
 
     [Fact]
     public void Learned_Score_NoGenreMatch_ScoresSignificantlyLower()
     {
-        // Learned strategy does NOT apply a genre penalty multiplier — that's in the Ensemble.
+        // Learned strategy does NOT apply a genre penalty multiplier - that's in the Ensemble.
         // However, genre similarity has the highest weight (0.20) and contributes to interaction
         // terms (genre×rating, genre×collab), so items with zero genre match naturally score
         // much lower due to weight dominance alone.
@@ -811,7 +810,7 @@ public sealed class ScoringStrategyTests : IDisposable
 
         var chuckyFeatures = new CandidateFeatures
         {
-            GenreSimilarity = 0.0, // Horror — no overlap with Action/SciFi profile
+            GenreSimilarity = 0.0, // Horror - no overlap with Action/SciFi profile
             CollaborativeScore = 0.1,
             CombinedCriticScore = 0.5,
             RecencyScore = 0.4,
@@ -832,7 +831,7 @@ public sealed class ScoringStrategyTests : IDisposable
     [Fact]
     public void Learned_GenreMismatch_ChuckyVsMarvel_MarvelWins()
     {
-        // Learned strategy no longer applies genre penalty — that's in the Ensemble.
+        // Learned strategy no longer applies genre penalty - that's in the Ensemble.
         // But Marvel still scores higher due to genre weight dominance + interaction terms.
         var strategy = new LearnedScoringStrategy();
 
@@ -1539,7 +1538,7 @@ public sealed class ScoringStrategyTests : IDisposable
     }
 
     // ============================================================
-    // TrainingExample — Temporal Decay Tests
+    // TrainingExample - Temporal Decay Tests
     // ============================================================
 
     [Fact]
@@ -1745,7 +1744,7 @@ public sealed class ScoringStrategyTests : IDisposable
         var originalAlpha = original.CurrentAlpha;
         var originalCount = original.TrainingExampleCount;
 
-        // Create new instance with same state path — should restore state
+        // Create new instance with same state path - should restore state
         var learned2 = new LearnedScoringStrategy(weightsPath);
         var heuristic2 = new HeuristicScoringStrategy(genrePenaltyFloor: 1.0);
         var restored = new EnsembleScoringStrategy(learned2, heuristic2, statePath: statePath);
@@ -2200,7 +2199,7 @@ public sealed class ScoringStrategyTests : IDisposable
         var weightsPath = Path.Join(_tempDir, "neural_adam_reset.json");
         var strategy = new NeuralScoringStrategy(weightsPath);
 
-        // Train to persist weights (Adam optimizer state is not persisted — only network weights are)
+        // Train to persist weights (Adam optimizer state is not persisted - only network weights are)
         var examples = new List<TrainingExample>();
         for (var i = 0; i < 20; i++)
         {
@@ -2218,7 +2217,7 @@ public sealed class ScoringStrategyTests : IDisposable
 
         strategy.Train(examples);
 
-        // Restore from disk — Adam state should reset but weights should persist
+        // Restore from disk - Adam state should reset but weights should persist
         var restored = new NeuralScoringStrategy(weightsPath);
 
         // Verify weights are consistent (score should match)
@@ -2256,7 +2255,7 @@ public sealed class ScoringStrategyTests : IDisposable
             "Pre-condition: non-standardized training must succeed for the transition test to be meaningful.");
         var weightsAfterFirstTrain = strategy.CurrentWeights;
 
-        // Now train WITH standardization (>= 10 examples) — should trigger weight reset
+        // Now train WITH standardization (>= 10 examples) - should trigger weight reset
         var manyExamples = GenerateTrainingExamples(20);
         strategy.Train(manyExamples);
         var weightsAfterSecondTrain = strategy.CurrentWeights;
@@ -2345,7 +2344,7 @@ public sealed class ScoringStrategyTests : IDisposable
         ensemble.Train(GenerateTrainingExamples(55));
         var betaAt55 = ensemble.CurrentNeuralBeta;
 
-        // Train more — beta should increase (or stay same if quality gate blocks it)
+        // Train more - beta should increase (or stay same if quality gate blocks it)
         ensemble.Train(GenerateTrainingExamples(100));
         var betaAt155 = ensemble.CurrentNeuralBeta;
 

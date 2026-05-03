@@ -349,7 +349,7 @@ public class RecommendationPlaylistServiceTests
     [Fact]
     public async Task UpdatePlaylists_WithSeriesRecommendations_ResolvesToEpisodes()
     {
-        // Arrange — mixed recommendations with movies and series
+        // Arrange - mixed recommendations with movies and series
         var userId = Guid.NewGuid();
         var movieId = Guid.NewGuid();
         var seriesId = Guid.NewGuid();
@@ -380,7 +380,7 @@ public class RecommendationPlaylistServiceTests
         var syncResult = await sut.UpdatePlaylistsForAllUsersAsync(
             new List<RecommendationResult> { result }, CancellationToken.None);
 
-        // Assert — playlist should contain movie ID + resolved episode ID (not series ID)
+        // Assert - playlist should contain movie ID + resolved episode ID (not series ID)
         Assert.Equal(1, syncResult.PlaylistsCreated);
         Assert.Equal(2, syncResult.TotalItemsAdded);
         Assert.NotNull(capturedItemIds);

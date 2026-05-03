@@ -1,4 +1,5 @@
 using System;
+using Jellyfin.Plugin.JellyfinHelper.Services;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Services.Recommendation.Scoring;
 
@@ -34,7 +35,7 @@ public sealed class TrainingExample
     }
 
     /// <summary>
-    ///     Gets or sets the sample weight for this training example (0–1).
+    ///     Gets or sets the sample weight for this training example (0-1).
     ///     Higher weights mean the example has more influence during training.
     ///     Default is 1.0. Values are clamped to [0, 1].
     /// </summary>
@@ -46,13 +47,13 @@ public sealed class TrainingExample
 
     /// <summary>
     ///     Gets or sets the UTC timestamp when the recommendation that produced this example was generated.
-    ///     Used for temporal decay weighting — newer examples are more relevant.
+    ///     Used for temporal decay weighting - newer examples are more relevant.
     ///     Values are normalized to <see cref="DateTimeKind.Utc"/> on assignment.
     /// </summary>
     public DateTime GeneratedAtUtc
     {
         get => _generatedAtUtc;
-        set => _generatedAtUtc = Services.DateTimeNormalization.ToUtc(value);
+        set => _generatedAtUtc = DateTimeNormalization.ToUtc(value);
     }
 
     /// <summary>
@@ -68,7 +69,7 @@ public sealed class TrainingExample
     /// <returns>A decay weight between 0 and 1.</returns>
     public double ComputeTemporalWeight(DateTime? referenceTimeUtc = null)
     {
-        var reference = Services.DateTimeNormalization.ToUtc(referenceTimeUtc ?? DateTime.UtcNow);
+        var reference = DateTimeNormalization.ToUtc(referenceTimeUtc ?? DateTime.UtcNow);
         var ageDays = (reference - GeneratedAtUtc).TotalDays;
         if (ageDays <= 0)
         {
