@@ -158,6 +158,11 @@
 }
 
 /* noinspection CssUnusedSymbol */
+.arr-collapsible.arr-expanded > .arr-collapsible-header .help-text {
+    display: none;
+}
+
+/* noinspection CssUnusedSymbol */
 .arr-collapsible-body {
     max-height: 0;
     overflow: hidden;

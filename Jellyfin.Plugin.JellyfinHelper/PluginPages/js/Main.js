@@ -97,21 +97,21 @@ function renderShell() {
 
     // Tab bar
     html += '<div class="tab-bar">';
-    html += '<button class="tab-btn active" data-tab="overview">' + mi('dashboard') + ' ' + T(
+    html += '<button class="tab-btn active" data-tab="overview">' + mi('dashboard') + T(
         'tabOverview', 'Overview') + '</button>';
-    html += '<button class="tab-btn" data-tab="codecs">' + mi('movie_filter') + ' ' + T('tabCodecs',
+    html += '<button class="tab-btn" data-tab="codecs">' + mi('movie_filter') + T('tabCodecs',
         'Codecs') + '</button>';
-    html += '<button class="tab-btn" data-tab="health">' + mi('health_and_safety') + ' ' + T('tabHealth',
+    html += '<button class="tab-btn" data-tab="health">' + mi('health_and_safety') + T('tabHealth',
         'Health') + '</button>';
-    html += '<button class="tab-btn" data-tab="trends">' + mi('trending_up') + ' ' + T('tabTrends',
+    html += '<button class="tab-btn" data-tab="trends">' + mi('trending_up') + T('tabTrends',
         'Trends') + '</button>';
-    html += '<button class="tab-btn" data-tab="settings">' + mi('settings') + ' ' + T('tabSettings',
+    html += '<button class="tab-btn" data-tab="settings">' + mi('settings') + T('tabSettings',
         'Settings') + '</button>';
-    html += '<button class="tab-btn" data-tab="arr">' + mi('link') + ' ' + T('tabArr', 'Arr')
+    html += '<button class="tab-btn" data-tab="arr">' + mi('link') + T('tabArr', 'Arr')
         + '</button>';
-    html += '<button class="tab-btn" data-tab="recommendations" style="display:none;">' + mi('smart_toy') + ' ' + T('tabRecommendations',
+    html += '<button class="tab-btn" data-tab="recommendations" style="display:none;">' + mi('smart_toy') + T('tabRecommendations',
         'Smart Recs') + '</button>';
-    html += '<button class="tab-btn" data-tab="logs">' + mi('assignment') + ' ' + T('tabLogs', 'Logs')
+    html += '<button class="tab-btn" data-tab="logs">' + mi('assignment') + T('tabLogs', 'Logs')
         + '</button>';
     html += '</div>';
 
@@ -135,7 +135,7 @@ function renderShell() {
 
     // === TRENDS TAB ===
     html += '<div class="tab-content" id="tab-trends">';
-    html += '<div class="section-title">' + mi('trending_up') + ' ' + T('trendTitle',
+    html += '<div class="section-title">' + mi('trending_up') + T('trendTitle',
         'Library Growth Trend') + '</div>';
     html += '<div id="trendChartContainer" class="trend-container"><div class="trend-empty">'
         + T('loadingTrends', 'Loading trend data…') + '</div></div>';
@@ -152,7 +152,7 @@ function renderShell() {
 
     // === ARR TAB ===
     html += '<div class="tab-content" id="tab-arr">';
-    html += '<div class="section-title">' + mi('link') + ' ' + T('arrTitle',
+    html += '<div class="section-title">' + mi('link') + T('arrTitle',
         'Arr Stack Integration') + '</div>';
     html += '<div id="arrContent">';
     html += '<div id="arrButtons"><div class="loading-overlay" style="padding:1em;"><div class="spinner"></div></div></div>';
@@ -162,7 +162,7 @@ function renderShell() {
 
     // === RECOMMENDATIONS TAB ===
     html += '<div class="tab-content" id="tab-recommendations">';
-    html += '<div class="section-title">' + mi('smart_toy') + ' ' + T('recsTitle',
+    html += '<div class="section-title">' + mi('smart_toy') + T('recsTitle',
         'Smart Recommendations') + '</div>';
     html += '<div id="recsContent"><div class="loading-overlay" style="padding:2em;">'
         + '<div class="spinner"></div>'

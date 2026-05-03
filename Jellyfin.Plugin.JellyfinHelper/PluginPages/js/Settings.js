@@ -228,7 +228,7 @@ function loadSettings() {
         h += '<div class="help-text">' + T('seerrCleanupAgeDaysHelp', 'Requests older than this will be deleted. Default: 365 days.') + '</div>';
         h += '</div>';
         h += '<div style="margin-top:0.5em;">';
-        h += '<button type="button" class="action-btn btn-arr-test" id="btnTestSeerr" style="padding:0.3em 1em;font-size:0.85em;">' + mi('extension') + ' ' + T('testConnection', 'Test Connection') + '</button>';
+        h += '<button type="button" class="action-btn btn-arr-test" id="btnTestSeerr" style="padding:0.3em 1em;font-size:0.85em;">' + mi('extension') + T('testConnection', 'Test Connection') + '</button>';
         h += '</div>';
         h += '</div></div>';
 
@@ -258,8 +258,8 @@ function loadSettings() {
         h += '<div class="section-title">' + T('settingsBackupTitle', 'Backup & Restore') + '</div>';
         h += '<div class="help-text">' + T('settingsBackupHelp', 'Export your settings, Arr integrations, and trend data for backup. Import to restore on a fresh installation.') + '</div>';
         h += '<div class="export-import-button-container">';
-        h += '<button class="action-btn export-import-button" id="btnBackupExport">' + mi('download') + ' ' + T('backupExport', 'Export Backup') + '</button>';
-        h += '<label class="action-btn export-import-button" id="btnBackupImportLabel">' + mi('upload') + ' ' + T('backupImport', 'Import Backup') + '<input type="file" id="btnBackupImportFile" accept=".json,application/json" style="display:none;"></label>';
+        h += '<button class="action-btn export-import-button" id="btnBackupExport">' + mi('download') + T('backupExport', 'Export Backup') + '</button>';
+        h += '<label class="action-btn export-import-button" id="btnBackupImportLabel">' + mi('upload') + T('backupImport', 'Import Backup') + '<input type="file" id="btnBackupImportFile" accept=".json,application/json" style="display:none;"></label>';
         h += '</div>';
         h += '<div id="backupMsg" style="margin-top:0.5em;"></div>';
 
@@ -664,7 +664,7 @@ function attachSeerrHandlers() {
     btn.addEventListener('click', function () {
         var url = (document.getElementById('cfgSeerrUrl') || {}).value || '';
         var key = (document.getElementById('cfgSeerrApiKey') || {}).value || '';
-        var originalHtml = mi('extension') + ' ' + T('testConnection', 'Test Connection');
+        var originalHtml = mi('extension') + T('testConnection', 'Test Connection');
 
         if (_seerrTimer) {
             clearTimeout(_seerrTimer);

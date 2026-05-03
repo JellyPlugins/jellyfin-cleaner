@@ -141,7 +141,7 @@ function loadTrashHealthSection() {
 
             var html = '<div id="trashHealthSection">';
             html += '<div class="section-divider" style="margin:1.5em 0;"></div>';
-            html += '<div class="section-title">' + mi('delete') + ' ' + T('trashContents',
+            html += '<div class="section-title">' + mi('delete') + T('trashContents',
                 'Trash Contents') + '</div>';
 
             // Summary card

@@ -308,7 +308,8 @@
 .tab-btn {
     display: flex;
     align-items: center;
-    gap: 0.2em;
+    gap: 0.3em;
+    line-height: 1;
     padding: 0.6em 1.2em;
     border: none;
     background: transparent;
@@ -683,7 +684,13 @@
 .mi {
     display: inline-flex;
     align-items: center;
-    vertical-align: -0.125em;
+    justify-content: center;
+    vertical-align: middle;
+    line-height: 1;
+}
+
+.mi svg {
+    display: block;
 }
 
 
