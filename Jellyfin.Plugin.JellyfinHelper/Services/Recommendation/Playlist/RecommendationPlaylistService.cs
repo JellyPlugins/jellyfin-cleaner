@@ -409,7 +409,8 @@ public sealed class RecommendationPlaylistService : IRecommendationPlaylistServi
 
             // Skip the just-created replacement playlist
             if (excludePlaylistId is not null
-                && string.Equals(playlist.Id.ToString("N"), excludePlaylistId, StringComparison.OrdinalIgnoreCase))
+                && Guid.TryParse(excludePlaylistId, out var excludedId)
+                && playlist.Id == excludedId)
             {
                 continue;
             }

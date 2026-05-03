@@ -79,8 +79,9 @@ jobs:
         cat vuln-report.json
         # Parse JSON output to detect vulnerabilities (SDK-independent, fail-closed)
         VULN_COUNT=$(python3 -c "
-        import json, sys
-        data = json.load(open('vuln-report.json'))
+        import json
+        with open('vuln-report.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
         count = sum(
             len(pkg.get('vulnerabilities') or [])
             for proj in data.get('projects', [])

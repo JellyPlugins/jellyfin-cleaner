@@ -55,13 +55,13 @@ function renderRecommendations(container, results) {
     html += '</select></div>';
 
     // Collapsible Recommendations section
-    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsGridToggle"><span class="recs-collapsible-arrow">▶</span> ' + mi('track_changes') + T('recsSubtabRecommendations', 'Recommendations') + ' <span>(<span id="recsGridCount">0</span> ' + T('recsItems', 'items') + ')</span></button>';
+    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsGridToggle" aria-expanded="false" aria-controls="recsGridBody"><span class="recs-collapsible-arrow">▶</span> ' + mi('track_changes') + T('recsSubtabRecommendations', 'Recommendations') + ' <span>(<span id="recsGridCount">0</span> ' + T('recsItems', 'items') + ')</span></button>';
     html += '<div class="recs-collapsible-body" id="recsGridBody">';
     html += '<div id="recsUserGrid"></div>';
     html += '</div></div>';
 
     // Collapsible Watch Activity section
-    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsActivityToggle"><span class="recs-collapsible-arrow">▶</span> ' + mi('bar_chart') + T('recsActivityToggle', 'Watch Activity') + '</button>';
+    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsActivityToggle" aria-expanded="false" aria-controls="recsActivityBody"><span class="recs-collapsible-arrow">▶</span> ' + mi('bar_chart') + T('recsActivityToggle', 'Watch Activity') + '</button>';
     html += '<div class="recs-collapsible-body" id="recsActivityBody">';
     html += '<div id="recsUserProfile"><div class="loading-overlay" style="padding:0.5em;"><div class="spinner"></div></div></div>';
     html += '<div id="recsUserActivity"><div class="loading-overlay" style="padding:0.5em;"><div class="spinner"></div></div></div>';
@@ -108,14 +108,17 @@ function onUserChanged(index) {
 
 function toggleCollapsible(bodyId, toggleId) {
     var body = document.getElementById(bodyId);
+    var toggle = document.getElementById(toggleId);
     var arrow = document.querySelector('#' + toggleId + ' .recs-collapsible-arrow');
     if (!body) return;
     if (body.classList.contains('open')) {
         body.classList.remove('open');
         if (arrow) arrow.textContent = '▶';
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
     } else {
         body.classList.add('open');
         if (arrow) arrow.textContent = '▼';
+        if (toggle) toggle.setAttribute('aria-expanded', 'true');
     }
 }
 
