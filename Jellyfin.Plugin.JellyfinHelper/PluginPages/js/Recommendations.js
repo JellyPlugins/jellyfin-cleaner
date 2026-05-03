@@ -47,7 +47,7 @@ function renderRecommendations(container, results) {
     var html = '';
     var totalRecs = 0, totalUsers = results.length;
     for (var i = 0; i < results.length; i++) { totalRecs += results[i].Recommendations ? results[i].Recommendations.length : 0; }
-    html += '<div class="recs-info-line"><span>' + mi('group') + ' ' + totalUsers + ' ' + T('recsUsers', 'Users') + '</span><span class="recs-info-sep">·</span><span class="icon-label-inline">' + mi('track_changes') + ' ' + totalRecs + ' ' + T('recsTotal', 'Recommendations') + '</span></div>';
+    html += '<div class="recs-info-line"><span class="icon-label-inline">' + mi('group') + ' ' + totalUsers + ' ' + T('recsUsers', 'Users') + '</span><span class="recs-info-sep">·</span><span class="icon-label-inline">' + mi('track_changes') + ' ' + totalRecs + ' ' + T('recsTotal', 'Recommendations') + '</span></div>';
     html += '<div class="recs-user-selector"><label for="recsUserSelect">' + T('recsSelectUser', 'Select User') + ': </label><select id="recsUserSelect" class="recs-select">';
     for (var u = 0; u < results.length; u++) {
         html += '<option value="' + u + '">' + escHtml(results[u].UserName) + ' (' + (results[u].Recommendations ? results[u].Recommendations.length : 0) + ' ' + T('recsItems', 'items') + ')</option>';
