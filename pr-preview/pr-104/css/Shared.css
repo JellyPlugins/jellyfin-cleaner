@@ -127,6 +127,9 @@
 }
 
 .last-scan-badge #lastScanBadge {
+    display: flex;
+    gap: 0.25em;
+    align-items: center;
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
@@ -198,6 +201,9 @@
 }
 
 .section-title {
+    display: flex;
+    gap: 0.26em;
+    align-items: center;
     font-size: var(--font-lg);
     font-weight: 600;
     margin: var(--spacing-3xl) 0 var(--spacing-sm) 0;
@@ -300,6 +306,9 @@
 }
 
 .tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.2em;
     padding: 0.6em 1.2em;
     border: none;
     background: transparent;
@@ -668,4 +677,8 @@
     .scan-libraries-btn:hover svg {
         transform: none;
     }
+}
+
+.mi {
+    display: inline-flex;
 }
