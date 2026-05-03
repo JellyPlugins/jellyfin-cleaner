@@ -24,6 +24,9 @@
 }
 
 .stat-card h3 {
+    display: flex;
+    gap: 0.3em;
+    align-items: center;
     margin: 0 0 0.3em 0;
     font-size: 0.85em;
     text-transform: uppercase;
