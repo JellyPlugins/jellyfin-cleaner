@@ -682,3 +682,28 @@
 .mi {
     display: inline-flex;
 }
+
+
+/* Utility: flex container for icon + text alignment.
+   Used by elements that contain a .mi icon alongside text and need
+   consistent horizontal layout with a small gap. */
+.icon-label {
+    display: flex;
+    align-items: center;
+    gap: 0.25em;
+}
+
+/* Centered variant (e.g. chart headings) */
+.icon-label-centered {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3em;
+}
+
+/* Inline variant (e.g. inline stats) */
+.icon-label-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+}

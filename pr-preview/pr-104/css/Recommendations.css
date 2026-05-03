@@ -507,9 +507,3 @@
         transition: none;
     }
 }
-
-.recs-total {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25em;
-}
