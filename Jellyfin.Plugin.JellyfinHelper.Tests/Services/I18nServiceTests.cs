@@ -86,7 +86,7 @@ public class I18NServiceTests : IDisposable
 
         var expectedKeys = new[]
         {
-            "scanLibraries", "scanning", "scanDescription", "scanPlaceholder", "initializingScan", "error",
+            "scanLibraries", "scanning", "scanDescription", "scanPlaceholder", "initializingScan",
             "tabOverview", "tabCodecs", "tabHealth", "tabTrends", "tabSettings", "tabArr", "tabLogs",
             "movieVideoData", "tvVideoData", "musicAudioData", "trickplayData", "subtitleData", "subtitles",
             "totalFiles",

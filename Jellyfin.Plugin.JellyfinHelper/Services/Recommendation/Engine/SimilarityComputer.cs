@@ -182,7 +182,7 @@ internal sealed class SimilarityComputer
         // Factor 0.5 = moderate damping: "never watched" ≠ "dislikes", just less confident.
         // Example: Anime ["Animation", "Action", "Drama"] for an Action/Drama user:
         //   unknownFraction = 1/3, damping = 1 - 0.33 * 0.5 = 0.835 → ~17% reduction.
-        if (unknownGenreCount <= 0)
+        if (unknownGenreCount == 0)
         {
             return cosineSimilarity;
         }

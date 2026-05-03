@@ -4,7 +4,6 @@
   "scanDescription": "Escaneando bibliotecas… Pode demorar para coleções grandes.",
   "scanPlaceholder": "Clique em <strong>Escanear bibliotecas</strong> para analisar suas pastas de mídia.",
   "initializingScan": "Iniciando escaneamento de mídia…",
-  "error": "Falha ao carregar estatísticas. Certifique-se de ser administrador.",
   "statsLoadError": "Falha ao carregar estatísticas. Certifique-se de ser administrador.",
   "tabOverview": "Visão geral",
   "tabCodecs": "Codecs",
