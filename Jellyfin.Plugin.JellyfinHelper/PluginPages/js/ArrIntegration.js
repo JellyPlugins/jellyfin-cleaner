@@ -322,7 +322,7 @@ function initArrButtons(cfg) {
 
     if (radarrInstances.length > 0) {
         h += '<div style="margin-bottom:1em;">';
-        h += '<h4 class="arr-integration-instance-header">' + mi('movie') + ' Radarr</h4>';
+        h += '<h4 class="icon-label arr-integration-instance-header">' + mi('movie') + ' Radarr</h4>';
         h += '<div class="header-actions" style="flex-wrap:wrap;">';
         for (var r = 0; r < radarrInstances.length; r++) {
             var rName = radarrInstances[r].Name || ('Radarr #' + (r + 1));
@@ -335,7 +335,7 @@ function initArrButtons(cfg) {
 
     if (sonarrInstances.length > 0) {
         h += '<div style="margin-bottom:1em;">';
-        h += '<h4 class="arr-integration-instance-header">' + mi('tv') + ' Sonarr</h4>';
+        h += '<h4 class="icon-label arr-integration-instance-header">' + mi('tv') + ' Sonarr</h4>';
         h += '<div class="header-actions" style="flex-wrap:wrap;">';
         for (var s = 0; s < sonarrInstances.length; s++) {
             var sName = sonarrInstances[s].Name || ('Sonarr #' + (s + 1));
@@ -363,7 +363,7 @@ function initArrButtons(cfg) {
 // Render a single Arr comparison section (list with max 50 items and "and X more" hint)
 function renderArrSection(icon, titleKey, titleFallback, items) {
     items = Array.isArray(items) ? items : [];
-    var h = '<div class="arr-section"><h4 class="arr-section-header">' + icon + ' ' + T(titleKey,
+    var h = '<div class="arr-section"><h4 class="icon-label">' + icon + ' ' + T(titleKey,
             titleFallback) + ' - <span class="arr-count">' + items.length
         + '</span></h4>';
     if (items.length > 0) {

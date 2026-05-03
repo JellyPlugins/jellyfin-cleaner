@@ -171,3 +171,20 @@
     overflow-y: auto;
     padding: 0.5em 1em 1em;
 }
+
+.export-import-button-container {
+    display: flex;
+    gap: 0.8em;
+    flex-wrap: wrap;
+    margin: 1em 0;
+}
+
+.export-import-button {
+    flex: 1;
+    min-width: 0;
+    padding: 0.5em 1.2em;
+    cursor: pointer;
+    margin: 0;
+    text-align: center;
+    justify-content: center;
+}
