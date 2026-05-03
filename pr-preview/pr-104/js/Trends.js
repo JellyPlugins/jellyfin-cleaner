@@ -462,11 +462,9 @@ function attachTrendInteraction(container) {
 
         var sSign = deltaSize > 0 ? '+' : (deltaSize < 0 ? '' : '\u00B1');
         var pctLabel = '';
-        if (Math.abs(pctRaw) >= 0.05) {
-            var pctDisplay = parseFloat(pctRaw.toFixed(1));
+        if (deltaSize !== 0 && pctRaw !== 0) {
+            var pctDisplay = parseFloat(pctRaw.toFixed(2));
             pctLabel = ' (' + (pctDisplay > 0 ? '+' : '') + pctDisplay + '%)';
-        } else if (deltaSize !== 0) {
-            pctLabel = ' (' + (deltaSize > 0 ? '+' : '\u2212') + '<0.1%)';
         }
         diffSize.textContent = sSign + formatBytes(deltaSize) + pctLabel;
         diffSize.className = 'trend-diff-stat trend-diff-size '
