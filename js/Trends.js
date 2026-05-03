@@ -457,8 +457,10 @@ function attachTrendInteraction(container) {
         // Delta row with percentage
         var deltaSize = currentPt.s - pt.s;
         var deltaFiles = currentPt.c - pt.c;
-        // Percentage = change relative to the hovered historical point.
-        var pctRaw = pt.s > 0 ? (deltaSize / pt.s) * 100 : 0;
+        // Percentage = change relative to the current (latest) point.
+        // Using the current value as denominator keeps the percentage in a
+        // meaningful 0-100% range even when the historical value is tiny.
+        var pctRaw = currentPt.s > 0 ? (deltaSize / currentPt.s) * 100 : 0;
 
         var sSign = deltaSize > 0 ? '+' : (deltaSize < 0 ? '' : '\u00B1');
         var pctLabel = '';
