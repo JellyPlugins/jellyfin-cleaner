@@ -287,7 +287,7 @@
   "recsFavorites": "Favoriten",
   "recsSeries": "Serien",
   "syncPlaylistToggle": "Empfehlungen als Jellyfin-Playlist synchronisieren",
-  "syncPlaylistHelp": "Erstellt eine Playlist pro Benutzer, sichtbar in der Jellyfin-Oberflaeche. Wird bei jedem geplanten Lauf aktualisiert.",
+  "syncPlaylistHelp": "Erstellt eine Playlist pro Benutzer, sichtbar in der Jellyfin-Oberfläche. Wird bei jedem geplanten Lauf aktualisiert.",
   "syncPlaylistDisabledHint": "Setze Empfehlungen auf 'Aktivieren', um diese Option zu nutzen.",
   "recsAndMore": "und {0} weitere…"
 }

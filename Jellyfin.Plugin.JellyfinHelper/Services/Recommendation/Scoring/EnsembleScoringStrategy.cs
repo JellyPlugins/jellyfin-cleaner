@@ -716,8 +716,10 @@ public sealed class EnsembleScoringStrategy : IScoringStrategy, ITrainableStrate
                     ? data.Alpha
                     : ComputeSigmoidAlpha(_trainingExampleCount, _alphaMin, _alphaMax);
 
-                // Restore neural beta so it survives server restarts
-                if (data.NeuralBeta is >= 0 and <= NeuralMaxBetaFraction)
+                // Restore neural beta so it survives server restarts.
+                // Only restore if a neural strategy is actually wired in - otherwise
+                // a stale persisted value would leak into CurrentNeuralBeta and logs.
+                if (_neural is not null && data.NeuralBeta is >= 0 and <= NeuralMaxBetaFraction)
                 {
                     _neuralBeta = data.NeuralBeta;
                 }

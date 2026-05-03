@@ -177,6 +177,12 @@
     padding: 0.5em 1em 1em;
 }
 
+@media (max-width: 500px) {
+    .arr-collapsible-header .help-text {
+        display: none;
+    }
+}
+
 .export-import-button-container {
     display: flex;
     gap: 0.8em;
@@ -194,4 +200,17 @@
     align-items: center;
     justify-content: center;
     text-align: center;
+}
+
+.export-import-button:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.export-import-button:focus-visible {
+    outline: 2px solid var(--color-primary, #00a4dc);
+    outline-offset: -2px;
+}
+
+.export-import-button:active {
+    background: rgba(255, 255, 255, 0.09);
 }
