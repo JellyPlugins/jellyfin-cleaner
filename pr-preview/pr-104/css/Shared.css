@@ -586,7 +586,9 @@
 
 .tree-icon {
     width: 1.2em;
-    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .tree-icon-open {
@@ -594,7 +596,7 @@
 }
 
 .tree-expanded > .tree-folder > .tree-icon-open {
-    display: inline;
+    display: inline-flex;
 }
 
 .tree-expanded > .tree-folder > .tree-icon-closed {
