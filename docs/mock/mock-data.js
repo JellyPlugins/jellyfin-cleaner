@@ -1,4 +1,4 @@
-// Mock data for demo. ~9.2TB total.
+﻿// Mock data for demo. ~9.2TB total.
 var MOCK_TRANSLATIONS = null;
 function _lib(n,t,o){var s=(o.VideoSize||0)+(o.AudioSize||0)+(o.SubtitleSize||0)+(o.ImageSize||0)+(o.NfoSize||0)+(o.TrickplaySize||0)+(o.OtherSize||0);return Object.assign({LibraryName:n,CollectionType:t,RootPaths:o.RootPaths||[],VideoSize:0,AudioSize:0,SubtitleSize:0,ImageSize:0,NfoSize:0,TrickplaySize:0,OtherSize:0,VideoFileCount:0,AudioFileCount:0,SubtitleFileCount:0,ImageFileCount:0,NfoFileCount:0,TrickplayFileCount:0,TrickplayFolderCount:o.TrickplayFolderCount||0,OtherFileCount:0,TotalSize:s,VideoCodecs:{},VideoAudioCodecs:{},MusicAudioCodecs:{},ContainerFormats:{},Resolutions:{},VideoCodecPaths:{},VideoAudioCodecPaths:{},MusicAudioCodecPaths:{},ContainerFormatPaths:{},ResolutionPaths:{},VideoCodecSizes:{},VideoAudioCodecSizes:{},MusicAudioCodecSizes:{},ContainerSizes:{},ResolutionSizes:{},VideosWithoutSubtitles:0,VideosWithoutImages:0,VideosWithoutNfo:0,OrphanedMetadataDirectories:0,VideosWithoutSubtitlesPaths:[],VideosWithoutImagesPaths:[],VideosWithoutNfoPaths:[],OrphanedMetadataDirectoriesPaths:[]},o);}
 
@@ -222,4 +222,4 @@ else{console.warn("Mock: unhandled",url);resolve({});}
 };
 
 var _of=window.fetch.bind(window);
-window.fetch=function(url,opts){if(typeof url==="string"&&url.indexOf("mock://")===0){return ApiClient.ajax({url:url,type:(opts&&opts.method)||"GET",data:opts&&opts.body,dataType:"json"}).then(function(d){var b=typeof d==="string"?d:JSON.stringify(d);return new Response(b,{status:200,headers:{"Content-Type":"application/json"}});});}return _of(url,opts);};
+window.fetch=function(url,opts){if(typeof url==="string"&&url.indexOf("mock://")===0){return ApiClient.ajax({url:url,type:(opts&&opts.method)||"GET",data:opts&&opts.body,dataType:"json"}).then(function(d){var b=typeof d==="string"?d:JSON.stringify(d);var ct=url.indexOf("Logs/Download")!==-1?"text/plain; charset=utf-8":"application/json";return new Response(b,{status:200,headers:{"Content-Type":ct}});});}return _of(url,opts);};

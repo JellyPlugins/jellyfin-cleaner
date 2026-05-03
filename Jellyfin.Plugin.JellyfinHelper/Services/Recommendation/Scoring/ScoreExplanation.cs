@@ -15,7 +15,7 @@ public sealed class ScoreExplanation
     /// </summary>
     private const double DominantSignalTolerance = 1e-12;
 
-    /// <summary>Gets or sets the final blended score (0–1).</summary>
+    /// <summary>Gets or sets the final blended score (0â€“1).</summary>
     public double FinalScore { get; set; }
 
     /// <summary>Gets or sets the score contribution from genre similarity.</summary>
@@ -56,7 +56,7 @@ public sealed class ScoreExplanation
 
     /// <summary>
     ///     Blends this explanation with another using a linear interpolation factor.
-    ///     Result = (1 - alpha) × this + alpha × other.
+    ///     Result = (1 - alpha) Ã— this + alpha Ã— other.
     /// </summary>
     /// <param name="other">The other explanation to blend with.</param>
     /// <param name="alpha">The blending factor (0 = 100% this, 1 = 100% other).</param>
@@ -108,7 +108,7 @@ public sealed class ScoreExplanation
     ///     Applies a genre penalty multiplier to all contribution values and the final score.
     ///     Returns a new explanation with the penalty applied.
     /// </summary>
-    /// <param name="penaltyMultiplier">The penalty multiplier (0–1).</param>
+    /// <param name="penaltyMultiplier">The penalty multiplier (0â€“1).</param>
     /// <returns>A new explanation with all values scaled by the penalty.</returns>
     public ScoreExplanation WithPenalty(double penaltyMultiplier)
     {
@@ -126,7 +126,16 @@ public sealed class ScoreExplanation
             PeopleContribution = PeopleContribution * penaltyMultiplier,
             StudioContribution = StudioContribution * penaltyMultiplier,
             GenrePenaltyMultiplier = penaltyMultiplier,
-            DominantSignal = DominantSignal,
+            DominantSignal = DetermineDominantSignal(
+                GenreContribution * penaltyMultiplier,
+                CollaborativeContribution * penaltyMultiplier,
+                RatingContribution * penaltyMultiplier,
+                UserRatingContribution * penaltyMultiplier,
+                RecencyContribution * penaltyMultiplier,
+                YearProximityContribution * penaltyMultiplier,
+                InteractionContribution * penaltyMultiplier,
+                PeopleContribution * penaltyMultiplier,
+                StudioContribution * penaltyMultiplier),
             StrategyName = StrategyName
         };
     }
@@ -142,7 +151,7 @@ public sealed class ScoreExplanation
     /// <param name="userRatingContrib">User personal rating contribution.</param>
     /// <param name="recencyContrib">Recency contribution.</param>
     /// <param name="yearProxContrib">Year proximity contribution.</param>
-    /// <param name="interactionContrib">Interaction terms contribution (genre×rating, genre×collab, genreCount, isSeries, completion).</param>
+    /// <param name="interactionContrib">Interaction terms contribution (genreÃ—rating, genreÃ—collab, genreCount, isSeries, completion).</param>
     /// <param name="peopleContrib">People similarity contribution (actors/directors).</param>
     /// <param name="studioContrib">Studio match contribution.</param>
     /// <returns>The name of the dominant signal.</returns>

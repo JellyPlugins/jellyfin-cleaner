@@ -198,9 +198,9 @@ public class RecommendationEngineTests
     }
 
     [Fact]
-    public void NormalizeRating_ZeroRating_ReturnsNeutral()
+    public void NormalizeRating_ZeroRating_ReturnsZero()
     {
-        Assert.Equal(0.5, ContentScoring.NormalizeRating(0f));
+        Assert.Equal(0.0, ContentScoring.NormalizeRating(0f));
     }
 
     [Fact]

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Mime;
@@ -346,14 +346,14 @@ public class ConfigurationController : ControllerBase
 
         // Update Radarr instances (clear + re-add from request)
         config.RadarrInstances.Clear();
-        foreach (var instance in request.RadarrInstances)
+        foreach (var instance in request.RadarrInstances ?? [])
         {
             config.RadarrInstances.Add(instance);
         }
 
         // Update Sonarr instances (clear + re-add from request)
         config.SonarrInstances.Clear();
-        foreach (var instance in request.SonarrInstances)
+        foreach (var instance in request.SonarrInstances ?? [])
         {
             config.SonarrInstances.Add(instance);
         }

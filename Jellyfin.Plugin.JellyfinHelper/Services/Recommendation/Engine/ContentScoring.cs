@@ -41,8 +41,8 @@ internal static class ContentScoring
     /// <returns>A normalized score between 0 and 1, or 0.5 if unavailable.</returns>
     internal static double NormalizeCriticRating(float? criticRating)
     {
-        if (!criticRating.HasValue || float.IsNaN(criticRating.Value) || float.IsInfinity(criticRating.Value) ||
-            criticRating.Value <= 0)
+        if (!criticRating.HasValue || !float.IsFinite(criticRating.Value) ||
+            criticRating.Value < 0)
         {
             return 0.5; // Neutral fallback - does not penalize items without critic data
         }
@@ -64,10 +64,10 @@ internal static class ContentScoring
     {
         var hasCommunity = communityRating.HasValue
                            && float.IsFinite(communityRating.Value)
-                           && communityRating.Value > 0;
+                           && communityRating.Value >= 0;
         var hasCritic = criticRating.HasValue
                         && float.IsFinite(criticRating.Value)
-                        && criticRating.Value > 0;
+                        && criticRating.Value >= 0;
 
         switch (hasCommunity)
         {
@@ -100,8 +100,8 @@ internal static class ContentScoring
     /// <returns>A normalized rating between 0 and 1.</returns>
     internal static double NormalizeRating(float? communityRating)
     {
-        if (!communityRating.HasValue || float.IsNaN(communityRating.Value) ||
-            float.IsInfinity(communityRating.Value) || communityRating.Value <= 0)
+        if (!communityRating.HasValue || !float.IsFinite(communityRating.Value) ||
+            communityRating.Value < 0)
         {
             return 0.5; // neutral default for unrated or NaN items
         }

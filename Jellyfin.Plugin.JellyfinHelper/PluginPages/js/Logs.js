@@ -1,4 +1,4 @@
-// --- Logs Tab ---
+﻿// --- Logs Tab ---
 
 var _logsAutoRefreshTimer = null;
 var _logsAutoRefreshEnabled = true;
@@ -41,7 +41,7 @@ function renderLogsTab() {
 
     h += '<div class="logs-btn-group">';
     h += '<button class="logs-btn primary" id="btnLogsDownload" title="' + T(
-            'logsDownload', 'Download') + '">' + mi('download') + T('logsDownload', 'Download')
+            'logsDownload', 'Download') + '">' + mi('download') + ' ' + T('logsDownload', 'Download')
         + '</button>';
     h += '<button class="logs-btn danger" id="btnLogsClear" title="' + T(
         'logsClear', 'Clear') + '">' + T('logsClear', 'Clear') + '</button>';
@@ -304,7 +304,7 @@ function downloadLogs() {
         // Finding 13: Replace alert() with inline error message for consistent UI
         showButtonFeedback(btn, false,
             T('logsDownloadError', 'Failed to download logs.'),
-            mi('download') + T('logsDownload', 'Download'), 4000);
+            mi('download') + ' ' + T('logsDownload', 'Download'), 4000);
     });
 }
 
