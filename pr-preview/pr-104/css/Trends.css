@@ -269,7 +269,7 @@
 .insight-panel.visible {
     max-height: min(70vh, 800px);
     opacity: 1;
-    padding: 18px 16px 14px;
+    padding: 10px 16px 14px;
     border-color: rgba(255, 255, 255, 0.08);
     margin-top: 8px;
     overflow-y: auto;
@@ -283,9 +283,10 @@
 }
 
 .insight-tree-lib {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    display: grid;
+    grid-template-columns: max-content 1fr auto;
+    gap: 3px 8px;
+    align-items: center;
 }
 
 .insight-tree-lib-header {
@@ -295,6 +296,7 @@
     padding: 4px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     margin-bottom: 2px;
+    grid-column: 1 / -1;
 }
 
 .insight-tree-lib-name {
@@ -309,47 +311,44 @@
     font-weight: 600;
 }
 
-.insight-tree-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 3px 0 3px 16px;
-    font-size: 0.88em;
-}
+
 
 .insight-tree-name {
     color: rgba(255, 255, 255, 0.75);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex: 1;
     min-width: 0;
+    padding: 3px 0;
+    font-size: 0.88em;
+}
+
+.insight-tree-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 16px;
 }
 
 .insight-tree-size,
 .insight-tree-meta {
     color: rgba(255, 255, 255, 0.45);
-    font-size: 0.9em;
+    font-size: 0.78em;
     white-space: nowrap;
-    margin-left: 12px;
-    flex-shrink: 0;
 }
 
 /* Recently badges */
 .insight-badge {
     display: inline-flex;
     justify-content: center;
-    min-width: 8.5em;
     font-size: 0.75em;
     font-weight: 600;
-    padding: 1px 6px;
+    padding: 2px 8px;
     border-radius: var(--radius-sm);
-    vertical-align: middle;
-    margin-right: 4px;
+    margin-left: 16px;
     text-transform: uppercase;
     letter-spacing: 0.03em;
     text-align: center;
-    flex-shrink: 0;
 }
 
 .insight-badge-added {
@@ -412,16 +411,26 @@
     }
 
     .insight-panel.visible {
-        padding: 14px 12px 10px;
+        padding: 8px 12px 10px;
         max-height: min(60vh, 600px);
     }
 
-    .insight-tree-item {
-        padding-left: 10px;
-        font-size: 0.84em;
+
+    .insight-badge,
+    .insight-tree-badge {
+        margin-left: 10px;
+    }
+
+    .insight-tree-lib {
+        gap: 2px 6px;
     }
 
     .insight-badge {
-        min-width: 7.5em;
+        font-size: 0.7em;
+        padding: 1px 4px;
+    }
+
+    .insight-tree-meta {
+        font-size: 0.82em;
     }
 }
