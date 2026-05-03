@@ -13,8 +13,8 @@
         "changelog": "v2.0.0.2: Replaced decorative emojis with Material Symbols font icons for consistent cross-platform rendering. Standardized dash punctuation. Fixed subtitle orphan detection to avoid false deletions. 2110 tests.",
         "targetAbi": "10.11.0.0",
         "sourceUrl": "https://github.com/JellyPlugins/jellyfin-helper/releases/download/2.0.0.2/JellyfinHelper_2.0.0.2.zip",
-        "checksum": "",
-        "timestamp": "2026-05-02T00:30:00Z"
+        "checksum": "7d8de640183cb0f36b24a3ab4d6faf5c",
+        "timestamp": "2026-05-03T18:03:28Z"
       },
       {
         "version": "2.0.0.1",
