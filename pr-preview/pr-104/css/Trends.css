@@ -339,7 +339,7 @@
 .insight-badge {
     display: inline-flex;
     justify-content: center;
-    min-width: 6em;
+    min-width: 8.5em;
     font-size: 0.75em;
     font-weight: 600;
     padding: 1px 6px;
@@ -422,6 +422,6 @@
     }
 
     .insight-badge {
-        min-width: 5.5em;
+        min-width: 7.5em;
     }
 }
