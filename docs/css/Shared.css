@@ -350,6 +350,7 @@
 .action-btn {
     display: inline-flex;
     align-items: center;
+    gap: 0.4em;
     padding: var(--spacing-sm) var(--spacing-lg);
     border: none;
     border-radius: var(--radius-sm);
@@ -681,7 +682,8 @@
 
 .mi {
     display: inline-flex;
-    vertical-align: middle;
+    align-items: center;
+    vertical-align: -0.125em;
 }
 
 
