@@ -47,7 +47,7 @@ function renderRecommendations(container, results) {
     var html = '';
     var totalRecs = 0, totalUsers = results.length;
     for (var i = 0; i < results.length; i++) { totalRecs += results[i].Recommendations ? results[i].Recommendations.length : 0; }
-    html += '<div class="recs-info-line"><span class="icon-label-inline">' + mi('group') + ' ' + totalUsers + ' ' + T('recsUsers', 'Users') + '</span><span class="recs-info-sep">·</span><span class="icon-label-inline">' + mi('track_changes') + ' ' + totalRecs + ' ' + T('recsTotal', 'Recommendations') + '</span></div>';
+    html += '<div class="recs-info-line"><span class="icon-label-inline">' + mi('group') + totalUsers + ' ' + T('recsUsers', 'Users') + '</span><span class="recs-info-sep">·</span><span class="icon-label-inline">' + mi('track_changes') + totalRecs + ' ' + T('recsTotal', 'Recommendations') + '</span></div>';
     html += '<div class="recs-user-selector"><label for="recsUserSelect">' + T('recsSelectUser', 'Select User') + ': </label><select id="recsUserSelect" class="recs-select">';
     for (var u = 0; u < results.length; u++) {
         html += '<option value="' + u + '">' + escHtml(results[u].UserName) + ' (' + (results[u].Recommendations ? results[u].Recommendations.length : 0) + ' ' + T('recsItems', 'items') + ')</option>';
@@ -55,13 +55,13 @@ function renderRecommendations(container, results) {
     html += '</select></div>';
 
     // Collapsible Recommendations section
-    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsGridToggle"><span class="recs-collapsible-arrow">▶</span> ' + mi('track_changes') + ' ' + T('recsSubtabRecommendations', 'Recommendations') + ' <span>(<span id="recsGridCount">0</span> ' + T('recsItems', 'items') + ')</span></button>';
+    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsGridToggle"><span class="recs-collapsible-arrow">▶</span> ' + mi('track_changes') + T('recsSubtabRecommendations', 'Recommendations') + ' <span>(<span id="recsGridCount">0</span> ' + T('recsItems', 'items') + ')</span></button>';
     html += '<div class="recs-collapsible-body" id="recsGridBody">';
     html += '<div id="recsUserGrid"></div>';
     html += '</div></div>';
 
     // Collapsible Watch Activity section
-    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsActivityToggle"><span class="recs-collapsible-arrow">▶</span> ' + mi('bar_chart') + ' ' + T('recsActivityToggle', 'Watch Activity') + '</button>';
+    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsActivityToggle"><span class="recs-collapsible-arrow">▶</span> ' + mi('bar_chart') + T('recsActivityToggle', 'Watch Activity') + '</button>';
     html += '<div class="recs-collapsible-body" id="recsActivityBody">';
     html += '<div id="recsUserProfile"><div class="loading-overlay" style="padding:0.5em;"><div class="spinner"></div></div></div>';
     html += '<div id="recsUserActivity"><div class="loading-overlay" style="padding:0.5em;"><div class="spinner"></div></div></div>';
@@ -196,9 +196,9 @@ function renderCompactWatchProfile(container, profile) {
     var totalWatched = (profile.WatchedMovieCount || 0) + (profile.WatchedEpisodeCount || 0);
     var topGenres = getTopGenresFromDistribution(profile.GenreDistribution, 5);
     var html = '<div class="recs-profile-compact"><div class="recs-profile-compact-stats">';
-    html += '<span class="recs-profile-compact-stat">' + mi('movie') + ' ' + totalWatched + ' ' + T('recsWatched', 'Watched') + '</span>';
-    html += '<span class="recs-profile-compact-stat">' + mi('tv') + ' ' + (profile.WatchedSeriesCount || 0) + ' ' + T('recsSeries', 'Series') + '</span>';
-    html += '<span class="recs-profile-compact-stat">' + mi('star') + ' ' + (profile.FavoriteCount || 0) + ' ' + T('recsFavorites', 'Favorites') + '</span></div>';
+    html += '<span class="recs-profile-compact-stat">' + mi('movie') + totalWatched + ' ' + T('recsWatched', 'Watched') + '</span>';
+    html += '<span class="recs-profile-compact-stat">' + mi('tv') + (profile.WatchedSeriesCount || 0) + ' ' + T('recsSeries', 'Series') + '</span>';
+    html += '<span class="recs-profile-compact-stat">' + mi('star') + (profile.FavoriteCount || 0) + ' ' + T('recsFavorites', 'Favorites') + '</span></div>';
     if (topGenres.length > 0) {
         html += '<div class="recs-profile-compact-genres"><span class="recs-profile-compact-genres-label">' + T('recsTopGenres', 'Top Genres') + ':</span> ';
         var gl = [];

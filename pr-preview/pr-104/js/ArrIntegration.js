@@ -49,7 +49,7 @@ function renderArrInstanceRow(type, index, inst) {
         + escAttr(apiKey) + '">';
     h += '<button type="button" class="action-btn btn-arr-test btnTestArr" id="'
         + prefix + '_btnTest" data-type="' + type + '" data-index="' + index
-        + '" style="padding:0.3em 0.8em;font-size:0.85em;">' + mi('extension') + ' ' + T(
+        + '" style="padding:0.3em 0.8em;font-size:0.85em;">' + mi('extension') + T(
             'testConnection', 'Test Connection') + '</button>';
     h += '</div>';
     return h;
@@ -145,7 +145,7 @@ function removeArrInstance(type, index) {
     for (var b = 0; b < testBtns.length; b++) {
         testBtns[b].classList.remove('success', 'error');
         testBtns[b].disabled = false;
-        testBtns[b].innerHTML = mi('extension') + ' ' + T('testConnection', 'Test Connection');
+        testBtns[b].innerHTML = mi('extension') + T('testConnection', 'Test Connection');
     }
 
     var row = document.querySelector(
@@ -216,7 +216,7 @@ function testArrConnection(type, index) {
     var url = urlEl.value.trim();
     var apiKey = keyEl.value.trim();
 
-    var originalHtml = mi('extension') + ' ' + T('testConnection', 'Test Connection');
+    var originalHtml = mi('extension') + T('testConnection', 'Test Connection');
 
     var timerKey = type + '_' + index;
     if (_testTimers[timerKey]) {
@@ -322,7 +322,7 @@ function initArrButtons(cfg) {
 
     if (radarrInstances.length > 0) {
         h += '<div style="margin-bottom:1em;">';
-        h += '<h4 class="icon-label arr-integration-instance-header">' + mi('movie') + ' Radarr</h4>';
+        h += '<h4 class="icon-label arr-integration-instance-header">' + mi('movie') + 'Radarr</h4>';
         h += '<div class="header-actions" style="flex-wrap:wrap;">';
         for (var r = 0; r < radarrInstances.length; r++) {
             var rName = radarrInstances[r].Name || ('Radarr #' + (r + 1));
@@ -335,7 +335,7 @@ function initArrButtons(cfg) {
 
     if (sonarrInstances.length > 0) {
         h += '<div style="margin-bottom:1em;">';
-        h += '<h4 class="icon-label arr-integration-instance-header">' + mi('tv') + ' Sonarr</h4>';
+        h += '<h4 class="icon-label arr-integration-instance-header">' + mi('tv') + 'Sonarr</h4>';
         h += '<div class="header-actions" style="flex-wrap:wrap;">';
         for (var s = 0; s < sonarrInstances.length; s++) {
             var sName = sonarrInstances[s].Name || ('Sonarr #' + (s + 1));

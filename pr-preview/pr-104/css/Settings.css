@@ -158,6 +158,11 @@
 }
 
 /* noinspection CssUnusedSymbol */
+.arr-collapsible.arr-expanded > .arr-collapsible-header .help-text {
+    display: none;
+}
+
+/* noinspection CssUnusedSymbol */
 .arr-collapsible-body {
     max-height: 0;
     overflow: hidden;
@@ -185,6 +190,8 @@
     padding: 0.5em 1.2em;
     cursor: pointer;
     margin: 0;
-    text-align: center;
+    display: flex;
+    align-items: center;
     justify-content: center;
+    text-align: center;
 }

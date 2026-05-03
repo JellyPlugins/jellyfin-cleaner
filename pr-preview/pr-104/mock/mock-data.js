@@ -93,7 +93,7 @@ var MOCK_CLEANUP_STATS={TotalBytesFreed:8589934592,TotalItemsDeleted:247,LastCle
 
 var MOCK_HISTORY=(function(){var s=[],now=Date.now();for(var i=30;i>=0;i--){var d=new Date(now-i*86400000),g=(30-i)*50000000000;s.push({Timestamp:d.toISOString(),TotalVideoSize:8500000000000+g,TotalAudioSize:214748364800+(30-i)*500000000,TotalSubtitleSize:5905580032,TotalImageSize:9126805504,TotalNfoSize:1073741823,TotalTrickplaySize:37580963840+(30-i)*70000000,TotalOtherSize:536870707,TotalVideoFileCount:5089+(30-i)*3,TotalAudioFileCount:12450+(30-i)*8,TotalSize:8769971724706+g+(30-i)*570000000,LibraryCount:3});}return s;})();
 
-var MOCK_TRASH_CONTENTS={Libraries:[
+var MOCK_TRASH_CONTENTS={RetentionDays:30,Libraries:[
 {LibraryName:"Movies",Items:[{OriginalName:"Old Movie (1995)",Size:4294967296,TrashedDate:new Date(Date.now()-172800000).toISOString(),PurgeDate:new Date(Date.now()+2419200000).toISOString(),IsDirectory:true},{OriginalName:"Duplicate.mkv",Size:2147483648,TrashedDate:new Date(Date.now()-604800000).toISOString(),PurgeDate:new Date(Date.now()+1987200000).toISOString(),IsDirectory:false}]},
 {LibraryName:"TV Shows",Items:[{OriginalName:"Cancelled Show",Size:10737418240,TrashedDate:new Date(Date.now()-86400000).toISOString(),PurgeDate:new Date(Date.now()+2505600000).toISOString(),IsDirectory:true}]}
 ]};
@@ -200,11 +200,11 @@ else if(url.indexOf("Configuration/LogLevel")!==-1&&method==="PUT"){try{var b=JS
 else if(url.indexOf("Configuration")!==-1&&method==="POST"){try{Object.assign(MOCK_CONFIG,JSON.parse(opts.data));}catch(e){}resolve({});}
 else if(url.indexOf("Configuration")!==-1)resolve(JSON.parse(JSON.stringify(MOCK_CONFIG)));
 else if(url.indexOf("Trash/Contents")!==-1)resolve(MOCK_TRASH_CONTENTS);
-else if(url.indexOf("Trash/Folders")!==-1&&method==="DELETE")resolve({DeletedCount:2,FailedCount:0});
+else if(url.indexOf("Trash/Folders")!==-1&&method==="DELETE")resolve({deleted:2,failed:0});
 else if(url.indexOf("Trash/Folders")!==-1)resolve(MOCK_TRASH_FOLDERS);
 else if(url.indexOf("Trash/Summary")!==-1)resolve({TotalSize:17179869184,TotalItems:3});
 else if(url.indexOf("Seerr/Test")!==-1)resolve({success:true,message:"Connected to Jellyseerr (demo)"});
-else if(url.indexOf("ArrIntegration/TestConnection")!==-1)resolve({Success:true,Message:"Connection successful (demo)"});
+else if(url.indexOf("ArrIntegration/TestConnection")!==-1)resolve({success:true,message:"Connection successful (demo)"});
 else if(url.indexOf("ArrIntegration/Compare/")!==-1)resolve(JSON.parse(JSON.stringify(MOCK_ARR_COMPARE)));
 else if(url.indexOf("Logs/Download")!==-1){var lt=MOCK_LOGS.Entries.map(function(e){return e.Timestamp+" ["+e.Level+"] "+e.Source+": "+e.Message;}).join("\n");resolve(lt);}
 else if(url.indexOf("Logs")!==-1&&method==="DELETE"){MOCK_LOGS.Entries=[];MOCK_LOGS.TotalCount=0;resolve({});}

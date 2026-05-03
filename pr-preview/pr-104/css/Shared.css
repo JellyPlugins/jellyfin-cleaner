@@ -308,7 +308,8 @@
 .tab-btn {
     display: flex;
     align-items: center;
-    gap: 0.2em;
+    gap: 0.3em;
+    line-height: 1;
     padding: 0.6em 1.2em;
     border: none;
     background: transparent;
@@ -350,6 +351,7 @@
 .action-btn {
     display: inline-flex;
     align-items: center;
+    gap: 0.4em;
     padding: var(--spacing-sm) var(--spacing-lg);
     border: none;
     border-radius: var(--radius-sm);
@@ -681,7 +683,14 @@
 
 .mi {
     display: inline-flex;
+    align-items: center;
+    justify-content: center;
     vertical-align: middle;
+    line-height: 1;
+}
+
+.mi svg {
+    display: block;
 }
 
 
