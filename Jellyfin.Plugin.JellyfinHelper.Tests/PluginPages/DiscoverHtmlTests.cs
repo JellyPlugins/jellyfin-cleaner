@@ -130,7 +130,7 @@ public class DiscoverHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_ContainsDiscoverTabSmartToyIcon()
     {
-        // The Discover tab uses the smart_toy Material Icon
-        Assert.Contains("smart_toy", HtmlContent);
+        // The Discover tab uses the smart_toy Material Icon via mi("smart_toy")
+        Assert.Contains("\"smart_toy\"", HtmlContent);
     }
 }

@@ -744,6 +744,7 @@ function getInsightTypeBadge(collectionType) {
     var ct = collectionType.toLowerCase();
     if (ct === 'movies' || ct === 'homevideos' || ct === 'musicvideos') return mi('movie');
     if (ct === 'tvshows') return mi('tv');
+    if (ct === 'music') return mi('music_note');
     return mi('folder');
 }
 
