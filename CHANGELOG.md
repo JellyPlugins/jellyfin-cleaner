@@ -9,7 +9,7 @@ and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin
 ## [2.0.0.2] - 2026-05-02
 
 ### Changed
-- **Material Icons** - Replaced all decorative emojis with Material Symbols font icons for consistent cross-platform rendering.
+- **Material Symbols** - Replaced all decorative emojis with Material Symbols font icons for consistent cross-platform rendering.
 - **Dash cleanup** - Standardized dash punctuation across all files.
 
 ### Fixed

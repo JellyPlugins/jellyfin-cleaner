@@ -283,40 +283,44 @@ public class CleanOrphanedSubtitlesTask : BaseLibraryCleanupTask
             return true;
         }
 
-        // BCP-47 regional/script tags: "es-MX", "pt-BR", "zh-Hans", "sr-Latn", "en-US", etc.
-        // Format: {known-language-code}-{region-or-script}
-        // - Region subtag: exactly 2 alphabetic characters (ISO 3166-1 alpha-2, e.g., MX, BR, TW, US)
-        // - Script subtag: exactly 4 alphabetic characters (ISO 15924, e.g., Hans, Latn, Cyrl)
-        var hyphenIndex = segment.IndexOf('-', StringComparison.Ordinal);
-        if (hyphenIndex <= 0 || hyphenIndex >= segment.Length - 1)
+        // BCP-47 regional/script tags: "es-MX", "pt-BR", "zh-Hans", "sr-Latn", "en-US",
+        // "es-419", "zh-Hans-TW", etc.
+        // Supported formats:
+        //   {lang}-{region}         e.g. en-US, pt-BR
+        //   {lang}-{3-digit-region} e.g. es-419
+        //   {lang}-{script}         e.g. zh-Hans, sr-Latn
+        //   {lang}-{script}-{region} e.g. zh-Hans-TW
+        var subtags = segment.Split('-');
+        if (subtags.Length < 2 || subtags.Length > 3)
         {
             return false;
         }
 
-        var langPart = segment[..hyphenIndex];
-        if (!MediaExtensions.KnownLanguageCodes.Contains(langPart))
+        if (!MediaExtensions.KnownLanguageCodes.Contains(subtags[0]))
         {
             return false;
         }
 
-        var subtag = segment[(hyphenIndex + 1)..];
+        // Helper: 2-letter alphabetic region (ISO 3166-1 alpha-2)
+        static bool IsAlphaRegion(string value) =>
+            value.Length == 2 && char.IsLetter(value[0]) && char.IsLetter(value[1]);
 
-        // Region subtag: exactly 2 alphabetic characters (e.g., MX, BR, TW, US, GB)
-        if (subtag.Length == 2 && char.IsLetter(subtag[0]) && char.IsLetter(subtag[1]))
+        // Helper: 3-digit numeric region (UN M.49, e.g. 419)
+        static bool IsNumericRegion(string value) =>
+            value.Length == 3 && char.IsDigit(value[0]) && char.IsDigit(value[1]) && char.IsDigit(value[2]);
+
+        // Helper: 4-letter script (ISO 15924, e.g. Hans, Latn, Cyrl)
+        static bool IsScript(string value) =>
+            value.Length == 4 && char.IsLetter(value[0]) && char.IsLetter(value[1])
+            && char.IsLetter(value[2]) && char.IsLetter(value[3]);
+
+        if (subtags.Length == 2)
         {
-            return true;
+            // {lang}-{region} or {lang}-{script}
+            return IsAlphaRegion(subtags[1]) || IsNumericRegion(subtags[1]) || IsScript(subtags[1]);
         }
 
-        // Script subtag: exactly 4 alphabetic characters (e.g., Hans, Hant, Latn, Cyrl)
-        if (subtag.Length == 4
-            && char.IsLetter(subtag[0])
-            && char.IsLetter(subtag[1])
-            && char.IsLetter(subtag[2])
-            && char.IsLetter(subtag[3]))
-        {
-            return true;
-        }
-
-        return false;
+        // subtags.Length == 3: {lang}-{script}-{region}
+        return IsScript(subtags[1]) && (IsAlphaRegion(subtags[2]) || IsNumericRegion(subtags[2]));
     }
 }

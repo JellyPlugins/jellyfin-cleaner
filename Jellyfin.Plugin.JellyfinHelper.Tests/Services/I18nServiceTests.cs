@@ -94,7 +94,7 @@ public class I18NServiceTests : IDisposable
             "cleanupStatistics", "totalBytesFreed", "totalItemsDeleted", "lastCleanup", "never",
             "videoCodecs", "videoAudioCodecs", "musicAudioCodecs", "containerFormats", "resolutions", "noData",
             "healthChecks", "noSubtitles", "noImages", "noNfo", "orphanedDirs",
-            "trendTitle", "trendEmpty", "loadingTrends", "trendError", "trendGranularity", "trendFiles",
+            "trendTitle", "trendEmpty", "loadingTrends", "trendError", "statsLoadError", "trendGranularity", "trendFiles",
             "trendEarliest",
             "clickToExpand",
             "settingsGeneralTitle", "settingsTaskTitle", "settingsTrashTitle", "settingsArrTitle",

@@ -2237,10 +2237,11 @@ public class ClassifyMethodTests
     }
 
     [Fact]
-    public void ClassifyResolution_UltraWide_2560x1080()
+    public void ClassifyResolution_Anamorphic_1440x1080()
     {
-        // 2560×1080 ultrawide - minDimension=1080, maxDimension=2560
-        Assert.Equal("1080p", MediaStatisticsService.ClassifyResolution(2560, 1080));
+        // 1440x1080 (anamorphic) - minDimension=1080, maxDimension=1440 (< 1920)
+        // This only passes with minDimension-based classification, not maxDimension-based.
+        Assert.Equal("1080p", MediaStatisticsService.ClassifyResolution(1440, 1080));
     }
 
     [Fact]

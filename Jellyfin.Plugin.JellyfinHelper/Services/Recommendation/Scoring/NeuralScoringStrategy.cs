@@ -1156,18 +1156,32 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
                     BiasH3.Length: Hidden3Size, WeightsH3O.Length: Hidden3Size
                 })
             {
-                _weightsIH = data.WeightsIH;
-                _biasH1 = data.BiasH1;
-                _weightsH1H2 = data.WeightsH1H2;
-                _biasH2 = data.BiasH2;
-                _weightsH2H3 = data.WeightsH2H3;
-                _biasH3 = data.BiasH3;
-                _weightsH3O = data.WeightsH3O;
-                _biasOutput = data.BiasOutput;
-                _featureMeans = data.FeatureMeans;
-                _featureStdDevs = data.FeatureStdDevs;
-                _trainingGeneration = data.TrainingGeneration;
-                _adamTimestep = 0;
+                // Reject persisted weights containing NaN/Infinity values that would poison scoring.
+                if (!AllFinite(data.WeightsIH) || !AllFinite(data.BiasH1)
+                    || !AllFinite(data.WeightsH1H2) || !AllFinite(data.BiasH2)
+                    || !AllFinite(data.WeightsH2H3) || !AllFinite(data.BiasH3)
+                    || !AllFinite(data.WeightsH3O) || !double.IsFinite(data.BiasOutput)
+                    || (data.FeatureMeans is not null && !AllFinite(data.FeatureMeans))
+                    || (data.FeatureStdDevs is not null && !AllFinite(data.FeatureStdDevs)))
+                {
+                    _logger?.LogWarning(
+                        "NeuralScoringStrategy: Discarding persisted weights containing NaN/Infinity values");
+                }
+                else
+                {
+                    _weightsIH = data.WeightsIH;
+                    _biasH1 = data.BiasH1;
+                    _weightsH1H2 = data.WeightsH1H2;
+                    _biasH2 = data.BiasH2;
+                    _weightsH2H3 = data.WeightsH2H3;
+                    _biasH3 = data.BiasH3;
+                    _weightsH3O = data.WeightsH3O;
+                    _biasOutput = data.BiasOutput;
+                    _featureMeans = data.FeatureMeans;
+                    _featureStdDevs = data.FeatureStdDevs;
+                    _trainingGeneration = data.TrainingGeneration;
+                    _adamTimestep = 0;
+                }
             }
             else if (data is not null)
             {
@@ -1288,6 +1302,20 @@ public sealed class NeuralScoringStrategy : IScoringStrategy, ITrainableStrategy
         _logger.LogDebug(
             "NeuralScoringStrategy feature importance (L2 norm): {FeatureImportance}",
             string.Join(", ", parts));
+    }
+
+    /// <summary>Returns true if all elements in the array are finite (not NaN or Infinity).</summary>
+    private static bool AllFinite(double[] values)
+    {
+        for (var i = 0; i < values.Length; i++)
+        {
+            if (!double.IsFinite(values[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <inheritdoc />
