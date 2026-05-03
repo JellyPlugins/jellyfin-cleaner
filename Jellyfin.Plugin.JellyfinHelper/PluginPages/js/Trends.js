@@ -457,11 +457,17 @@ function attachTrendInteraction(container) {
         // Delta row with percentage
         var deltaSize = currentPt.s - pt.s;
         var deltaFiles = currentPt.c - pt.c;
-        // Percentage = share of growth relative to current total (never exceeds 100%).
-        var pctSize = currentPt.s > 0 ? Math.round((deltaSize / currentPt.s) * 100) : 0;
+        // Percentage = share of change relative to current total (never exceeds 100%).
+        var pctRaw = currentPt.s > 0 ? (deltaSize / currentPt.s) * 100 : 0;
 
         var sSign = deltaSize > 0 ? '+' : (deltaSize < 0 ? '' : '\u00B1');
-        var pctLabel = pctSize !== 0 ? ' (' + (pctSize > 0 ? '+' : '') + pctSize + '%)' : '';
+        var pctLabel = '';
+        if (Math.abs(pctRaw) >= 0.05) {
+            var pctDisplay = parseFloat(pctRaw.toFixed(1));
+            pctLabel = ' (' + (pctDisplay > 0 ? '+' : '') + pctDisplay + '%)';
+        } else if (deltaSize !== 0) {
+            pctLabel = ' (' + (deltaSize > 0 ? '+' : '\u2212') + '<0.1%)';
+        }
         diffSize.textContent = sSign + formatBytes(deltaSize) + pctLabel;
         diffSize.className = 'trend-diff-stat trend-diff-size '
             + (deltaSize > 0 ? 'diff-up' : (deltaSize < 0 ? 'diff-down' : 'diff-neutral'));
