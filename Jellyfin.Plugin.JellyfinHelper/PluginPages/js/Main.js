@@ -71,7 +71,7 @@ function updateLastScanBadge(utcTimestamp) {
     if (utcTimestamp) {
         badge.innerHTML = mi('schedule') + ' ';
         badge.appendChild(document.createTextNode(T('lastScan', 'Last Scan') + ': ' + formatTimeAgo(utcTimestamp)));
-        badge.style.display = '';
+        badge.style.display = 'flex';
     } else {
         badge.style.display = 'none';
     }

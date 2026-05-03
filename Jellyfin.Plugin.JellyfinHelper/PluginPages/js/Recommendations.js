@@ -47,7 +47,7 @@ function renderRecommendations(container, results) {
     var html = '';
     var totalRecs = 0, totalUsers = results.length;
     for (var i = 0; i < results.length; i++) { totalRecs += results[i].Recommendations ? results[i].Recommendations.length : 0; }
-    html += '<div class="recs-info-line"><span>' + mi('group') + ' ' + totalUsers + ' ' + T('recsUsers', 'Users') + '</span><span class="recs-info-sep">·</span><span>' + mi('track_changes') + ' ' + totalRecs + ' ' + T('recsTotal', 'Recommendations') + '</span></div>';
+    html += '<div class="recs-info-line"><span>' + mi('group') + ' ' + totalUsers + ' ' + T('recsUsers', 'Users') + '</span><span class="recs-info-sep">·</span><span class="recs-total">' + mi('track_changes') + ' ' + totalRecs + ' ' + T('recsTotal', 'Recommendations') + '</span></div>';
     html += '<div class="recs-user-selector"><label for="recsUserSelect">' + T('recsSelectUser', 'Select User') + ': </label><select id="recsUserSelect" class="recs-select">';
     for (var u = 0; u < results.length; u++) {
         html += '<option value="' + u + '">' + escHtml(results[u].UserName) + ' (' + (results[u].Recommendations ? results[u].Recommendations.length : 0) + ' ' + T('recsItems', 'items') + ')</option>';
@@ -55,7 +55,7 @@ function renderRecommendations(container, results) {
     html += '</select></div>';
 
     // Collapsible Recommendations section
-    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsGridToggle"><span class="recs-collapsible-arrow">▶</span> ' + mi('track_changes') + ' ' + T('recsSubtabRecommendations', 'Recommendations') + ' (<span id="recsGridCount">0</span> ' + T('recsItems', 'items') + ')</button>';
+    html += '<div class="recs-collapsible"><button class="recs-collapsible-toggle" id="recsGridToggle"><span class="recs-collapsible-arrow">▶</span> ' + mi('track_changes') + ' ' + T('recsSubtabRecommendations', 'Recommendations') + ' <span>(<span id="recsGridCount">0</span> ' + T('recsItems', 'items') + ')</span></button>';
     html += '<div class="recs-collapsible-body" id="recsGridBody">';
     html += '<div id="recsUserGrid"></div>';
     html += '</div></div>';
