@@ -691,7 +691,7 @@ function attachSeerrHandlers() {
                 _seerrTimer = showButtonFeedback(btn, true, escHtml(res.message || 'OK'), originalHtml);
                 // Auto-save settings after successful connection test (quiet to avoid double feedback)
                 var payload = buildSettingsPayload();
-                doSaveSettings(payload, {quiet: true, element: btn});
+                doSaveSettings(payload, {quiet: true, element: document.getElementById('arrCollapsibleHeaderSeerr')});
                 // Enable previously greyed-out Seerr UI sections
                 updateSeerrUIState(true);
             } else {
