@@ -94,6 +94,7 @@ function advanceBucketDate(date, granularity) {
 }
 
 var TREND_DAY_MS = 24 * 60 * 60 * 1000;
+var TREND_HOUR_MS = 60 * 60 * 1000;
 
 /**
  * Snaps a date to the start of its bucket for the given level (UTC).
@@ -622,9 +623,16 @@ function touchMidX(touches) {
  * daily zoom cannot invert.
  */
 function createWindowController(chart, chartState, g, chartW, vbWidth, vbHeight, scheduleRedraw) {
-    var MIN_SPAN_MS = 2 * TREND_DAY_MS;
     var domainStart = chartState.minTime;
     var domainEnd = chartState.maxTime;
+    var fullDomainSpan = domainEnd - domainStart;
+
+    // Minimum zoom-in span. Normally two days so daily zoom cannot invert, but never more than
+    // a quarter of the domain: a brand-new server with a single day of history would otherwise
+    // have its full view already sitting at the floor, so every zoom-in clamps straight back to
+    // full and wheel events get handed to the browser as page scroll (silent no-op gestures).
+    // Floor at one hour so the window can never collapse to zero span.
+    var MIN_SPAN_MS = Math.max(TREND_HOUR_MS, Math.min(2 * TREND_DAY_MS, fullDomainSpan / 4));
 
     function clampWindow() {
         var span = chartState.endTime - chartState.startTime;

@@ -447,7 +447,26 @@ public static class TimelineAggregator
 
         // A daily point is always midnight UTC by construction. A non-midnight or non-UTC point means the
         // series was bucketed coarser (or hand-edited), so it is not a genuine daily series.
-        return timeline.DataPoints.All(point => point.Date.Kind == DateTimeKind.Utc && point.Date.TimeOfDay == TimeSpan.Zero);
+        var previous = DateTime.MinValue;
+        foreach (var point in timeline.DataPoints)
+        {
+            if (point.Date.Kind != DateTimeKind.Utc || point.Date.TimeOfDay != TimeSpan.Zero)
+            {
+                return false;
+            }
+
+            // Our own persisted series is always sorted and deduplicated; strictly increasing dates
+            // reject a hand-edited backup with out-of-order or duplicate days, which the append-only
+            // and merge paths downstream assume cannot happen.
+            if (previous != DateTime.MinValue && point.Date <= previous)
+            {
+                return false;
+            }
+
+            previous = point.Date;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -486,5 +505,25 @@ public static class TimelineAggregator
 
         var merged = byDay.Values.OrderBy(p => p.Date).ToList();
         return DeduplicateConsecutivePoints(merged);
+    }
+
+    /// <summary>
+    ///     Trims a daily series to at most <paramref name="cap"/> points, keeping the earliest point plus the newest <c>cap - 1</c> points so the growth-curve origin survives. Points are assumed sorted ascending; a series at or below the cap is returned unchanged.
+    /// </summary>
+    /// <param name="points">The sorted daily series to trim.</param>
+    /// <param name="cap">The maximum number of points to retain (must be at least 1).</param>
+    /// <returns>The trimmed series, or the input unchanged when already within the cap.</returns>
+    internal static List<GrowthTimelinePoint> TrimToCap(List<GrowthTimelinePoint> points, int cap)
+    {
+        ArgumentNullException.ThrowIfNull(points);
+
+        if (cap < 1 || points.Count <= cap)
+        {
+            return points;
+        }
+
+        var kept = new List<GrowthTimelinePoint>(cap) { points[0] };
+        kept.AddRange(points.Skip(1).TakeLast(cap - 1));
+        return kept;
     }
 }

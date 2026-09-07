@@ -81,12 +81,7 @@ public static class BackupSanitizer
         if (backup.GrowthTimeline is { DataPoints.Count: > BackupValidator.MaxTimelineDataPoints })
         {
             var ordered = backup.GrowthTimeline.DataPoints.OrderBy(p => p.Date).ToList();
-            var earliest = ordered[0];
-            var newest = ordered
-                .Skip(1)
-                .TakeLast(BackupValidator.MaxTimelineDataPoints - 1);
-            var kept = new List<GrowthTimelinePoint> { earliest };
-            kept.AddRange(newest);
+            var kept = TimelineAggregator.TrimToCap(ordered, BackupValidator.MaxTimelineDataPoints);
 
             backup.GrowthTimeline.DataPoints.Clear();
             foreach (var point in kept)

@@ -622,6 +622,11 @@ public sealed class BackupService : IBackupService
 
         var mergedPoints = TimelineAggregator.MergeDailySeries(current.DataPoints, incoming.DataPoints);
 
+        // The sanitizer caps the incoming series, but merging it with the current on-disk series can
+        // still exceed the cap when the two barely overlap. Re-apply the same retention (earliest plus
+        // newest cap-1) so the persisted file and the chart never carry more than the client can render.
+        mergedPoints = TimelineAggregator.TrimToCap(mergedPoints, BackupValidator.MaxTimelineDataPoints);
+
         var result = new GrowthTimelineResult
         {
             Granularity = "daily",
