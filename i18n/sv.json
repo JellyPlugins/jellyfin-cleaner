@@ -80,6 +80,7 @@
   "trendFiles": "mediefiler",
   "trendEarliest": "Tidigast",
   "trendNow": "nu",
+  "trendChartLabel": "Ackumulerad tillväxt av mediebiblioteket över tid",
   "settingsGeneralTitle": "Allmänna inställningar",
   "settingsToolbarLabel": "Inställningsåtgärder",
   "settingsUnsavedChanges": "Osparade ändringar",
