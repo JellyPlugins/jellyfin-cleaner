@@ -170,7 +170,7 @@ function loadTrashHealthSection() {
                     html += '<div class="health-detail-list"><ul>';
                     for (const item of trashLib.Items) {
                         var purgeInfo = item.PurgeDate ? ' - ' + escHtml(T('purgesOn', 'purges'))
-                            + ' ' + new Date(item.PurgeDate).toLocaleDateString() : '';
+                            + ' ' + formatDate(item.PurgeDate) : '';
                         html += '<li>' + escHtml(item.OriginalName || item.Name)
                             + ' <span class="trash-item-meta">(' + formatBytes(item.Size)
                             + purgeInfo + ')</span></li>';

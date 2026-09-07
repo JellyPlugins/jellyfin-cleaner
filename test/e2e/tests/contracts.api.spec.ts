@@ -162,6 +162,19 @@ test.describe('Translations contract', () => {
   });
 });
 
+// --- Language: resolved UI locale code -------------------------------------
+test.describe('Language contract', () => {
+  test('returns a resolved, supported primary-subtag language code', async () => {
+    const res = await ctx.get(p('Language'));
+    expect(res.ok()).toBeTruthy();
+    const body = (await res.json()) as { language: string };
+    expect(typeof body.language).toBe('string');
+    // Always a resolved 2-letter primary subtag (never a region-tagged or unknown code).
+    expect(body.language).toMatch(/^[a-z]{2}$/);
+    expect(['en', 'de', 'fr', 'es', 'pt', 'zh', 'tr', 'sv']).toContain(body.language);
+  });
+});
+
 // --- Configuration/Libraries + LibraryPaths: response shape -----------------
 test('Configuration/Libraries returns {Libraries[]} with Name + CollectionType', async () => {
   const res = await ctx.get(p('Configuration/Libraries'));

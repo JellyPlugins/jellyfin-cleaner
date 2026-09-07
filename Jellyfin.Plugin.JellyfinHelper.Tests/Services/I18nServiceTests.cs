@@ -40,6 +40,40 @@ public class I18NServiceTests : IDisposable
         Assert.Equal(8, languages.Count);
     }
 
+    [Theory]
+    [InlineData("en", "en")]
+    [InlineData("de", "de")]
+    [InlineData("sv", "sv")]
+    [InlineData("DE", "de")]
+    [InlineData("de-DE", "de")]
+    [InlineData("pt_BR", "pt")]
+    [InlineData("EN-us", "en")]
+    public void ResolveLanguage_SupportedCode_ReturnsPrimarySubtag(string input, string expected)
+    {
+        Assert.Equal(expected, I18NService.ResolveLanguage(input));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("xx")]
+    [InlineData("klingon")]
+    [InlineData("--")]
+    public void ResolveLanguage_UnknownOrEmpty_FallsBackToEnglish(string? input)
+    {
+        Assert.Equal("en", I18NService.ResolveLanguage(input));
+    }
+
+    [Fact]
+    public void ResolveLanguage_AlwaysReturnsSupportedCode()
+    {
+        foreach (var lang in I18NService.SupportedLanguages)
+        {
+            Assert.Contains(I18NService.ResolveLanguage(lang), I18NService.SupportedLanguages);
+        }
+    }
+
     [Fact]
     public void GetTranslations_NullLanguage_FallsBackToEnglish()
     {

@@ -67,6 +67,41 @@ function loadTranslations(callback) {
     }
 }
 
+// Resolved UI locale from plugin config, fetched once at init. Undefined until loaded so date
+// formatting falls back to the browser locale rather than breaking.
+var _uiLocale;
+
+function loadUiLocale(callback) {
+    try {
+        apiGet('JellyfinHelper/Language', function (r) {
+            if (r && typeof r.language === 'string' && r.language) { _uiLocale = r.language; }
+            if (callback) callback();
+        }, function () {
+            if (callback) callback();
+        });
+    } catch {
+        if (callback) callback();
+    }
+}
+
+/**
+ * Format a date with the plugin's resolved UI locale (browser-locale fallback until loaded).
+ * @param {Date|string|number} date - The date value.
+ * @param {object} [options] - Intl.DateTimeFormat options. Pass { time: true } to include time.
+ * @returns {string} The localized string, or '' for an invalid date.
+ */
+function formatDate(date, options) {
+    var d = (date instanceof Date) ? date : new Date(date);
+    if (Number.isNaN(d.getTime())) return '';
+    var opts = options || {};
+    if (opts.time) {
+        var o = Object.assign({}, opts);
+        delete o.time;
+        return d.toLocaleString(_uiLocale, o);
+    }
+    return d.toLocaleDateString(_uiLocale, opts);
+}
+
 function applyStaticTranslations() {
     var btnScanLibraries = document.getElementById('btnScanLibraries');
     if (btnScanLibraries) {

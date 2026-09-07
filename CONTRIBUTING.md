@@ -146,8 +146,9 @@ Jellyfin.Plugin.JellyfinHelper.Tests/
 │   ├── DiscoveryControllerTests.cs
 │   ├── DiscoveryControllerExtendedTests.cs           # Seerr users/services, request submission, filter logic, feedback-store error paths
 │   ├── FolderBrowserControllerTests.cs               # Root/list/validate flows and library-path resolution
-│   ├── ResponseDtoTests.cs                           # Default values, round-trip, null-safety and collection-default coverage for all 17 typed response DTOs
+│   ├── ResponseDtoTests.cs                           # Default values, round-trip, null-safety and collection-default coverage for all 18 typed response DTOs
 │   ├── ModelBindingLogFilterTests.cs                 # IAsyncActionFilter contract; Order = int.MinValue lock; drives filter directly
+│   ├── LanguageControllerTests.cs                    # GET /JellyfinHelper/Language: resolved code, config default, primary-subtag normalization, unknown → en
 │   ├── PingControllerTests.cs                        # 200 with { ok, plugin, version }
 │   ├── RecommendationControllerTests.cs
 │   ├── RecommendationControllerDiagnosticsTests.cs      # GET /Recommendations/Diagnostics/Ensemble: 200 populated DTO, Available=false on null, 503 when deactivated
@@ -421,6 +422,7 @@ Jellyfin.Plugin.JellyfinHelper/
 │   ├── MediaStatisticsController.cs     # Media statistics API
 │   ├── ModelBindingLogFilter.cs        # IAsyncActionFilter (Order = int.MinValue) attached to endpoints via [ServiceFilter]. Surfaces model-binding failures (invalid field types, null request body) into IPluginLogService BEFORE [ApiController]'s auto-400 short-circuits the request - without this filter, the auto-400 makes it out but no plugin-log entry is written, leaving admins with a bare HTTP 400 and no server-side trace to debug against. Registered as Scoped in PluginServiceRegistrator; do NOT register globally (would rewrite responses of other Jellyfin controllers that have their own error contracts).
 │   ├── PingController.cs               # /JellyfinHelper/Ping liveness endpoint - no dependencies, returns { ok, plugin, version }. The Settings save flow probes this after a failed save to distinguish "backend unreachable" (Ping also fails) from "backend reachable, request rejected" (Ping succeeds). Uses the same [Authorize(RequiresElevation)] policy as the other admin endpoints so a successful ping proves the entire auth + routing + reverse-proxy chain is intact for admins.
+│   ├── LanguageController.cs           # /JellyfinHelper/Language - returns the plugin's resolved UI language code so the dashboard formats dates in the configured language rather than the browser locale
 │   ├── RecommendationController.cs      # ML recommendations API
 │   ├── SeerrController.cs              # Jellyseerr/Overseerr integration API
 │   ├── TranslationsController.cs        # i18n translations API
@@ -662,6 +664,7 @@ are intentionally excluded. When you add a file, add a line for it here.
 - `LogsControllerTests.cs` - Tests LogsController get/download/clear logs and min-level/source input validation
 - `MediaStatisticsControllerTests.cs` - Tests MediaStatisticsController scan, cache persistence, and latest-result retrieval
 - `ModelBindingLogFilterTests.cs`
+- `LanguageControllerTests.cs` - Tests LanguageController resolved-code output, config-default fallback, primary-subtag normalization, and unknown-language fallback
 - `PingControllerTests.cs`
 - `RecommendationControllerTests.cs`
 - `RecommendationControllerDiagnosticsTests.cs`
@@ -943,6 +946,8 @@ are intentionally excluded. When you add a file, add a line for it here.
 - `MaskedArrInstanceConfig.cs`
 - `MediaStatisticsController.cs`
 - `ModelBindingLogFilter.cs`
+- `LanguageController.cs` - Returns the plugin's resolved UI language code (GET /JellyfinHelper/Language)
+- `LanguageResponse.cs` - Response DTO carrying the resolved UI language code
 - `PingController.cs`
 - `PingResponse.cs`
 - `RecommendationController.cs`

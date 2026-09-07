@@ -36,16 +36,12 @@ public static class I18NService
     /// <returns>A dictionary of translation keys to translated strings.</returns>
     public static Dictionary<string, string> GetTranslations(string? languageCode, IPluginLogService? pluginLog = null)
     {
-        var lang = string.IsNullOrWhiteSpace(languageCode)
-            ? "en"
-            : languageCode
-                .Split(['-', '_'], StringSplitOptions.RemoveEmptyEntries)[0]
-                .ToLowerInvariant();
+        var normalized = NormalizeLanguageToken(languageCode);
+        var lang = SupportedLanguages.Contains(normalized) ? normalized : "en";
 
-        if (!SupportedLanguages.Contains(lang))
+        if (pluginLog != null && lang != normalized)
         {
-            pluginLog?.LogDebug("I18n", $"Unknown language '{languageCode}', falling back to 'en'.");
-            lang = "en";
+            pluginLog.LogDebug("I18n", $"Unknown language '{languageCode}', falling back to 'en'.");
         }
 
         // GetOrAdd with Lazy<T> ensures LoadFromResource is called at most once per language,
@@ -62,6 +58,34 @@ public static class I18NService
 
         // Return a defensive copy so callers cannot mutate the cache.
         return new Dictionary<string, string>(cached, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    ///     Resolves an arbitrary language code to a supported code, falling back to English.
+    ///     Shares the same normalization rules as <see cref="GetTranslations" /> so the UI locale
+    ///     and the translation strings can never disagree on the active language.
+    /// </summary>
+    /// <param name="languageCode">The raw code (e.g. <c>null</c>, "de", "de-DE", "pt_BR").</param>
+    /// <returns>A supported ISO 639-1 code, or "en" when the input is unknown or malformed.</returns>
+    public static string ResolveLanguage(string? languageCode)
+    {
+        var normalized = NormalizeLanguageToken(languageCode);
+        return SupportedLanguages.Contains(normalized) ? normalized : "en";
+    }
+
+    /// <summary>
+    ///     Reduces a raw language code to its lowercase primary subtag (e.g. "pt_BR" to "pt").
+    ///     Does not validate against <see cref="SupportedLanguages" />.
+    /// </summary>
+    private static string NormalizeLanguageToken(string? languageCode)
+    {
+        if (string.IsNullOrWhiteSpace(languageCode))
+        {
+            return "en";
+        }
+
+        var parts = languageCode.Split(['-', '_'], StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 0 ? parts[0].ToLowerInvariant() : "en";
     }
 
     /// <summary>

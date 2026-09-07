@@ -1114,13 +1114,15 @@ function doBackupImport(file) {
             var savedScroll = scrollContainer.scrollTop;
 
             function reloadAfterImport() {
-                loadTranslations(function () {
-                    rebuildUI();
-                    var settingsBtn = document.querySelector('.tab-btn[data-tab="settings"]');
-                    if (settingsBtn) settingsBtn.click();
-                    setTimeout(function () {
-                        scrollContainer.scrollTop = savedScroll;
-                    }, 50);
+                loadUiLocale(function () {
+                    loadTranslations(function () {
+                        rebuildUI();
+                        var settingsBtn = document.querySelector('.tab-btn[data-tab="settings"]');
+                        if (settingsBtn) settingsBtn.click();
+                        setTimeout(function () {
+                            scrollContainer.scrollTop = savedScroll;
+                        }, 50);
+                    });
                 });
             }
 
@@ -1365,15 +1367,17 @@ function attachAutoSaveHandlers() {
                 element: langEl,
                 onSuccess: function () {
                     _currentLang = newLang;
-                    loadTranslations(function () {
-                        rebuildUI();
-                        // Restore scroll position after rebuild settles
-                        setTimeout(function () {
-                            scrollContainer.scrollTop = savedScroll;
-                            // Show indicator on the newly rendered language select
-                            var newLangEl = document.getElementById('cfgLang');
-                            if (newLangEl) showAutoSaveIndicatorOverlay(newLangEl, true);
-                        }, 50);
+                    loadUiLocale(function () {
+                        loadTranslations(function () {
+                            rebuildUI();
+                            // Restore scroll position after rebuild settles
+                            setTimeout(function () {
+                                scrollContainer.scrollTop = savedScroll;
+                                // Show indicator on the newly rendered language select
+                                var newLangEl = document.getElementById('cfgLang');
+                                if (newLangEl) showAutoSaveIndicatorOverlay(newLangEl, true);
+                            }, 50);
+                        });
                     });
                 }
             });

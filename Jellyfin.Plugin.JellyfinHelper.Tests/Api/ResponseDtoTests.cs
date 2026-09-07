@@ -423,3 +423,20 @@ public class TrashAccessResponseTests
         Assert.Equal("/x", dto.Results[0].Path);
     }
 }
+
+public class LanguageResponseTests
+{
+    [Fact]
+    public void Default_LanguageIsEnglish()
+    {
+        var dto = new LanguageResponse();
+        Assert.Equal("en", dto.Language);
+    }
+
+    [Fact]
+    public void Language_RoundTrip()
+    {
+        var dto = new LanguageResponse { Language = "de" };
+        Assert.Equal("de", dto.Language);
+    }
+}

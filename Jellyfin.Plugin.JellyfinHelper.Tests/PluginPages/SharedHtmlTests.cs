@@ -17,6 +17,8 @@ public class SharedHtmlTests : ConfigPageTestBase
     [InlineData("function T(")]
     [InlineData("function loadTranslations")]
     [InlineData("function applyStaticTranslations")]
+    [InlineData("function loadUiLocale")]
+    [InlineData("function formatDate")]
     [InlineData("function getCssVar")]
     [InlineData("function formatBytes")]
     [InlineData("function formatTimeAgo")]

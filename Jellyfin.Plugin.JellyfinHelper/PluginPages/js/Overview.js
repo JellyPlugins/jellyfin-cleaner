@@ -70,7 +70,7 @@ function loadCleanupStats() {
         var hasValidTs = stats.LastCleanupTimestamp &&
             stats.LastCleanupTimestamp !== '0001-01-01T00:00:00' &&
             !Number.isNaN(parsedTs.getTime());
-        var lastTs = hasValidTs ? parsedTs.toLocaleString() : T('never', 'Never');
+        var lastTs = hasValidTs ? formatDate(parsedTs, { time: true }) : T('never', 'Never');
         h += '<p class="stat-detail">' + escHtml(T('lastCleanup', 'Last cleanup')) + ': ' + escHtml(lastTs) + '</p></div>';
         h += '</div>';
         cleanupContainer.innerHTML = h;

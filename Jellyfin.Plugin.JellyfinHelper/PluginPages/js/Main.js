@@ -273,37 +273,40 @@ function initPage() {
 
     window.JellyfinHelper._pageInitialized = true;
 
-    // Load translations first, then render the shell UI immediately
-    loadTranslations(function () {
-        applyStaticTranslations();
+    // Fetch the configured UI locale first so dates format in the plugin's language (not the
+    // browser locale), then load translations and render the shell.
+    loadUiLocale(function () {
+        loadTranslations(function () {
+            applyStaticTranslations();
 
-        // Render the tab shell immediately (Settings & Arr accessible without scan)
-        var placeholder = document.getElementById('statsPlaceholder');
-        var result = document.getElementById('statsResult');
-        if (placeholder) {
-            placeholder.style.display = 'none';
-        }
-        if (result) {
-            result.innerHTML = renderShell();
-            result.style.display = 'block';
-            // Reset tab-level state after DOM re-render so handlers get rebound
-            if (typeof resetLogsTabState === 'function') {
-                resetLogsTabState();
+            // Render the tab shell immediately (Settings & Arr accessible without scan)
+            var placeholder = document.getElementById('statsPlaceholder');
+            var result = document.getElementById('statsResult');
+            if (placeholder) {
+                placeholder.style.display = 'none';
             }
-        }
+            if (result) {
+                result.innerHTML = renderShell();
+                result.style.display = 'block';
+                // Reset tab-level state after DOM re-render so handlers get rebound
+                if (typeof resetLogsTabState === 'function') {
+                    resetLogsTabState();
+                }
+            }
 
-        // Initialize tab switching
-        initTabs();
+            // Initialize tab switching
+            initTabs();
 
-        // Load settings and arr buttons immediately (no scan needed)
-        loadSettings();
+            // Load settings and arr buttons immediately (no scan needed)
+            loadSettings();
 
-        // Load persisted statistics from server (if any previous scan exists). When no data exists (204 path), loadLatestStatistics triggers loadStatistics(), which calls loadTrendData(true) and loadInsightsData() on its own success path.
-        loadLatestStatistics();
-        if (!window.JellyfinHelper._statisticsInFlight) {
-            loadTrendData();
-            loadInsightsData();
-        }
+            // Load persisted statistics from server (if any previous scan exists). When no data exists (204 path), loadLatestStatistics triggers loadStatistics(), which calls loadTrendData(true) and loadInsightsData() on its own success path.
+            loadLatestStatistics();
+            if (!window.JellyfinHelper._statisticsInFlight) {
+                loadTrendData();
+                loadInsightsData();
+            }
+        });
     });
 
     if (!window.JellyfinHelper._handlersBound) {

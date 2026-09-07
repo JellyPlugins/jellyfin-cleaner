@@ -386,7 +386,7 @@ function renderCompactActivityTable(container, items) {
         html += '<td><span class="recs-tag recs-tag-type">' + escHtml(it.ItemType || '') + '</span></td>';
         html += '<td class="activity-cell-num">' + (it.TotalPlayCount || 0) + '</td>';
         var d = new Date(it.MostRecentWatch);
-        var dateStr = Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString();
+        var dateStr = Number.isNaN(d.getTime()) ? '' : formatDate(d);
         html += '<td>' + (dateStr || '\u2014') + '</td>';
         html += '<td><div class="activity-completion-bar"><div class="activity-completion-fill ' + sc + '" style="width:' + pct + '%"></div>';
         html += '<span class="activity-completion-text">' + pct + '%</span></div></td></tr>';
@@ -525,7 +525,7 @@ function renderDiscoveryCards(grid, countSpan, userDiscovery) {
         if (!Number.isNaN(genDate.getTime())) {
             html += '<div class="discovery-footer">' +
                 T('discoveryGeneratedAt', 'Last updated') + ': ' +
-                genDate.toLocaleDateString() + ' ' + genDate.toLocaleTimeString() +
+                genDate.toLocaleDateString(_uiLocale) + ' ' + genDate.toLocaleTimeString(_uiLocale) +
                 '</div>';
         }
     }

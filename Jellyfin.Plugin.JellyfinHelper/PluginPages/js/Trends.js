@@ -8,13 +8,13 @@ function formatGranularityLabel(dateStr, granularity) {
         case 'yearly':
             return d.getUTCFullYear().toString();
         case 'monthly':
-            return d.toLocaleDateString(undefined, {year: 'numeric', month: 'short', timeZone: 'UTC'});
+            return formatDate(d, {year: 'numeric', month: 'short', timeZone: 'UTC'});
         case 'weekly':
-            return d.toLocaleDateString(undefined, {month: 'short', day: 'numeric', timeZone: 'UTC'});
+            return formatDate(d, {month: 'short', day: 'numeric', timeZone: 'UTC'});
         case 'daily':
-            return d.toLocaleDateString(undefined, {month: 'short', day: 'numeric', timeZone: 'UTC'});
+            return formatDate(d, {month: 'short', day: 'numeric', timeZone: 'UTC'});
         default:
-            return d.toLocaleDateString(undefined, {timeZone: 'UTC'});
+            return formatDate(d, {timeZone: 'UTC'});
     }
 }
 
@@ -597,7 +597,7 @@ function renderTrendChart(timeline) {
     meta += escHtml(T('trendGranularity', 'Granularity')) + ': <span class="trend-meta-level">' + escHtml(initialFrame.level) + '</span>';
     meta += ' &middot; ' + safeFileCount + ' ' + escHtml(T('trendFiles', 'media files'));
     if (timeline.earliestFileDate) {
-        meta += ' &middot; ' + escHtml(T('trendEarliest', 'Earliest')) + ': ' + new Date(timeline.earliestFileDate).toLocaleDateString(undefined, {timeZone: 'UTC'});
+        meta += ' &middot; ' + escHtml(T('trendEarliest', 'Earliest')) + ': ' + formatDate(timeline.earliestFileDate, {timeZone: 'UTC'});
     }
     meta += '</div>';
 
@@ -1358,7 +1358,7 @@ function formatInsightDate(isoStr) {
     if (!isoStr) return '-';
     var d = new Date(isoStr);
     if (Number.isNaN(d.getTime())) return '-';
-    return d.toLocaleDateString(undefined, {
+    return formatDate(d, {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
