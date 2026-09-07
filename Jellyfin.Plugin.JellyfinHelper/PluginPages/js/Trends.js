@@ -243,13 +243,49 @@ function buildTrendSvgPoints(render, startTime, endTime, g, yMax, chartW, chartH
 }
 
 /**
- * Builds the SVG for the current visible window over the dense daily series.
- * Pure with respect to the DOM: returns the SVG string plus the projected point data
- * and the y-axis max used, so the interaction handler can map coordinates.
- *
- * state: { fullDaily, startTime, endTime }
+ * Chooses X-axis labels for the visible window, enforcing a hard minimum pixel gap so two
+ * labels can never overlap at any zoom level or window position. Edge labels use start/end
+ * anchoring so the first/last are never clipped (previous bug showed "016" instead of "2016").
+ * Returns an array of { x, anchor, text }.
  */
-function drawTrendWindow(state) {
+function computeTrendLabels(pointData, level, g) {
+    var minLabelGapPx = 60;
+    var lastLabelX = -Infinity;
+    var labels = [];
+    for (var idx = 0; idx < pointData.length; idx++) {
+        var pt = pointData[idx];
+        var lx = pt.x;
+        if (lx - lastLabelX < minLabelGapPx) continue;
+        var isFirst = idx === 0;
+        var isLast = idx === pointData.length - 1;
+        var lxDisplay = lx;
+        var anchor = 'middle';
+        if (isFirst && lx <= g.padL + 2) {
+            anchor = 'start';
+            lxDisplay = g.padL + 2;
+        } else if (isLast && lx >= g.width - g.padR - 2) {
+            anchor = 'end';
+            lxDisplay = g.width - g.padR - 2;
+        } else {
+            if (lx > g.width - g.padR - 4) continue;
+            if (lx < g.padL + 4) continue;
+        }
+        labels.push({ x: lxDisplay, anchor: anchor, text: formatGranularityLabel(pt.d, level) });
+        lastLabelX = lx;
+    }
+    return labels;
+}
+
+/**
+ * Computes a full render frame for the current visible window over the dense daily series.
+ * Pure with respect to the DOM (no getComputedStyle, no node access): returns the projected
+ * point data, polyline/polygon coordinates, y-axis ticks, and x-axis labels. Both the initial
+ * string render and the in-place per-frame updater consume this, so gesture redraws never
+ * reparse SVG.
+ *
+ * state: { fullDaily, startTime, endTime, projectionCache }
+ */
+function computeTrendFrame(state) {
     var g = TREND_GEOM;
     var chartW = g.width - g.padL - g.padR;
     var chartH = g.height - g.padT - g.padB;
@@ -278,74 +314,198 @@ function drawTrendWindow(state) {
     var points = built.points;
     var yOf = built.yOf;
 
-    var svg = '<svg width="100%" viewBox="0 0 ' + g.width + ' ' + g.height + '" preserveAspectRatio="xMidYMid meet">';
-
-    for (const tick of yScale.ticks) {
-        var gy = yOf(tick);
-        svg += '<line x1="' + g.padL + '" y1="' + gy.toFixed(1) + '" x2="' + (g.width - g.padR) + '" y2="' + gy.toFixed(1) + '" stroke="rgba(255,255,255,0.06)" />';
-        svg += '<text x="' + (g.padL - 5) + '" y="' + (gy + 4).toFixed(1) + '" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="10">' + formatBytes(tick) + '</text>';
-    }
-
-    var areaFillRaw = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-light').trim() || 'rgba(0,164,220,0.15)';
-    var areaFill = /^[a-zA-Z0-9#(),.\s%]+$/.test(areaFillRaw) ? areaFillRaw : 'rgba(0,164,220,0.15)';
-    var trendColorRaw = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#00a4dc';
-    var trendColor = /^[a-zA-Z0-9#(),.\s%]+$/.test(trendColorRaw) ? trendColorRaw : '#00a4dc';
-
+    var baseY = g.padT + chartH;
+    var areaPoints = '';
     if (points.length > 0) {
         var firstX = points[0].split(',')[0];
         var lastX = points.at(-1).split(',')[0];
-        var baseY = (g.padT + chartH).toFixed(1);
-        var areaPoints = firstX + ',' + baseY + ' ' + points.join(' ') + ' ' + lastX + ',' + baseY;
-        svg += '<polygon points="' + areaPoints + '" fill="' + areaFill + '" />';
-        svg += '<polyline points="' + points.join(' ') + '" fill="none" stroke="' + trendColor + '" stroke-width="2" />';
+        areaPoints = firstX + ',' + baseY.toFixed(1) + ' ' + points.join(' ') + ' ' + lastX + ',' + baseY.toFixed(1);
     }
-
-    // Invisible interaction overlay for mouse/touch tracking.
-    svg += '<rect class="trend-hit-area" x="' + g.padL + '" y="' + g.padT + '" width="' + chartW + '" height="' + chartH + '" fill="transparent" />';
 
     // Data dots, sized down as the visible point count grows.
     var dotRadius;
     if (pointData.length <= 60) dotRadius = 2.5;
     else if (pointData.length <= 200) dotRadius = 1.5;
     else dotRadius = 0;
-    if (dotRadius > 0) {
-        for (const p of points) {
+
+    var ticks = [];
+    for (const tick of yScale.ticks) {
+        ticks.push({ y: yOf(tick), label: formatBytes(tick) });
+    }
+
+    return {
+        pointData: pointData,
+        points: points,
+        polyline: points.join(' '),
+        areaPoints: areaPoints,
+        dotRadius: dotRadius,
+        ticks: ticks,
+        labels: computeTrendLabels(pointData, level, g),
+        yMax: yMax,
+        level: level
+    };
+}
+
+/**
+ * Reads and caches the theme colors used by the chart once, so per-frame redraws never
+ * trigger a forced style recalc via getComputedStyle.
+ */
+function readTrendColors() {
+    var safe = /^[a-zA-Z0-9#(),.\s%]+$/;
+    var areaFillRaw = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-light').trim() || 'rgba(0,164,220,0.15)';
+    var trendColorRaw = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#00a4dc';
+    return {
+        areaFill: safe.test(areaFillRaw) ? areaFillRaw : 'rgba(0,164,220,0.15)',
+        trendColor: safe.test(trendColorRaw) ? trendColorRaw : '#00a4dc'
+    };
+}
+
+/**
+ * Builds the initial SVG string for a frame. Used once when the chart HTML is first inserted;
+ * subsequent gesture redraws mutate this DOM in place via applyTrendFrame.
+ */
+function renderTrendSvgString(frame, colors) {
+    var g = TREND_GEOM;
+    var chartW = g.width - g.padL - g.padR;
+    var chartH = g.height - g.padT - g.padB;
+    var baseY = g.padT + chartH;
+
+    var svg = '<svg width="100%" viewBox="0 0 ' + g.width + ' ' + g.height + '" preserveAspectRatio="xMidYMid meet">';
+
+    // Grid group: one line + one text per tick. Rebuilt in place on unit rescale.
+    svg += '<g class="trend-grid">';
+    for (const tick of frame.ticks) {
+        svg += '<line x1="' + g.padL + '" y1="' + tick.y.toFixed(1) + '" x2="' + (g.width - g.padR) + '" y2="' + tick.y.toFixed(1) + '" stroke="rgba(255,255,255,0.06)" />';
+        svg += '<text x="' + (g.padL - 5) + '" y="' + (tick.y + 4).toFixed(1) + '" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="10">' + escHtml(tick.label) + '</text>';
+    }
+    svg += '</g>';
+
+    svg += '<polygon class="trend-area" points="' + frame.areaPoints + '" fill="' + colors.areaFill + '" />';
+    svg += '<polyline class="trend-line" points="' + frame.polyline + '" fill="none" stroke="' + colors.trendColor + '" stroke-width="2" />';
+
+    // Invisible interaction overlay for mouse/touch tracking.
+    svg += '<rect class="trend-hit-area" x="' + g.padL + '" y="' + g.padT + '" width="' + chartW + '" height="' + chartH + '" fill="transparent" />';
+
+    svg += '<g class="trend-dots">';
+    if (frame.dotRadius > 0) {
+        for (const p of frame.points) {
             var coords = p.split(',');
-            svg += '<circle cx="' + coords[0] + '" cy="' + coords[1] + '" r="' + dotRadius + '" fill="' + trendColor + '" opacity="0.6" />';
+            svg += '<circle cx="' + coords[0] + '" cy="' + coords[1] + '" r="' + frame.dotRadius + '" fill="' + colors.trendColor + '" opacity="0.6" />';
         }
     }
+    svg += '</g>';
 
-    // X-axis labels with a hard minimum pixel gap. Edge labels use start/end anchoring
-    // so "2016" at padL and "2026" at padR are never clipped (previous bug showed "016").
-    var minLabelGapPx = 60;
-    var lastLabelX = -Infinity;
-    for (var idx = 0; idx < pointData.length; idx++) {
-        var pt2 = pointData[idx];
-        var lx2 = pt2.x;
-        if (lx2 - lastLabelX < minLabelGapPx) continue;
-        var isFirst = idx === 0;
-        var isLast = idx === pointData.length - 1;
-        var lxDisplay = lx2;
-        var anchor = 'middle';
-        if (isFirst && lx2 <= g.padL + 2) {
-            anchor = 'start';
-            lxDisplay = g.padL + 2;
-        } else if (isLast && lx2 >= g.width - g.padR - 2) {
-            anchor = 'end';
-            lxDisplay = g.width - g.padR - 2;
-        } else {
-            if (lx2 > g.width - g.padR - 4) continue;
-            if (lx2 < g.padL + 4) continue;
-        }
-        var lbl2 = formatGranularityLabel(pt2.d, level);
-        svg += '<text x="' + lxDisplay.toFixed(1) + '" y="' + (g.padT + chartH + 18) + '" text-anchor="' + anchor + '" fill="rgba(255,255,255,0.55)" font-size="10" font-weight="500">' + escHtml(lbl2) + '</text>';
-        lastLabelX = lx2;
+    svg += '<g class="trend-xlabels">';
+    for (const lbl of frame.labels) {
+        svg += '<text x="' + lbl.x.toFixed(1) + '" y="' + (baseY + 18) + '" text-anchor="' + lbl.anchor + '" fill="rgba(255,255,255,0.55)" font-size="10" font-weight="500">' + escHtml(lbl.text) + '</text>';
     }
+    svg += '</g>';
 
-    svg += '<line x1="' + g.padL + '" y1="' + (g.padT + chartH) + '" x2="' + (g.width - g.padR) + '" y2="' + (g.padT + chartH) + '" stroke="rgba(255,255,255,0.12)" />';
+    svg += '<line x1="' + g.padL + '" y1="' + baseY + '" x2="' + (g.width - g.padR) + '" y2="' + baseY + '" stroke="rgba(255,255,255,0.12)" />';
     svg += '</svg>';
+    return svg;
+}
 
-    return { svg: svg, pointData: pointData, yMax: yMax, level: level };
+var TREND_SVG_NS = 'http://www.w3.org/2000/svg';
+
+/**
+ * Mutates an existing chart SVG to match a new frame without reparsing markup. Grid lines,
+ * the area/line polygons, data dots, and x-axis labels are updated node-by-node (creating or
+ * removing only the delta), so pinch-zoom and pan stay smooth on mobile where an outerHTML
+ * reparse per frame drops touch events. Node pools are keyed off the stable <g> groups.
+ */
+function applyTrendFrame(svgEl, frame, colors) {
+    var g = TREND_GEOM;
+    var chartH = g.height - g.padT - g.padB;
+    var baseY = g.padT + chartH;
+
+    var area = svgEl.querySelector('.trend-area');
+    if (area) area.setAttribute('points', frame.areaPoints);
+    var line = svgEl.querySelector('.trend-line');
+    if (line) line.setAttribute('points', frame.polyline);
+
+    // Grid: reconcile line/text pairs to the tick count, then reposition.
+    var gridGroup = svgEl.querySelector('.trend-grid');
+    if (gridGroup) {
+        var lines = gridGroup.querySelectorAll('line');
+        var texts = gridGroup.querySelectorAll('text');
+        var wantTicks = frame.ticks.length;
+        while (lines.length + 0 < wantTicks) {
+            var nl = document.createElementNS(TREND_SVG_NS, 'line');
+            nl.setAttribute('x1', g.padL);
+            nl.setAttribute('x2', g.width - g.padR);
+            nl.setAttribute('stroke', 'rgba(255,255,255,0.06)');
+            gridGroup.appendChild(nl);
+            var nt = document.createElementNS(TREND_SVG_NS, 'text');
+            nt.setAttribute('x', g.padL - 5);
+            nt.setAttribute('text-anchor', 'end');
+            nt.setAttribute('fill', 'rgba(255,255,255,0.4)');
+            nt.setAttribute('font-size', '10');
+            gridGroup.appendChild(nt);
+            lines = gridGroup.querySelectorAll('line');
+            texts = gridGroup.querySelectorAll('text');
+        }
+        for (var gi = lines.length - 1; gi >= wantTicks; gi--) {
+            lines[gi].remove();
+            if (texts[gi]) texts[gi].remove();
+        }
+        lines = gridGroup.querySelectorAll('line');
+        texts = gridGroup.querySelectorAll('text');
+        for (var ti = 0; ti < frame.ticks.length; ti++) {
+            var tk = frame.ticks[ti];
+            lines[ti].setAttribute('y1', tk.y.toFixed(1));
+            lines[ti].setAttribute('y2', tk.y.toFixed(1));
+            texts[ti].setAttribute('y', (tk.y + 4).toFixed(1));
+            texts[ti].textContent = tk.label;
+        }
+    }
+
+    // Dots: reconcile the circle count to the visible points, then reposition.
+    var dotsGroup = svgEl.querySelector('.trend-dots');
+    if (dotsGroup) {
+        var wantDots = frame.dotRadius > 0 ? frame.points.length : 0;
+        var circles = dotsGroup.querySelectorAll('circle');
+        while (circles.length < wantDots) {
+            var nc = document.createElementNS(TREND_SVG_NS, 'circle');
+            nc.setAttribute('fill', colors.trendColor);
+            nc.setAttribute('opacity', '0.6');
+            dotsGroup.appendChild(nc);
+            circles = dotsGroup.querySelectorAll('circle');
+        }
+        for (var di = circles.length - 1; di >= wantDots; di--) circles[di].remove();
+        if (wantDots > 0) {
+            circles = dotsGroup.querySelectorAll('circle');
+            for (var ci = 0; ci < frame.points.length; ci++) {
+                var xy = frame.points[ci].split(',');
+                circles[ci].setAttribute('cx', xy[0]);
+                circles[ci].setAttribute('cy', xy[1]);
+                circles[ci].setAttribute('r', frame.dotRadius);
+            }
+        }
+    }
+
+    // X-axis labels: reconcile count then reposition and relabel.
+    var xGroup = svgEl.querySelector('.trend-xlabels');
+    if (xGroup) {
+        var labelNodes = xGroup.querySelectorAll('text');
+        while (labelNodes.length < frame.labels.length) {
+            var nlbl = document.createElementNS(TREND_SVG_NS, 'text');
+            nlbl.setAttribute('y', baseY + 18);
+            nlbl.setAttribute('fill', 'rgba(255,255,255,0.55)');
+            nlbl.setAttribute('font-size', '10');
+            nlbl.setAttribute('font-weight', '500');
+            xGroup.appendChild(nlbl);
+            labelNodes = xGroup.querySelectorAll('text');
+        }
+        for (var li = labelNodes.length - 1; li >= frame.labels.length; li--) labelNodes[li].remove();
+        labelNodes = xGroup.querySelectorAll('text');
+        for (var lj = 0; lj < frame.labels.length; lj++) {
+            var lb = frame.labels[lj];
+            labelNodes[lj].setAttribute('x', lb.x.toFixed(1));
+            labelNodes[lj].setAttribute('text-anchor', lb.anchor);
+            labelNodes[lj].textContent = lb.text;
+        }
+    }
 }
 
 function renderTrendChart(timeline) {
@@ -399,7 +559,8 @@ function renderTrendChart(timeline) {
         projectionCache: projectionCache
     };
 
-    var drawn = drawTrendWindow(chartState);
+    var initialFrame = computeTrendFrame(chartState);
+    var initialSvg = renderTrendSvgString(initialFrame, readTrendColors());
 
     var overlays = '<div class="trend-crosshair"></div>';
     overlays += '<div class="trend-active-dot"></div>';
@@ -408,7 +569,7 @@ function renderTrendChart(timeline) {
     var safeFileCount = Number(timeline.totalDirectoriesScanned);
     if (!Number.isFinite(safeFileCount) || safeFileCount < 0) safeFileCount = 0;
     var meta = '<div class="trend-meta" style="text-align:center;color:rgba(255,255,255,0.35);font-size:11px;margin-top:4px;">';
-    meta += escHtml(T('trendGranularity', 'Granularity')) + ': <span class="trend-meta-level">' + escHtml(drawn.level) + '</span>';
+    meta += escHtml(T('trendGranularity', 'Granularity')) + ': <span class="trend-meta-level">' + escHtml(initialFrame.level) + '</span>';
     meta += ' &middot; ' + safeFileCount + ' ' + escHtml(T('trendFiles', 'media files'));
     if (timeline.earliestFileDate) {
         meta += ' &middot; ' + escHtml(T('trendEarliest', 'Earliest')) + ': ' + new Date(timeline.earliestFileDate).toLocaleDateString(undefined, {timeZone: 'UTC'});
@@ -436,7 +597,7 @@ function renderTrendChart(timeline) {
         + '</div>'
         + '</div></div>';
 
-    var html = '<div class="trend-chart">' + drawn.svg + overlays + '</div>' + diffPanel + meta;
+    var html = '<div class="trend-chart">' + initialSvg + overlays + '</div>' + diffPanel + meta;
     return { html: html, chartState: chartState };
 }
 
@@ -464,8 +625,14 @@ function attachTrendInteraction(container, chartState) {
     var vbHeight = g.height;
 
     // Per-render state, refreshed by redraw(): the projected points, current level.
-    var pointData = [];
-    var level = 'daily';
+    // Seeded from the initial frame so the first hover/tap works before any gesture.
+    var initialFrame = computeTrendFrame(chartState);
+    var pointData = initialFrame.pointData;
+    var level = initialFrame.level;
+    // Theme colors are read once here; per-frame redraws never call getComputedStyle so a
+    // gesture cannot trigger a forced style recalc.
+    var trendColors = readTrendColors();
+    var svgEl = chart.querySelector('svg');
     // "Now" is always the latest point of the full daily series, so the diff panel compares
     // against the true latest value even when panned into the past.
     var currentPt = (function () {
@@ -485,17 +652,16 @@ function attachTrendInteraction(container, chartState) {
         });
     }
 
+    // Mutates the existing SVG in place rather than reparsing markup, so pinch-zoom and pan
+    // stay smooth on touch devices. Listeners live on stable nodes and are never rebound.
     function redraw() {
-        var drawn = drawTrendWindow(chartState);
-        var svgHost = chart.querySelector('svg');
-        if (svgHost) svgHost.outerHTML = drawn.svg;
-        pointData = drawn.pointData;
-        level = drawn.level;
+        if (!svgEl) return;
+        var frame = computeTrendFrame(chartState);
+        applyTrendFrame(svgEl, frame, trendColors);
+        pointData = frame.pointData;
+        level = frame.level;
         if (metaLevelEl) metaLevelEl.textContent = level;
-        rebindSvg();
     }
-
-    var svgEl = null;
 
     function nearestByClientX(clientX) {
         var rect = svgEl.getBoundingClientRect();
@@ -711,12 +877,9 @@ function attachTrendInteraction(container, chartState) {
     setupDragPan(chart, panByPixels, hideTooltip);
     setupTouchGestures(chart, clientXToTime, zoomAbout, panByPixels, hideTooltip, onHover);
 
-    // Rebinds hover listeners after each redraw replaces the <svg> element. Pan/zoom listeners
-    // live on the stable chart container, so they are attached once, not here.
-    function rebindSvg() {
-        svgEl = chart.querySelector('svg');
-        if (!svgEl) return;
-
+    // Hover listeners are attached once to the stable <svg>. The SVG element is never replaced
+    // (redraw mutates it in place), so these never need rebinding across gestures or redraws.
+    if (svgEl) {
         svgEl.addEventListener('mousemove', function (e) {
             if (e.buttons !== 0) return; // dragging pans, not hovers
             onHover(e.clientX);
@@ -725,8 +888,6 @@ function attachTrendInteraction(container, chartState) {
             hideTooltip();
         });
     }
-
-    rebindSvg();
 }
 
 function setupWheelZoom(chart, clientXToTime, zoomAbout, hideTooltip, domainStart, domainEnd, chartState, minSpanMs) {
@@ -835,8 +996,8 @@ function setupTouchGestures(chart, clientXToTime, zoomAbout, panByPixels, hideTo
             if (pinchStartDist > 0 && dist > 0) {
                 var anchor = clientXToTime(touchMidX(e.touches));
                 var raw = pinchStartDist / dist; // fingers apart -> raw < 1 -> zoom in
-                // Slightly amplify the gesture so a modest spread reaches daily faster
-                var factor = raw < 1 ? Math.pow(raw, 1.18) : Math.pow(raw, 1.18);
+                // Amplify the ratio so a modest spread covers more zoom range per frame.
+                var factor = Math.pow(raw, 1.35);
                 zoomAbout(anchor, factor);
                 pinchStartDist = dist;
             }

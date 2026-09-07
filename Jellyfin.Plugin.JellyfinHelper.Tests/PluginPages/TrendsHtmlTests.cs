@@ -20,7 +20,10 @@ public partial class TrendsHtmlTests : ConfigPageTestBase
     [InlineData("function bucketStartDate")]
     [InlineData("function projectToGranularity")]
     [InlineData("function pickLevelForSpan")]
-    [InlineData("function drawTrendWindow")]
+    [InlineData("function computeTrendFrame")]
+    [InlineData("function renderTrendSvgString")]
+    [InlineData("function applyTrendFrame")]
+    [InlineData("function computeTrendLabels")]
     [InlineData("JellyfinHelper/GrowthTimeline")]
     [InlineData("timeline.dataPoints")]
     [InlineData("timeline.granularity")]
@@ -159,6 +162,10 @@ public partial class TrendsHtmlTests : ConfigPageTestBase
         Assert.Contains("'wheel'", HtmlContent);
         // Mobile pinch uses finger distance.
         Assert.Contains("Math.hypot", HtmlContent);
+        // Gesture redraws mutate the SVG in place (no per-frame outerHTML reparse) so pinch and
+        // pan stay smooth on touch devices.
+        Assert.Contains("applyTrendFrame", HtmlContent);
+        Assert.DoesNotContain("outerHTML = drawn", HtmlContent);
     }
 
     [Fact]
