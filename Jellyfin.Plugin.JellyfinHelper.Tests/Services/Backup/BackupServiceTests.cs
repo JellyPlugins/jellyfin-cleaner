@@ -971,6 +971,54 @@ public class BackupServiceTests
     }
 
     [Fact]
+    public void RestoreBackup_MergeExceedsCap_ReappliesRetentionPreservingEarliest()
+    {
+        var tempDir = Path.Join(Path.GetTempPath(), "jh-backup-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var cap = BackupValidator.MaxTimelineDataPoints;
+            var origin = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            // Current on-disk series: cap points on the first cap days (kept verbatim, not sanitized).
+            var current = new GrowthTimelineResult { Granularity = "daily" };
+            for (var i = 0; i < cap; i++)
+            {
+                current.DataPoints.Add(new GrowthTimelinePoint { Date = origin.AddDays(i), CumulativeSize = i + 1, CumulativeFileCount = 1 });
+            }
+
+            File.WriteAllText(Path.Join(tempDir, "jellyfin-helper-growth-timeline.json"), JsonSerializer.Serialize(current));
+
+            var configService = new Mock<IPluginConfigurationService>();
+            var service = new BackupService(tempDir, configService.Object, TestMockFactory.CreatePluginLogService(),
+                TestMockFactory.CreateLogger<BackupService>().Object);
+
+            // Backup series: cap points on days disjoint from the current series, so the union is ~2x cap.
+            var backup = CreateValidBackup();
+            backup.GrowthTimeline = new GrowthTimelineResult { Granularity = "daily" };
+            for (var i = 0; i < cap; i++)
+            {
+                backup.GrowthTimeline.DataPoints.Add(new GrowthTimelinePoint { Date = origin.AddDays(cap + i), CumulativeSize = cap + i + 1, CumulativeFileCount = 1 });
+            }
+
+            var summary = service.RestoreBackup(backup);
+
+            Assert.True(summary.TimelineRestored);
+            var merged = JsonSerializer.Deserialize<GrowthTimelineResult>(
+                File.ReadAllText(Path.Join(tempDir, "jellyfin-helper-growth-timeline.json")))!;
+
+            // The merged union is re-capped so the persisted file never exceeds what the chart can render,
+            // and the earliest point survives so the growth-curve origin is not lost.
+            Assert.Equal(cap, merged.DataPoints.Count);
+            Assert.Equal(origin, merged.DataPoints[0].Date);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
     public void RestoreBackup_NoCurrentTimeline_WritesBackupSeriesVerbatim()
     {
         var tempDir = Path.Join(Path.GetTempPath(), "jh-backup-test-" + Guid.NewGuid().ToString("N"));

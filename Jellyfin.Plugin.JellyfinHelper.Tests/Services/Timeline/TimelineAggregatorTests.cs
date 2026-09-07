@@ -465,6 +465,40 @@ public sealed class TimelineAggregatorTests
     }
 
     [Fact]
+    public void IsDayBased_OutOfOrderDates_ReturnsFalse()
+    {
+        // A hand-edited backup with a later day before an earlier one is not a genuine daily series;
+        // the append-only and merge paths downstream assume strictly increasing dates.
+        var timeline = new GrowthTimelineResult { Granularity = "daily" };
+        timeline.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 20, CumulativeFileCount = 2 });
+        timeline.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 10, CumulativeFileCount = 1 });
+
+        Assert.False(TimelineAggregator.IsDayBased(timeline));
+    }
+
+    [Fact]
+    public void IsDayBased_DuplicateDates_ReturnsFalse()
+    {
+        // Duplicate calendar days are ambiguous (which cumulative value is authoritative?), so a
+        // genuine daily series must not contain them.
+        var timeline = new GrowthTimelineResult { Granularity = "daily" };
+        timeline.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 10, CumulativeFileCount = 1 });
+        timeline.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 15, CumulativeFileCount = 1 });
+
+        Assert.False(TimelineAggregator.IsDayBased(timeline));
+    }
+
+    [Fact]
+    public void IsDayBased_SinglePoint_ReturnsTrue()
+    {
+        // A single point trivially satisfies strict ordering.
+        var timeline = new GrowthTimelineResult { Granularity = "daily" };
+        timeline.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 10, CumulativeFileCount = 1 });
+
+        Assert.True(TimelineAggregator.IsDayBased(timeline));
+    }
+
+    [Fact]
     public void MergeDailySeries_DisjointDays_UnionsAndSorts()
     {
         var first = new List<GrowthTimelinePoint>
@@ -559,5 +593,54 @@ public sealed class TimelineAggregatorTests
             new List<GrowthTimelinePoint>());
 
         Assert.Empty(merged);
+    }
+
+    [Fact]
+    public void TrimToCap_WithinCap_ReturnsUnchanged()
+    {
+        var points = new List<GrowthTimelinePoint>
+        {
+            new() { Date = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1 },
+            new() { Date = new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 2 }
+        };
+
+        var trimmed = TimelineAggregator.TrimToCap(points, 5);
+
+        Assert.Same(points, trimmed);
+    }
+
+    [Fact]
+    public void TrimToCap_OverCap_KeepsEarliestPlusNewest()
+    {
+        var points = new List<GrowthTimelinePoint>();
+        for (var day = 1; day <= 10; day++)
+        {
+            points.Add(new GrowthTimelinePoint
+            {
+                Date = new DateTime(2025, 1, day, 0, 0, 0, DateTimeKind.Utc),
+                CumulativeSize = day
+            });
+        }
+
+        var trimmed = TimelineAggregator.TrimToCap(points, 3);
+
+        // Earliest point survives so the growth-curve origin is preserved, plus the newest cap-1.
+        Assert.Equal(3, trimmed.Count);
+        Assert.Equal(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), trimmed[0].Date);
+        Assert.Equal(new DateTime(2025, 1, 9, 0, 0, 0, DateTimeKind.Utc), trimmed[1].Date);
+        Assert.Equal(new DateTime(2025, 1, 10, 0, 0, 0, DateTimeKind.Utc), trimmed[2].Date);
+    }
+
+    [Fact]
+    public void TrimToCap_CapLessThanOne_ReturnsUnchanged()
+    {
+        var points = new List<GrowthTimelinePoint>
+        {
+            new() { Date = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 1 }
+        };
+
+        var trimmed = TimelineAggregator.TrimToCap(points, 0);
+
+        Assert.Same(points, trimmed);
     }
 }
