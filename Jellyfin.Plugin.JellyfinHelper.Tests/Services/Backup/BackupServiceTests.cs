@@ -1054,4 +1054,39 @@ public class BackupServiceTests
             Directory.Delete(tempDir, true);
         }
     }
+
+    [Fact]
+    public void RestoreBackup_BackupHasNoFirstScan_KeepsCurrentFirstScan()
+    {
+        var tempDir = Path.Join(Path.GetTempPath(), "jh-backup-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            // Current on-disk series carries a first-scan timestamp; the incoming backup does not.
+            // The merge must keep the current timestamp rather than dropping it to null.
+            var currentFirstScan = new DateTime(2025, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+            var current = new GrowthTimelineResult { Granularity = "daily", FirstScanTimestamp = currentFirstScan };
+            current.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(2025, 3, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 300, CumulativeFileCount = 3 });
+            File.WriteAllText(Path.Join(tempDir, "jellyfin-helper-growth-timeline.json"), JsonSerializer.Serialize(current));
+
+            var configService = new Mock<IPluginConfigurationService>();
+            var service = new BackupService(tempDir, configService.Object, TestMockFactory.CreatePluginLogService(),
+                TestMockFactory.CreateLogger<BackupService>().Object);
+
+            var backup = CreateValidBackup();
+            backup.GrowthTimeline = new GrowthTimelineResult { Granularity = "daily", FirstScanTimestamp = null };
+            backup.GrowthTimeline.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100, CumulativeFileCount = 1 });
+
+            var summary = service.RestoreBackup(backup);
+
+            Assert.True(summary.TimelineRestored);
+            var merged = JsonSerializer.Deserialize<GrowthTimelineResult>(
+                File.ReadAllText(Path.Join(tempDir, "jellyfin-helper-growth-timeline.json")))!;
+            Assert.Equal(currentFirstScan, merged.FirstScanTimestamp);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
 }
