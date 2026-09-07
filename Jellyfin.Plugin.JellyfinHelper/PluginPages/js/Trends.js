@@ -545,13 +545,15 @@ function renderTrendChart(timeline) {
     var spanDays = (dailyMax - dailyMin) / TREND_DAY_MS;
     var initialLevel = pickLevelForSpan(spanDays);
     var projectedInitial = projectToGranularity(fullDaily, initialLevel);
-    var minTime = new Date(projectedInitial[0].date).getTime();
-    var maxTime = new Date(projectedInitial.at(-1).date).getTime();
     var projectionCache = Object.create(null);
     projectionCache[initialLevel] = projectedInitial;
 
-    // Initial window = full domain fitted to the projected bucket range so the
-    // leftmost/rightmost points sit exactly on the chart edges with no empty gap.
+    // Domain is the true daily data range, not the initial projection's bucket range.
+    // A coarse projection snaps the first/last point to its bucket start (e.g. yearly
+    // pulls Oct 2016 back to Jan 2016), which would leave dead space at the edges once
+    // the user zooms to a finer level where no point falls in that snapped-off region.
+    var minTime = dailyMin;
+    var maxTime = dailyMax;
     var chartState = {
         fullDaily: fullDaily,
         minTime: minTime,
