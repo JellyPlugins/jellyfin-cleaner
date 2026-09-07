@@ -1026,7 +1026,7 @@ are intentionally excluded. When you add a file, add a line for it here.
 
 - `DateTimeNormalization.cs` - Shared UTC DateTime normalization helpers for DTOs
 - `FileSystemHelper.cs` - Best-effort filesystem helpers: directory sizing and dictionary accumulation
-- `I18nService.cs` - i18n translation loader from embedded JSON resources with caching
+- `I18NService.cs` - i18n translation loader from embedded JSON resources with caching; also exposes `ResolveLanguage` so the UI locale and translation strings share one normalization
 - `JsonDefaults.cs` - Shared JSON serializer options (camelCase, indented, case-insensitive)
 - `LibraryPathResolver.cs` - Resolves and deduplicates library folder paths from the library manager; `IsUnderAllowedRoot` tests whether an item path sits under an allowed library root (directory-boundary aware, platform-cased), and `GetLibraryRootScope`/`IsAllowed` extend this so an excluded library nested under an allowed one is denied by the most specific matching root
 - `LibraryRootScope.cs` - Carries the allowed and excluded library roots resolved for a recommendation run so `LibraryPathResolver.IsAllowed` can deny nested exclusions
