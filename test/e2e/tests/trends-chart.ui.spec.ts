@@ -75,9 +75,9 @@ test.describe('trend chart desktop zoom/pan', () => {
     const chart = await openChart(page);
     test.skip((await chart.count()) === 0, 'no trend data on this server');
 
-    // Zoom in first so there is room to pan.
+    // Zoom in a little so there is room to pan, but not so deep the window pins to the domain edge.
     const box = (await chart.boundingBox())!;
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 3; i++) {
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
       await page.mouse.wheel(0, -120);
     }
@@ -85,9 +85,11 @@ test.describe('trend chart desktop zoom/pan', () => {
 
     const labelsBefore = await page.locator('.trend-chart svg .trend-xlabels text').allTextContents();
 
-    await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2);
+    // Drag content to the right, which pans the window toward earlier dates and away from the
+    // right (newest) domain edge, so clamping cannot swallow the movement.
+    await page.mouse.move(box.x + box.width * 0.3, box.y + box.height / 2);
     await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2, { steps: 10 });
+    await page.mouse.move(box.x + box.width * 0.7, box.y + box.height / 2, { steps: 10 });
     await page.mouse.up();
     await expect.poll(async () => (await page.locator('.trend-chart svg .trend-xlabels text').allTextContents()).join('|'), { timeout: 2_000 }).not.toBe(labelsBefore.join('|'));
 
@@ -109,9 +111,11 @@ test.describe('trend chart touch gestures', () => {
     const cy = box.y + box.height / 2;
 
     // A single-finger touchStart+touchEnd at the same point is a tap. Dispatched via CDP for a
-    // deterministic touch sequence (the same mechanism the pinch test uses).
+    // deterministic touch sequence (the same mechanism the pinch test uses). A short hold between
+    // start and end mirrors a real tap and lets the touch handler settle before assertion.
     const client = await page.context().newCDPSession(page);
     await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: cx, y: cy }] });
+    await page.waitForTimeout(50);
     await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 
     await expect(page.locator('.trend-tooltip')).toHaveClass(/visible/, { timeout: 5_000 });
