@@ -5,6 +5,16 @@
  */
 import { test, expect, type Page } from '@playwright/test';
 import { openDashboard, switchTab, trackConsoleErrors } from './_ui-helpers.ts';
+import { seedGrowthTimeline } from '../setup/seed-timeline.ts';
+
+// The api project runs first (this project dependsOn it) and several api specs call
+// GrowthTimeline?forceRefresh=true, which overwrites the cached timeline with a real
+// single-day compute. Re-seed the multi-year daily series so the chart has a genuine
+// span to zoom and pan across. The controller reads the cache file on every GET, so the
+// fresh write is picked up on the next request with no server restart.
+test.beforeAll(() => {
+  seedGrowthTimeline();
+});
 
 // Opens the Trends tab and returns the chart locator, skipping the test if the chart has
 // no data yet (a fresh server may not have produced a timeline). The chart needs >= 2 points.
