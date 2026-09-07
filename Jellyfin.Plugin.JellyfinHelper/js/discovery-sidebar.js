@@ -279,15 +279,26 @@
 
     function findActiveContainer() {
         var all = document.querySelectorAll(CUSTOM_TAB_SELECTOR);
+        // Priority passes (each newest-first): a candidate inside an ACTIVE .tabContent wins over a
+        // merely-visible .page, which wins over a candidate with no page wrapper. A single combined
+        // scan would return a visible .page before reaching an active .tabContent later in the DOM,
+        // mounting discovery in the wrong container.
         for (var i = all.length - 1; i >= 0; i--) {
-            var page = all[i].closest('.page, .tabContent');
-            if (page && !page.classList.contains('hide')) return all[i];
+            var tabContent = all[i].closest('.tabContent');
+            if (tabContent && tabContent.classList.contains('is-active')) return all[i];
         }
-        return all.length > 0 ? all[all.length - 1] : null;
+        for (var j = all.length - 1; j >= 0; j--) {
+            var page = all[j].closest('.page');
+            if (page && !page.classList.contains('hide')) return all[j];
+        }
+        for (var k = all.length - 1; k >= 0; k--) {
+            if (!all[k].closest('.page')) return all[k];
+        }
+        return null;
     }
 
     function renderDiscovery(container) {
-        container.innerHTML = '<div class="jfh-discovery-container"><div class="jfh-discovery-spinner"></div></div>';
+        container.innerHTML = '<div class="jfh-discovery-container"><div class="jfh-discovery-spinner" role="status" aria-live="polite" aria-busy="true"><span style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">' + esc(t('loadingRecommendations', 'Loading recommendations\u2026')) + '</span></div></div>';
         ApiClient.ajax({ type: 'GET', url: ApiClient.getUrl(API_URL), dataType: 'json' })
             .then(function (data) { renderCards(container, data); })
             .catch(function (err) {

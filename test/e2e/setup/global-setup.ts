@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { authHeader, runLibraryScan } from './api-client.ts';
 import { hasDocker, plantCanaries, plantedCanaries } from './fs-assert.ts';
+import { seedGrowthTimeline } from './seed-timeline.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -128,6 +129,37 @@ async function globalSetup(_config: FullConfig): Promise<void> {
 
   // --- 4. scan and wait ----------------------------------------------------
   await runLibraryScan(admin);
+
+  // --- 4b. seed a multi-year daily growth timeline -------------------------
+  // Every fake media file is written at scan time, so the plugin's timeline (built from
+  // file creation dates) would collapse to a single day and the chart would have nothing
+  // to pan across. Seed a realistic backdated series; the UI chart spec re-seeds before it
+  // runs because api specs calling forceRefresh=true overwrite this cache.
+  const seededPoints = seedGrowthTimeline();
+  // eslint-disable-next-line no-console
+  console.log(`[global-setup] seeded growth timeline: ${seededPoints} daily points`);
+
+  // Fail fast if the seed did not land where the plugin reads it (DataPath = /config/data).
+  // The controller serves the cached file verbatim without forceRefresh, so the served point
+  // count must match what we just wrote. A mismatch means the mount path is wrong and would
+  // otherwise surface as an opaque chart-pan failure many minutes into the run.
+  const seededTimeline = await admin.get(`/JellyfinHelper/GrowthTimeline`);
+  if (seededTimeline.ok()) {
+    const body = (await seededTimeline.json()) as { dataPoints?: unknown[]; DataPoints?: unknown[] };
+    const served = (body.dataPoints ?? body.DataPoints ?? []).length;
+    // eslint-disable-next-line no-console
+    console.log(`[global-setup] served timeline has ${served} points (seeded ${seededPoints})`);
+    if (served !== seededPoints) {
+      throw new Error(
+        `Growth timeline seed did not take: served ${served} points, seeded ${seededPoints}. ` +
+          `Check the DataPath mount (expected /config/data -> runtime/config/data).`,
+      );
+    }
+  } else {
+    throw new Error(
+      `Growth timeline verify GET failed: ${seededTimeline.status()} ${await seededTimeline.text()}`,
+    );
+  }
 
   // --- 5. link the mock Seerr user to the real Jellyfin GUID ---------------
   // Uses the mock's test hook so Discovery user-matching resolves.

@@ -20,9 +20,10 @@ public static class BackupValidator
     private const int MaxBackupVersion = 1;
 
     /// <summary>
-    ///     Maximum number of growth timeline data points allowed in a backup.
+    ///     Maximum number of growth timeline data points allowed in a backup. Sized for decades of a
+    ///     lossless daily series (deduplicated) while staying well under the per-file size guard.
     /// </summary>
-    internal const int MaxTimelineDataPoints = 5000;
+    internal const int MaxTimelineDataPoints = 20_000;
 
     /// <summary>
     ///     Maximum number of baseline directory entries allowed in a backup. Each top-level media directory (movie folder, TV show folder, etc.) is one entry.
@@ -81,14 +82,6 @@ public static class BackupValidator
     internal static readonly HashSet<string> ValidLogLevels = new(StringComparer.OrdinalIgnoreCase)
     {
         "DEBUG", "INFO", "WARN", "ERROR"
-    };
-
-    /// <summary>
-    ///     Valid timeline granularity values.
-    /// </summary>
-    private static readonly HashSet<string> ValidGranularities = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "daily", "weekly", "monthly", "quarterly", "yearly"
     };
 
     // Regex to detect script injection in string fields. Covers the common HTML/script vectors plus the two dangerous URL schemes (data:text/html and vbscript:) that the earlier pattern missed.
@@ -421,15 +414,24 @@ public static class BackupValidator
                 $"GrowthTimeline has {timeline.DataPoints.Count} data points (max {MaxTimelineDataPoints}). Will be trimmed.");
         }
 
-        if (!string.IsNullOrEmpty(timeline.Granularity) && !ValidGranularities.Contains(timeline.Granularity))
+        if (!TimelineAggregator.IsDayBased(timeline))
         {
-            result.Warnings.Add($"Unknown timeline granularity '{timeline.Granularity}'. Will be accepted as-is.");
+            var marker = string.IsNullOrEmpty(timeline.Granularity) ? "<missing>" : timeline.Granularity;
+            result.Warnings.Add($"Timeline granularity '{marker}' is not a genuine daily series (daily marker plus midnight-UTC points) and will be discarded on restore; history will be rebuilt from the baseline.");
         }
 
-        // Check for negative cumulative sizes and file counts (sanity check)
+        WarnOnNegativeCumulatives(result, timeline.DataPoints);
+    }
+
+    /// <summary>
+    ///     Adds at most one warning each for a negative cumulative size and a negative cumulative
+    ///     file count found anywhere in the series, then stops scanning.
+    /// </summary>
+    private static void WarnOnNegativeCumulatives(BackupValidationResult result, IEnumerable<GrowthTimelinePoint> points)
+    {
         var warnedNegativeSize = false;
         var warnedNegativeCount = false;
-        foreach (var point in timeline.DataPoints)
+        foreach (var point in points)
         {
             if (!warnedNegativeSize && point.CumulativeSize < 0)
             {

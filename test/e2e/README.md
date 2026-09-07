@@ -42,8 +42,9 @@ test/e2e/
 │   ├── arr-server.js      # fake Radarr + Sonarr
 │   └── seerr-server.js    # fake Jellyseerr/Overseerr
 ├── setup/
-│   ├── global-setup.ts    # completes first-run wizard, gets admin token, builds library, scans
-│   └── api-client.ts      # shared Jellyfin/plugin API helpers + task runner
+│   ├── global-setup.ts    # completes first-run wizard, gets admin token, builds library, scans, seeds the growth timeline
+│   ├── api-client.ts      # shared Jellyfin/plugin API helpers + task runner
+│   └── seed-timeline.ts   # writes a backdated multi-year daily growth timeline into DataPath so the chart has a span to zoom/pan
 ├── tests/
 │   ├── *.api.spec.ts      # HTTP-level assertions
 │   └── *.ui.spec.ts       # browser assertions

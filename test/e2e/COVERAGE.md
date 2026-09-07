@@ -2,7 +2,7 @@
 
 What the end-to-end suite exercises, mapped to the test that covers it:
 endpoints, task modes, settings, backup, trends, trash, authorization, and
-every UI interaction. **300 tests** (API + UI) across 47 spec files
+every UI interaction. **305 tests** (API + UI) across 48 spec files
 (authoritative count: `cd test/e2e && npx playwright test --list`).
 
 Beyond "does it route / does the UI render", the suite now proves features
@@ -262,6 +262,7 @@ plugin stays Active after every call).
 | Settings Seerr **Test Connection** → POST /Seerr/Test (expands section, fills inputs) | `interactions.ui.spec.ts` |
 | Settings **Export Backup** → file download | `interactions.ui.spec.ts` |
 | Settings **folder-browser** → opens overlay (enables UseTrash fieldset first) | `interactions.ui.spec.ts` |
+| Trends **growth chart** → wheel zoom refines level, drag pan moves window, pinch zoom, tap tooltip, no label overlap | `trends-chart.ui.spec.ts` |
 
 ## 11. API contract pinning → `contracts.api.spec.ts`
 Endpoints that smoke only *routed* or hardening only *tolerated a status class*
