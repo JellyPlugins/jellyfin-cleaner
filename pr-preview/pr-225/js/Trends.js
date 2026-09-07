@@ -612,6 +612,87 @@ function touchMidX(touches) {
 }
 
 /**
+ * Creates the zoom/pan window controller. The window is a [startTime, endTime] range over the
+ * full domain; gestures mutate it and redraw. Kept out of attachTrendInteraction so the window
+ * math (clamp, pixel-to-time, zoom, pan) is isolated and testable. Minimum span is two days so
+ * daily zoom cannot invert.
+ */
+function createWindowController(chart, chartState, g, chartW, vbWidth, vbHeight, scheduleRedraw) {
+    var MIN_SPAN_MS = 2 * TREND_DAY_MS;
+    var domainStart = chartState.minTime;
+    var domainEnd = chartState.maxTime;
+
+    function clampWindow() {
+        var span = chartState.endTime - chartState.startTime;
+        if (span < MIN_SPAN_MS) {
+            var mid = (chartState.startTime + chartState.endTime) / 2;
+            chartState.startTime = mid - MIN_SPAN_MS / 2;
+            chartState.endTime = mid + MIN_SPAN_MS / 2;
+            span = MIN_SPAN_MS;
+        }
+        var fullSpan = domainEnd - domainStart;
+        if (span >= fullSpan) {
+            chartState.startTime = domainStart;
+            chartState.endTime = domainEnd;
+            return;
+        }
+        if (chartState.startTime < domainStart) {
+            chartState.endTime += domainStart - chartState.startTime;
+            chartState.startTime = domainStart;
+        }
+        if (chartState.endTime > domainEnd) {
+            chartState.startTime -= chartState.endTime - domainEnd;
+            chartState.endTime = domainEnd;
+        }
+    }
+
+    // Maps a client X pixel to a time in the current window, accounting for letterboxing.
+    function clientXToTime(clientX) {
+        var host = chart.querySelector('svg');
+        if (!host) return chartState.startTime;
+        var rect = host.getBoundingClientRect();
+        var scale = Math.min(rect.width / vbWidth, rect.height / vbHeight);
+        var offsetX = (rect.width - vbWidth * scale) / 2;
+        var svgX = (clientX - rect.left - offsetX) / scale;
+        var frac = (svgX - g.padL) / chartW;
+        if (frac < 0) frac = 0;
+        if (frac > 1) frac = 1;
+        return chartState.startTime + frac * (chartState.endTime - chartState.startTime);
+    }
+
+    // Zooms the window about a fixed time anchor so that point stays under the cursor/fingers.
+    function zoomAbout(anchorTime, factor) {
+        chartState.startTime = anchorTime - (anchorTime - chartState.startTime) * factor;
+        chartState.endTime = anchorTime + (chartState.endTime - anchorTime) * factor;
+        clampWindow();
+        scheduleRedraw();
+    }
+
+    function panByPixels(pixelDelta) {
+        // Convert a horizontal pixel delta into a time shift over the current window.
+        var host = chart.querySelector('svg');
+        if (!host) return;
+        var rect = host.getBoundingClientRect();
+        var scale = Math.min(rect.width / vbWidth, rect.height / vbHeight) || 1;
+        var svgDelta = pixelDelta / scale;
+        var timeDelta = -(svgDelta / chartW) * (chartState.endTime - chartState.startTime);
+        chartState.startTime += timeDelta;
+        chartState.endTime += timeDelta;
+        clampWindow();
+        scheduleRedraw();
+    }
+
+    return {
+        clientXToTime: clientXToTime,
+        zoomAbout: zoomAbout,
+        panByPixels: panByPixels,
+        domainStart: domainStart,
+        domainEnd: domainEnd,
+        MIN_SPAN_MS: MIN_SPAN_MS
+    };
+}
+
+/**
  * Attaches interactive tooltip/crosshair behavior to the trend chart.
  * Called after renderTrendChart HTML is inserted into the DOM.
  */
@@ -805,75 +886,20 @@ function attachTrendInteraction(container, chartState) {
         updateDiffPanel(idx);
     }
 
-    // Zoom / pan window model. The window is a [startTime, endTime] range over the full domain;
-    // gestures mutate it and redraw. Minimum span is two days so daily zoom cannot invert.
-    var MIN_SPAN_MS = 2 * TREND_DAY_MS;
-    var domainStart = chartState.minTime;
-    var domainEnd = chartState.maxTime;
+    var win = createWindowController(chart, chartState, g, chartW, vbWidth, vbHeight, scheduleRedraw);
+    var clientXToTime = win.clientXToTime;
+    var zoomAbout = win.zoomAbout;
+    var panByPixels = win.panByPixels;
 
-    function clampWindow() {
-        var span = chartState.endTime - chartState.startTime;
-        if (span < MIN_SPAN_MS) {
-            var mid = (chartState.startTime + chartState.endTime) / 2;
-            chartState.startTime = mid - MIN_SPAN_MS / 2;
-            chartState.endTime = mid + MIN_SPAN_MS / 2;
-            span = MIN_SPAN_MS;
-        }
-        var fullSpan = domainEnd - domainStart;
-        if (span >= fullSpan) {
-            chartState.startTime = domainStart;
-            chartState.endTime = domainEnd;
-            return;
-        }
-        if (chartState.startTime < domainStart) {
-            chartState.endTime += domainStart - chartState.startTime;
-            chartState.startTime = domainStart;
-        }
-        if (chartState.endTime > domainEnd) {
-            chartState.startTime -= chartState.endTime - domainEnd;
-            chartState.endTime = domainEnd;
-        }
-    }
-
-    // Maps a client X pixel to a time in the current window, accounting for letterboxing.
-    function clientXToTime(clientX) {
-        var host = chart.querySelector('svg');
-        if (!host) return chartState.startTime;
-        var rect = host.getBoundingClientRect();
-        var scale = Math.min(rect.width / vbWidth, rect.height / vbHeight);
-        var offsetX = (rect.width - vbWidth * scale) / 2;
-        var svgX = (clientX - rect.left - offsetX) / scale;
-        var frac = (svgX - g.padL) / chartW;
-        if (frac < 0) frac = 0;
-        if (frac > 1) frac = 1;
-        return chartState.startTime + frac * (chartState.endTime - chartState.startTime);
-    }
-
-    // Zooms the window about a fixed time anchor so that point stays under the cursor/fingers.
-    function zoomAbout(anchorTime, factor) {
-        var newStart = anchorTime - (anchorTime - chartState.startTime) * factor;
-        var newEnd = anchorTime + (chartState.endTime - anchorTime) * factor;
-        chartState.startTime = newStart;
-        chartState.endTime = newEnd;
-        clampWindow();
-        scheduleRedraw();
-    }
-
-    function panByPixels(pixelDelta) {
-        // Convert a horizontal pixel delta into a time shift over the current window.
-        var host = chart.querySelector('svg');
-        if (!host) return;
-        var rect = host.getBoundingClientRect();
-        var scale = Math.min(rect.width / vbWidth, rect.height / vbHeight) || 1;
-        var svgDelta = pixelDelta / scale;
-        var timeDelta = -(svgDelta / chartW) * (chartState.endTime - chartState.startTime);
-        chartState.startTime += timeDelta;
-        chartState.endTime += timeDelta;
-        clampWindow();
-        scheduleRedraw();
-    }
-
-    setupWheelZoom(chart, clientXToTime, zoomAbout, hideTooltip, domainStart, domainEnd, chartState, MIN_SPAN_MS);
+    setupWheelZoom(chart, {
+        clientXToTime: clientXToTime,
+        zoomAbout: zoomAbout,
+        hideTooltip: hideTooltip,
+        domainStart: win.domainStart,
+        domainEnd: win.domainEnd,
+        chartState: chartState,
+        minSpanMs: win.MIN_SPAN_MS
+    });
     setupDragPan(chart, panByPixels, hideTooltip);
     setupTouchGestures(chart, clientXToTime, zoomAbout, panByPixels, hideTooltip, onHover);
 
@@ -890,42 +916,45 @@ function attachTrendInteraction(container, chartState) {
     }
 }
 
-function setupWheelZoom(chart, clientXToTime, zoomAbout, hideTooltip, domainStart, domainEnd, chartState, minSpanMs) {
+// Computes the zoom factor for one wheel notch. Mouse wheels move in larger, coarser steps than
+// trackpad pinches, so they use a stronger multiplier per notch.
+function wheelZoomFactor(isPinch, rawDelta, absDelta) {
+    var scale = Math.min(absDelta / 80, 2.5);
+    var zoomIn = rawDelta < 0;
+    if (isPinch) {
+        return zoomIn ? Math.pow(0.84, scale) : Math.pow(1.18, scale);
+    }
+    return zoomIn ? Math.pow(0.70, scale) : Math.pow(1.38, scale);
+}
+
+// Returns true when a wheel event at the current window edge should be left to the browser
+// (page scroll) instead of consumed as a no-op zoom past the domain or minimum span.
+function wheelHitsZoomLimit(ctx, rawDelta) {
+    var currentSpan = ctx.chartState.endTime - ctx.chartState.startTime;
+    var fullSpan = ctx.domainEnd - ctx.domainStart;
+    if (rawDelta > 0) {
+        return currentSpan >= fullSpan - 1;
+    }
+    return currentSpan <= ctx.minSpanMs + 1;
+}
+
+function setupWheelZoom(chart, ctx) {
     chart.addEventListener('wheel', function (e) {
         var isPinch = e.ctrlKey || e.metaKey;
-        var rawDelta = e.deltaY;
-        // deltaMode 1 = lines, scale to pixels for consistent intensity
-        if (e.deltaMode === 1) rawDelta *= 40;
+        var rawDelta = e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY; // deltaMode 1 = lines -> pixels
         var absDelta = Math.abs(rawDelta);
-        var isMouseWheel = absDelta >= 35;
 
         // Trackpad two-finger swipe without pinch: let the browser handle page scroll.
-        if (!isPinch && !isMouseWheel) {
+        if (!isPinch && absDelta < 35) {
             return;
         }
-
-        // When fully zoomed out, allow wheel to scroll the page instead of consuming it as a no-op zoom-out.
-        var currentSpan = chartState.endTime - chartState.startTime;
-        var fullSpan = domainEnd - domainStart;
-        var isZoomOut = rawDelta > 0;
-        if (isZoomOut && currentSpan >= fullSpan - 1) {
-            return;
-        }
-        if (!isZoomOut && currentSpan <= minSpanMs + 1) {
+        if (wheelHitsZoomLimit(ctx, rawDelta)) {
             return;
         }
 
         e.preventDefault();
-        var anchor = clientXToTime(e.clientX);
-        var scale = Math.min(absDelta / 80, 2.5);
-        var factor;
-        if (isPinch) {
-            factor = rawDelta < 0 ? Math.pow(0.84, scale) : Math.pow(1.18, scale);
-        } else {
-            factor = rawDelta < 0 ? Math.pow(0.70, scale) : Math.pow(1.38, scale);
-        }
-        hideTooltip();
-        zoomAbout(anchor, factor);
+        ctx.hideTooltip();
+        ctx.zoomAbout(ctx.clientXToTime(e.clientX), wheelZoomFactor(isPinch, rawDelta, absDelta));
     }, {passive: false});
 }
 
@@ -1186,6 +1215,33 @@ function buildLargestTree(data) {
 }
 
 /**
+ * Sums the positive, finite Size values of a list of insight entries.
+ */
+function sumPositiveSizes(items) {
+    var total = 0;
+    for (const item of items) {
+        var cur = Number(item.Size);
+        if (Number.isFinite(cur) && cur > 0) total += cur;
+    }
+    return total;
+}
+
+/**
+ * Builds the HTML for a single "Recently" entry: change badge, name, size and date.
+ */
+function buildRecentItemRow(e) {
+    var badgeClass = e.ChangeType === 'added' ? 'insight-badge-added' : 'insight-badge-changed';
+    var badgeText = e.ChangeType === 'added' ? T('insightAdded', 'added') : T('insightChanged', 'changed');
+    var dateStr = e.ChangeType === 'changed' ? formatInsightDate(e.ModifiedUtc) : formatInsightDate(e.CreatedUtc);
+    var itemSize = Number(e.Size);
+    var safeSize = (Number.isFinite(itemSize) && itemSize > 0) ? itemSize : 0;
+
+    return '<span class="insight-badge ' + badgeClass + '">' + badgeText + '</span>'
+        + '<span class="insight-tree-name">' + escHtml(e.Name) + '</span>'
+        + '<span class="insight-tree-meta">' + formatBytes(safeSize) + ' · ' + dateStr + '</span>';
+}
+
+/**
  * Builds the tree HTML for the "Recently" insight panel.
  * Groups entries by library, shows added vs changed badge + date.
  */
@@ -1203,31 +1259,15 @@ function buildRecentTree(data) {
     });
     for (const libName of libKeys) {
         var groupItems = grouped[libName];
-        var totalSize = 0;
-        for (const groupItem of groupItems) {
-            var cur = Number(groupItem.Size);
-            if (Number.isFinite(cur) && cur > 0) totalSize += cur;
-        }
 
         html += '<div class="insight-tree-lib">';
         html += '<div class="insight-tree-lib-header">';
         html += '<span class="insight-tree-lib-name">' + escHtml(libName) + '</span>';
-        html += '<span class="insight-tree-lib-size">' + formatBytes(totalSize) + '</span>';
+        html += '<span class="insight-tree-lib-size">' + formatBytes(sumPositiveSizes(groupItems)) + '</span>';
         html += '</div>';
 
         for (const e of groupItems) {
-            var changeBadge = e.ChangeType === 'added'
-                ? '<span class="insight-badge insight-badge-added">' + T('insightAdded', 'added') + '</span>'
-                : '<span class="insight-badge insight-badge-changed">' + T('insightChanged', 'changed') + '</span>';
-            var dateStr = e.ChangeType === 'changed'
-                ? formatInsightDate(e.ModifiedUtc)
-                : formatInsightDate(e.CreatedUtc);
-
-            html += changeBadge;
-            html += '<span class="insight-tree-name">' + escHtml(e.Name) + '</span>';
-            var _itemSize2 = Number(e.Size);
-            var safeSize = (Number.isFinite(_itemSize2) && _itemSize2 > 0) ? _itemSize2 : 0;
-            html += '<span class="insight-tree-meta">' + formatBytes(safeSize) + ' · ' + dateStr + '</span>';
+            html += buildRecentItemRow(e);
         }
 
         html += '</div>';
