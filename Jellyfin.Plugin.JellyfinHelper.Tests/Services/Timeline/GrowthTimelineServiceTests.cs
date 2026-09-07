@@ -903,12 +903,19 @@ public sealed class GrowthTimelineServiceTests : IDisposable
             "{\"granularity\":\"monthly\",\"firstScanTimestamp\":\"2020-01-01T00:00:00Z\"," +
             "\"dataPoints\":[{\"date\":\"2020-01-01T00:00:00Z\",\"cumulativeSize\":9999,\"cumulativeFileCount\":5}]}");
 
+        // A baseline carries the original first-scan time, which must survive the legacy discard.
+        var baselinePath = Path.Join(_dataPath, "jellyfin-helper-growth-baseline.json");
+        await File.WriteAllTextAsync(
+            baselinePath,
+            "{\"firstScanTimestamp\":\"2020-01-01T00:00:00Z\",\"directories\":{}}");
+
         _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([]);
 
         var result = await _sut.ComputeTimelineAsync(CancellationToken.None);
 
         Assert.Equal("daily", result.Granularity);
         Assert.DoesNotContain(result.DataPoints, p => p.CumulativeSize == 9999);
+        Assert.Equal(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), result.FirstScanTimestamp);
 
         // The discard was persisted: reloading yields the daily marker, not the coarse file.
         var reloaded = await _sut.LoadTimelineAsync(CancellationToken.None);

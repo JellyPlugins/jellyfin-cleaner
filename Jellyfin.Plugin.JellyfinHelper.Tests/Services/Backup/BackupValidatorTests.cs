@@ -237,7 +237,7 @@ public class BackupValidatorTests
 
         var result = BackupValidator.Validate(backup);
 
-        Assert.Contains(result.Warnings, w => w.Contains("Unknown timeline granularity 'hourly'"));
+        Assert.Contains(result.Warnings, w => w.Contains("granularity 'hourly'") && w.Contains("not a genuine daily series"));
     }
 
     [Fact]
@@ -256,7 +256,7 @@ public class BackupValidatorTests
 
         var result = BackupValidator.Validate(backup);
 
-        Assert.Contains(result.Warnings, w => w.Contains("Unknown timeline granularity 'quarterly'"));
+        Assert.Contains(result.Warnings, w => w.Contains("granularity 'quarterly'") && w.Contains("not a genuine daily series"));
     }
 
     [Fact]
@@ -276,7 +276,7 @@ public class BackupValidatorTests
 
         var result = BackupValidator.Validate(backup);
 
-        Assert.Contains(result.Warnings, w => w.Contains("Unknown timeline granularity '<missing>'"));
+        Assert.Contains(result.Warnings, w => w.Contains("granularity '<missing>'") && w.Contains("not a genuine daily series"));
     }
 
     [Fact]
@@ -295,6 +295,26 @@ public class BackupValidatorTests
         var result = BackupValidator.Validate(backup);
 
         Assert.DoesNotContain(result.Warnings, w => w.Contains("granularity"));
+    }
+
+    [Fact]
+    public void Validate_GrowthTimeline_DailyMarkerButNonMidnightPoint_Warns()
+    {
+        // A 'daily' marker with a non-midnight point is not a genuine daily series. The sanitizer
+        // drops it on restore, so the validator must surface a warning rather than pass it silently.
+        var backup = CreateValidBackup();
+        var timeline = new GrowthTimelineResult { Granularity = "daily" };
+        timeline.DataPoints.Add(new GrowthTimelinePoint
+        {
+            Date = new DateTime(2025, 1, 1, 13, 45, 0, DateTimeKind.Utc),
+            CumulativeSize = 1,
+            CumulativeFileCount = 1
+        });
+        backup.GrowthTimeline = timeline;
+
+        var result = BackupValidator.Validate(backup);
+
+        Assert.Contains(result.Warnings, w => w.Contains("not a genuine daily series"));
     }
 
     // Growth baseline

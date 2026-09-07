@@ -190,6 +190,12 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
         // instead of showing stale data from a previous scan.
         var rawTimeline = await LoadTimelineAsync(cancellationToken).ConfigureAwait(false);
         var existingTimeline = DiscardLegacyTimeline(rawTimeline);
+
+        // First-scan time survives a discarded/absent timeline via the baseline, so the empty-state
+        // result keeps the original start date instead of resetting it.
+        var baseline = await LoadBaselineAsync(cancellationToken).ConfigureAwait(false);
+        var baselineFirstScan = baseline?.FirstScanTimestamp;
+
         if (rawTimeline != null && existingTimeline == null)
         {
             // A legacy coarse timeline was discarded; persist its removal so the stale
@@ -197,7 +203,8 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
             var legacyReplacement = new GrowthTimelineResult
             {
                 ComputedAt = now,
-                Granularity = DailyGranularity
+                Granularity = DailyGranularity,
+                FirstScanTimestamp = baselineFirstScan
             };
             await SaveTimelineAsync(legacyReplacement, cancellationToken).ConfigureAwait(false);
             return legacyReplacement;
@@ -208,7 +215,8 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
             return new GrowthTimelineResult
             {
                 ComputedAt = now,
-                Granularity = DailyGranularity
+                Granularity = DailyGranularity,
+                FirstScanTimestamp = existingTimeline?.FirstScanTimestamp ?? baselineFirstScan
             };
         }
 

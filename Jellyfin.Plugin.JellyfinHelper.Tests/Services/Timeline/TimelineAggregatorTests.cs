@@ -508,6 +508,22 @@ public sealed class TimelineAggregatorTests
     }
 
     [Fact]
+    public void MergeDailySeries_OverlappingDaySameSize_HigherCountWins()
+    {
+        // Same cumulative size on a day (e.g. a deletion plus a same-size re-add) breaks the tie on
+        // the higher count, so the merge is deterministic instead of order-dependent.
+        var day = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var a = new List<GrowthTimelinePoint> { new() { Date = day, CumulativeSize = 100, CumulativeFileCount = 3 } };
+        var b = new List<GrowthTimelinePoint> { new() { Date = day, CumulativeSize = 100, CumulativeFileCount = 7 } };
+
+        var ab = TimelineAggregator.MergeDailySeries(a, b);
+        var ba = TimelineAggregator.MergeDailySeries(b, a);
+
+        Assert.Equal(7, ab[0].CumulativeFileCount);
+        Assert.Equal(7, ba[0].CumulativeFileCount);
+    }
+
+    [Fact]
     public void MergeDailySeries_IsOrderIndependent()
     {
         var day = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);

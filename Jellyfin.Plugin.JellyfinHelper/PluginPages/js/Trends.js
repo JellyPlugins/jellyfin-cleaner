@@ -26,7 +26,9 @@ function formatGranularityLabel(dateStr, granularity) {
 function interpolateDataPoints(dataPoints, granularity) {
     if (dataPoints.length < 2) return dataPoints;
 
-    var maxPoints = 10000;
+    // Matches the backup-side MaxTimelineDataPoints cap so a full dense daily series is not
+    // silently halved when rendered.
+    var maxPoints = 20000;
     var result = [];
     var truncated = false;
     for (var i = 0; i < dataPoints.length; i++) {
@@ -430,7 +432,7 @@ function applyTrendFrame(svgEl, frame, colors) {
         var lines = gridGroup.querySelectorAll('line');
         var texts = gridGroup.querySelectorAll('text');
         var wantTicks = frame.ticks.length;
-        while (lines.length + 0 < wantTicks) {
+        while (lines.length < wantTicks) {
             var nl = document.createElementNS(TREND_SVG_NS, 'line');
             nl.setAttribute('x1', g.padL);
             nl.setAttribute('x2', g.width - g.padR);

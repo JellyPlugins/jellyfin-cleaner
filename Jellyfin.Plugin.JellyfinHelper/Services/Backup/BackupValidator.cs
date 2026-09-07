@@ -84,14 +84,6 @@ public static class BackupValidator
         "DEBUG", "INFO", "WARN", "ERROR"
     };
 
-    /// <summary>
-    ///     Valid timeline granularity values. Storage is daily-only; any non-daily marker is treated as legacy and discarded.
-    /// </summary>
-    private static readonly HashSet<string> ValidGranularities = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "daily"
-    };
-
     // Regex to detect script injection in string fields. Covers the common HTML/script vectors plus the two dangerous URL schemes (data:text/html and vbscript:) that the earlier pattern missed.
     private static readonly Regex ScriptPattern = new(
         @"<\s*script|javascript\s*:|vbscript\s*:|data\s*:\s*text/html|on\w+\s*=|<\s*iframe|<\s*object|<\s*embed|<\s*form|<\s*svg\s+on",
@@ -422,10 +414,10 @@ public static class BackupValidator
                 $"GrowthTimeline has {timeline.DataPoints.Count} data points (max {MaxTimelineDataPoints}). Will be trimmed.");
         }
 
-        if (string.IsNullOrEmpty(timeline.Granularity) || !ValidGranularities.Contains(timeline.Granularity))
+        if (!TimelineAggregator.IsDayBased(timeline))
         {
             var marker = string.IsNullOrEmpty(timeline.Granularity) ? "<missing>" : timeline.Granularity;
-            result.Warnings.Add($"Unknown timeline granularity '{marker}' is not daily and will be discarded on restore; history will be rebuilt from the baseline.");
+            result.Warnings.Add($"Timeline granularity '{marker}' is not a genuine daily series (daily marker plus midnight-UTC points) and will be discarded on restore; history will be rebuilt from the baseline.");
         }
 
         WarnOnNegativeCumulatives(result, timeline.DataPoints);

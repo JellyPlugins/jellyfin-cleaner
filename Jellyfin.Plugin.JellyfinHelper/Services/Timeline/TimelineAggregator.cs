@@ -468,7 +468,12 @@ public static class TimelineAggregator
         foreach (var point in first.Concat(second))
         {
             var day = GetBucketStart(point.Date, DailyGranularity);
-            if (!byDay.TryGetValue(day, out var existing) || point.CumulativeSize > existing.CumulativeSize)
+            // Higher cumulative size wins the whole point; ties break on the higher count so a same-size
+            // day with a divergent count is deterministic instead of order-dependent.
+            var wins = !byDay.TryGetValue(day, out var existing)
+                || point.CumulativeSize > existing.CumulativeSize
+                || (point.CumulativeSize == existing.CumulativeSize && point.CumulativeFileCount > existing.CumulativeFileCount);
+            if (wins)
             {
                 byDay[day] = new GrowthTimelinePoint
                 {

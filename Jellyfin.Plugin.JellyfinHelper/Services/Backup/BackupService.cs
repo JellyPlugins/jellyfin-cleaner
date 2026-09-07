@@ -627,7 +627,8 @@ public sealed class BackupService : IBackupService
             Granularity = "daily",
             ComputedAt = DateTime.UtcNow,
             EarliestFileDate = mergedPoints.Count > 0 ? mergedPoints[0].Date : incoming.EarliestFileDate,
-            TotalDirectoriesScanned = incoming.TotalDirectoriesScanned,
+            // The current on-disk scan reflects the newer directory count; prefer it over the backup's.
+            TotalDirectoriesScanned = current.TotalDirectoriesScanned > 0 ? current.TotalDirectoriesScanned : incoming.TotalDirectoriesScanned,
             FirstScanTimestamp = EarliestFirstScan(current.FirstScanTimestamp, incoming.FirstScanTimestamp)
         };
         foreach (var point in mergedPoints)
