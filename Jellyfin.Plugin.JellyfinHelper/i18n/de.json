@@ -80,6 +80,7 @@
   "trendFiles": "Mediendateien",
   "trendEarliest": "Früheste",
   "trendNow": "jetzt",
+  "trendChartLabel": "Kumuliertes Wachstum der Medienbibliothek über die Zeit",
   "settingsGeneralTitle": "Allgemeine Einstellungen",
   "settingsToolbarLabel": "Einstellungs-Aktionen",
   "settingsUnsavedChanges": "Nicht gespeicherte Änderungen",

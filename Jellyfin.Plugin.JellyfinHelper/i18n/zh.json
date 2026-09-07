@@ -80,6 +80,7 @@
   "trendFiles": "媒体文件",
   "trendEarliest": "最早",
   "trendNow": "现在",
+  "trendChartLabel": "媒体库随时间的累计增长",
   "settingsGeneralTitle": "常规设置",
   "settingsToolbarLabel": "设置操作",
   "settingsUnsavedChanges": "未保存的更改",

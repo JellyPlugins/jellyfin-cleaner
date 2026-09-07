@@ -36,16 +36,25 @@ async function currentLevel(page: Page): Promise<string> {
   return (await page.locator('.trend-meta-level').textContent())?.trim() ?? '';
 }
 
-// Asserts no two X-axis labels overlap: their x positions must differ by a minimum gap.
-// Scopes to the x-axis label group so it never picks up y-axis tick text, and covers edge
-// labels too (which use start/end anchors, so a middle-only selector can be empty when zoomed in).
+// Asserts no two X-axis labels overlap by comparing their rendered bounding boxes (which account
+// for text width and text-anchor), not just their x coordinates. Scopes to the x-axis label group
+// so it never picks up y-axis tick text, and covers edge labels too (which use start/end anchors,
+// so a middle-only selector can be empty when zoomed in).
 async function assertNoLabelOverlap(page: Page): Promise<void> {
-  const xs = await page.locator('.trend-chart svg .trend-xlabels text').evaluateAll(
-    (nodes) => nodes.map((n) => Number((n as SVGTextElement).getAttribute('x'))).filter((v) => !Number.isNaN(v)),
+  const boxes = await page.locator('.trend-chart svg .trend-xlabels text').evaluateAll((nodes) =>
+    nodes
+      .map((n) => {
+        const r = (n as SVGTextElement).getBoundingClientRect();
+        return { left: r.left, right: r.right };
+      })
+      .filter((b) => Number.isFinite(b.left) && Number.isFinite(b.right) && b.right > b.left),
   );
-  const sorted = xs.slice().sort((a, b) => a - b);
+  const sorted = boxes.slice().sort((a, b) => a.left - b.left);
   for (let i = 1; i < sorted.length; i++) {
-    expect(sorted[i] - sorted[i - 1], `labels at ${sorted[i - 1]} and ${sorted[i]} overlap`).toBeGreaterThanOrEqual(40);
+    expect(
+      sorted[i].left - sorted[i - 1].right,
+      `labels [${sorted[i - 1].left},${sorted[i - 1].right}] and [${sorted[i].left},${sorted[i].right}] overlap`,
+    ).toBeGreaterThanOrEqual(0);
   }
 }
 
@@ -62,6 +71,7 @@ test.describe('trend chart desktop zoom/pan', () => {
   });
 
   test('wheel zoom-in narrows the window and can refine the level', async ({ page }) => {
+    const errors = trackConsoleErrors(page);
     const chart = await openChart(page);
     test.skip((await chart.count()) === 0, 'no trend data on this server');
 
@@ -80,9 +90,11 @@ test.describe('trend chart desktop zoom/pan', () => {
       .poll(async () => order.indexOf(await currentLevel(page)), { timeout: 5_000 })
       .toBeGreaterThan(order.indexOf(before));
     await assertNoLabelOverlap(page);
+    expect(errors, errors.join('\n')).toHaveLength(0);
   });
 
   test('drag pans the visible window', async ({ page }) => {
+    const errors = trackConsoleErrors(page);
     const chart = await openChart(page);
     test.skip((await chart.count()) === 0, 'no trend data on this server');
 
@@ -105,6 +117,7 @@ test.describe('trend chart desktop zoom/pan', () => {
     const labelsAfter = await page.locator('.trend-chart svg .trend-xlabels text').allTextContents();
     expect(labelsAfter.join('|')).not.toBe(labelsBefore.join('|'));
     await assertNoLabelOverlap(page);
+    expect(errors, errors.join('\n')).toHaveLength(0);
   });
 });
 
@@ -112,6 +125,7 @@ test.describe('trend chart touch gestures', () => {
   test.use({ hasTouch: true, isMobile: true });
 
   test('tap shows a tooltip', async ({ page }) => {
+    const errors = trackConsoleErrors(page);
     const chart = await openChart(page);
     test.skip((await chart.count()) === 0, 'no trend data on this server');
 
@@ -127,6 +141,7 @@ test.describe('trend chart touch gestures', () => {
 
     // Synchronize on the observable outcome (tooltip becomes visible), not a fixed wait.
     await expect(page.locator('.trend-tooltip')).toHaveClass(/visible/, { timeout: 5_000 });
+    expect(errors, errors.join('\n')).toHaveLength(0);
   });
 
   test('pinch zoom refines the level without JS errors', async ({ page }) => {

@@ -512,6 +512,18 @@ public sealed class TimelineAggregatorTests
     }
 
     [Fact]
+    public void IsDayBased_NullDataPoint_ReturnsFalse()
+    {
+        // A backup deserialized from hand-edited or hostile JSON can carry a null array slot;
+        // IsDayBased must treat it as not-day-based instead of throwing a NullReferenceException.
+        var timeline = new GrowthTimelineResult { Granularity = "daily" };
+        timeline.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 10, CumulativeFileCount = 1 });
+        timeline.DataPoints.Add(null!);
+
+        Assert.False(TimelineAggregator.IsDayBased(timeline));
+    }
+
+    [Fact]
     public void MergeDailySeries_DisjointDays_UnionsAndSorts()
     {
         var first = new List<GrowthTimelinePoint>

@@ -948,7 +948,7 @@ public class BackupServiceTests
             var backup = CreateValidBackup();
             backup.GrowthTimeline = new GrowthTimelineResult { Granularity = "daily" };
             backup.GrowthTimeline.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100, CumulativeFileCount = 1 });
-            backup.GrowthTimeline.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 250, CumulativeFileCount = 2 });
+            backup.GrowthTimeline.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(2025, 1, 2, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 250, CumulativeFileCount = 99 });
 
             var summary = service.RestoreBackup(backup);
 
@@ -958,10 +958,12 @@ public class BackupServiceTests
             var merged = JsonSerializer.Deserialize<GrowthTimelineResult>(mergedJson)!;
 
             // Day 1 filled in retroactively; days 2 and 3 present; overlapping day 2 takes the whole
-            // point with the higher cumulative size (the backup's 250), per the higher-point-wins rule.
+            // point with the higher cumulative size (the backup's 250), including its file count,
+            // per the higher-point-wins rule (never a size/count fusion from different points).
             Assert.Equal(3, merged.DataPoints.Count);
             Assert.Equal(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), merged.DataPoints[0].Date);
             Assert.Equal(250, merged.DataPoints[1].CumulativeSize);
+            Assert.Equal(99, merged.DataPoints[1].CumulativeFileCount);
             Assert.Equal(new DateTime(2025, 1, 3, 0, 0, 0, DateTimeKind.Utc), merged.DataPoints[2].Date);
         }
         finally

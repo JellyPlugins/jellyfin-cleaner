@@ -80,6 +80,7 @@
   "trendFiles": "medya dosyası",
   "trendEarliest": "En eski",
   "trendNow": "şimdi",
+  "trendChartLabel": "Zaman içinde birikmiş medya kitaplığı büyümesi",
   "settingsGeneralTitle": "Genel ayarlar",
   "settingsToolbarLabel": "Ayar işlemleri",
   "settingsUnsavedChanges": "Kaydedilmemiş değişiklikler",

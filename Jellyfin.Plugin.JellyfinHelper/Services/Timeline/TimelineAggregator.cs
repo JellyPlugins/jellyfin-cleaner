@@ -450,6 +450,13 @@ public static class TimelineAggregator
         DateTime? previous = null;
         foreach (var point in timeline.DataPoints)
         {
+            // A backup deserialized from hand-edited or hostile JSON can carry a null array slot;
+            // treat it as not-day-based rather than dereferencing it and aborting sanitization.
+            if (point is null)
+            {
+                return false;
+            }
+
             if (point.Date.Kind != DateTimeKind.Utc || point.Date.TimeOfDay != TimeSpan.Zero)
             {
                 return false;

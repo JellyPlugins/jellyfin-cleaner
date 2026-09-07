@@ -41,10 +41,10 @@ export function seedGrowthTimeline(): number {
   const cursor = new Date(Date.UTC(2016, 0, 1));
   let i = 0;
   while (cursor.getTime() <= endMs) {
-    // A gentle ramp with occasional plateaus (no growth some months) so the dedup and
-    // interpolation paths the renderer runs are actually exercised.
-    if (i % 4 !== 0) {
-      cumulativeSize += (2 + (i % 5)) * 1024 * 1024 * 1024; // 2..6 GB per active month
+    // A gentle daily ramp with frequent plateaus (most days add nothing) so the dedup and
+    // interpolation paths the renderer runs are actually exercised over a dense daily series.
+    if (i % 4 === 0) {
+      cumulativeSize += (2 + (i % 5)) * 1024 * 1024 * 1024; // 2..6 GB on active days
       cumulativeFileCount += 3 + (i % 7);
     }
     points.push({
@@ -52,7 +52,7 @@ export function seedGrowthTimeline(): number {
       cumulativeSize,
       cumulativeFileCount,
     });
-    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
     i++;
   }
 

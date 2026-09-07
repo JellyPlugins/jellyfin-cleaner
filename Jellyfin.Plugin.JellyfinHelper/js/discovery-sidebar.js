@@ -279,15 +279,20 @@
 
     function findActiveContainer() {
         var all = document.querySelectorAll(CUSTOM_TAB_SELECTOR);
+        // Priority passes (each newest-first): a candidate inside an ACTIVE .tabContent wins over a
+        // merely-visible .page, which wins over a candidate with no page wrapper. A single combined
+        // scan would return a visible .page before reaching an active .tabContent later in the DOM,
+        // mounting discovery in the wrong container.
         for (var i = all.length - 1; i >= 0; i--) {
             var tabContent = all[i].closest('.tabContent');
-            if (tabContent) {
-                if (tabContent.classList.contains('is-active')) return all[i];
-                continue;
-            }
-            var page = all[i].closest('.page');
-            if (page && !page.classList.contains('hide')) return all[i];
-            if (!page) return all[i];
+            if (tabContent && tabContent.classList.contains('is-active')) return all[i];
+        }
+        for (var j = all.length - 1; j >= 0; j--) {
+            var page = all[j].closest('.page');
+            if (page && !page.classList.contains('hide')) return all[j];
+        }
+        for (var k = all.length - 1; k >= 0; k--) {
+            if (!all[k].closest('.page')) return all[k];
         }
         return null;
     }

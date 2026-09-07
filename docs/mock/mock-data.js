@@ -141,7 +141,7 @@ cs+=Math.floor(bf*avg);cf+=bf;}
 raw.push({date:new Date(t).toISOString(),cumulativeSize:cs,cumulativeFileCount:cf});}
 // Deduplicate consecutive-identical points, always keeping the last (matches the backend).
 var dp=[];for(var i=0;i<raw.length;i++){if(i===0||i===raw.length-1||raw[i].cumulativeSize!==raw[i-1].cumulativeSize||raw[i].cumulativeFileCount!==raw[i-1].cumulativeFileCount)dp.push(raw[i]);}
-return{granularity:"daily",earliestFileDate:new Date(start).toISOString(),computedAt:new Date(now).toISOString(),totalDirectoriesScanned:cf,dataPoints:dp};})();
+return{granularity:"daily",earliestFileDate:new Date(start).toISOString(),computedAt:new Date(now).toISOString(),totalDirectoriesScanned:3,dataPoints:dp};})();
 
 var MOCK_LIBRARY_INSIGHTS={
 Largest:[

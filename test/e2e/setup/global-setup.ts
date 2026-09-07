@@ -156,8 +156,9 @@ async function globalSetup(_config: FullConfig): Promise<void> {
       );
     }
   } else {
-    // eslint-disable-next-line no-console
-    console.log(`[global-setup] timeline verify GET -> ${seededTimeline.status()} (chart specs will surface this)`);
+    throw new Error(
+      `Growth timeline verify GET failed: ${seededTimeline.status()} ${await seededTimeline.text()}`,
+    );
   }
 
   // --- 5. link the mock Seerr user to the real Jellyfin GUID ---------------

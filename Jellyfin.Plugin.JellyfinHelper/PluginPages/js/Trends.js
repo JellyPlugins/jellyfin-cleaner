@@ -243,7 +243,9 @@ function buildTrendSvgPoints(render, startTime, endTime, g, yMax, chartW, chartH
     var pointData = [];
     var points = [];
     for (const pt of render) {
-        var tt = new Date(pt.date).getTime();
+        // collectVisiblePoints already cached the epoch on each rendered point; reuse it instead
+        // of reparsing pt.date every frame over a window that can hold thousands of points.
+        var tt = pt._t !== undefined ? pt._t : new Date(pt.date).getTime();
         var x = clampTrendX(xOf(tt), g);
         var y = yOf(pt.cumulativeSize);
         points.push(x.toFixed(1) + ',' + y.toFixed(1));
@@ -380,7 +382,8 @@ function renderTrendSvgString(frame, colors) {
     var chartH = g.height - g.padT - g.padB;
     var baseY = g.padT + chartH;
 
-    var svg = '<svg width="100%" viewBox="0 0 ' + g.width + ' ' + g.height + '" preserveAspectRatio="xMidYMid meet">';
+    var svg = '<svg width="100%" viewBox="0 0 ' + g.width + ' ' + g.height + '" preserveAspectRatio="xMidYMid meet"'
+        + ' role="img" aria-label="' + escHtml(T('trendChartLabel', 'Cumulative media library growth over time')) + '">';
 
     // Grid group: one line + one text per tick. Rebuilt in place on unit rescale.
     svg += '<g class="trend-grid">';
@@ -440,7 +443,8 @@ function applyTrendFrame(svgEl, frame, colors) {
         var lines = gridGroup.querySelectorAll('line');
         var texts = gridGroup.querySelectorAll('text');
         var wantTicks = frame.ticks.length;
-        while (lines.length < wantTicks) {
+        var haveTicks = lines.length;
+        while (haveTicks < wantTicks) {
             var nl = document.createElementNS(TREND_SVG_NS, 'line');
             nl.setAttribute('x1', g.padL);
             nl.setAttribute('x2', g.width - g.padR);
@@ -452,6 +456,9 @@ function applyTrendFrame(svgEl, frame, colors) {
             nt.setAttribute('fill', 'rgba(255,255,255,0.4)');
             nt.setAttribute('font-size', '10');
             gridGroup.appendChild(nt);
+            haveTicks++;
+        }
+        if (haveTicks !== lines.length) {
             lines = gridGroup.querySelectorAll('line');
             texts = gridGroup.querySelectorAll('text');
         }
@@ -475,13 +482,17 @@ function applyTrendFrame(svgEl, frame, colors) {
     if (dotsGroup) {
         var wantDots = frame.dotRadius > 0 ? frame.points.length : 0;
         var circles = dotsGroup.querySelectorAll('circle');
-        while (circles.length < wantDots) {
+        // Track the count locally instead of re-querying the whole group per appended node: a pan
+        // crossing a dot-count boundary can grow the pool by ~200 in one frame.
+        var haveDots = circles.length;
+        while (haveDots < wantDots) {
             var nc = document.createElementNS(TREND_SVG_NS, 'circle');
             nc.setAttribute('fill', colors.trendColor);
             nc.setAttribute('opacity', '0.6');
             dotsGroup.appendChild(nc);
-            circles = dotsGroup.querySelectorAll('circle');
+            haveDots++;
         }
+        if (haveDots !== circles.length) circles = dotsGroup.querySelectorAll('circle');
         for (var di = circles.length - 1; di >= wantDots; di--) circles[di].remove();
         if (wantDots > 0) {
             circles = dotsGroup.querySelectorAll('circle');
@@ -498,15 +509,17 @@ function applyTrendFrame(svgEl, frame, colors) {
     var xGroup = svgEl.querySelector('.trend-xlabels');
     if (xGroup) {
         var labelNodes = xGroup.querySelectorAll('text');
-        while (labelNodes.length < frame.labels.length) {
+        var haveLabels = labelNodes.length;
+        while (haveLabels < frame.labels.length) {
             var nlbl = document.createElementNS(TREND_SVG_NS, 'text');
             nlbl.setAttribute('y', baseY + 18);
             nlbl.setAttribute('fill', 'rgba(255,255,255,0.55)');
             nlbl.setAttribute('font-size', '10');
             nlbl.setAttribute('font-weight', '500');
             xGroup.appendChild(nlbl);
-            labelNodes = xGroup.querySelectorAll('text');
+            haveLabels++;
         }
+        if (haveLabels !== labelNodes.length) labelNodes = xGroup.querySelectorAll('text');
         for (var li = labelNodes.length - 1; li >= frame.labels.length; li--) labelNodes[li].remove();
         labelNodes = xGroup.querySelectorAll('text');
         for (var lj = 0; lj < frame.labels.length; lj++) {
