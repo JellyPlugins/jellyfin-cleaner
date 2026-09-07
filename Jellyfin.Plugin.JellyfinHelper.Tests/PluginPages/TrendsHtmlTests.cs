@@ -170,7 +170,7 @@ public partial class TrendsHtmlTests : ConfigPageTestBase
     }
 
     [Fact]
-    public void Css_TrendChart_DisablesNativeTouchGestures()
+    public void Css_TrendChart_ReservesHorizontalTouchGesturesForJs()
     {
         // Horizontal pan/pinch is handled in JS; vertical swipe is left to the browser for page scroll.
         Assert.Contains("touch-action: pan-y", HtmlContent);

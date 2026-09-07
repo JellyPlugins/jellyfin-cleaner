@@ -935,5 +935,11 @@ public sealed class GrowthTimelineServiceTests : IDisposable
 
         using var second = await _sut.AcquireExclusiveAsync(CancellationToken.None);
         Assert.NotNull(second);
+
+        // A double release would have raised the semaphore count above 1, letting a third acquire
+        // through while `second` is still held. It must block instead, so the acquire is cancelled.
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => _sut.AcquireExclusiveAsync(cts.Token));
     }
 }

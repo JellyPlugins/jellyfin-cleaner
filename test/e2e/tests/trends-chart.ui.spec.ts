@@ -66,18 +66,19 @@ test.describe('trend chart desktop zoom/pan', () => {
     test.skip((await chart.count()) === 0, 'no trend data on this server');
 
     const before = await currentLevel(page);
+    const order = ['yearly', 'monthly', 'weekly', 'daily'];
     const box = (await chart.boundingBox())!;
     // Zoom in several notches toward the right edge (recent data).
     for (let i = 0; i < 8; i++) {
       await page.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2);
       await page.mouse.wheel(0, -120);
     }
-    await expect.poll(async () => await currentLevel(page), { timeout: 2_000 }).not.toBe('');
-    const after = await currentLevel(page);
-
-    // Either the level refined (e.g. monthly -> weekly -> daily) or it was already daily.
-    const order = ['yearly', 'monthly', 'weekly', 'daily'];
-    expect(order.indexOf(after)).toBeGreaterThanOrEqual(order.indexOf(before));
+    // The seeded series spans 2016..now, so the initial level is the coarsest one and eight
+    // zoom-in notches must refine it. Poll on that refinement, not on a non-empty string
+    // (which passes on the first read and can observe the pre-zoom level, comparing it to itself).
+    await expect
+      .poll(async () => order.indexOf(await currentLevel(page)), { timeout: 5_000 })
+      .toBeGreaterThan(order.indexOf(before));
     await assertNoLabelOverlap(page);
   });
 
@@ -134,6 +135,7 @@ test.describe('trend chart touch gestures', () => {
     test.skip((await chart.count()) === 0, 'no trend data on this server');
 
     const before = await currentLevel(page);
+    const order = ['yearly', 'monthly', 'weekly', 'daily'];
     const box = (await chart.boundingBox())!;
     const cx = box.x + box.width / 2;
     const cy = box.y + box.height / 2;
@@ -152,11 +154,11 @@ test.describe('trend chart touch gestures', () => {
       await touch('touchMove', [{ x: cx - spread, y: cy }, { x: cx + spread, y: cy }]);
     }
     await touch('touchEnd', []);
-    await expect.poll(async () => await currentLevel(page), { timeout: 2_000 }).not.toBe('');
-
-    const after = await currentLevel(page);
-    const order = ['yearly', 'monthly', 'weekly', 'daily'];
-    expect(order.indexOf(after)).toBeGreaterThanOrEqual(order.indexOf(before));
+    // The seeded series starts at the coarsest level, so a 6x pinch-out must refine it. Poll on
+    // that refinement rather than on a non-empty string (which passes immediately, before zoom).
+    await expect
+      .poll(async () => order.indexOf(await currentLevel(page)), { timeout: 5_000 })
+      .toBeGreaterThan(order.indexOf(before));
     expect(errors, errors.join('\n')).toHaveLength(0);
     await assertNoLabelOverlap(page);
   });

@@ -132,6 +132,7 @@ function projectToGranularity(dailyPoints, level) {
         // Last point per bucket wins (points are sorted chronologically).
         buckets.set(key, {
             date: new Date(key).toISOString(),
+            _t: key,
             cumulativeSize: p.cumulativeSize,
             cumulativeFileCount: p.cumulativeFileCount
         });
@@ -206,7 +207,10 @@ function collectVisiblePoints(projected, startTime, endTime) {
     var firstBefore = null;
     var firstAfter = null;
     for (const pt of projected) {
-        var t = new Date(pt.date).getTime();
+        // Cache the epoch on the point the first time it is seen. The projection arrays are
+        // memoized per level and reused across pan/pinch frames, so this reparses each date
+        // string once instead of on every animation frame over a series up to 20000 points.
+        var t = pt._t !== undefined ? pt._t : (pt._t = new Date(pt.date).getTime());
         if (t < startTime) {
             firstBefore = pt;
         } else if (t > endTime) {
@@ -1210,11 +1214,7 @@ function buildLargestTree(data) {
 
     for (const lib of libKeys) {
         var items = grouped[lib];
-        var libSize = 0;
-        for (const it of items) {
-            var _sz = Number(it.Size);
-            if (Number.isFinite(_sz) && _sz > 0) libSize += _sz;
-        }
+        var libSize = sumPositiveSizes(items);
 
         html += '<div class="insight-tree-lib">';
         html += '<div class="insight-tree-lib-header">';

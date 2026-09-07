@@ -499,6 +499,19 @@ public sealed class TimelineAggregatorTests
     }
 
     [Fact]
+    public void IsDayBased_DuplicateMinValueDates_ReturnsFalse()
+    {
+        // 0001-01-01T00:00:00Z is a valid midnight-UTC point but also equals DateTime.MinValue.
+        // The ordering check must still reject a duplicate of it, so the "no previous point"
+        // sentinel cannot be MinValue itself.
+        var timeline = new GrowthTimelineResult { Granularity = "daily" };
+        timeline.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 10, CumulativeFileCount = 1 });
+        timeline.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 15, CumulativeFileCount = 1 });
+
+        Assert.False(TimelineAggregator.IsDayBased(timeline));
+    }
+
+    [Fact]
     public void MergeDailySeries_DisjointDays_UnionsAndSorts()
     {
         var first = new List<GrowthTimelinePoint>

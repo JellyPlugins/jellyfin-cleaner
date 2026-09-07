@@ -280,14 +280,20 @@
     function findActiveContainer() {
         var all = document.querySelectorAll(CUSTOM_TAB_SELECTOR);
         for (var i = all.length - 1; i >= 0; i--) {
-            var page = all[i].closest('.page, .tabContent');
+            var tabContent = all[i].closest('.tabContent');
+            if (tabContent) {
+                if (tabContent.classList.contains('is-active')) return all[i];
+                continue;
+            }
+            var page = all[i].closest('.page');
             if (page && !page.classList.contains('hide')) return all[i];
+            if (!page) return all[i];
         }
-        return all.length > 0 ? all[all.length - 1] : null;
+        return null;
     }
 
     function renderDiscovery(container) {
-        container.innerHTML = '<div class="jfh-discovery-container"><div class="jfh-discovery-spinner"></div></div>';
+        container.innerHTML = '<div class="jfh-discovery-container"><div class="jfh-discovery-spinner" role="status" aria-live="polite" aria-busy="true"><span style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">' + esc(t('loadingRecommendations', 'Loading recommendations\u2026')) + '</span></div></div>';
         ApiClient.ajax({ type: 'GET', url: ApiClient.getUrl(API_URL), dataType: 'json' })
             .then(function (data) { renderCards(container, data); })
             .catch(function (err) {

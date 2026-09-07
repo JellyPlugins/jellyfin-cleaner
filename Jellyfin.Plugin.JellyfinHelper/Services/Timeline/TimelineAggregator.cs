@@ -447,7 +447,7 @@ public static class TimelineAggregator
 
         // A daily point is always midnight UTC by construction. A non-midnight or non-UTC point means the
         // series was bucketed coarser (or hand-edited), so it is not a genuine daily series.
-        var previous = DateTime.MinValue;
+        DateTime? previous = null;
         foreach (var point in timeline.DataPoints)
         {
             if (point.Date.Kind != DateTimeKind.Utc || point.Date.TimeOfDay != TimeSpan.Zero)
@@ -457,8 +457,9 @@ public static class TimelineAggregator
 
             // Our own persisted series is always sorted and deduplicated; strictly increasing dates
             // reject a hand-edited backup with out-of-order or duplicate days, which the append-only
-            // and merge paths downstream assume cannot happen.
-            if (previous != DateTime.MinValue && point.Date <= previous)
+            // and merge paths downstream assume cannot happen. A nullable sentinel (not MinValue) so a
+            // legitimate 0001-01-01 midnight-UTC point cannot masquerade as "no previous point".
+            if (previous.HasValue && point.Date <= previous.Value)
             {
                 return false;
             }
