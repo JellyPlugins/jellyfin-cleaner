@@ -210,7 +210,10 @@ function collectVisiblePoints(projected, startTime, endTime) {
         // Cache the epoch on the point the first time it is seen. The projection arrays are
         // memoized per level and reused across pan/pinch frames, so this reparses each date
         // string once instead of on every animation frame over a series up to 20000 points.
-        var t = pt._t !== undefined ? pt._t : (pt._t = new Date(pt.date).getTime());
+        if (pt._t === undefined) {
+            pt._t = new Date(pt.date).getTime();
+        }
+        var t = pt._t;
         if (t < startTime) {
             firstBefore = pt;
         } else if (t > endTime) {
