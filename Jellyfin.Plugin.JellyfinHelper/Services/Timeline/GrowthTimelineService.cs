@@ -177,7 +177,7 @@ public sealed class GrowthTimelineService : IGrowthTimelineService, IDisposable
     }
 
     /// <summary>
-    ///     Builds the result for a scan that found no media directories. Persists a 0-snapshot so the timeline reflects the empty state instead of showing stale data from a previous scan; when there is no prior timeline, returns an empty monthly result.
+    ///     Builds the result for a scan that found no media directories. Persists a 0-snapshot so the timeline reflects the empty state instead of showing stale data from a previous scan; when there is no prior timeline, returns an empty daily result.
     /// </summary>
     /// <param name="now">The current scan timestamp.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
