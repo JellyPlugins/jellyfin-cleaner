@@ -94,6 +94,7 @@ function advanceBucketDate(date, granularity) {
 }
 
 var TREND_DAY_MS = 24 * 60 * 60 * 1000;
+var TREND_HOUR_MS = 60 * 60 * 1000;
 
 /**
  * Snaps a date to the start of its bucket for the given level (UTC).
@@ -545,13 +546,15 @@ function renderTrendChart(timeline) {
     var spanDays = (dailyMax - dailyMin) / TREND_DAY_MS;
     var initialLevel = pickLevelForSpan(spanDays);
     var projectedInitial = projectToGranularity(fullDaily, initialLevel);
-    var minTime = new Date(projectedInitial[0].date).getTime();
-    var maxTime = new Date(projectedInitial.at(-1).date).getTime();
     var projectionCache = Object.create(null);
     projectionCache[initialLevel] = projectedInitial;
 
-    // Initial window = full domain fitted to the projected bucket range so the
-    // leftmost/rightmost points sit exactly on the chart edges with no empty gap.
+    // Domain is the true daily data range, not the initial projection's bucket range.
+    // A coarse projection snaps the first/last point to its bucket start (e.g. yearly
+    // pulls Oct 2016 back to Jan 2016), which would leave dead space at the edges once
+    // the user zooms to a finer level where no point falls in that snapped-off region.
+    var minTime = dailyMin;
+    var maxTime = dailyMax;
     var chartState = {
         fullDaily: fullDaily,
         minTime: minTime,
@@ -620,9 +623,16 @@ function touchMidX(touches) {
  * daily zoom cannot invert.
  */
 function createWindowController(chart, chartState, g, chartW, vbWidth, vbHeight, scheduleRedraw) {
-    var MIN_SPAN_MS = 2 * TREND_DAY_MS;
     var domainStart = chartState.minTime;
     var domainEnd = chartState.maxTime;
+    var fullDomainSpan = domainEnd - domainStart;
+
+    // Minimum zoom-in span. Normally two days so daily zoom cannot invert, but never more than
+    // a quarter of the domain: a brand-new server with a single day of history would otherwise
+    // have its full view already sitting at the floor, so every zoom-in clamps straight back to
+    // full and wheel events get handed to the browser as page scroll (silent no-op gestures).
+    // Floor at one hour so the window can never collapse to zero span.
+    var MIN_SPAN_MS = Math.max(TREND_HOUR_MS, Math.min(2 * TREND_DAY_MS, fullDomainSpan / 4));
 
     function clampWindow() {
         var span = chartState.endTime - chartState.startTime;
