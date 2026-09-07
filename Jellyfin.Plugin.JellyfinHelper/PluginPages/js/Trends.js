@@ -315,18 +315,31 @@ function drawTrendWindow(state) {
         }
     }
 
-    // X-axis labels with a hard minimum pixel gap. No label is ever drawn without the gap
-    // check, so two labels can never overlap at any zoom level or window position.
+    // X-axis labels with a hard minimum pixel gap. Edge labels use start/end anchoring
+    // so "2016" at padL and "2026" at padR are never clipped (previous bug showed "016").
     var minLabelGapPx = 60;
     var lastLabelX = -Infinity;
-    for (const pt of pointData) {
-        var lx = pt.x;
-        if (lx - lastLabelX < minLabelGapPx) continue;
-        // Keep labels inside the plot so the last one is never clipped at the right edge.
-        if (lx > g.width - g.padR - 4) continue;
-        var lbl = formatGranularityLabel(pt.d, level);
-        svg += '<text x="' + lx.toFixed(1) + '" y="' + (g.padT + chartH + 18) + '" text-anchor="middle" fill="rgba(255,255,255,0.55)" font-size="10" font-weight="500">' + escHtml(lbl) + '</text>';
-        lastLabelX = lx;
+    for (var idx = 0; idx < pointData.length; idx++) {
+        var pt2 = pointData[idx];
+        var lx2 = pt2.x;
+        if (lx2 - lastLabelX < minLabelGapPx) continue;
+        var isFirst = idx === 0;
+        var isLast = idx === pointData.length - 1;
+        var lxDisplay = lx2;
+        var anchor = 'middle';
+        if (isFirst && lx2 <= g.padL + 2) {
+            anchor = 'start';
+            lxDisplay = g.padL + 2;
+        } else if (isLast && lx2 >= g.width - g.padR - 2) {
+            anchor = 'end';
+            lxDisplay = g.width - g.padR - 2;
+        } else {
+            if (lx2 > g.width - g.padR - 4) continue;
+            if (lx2 < g.padL + 4) continue;
+        }
+        var lbl2 = formatGranularityLabel(pt2.d, level);
+        svg += '<text x="' + lxDisplay.toFixed(1) + '" y="' + (g.padT + chartH + 18) + '" text-anchor="' + anchor + '" fill="rgba(255,255,255,0.55)" font-size="10" font-weight="500">' + escHtml(lbl2) + '</text>';
+        lastLabelX = lx2;
     }
 
     svg += '<line x1="' + g.padL + '" y1="' + (g.padT + chartH) + '" x2="' + (g.width - g.padR) + '" y2="' + (g.padT + chartH) + '" stroke="rgba(255,255,255,0.12)" />';
@@ -365,18 +378,25 @@ function renderTrendChart(timeline) {
         return { html: '<div class="trend-empty">' + T('trendEmpty', 'Not enough data yet. Growth timeline is computed during each scheduled scan.') + '</div>', chartState: null };
     }
 
-    var minTime = new Date(fullDaily[0].date).getTime();
-    var maxTime = new Date(fullDaily.at(-1).date).getTime();
+    var dailyMin = new Date(fullDaily[0].date).getTime();
+    var dailyMax = new Date(fullDaily.at(-1).date).getTime();
+    var spanDays = (dailyMax - dailyMin) / TREND_DAY_MS;
+    var initialLevel = pickLevelForSpan(spanDays);
+    var projectedInitial = projectToGranularity(fullDaily, initialLevel);
+    var minTime = new Date(projectedInitial[0].date).getTime();
+    var maxTime = new Date(projectedInitial.at(-1).date).getTime();
+    var projectionCache = Object.create(null);
+    projectionCache[initialLevel] = projectedInitial;
 
-    // Initial window = full domain, so the opening view auto-picks the same level the old
-    // age-based logic would have shown (day/week/month/year by total span).
+    // Initial window = full domain fitted to the projected bucket range so the
+    // leftmost/rightmost points sit exactly on the chart edges with no empty gap.
     var chartState = {
         fullDaily: fullDaily,
         minTime: minTime,
         maxTime: maxTime,
         startTime: minTime,
         endTime: maxTime,
-        projectionCache: Object.create(null)
+        projectionCache: projectionCache
     };
 
     var drawn = drawTrendWindow(chartState);
@@ -454,6 +474,16 @@ function attachTrendInteraction(container, chartState) {
     })();
 
     var metaLevelEl = container.querySelector('.trend-meta-level');
+
+    var redrawPending = false;
+    function scheduleRedraw() {
+        if (redrawPending) return;
+        redrawPending = true;
+        (window.requestAnimationFrame || function (cb) { return setTimeout(cb, 16); })(function () {
+            redrawPending = false;
+            redraw();
+        });
+    }
 
     function redraw() {
         var drawn = drawTrendWindow(chartState);
@@ -660,7 +690,7 @@ function attachTrendInteraction(container, chartState) {
         chartState.startTime = newStart;
         chartState.endTime = newEnd;
         clampWindow();
-        redraw();
+        scheduleRedraw();
     }
 
     function panByPixels(pixelDelta) {
@@ -674,7 +704,7 @@ function attachTrendInteraction(container, chartState) {
         chartState.startTime += timeDelta;
         chartState.endTime += timeDelta;
         clampWindow();
-        redraw();
+        scheduleRedraw();
     }
 
     setupWheelZoom(chart, clientXToTime, zoomAbout, hideTooltip, domainStart, domainEnd, chartState, MIN_SPAN_MS);
@@ -702,8 +732,11 @@ function attachTrendInteraction(container, chartState) {
 function setupWheelZoom(chart, clientXToTime, zoomAbout, hideTooltip, domainStart, domainEnd, chartState, minSpanMs) {
     chart.addEventListener('wheel', function (e) {
         var isPinch = e.ctrlKey || e.metaKey;
-        var absDelta = Math.abs(e.deltaY);
-        var isMouseWheel = absDelta >= 40;
+        var rawDelta = e.deltaY;
+        // deltaMode 1 = lines, scale to pixels for consistent intensity
+        if (e.deltaMode === 1) rawDelta *= 40;
+        var absDelta = Math.abs(rawDelta);
+        var isMouseWheel = absDelta >= 35;
 
         // Trackpad two-finger swipe without pinch: let the browser handle page scroll.
         if (!isPinch && !isMouseWheel) {
@@ -713,16 +746,23 @@ function setupWheelZoom(chart, clientXToTime, zoomAbout, hideTooltip, domainStar
         // When fully zoomed out, allow wheel to scroll the page instead of consuming it as a no-op zoom-out.
         var currentSpan = chartState.endTime - chartState.startTime;
         var fullSpan = domainEnd - domainStart;
-        var isZoomOut = e.deltaY > 0;
+        var isZoomOut = rawDelta > 0;
         if (isZoomOut && currentSpan >= fullSpan - 1) {
-            // Already at full extent and also not at minimum span edge: allow native scroll
-            if (currentSpan <= minSpanMs + 1 && !isZoomOut) return;
+            return;
+        }
+        if (!isZoomOut && currentSpan <= minSpanMs + 1) {
             return;
         }
 
         e.preventDefault();
         var anchor = clientXToTime(e.clientX);
-        var factor = isPinch ? (e.deltaY < 0 ? 0.92 : 1.08) : (e.deltaY < 0 ? 0.85 : 1.18);
+        var scale = Math.min(absDelta / 80, 2.5);
+        var factor;
+        if (isPinch) {
+            factor = rawDelta < 0 ? Math.pow(0.84, scale) : Math.pow(1.18, scale);
+        } else {
+            factor = rawDelta < 0 ? Math.pow(0.70, scale) : Math.pow(1.38, scale);
+        }
         hideTooltip();
         zoomAbout(anchor, factor);
     }, {passive: false});
@@ -794,7 +834,9 @@ function setupTouchGestures(chart, clientXToTime, zoomAbout, panByPixels, hideTo
             var dist = touchDistance(e.touches);
             if (pinchStartDist > 0 && dist > 0) {
                 var anchor = clientXToTime(touchMidX(e.touches));
-                var factor = pinchStartDist / dist; // fingers apart -> factor < 1 -> zoom in
+                var raw = pinchStartDist / dist; // fingers apart -> raw < 1 -> zoom in
+                // Slightly amplify the gesture so a modest spread reaches daily faster
+                var factor = raw < 1 ? Math.pow(raw, 1.18) : Math.pow(raw, 1.18);
                 zoomAbout(anchor, factor);
                 pinchStartDist = dist;
             }
