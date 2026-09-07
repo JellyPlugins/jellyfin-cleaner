@@ -451,7 +451,7 @@ public static class TimelineAggregator
     }
 
     /// <summary>
-    ///     Merges two daily cumulative series into one. Points are unioned by calendar day; when the same day exists in both series the higher cumulative size and count win, which is correct for monotonic cumulative data and independent of argument order. The result is sorted ascending and deduplicated.
+    ///     Merges two daily cumulative series into one. Points are unioned by calendar day; when the same day exists in both series the whole point with the higher cumulative size wins (size and count kept together), so the result is always a state that actually existed and never fuses size from one point with count from another. The result is sorted ascending and deduplicated.
     /// </summary>
     /// <param name="first">The first daily series (may be empty).</param>
     /// <param name="second">The second daily series (may be empty).</param>
@@ -468,15 +468,15 @@ public static class TimelineAggregator
         foreach (var point in first.Concat(second))
         {
             var day = GetBucketStart(point.Date, DailyGranularity);
-            var hasExisting = byDay.TryGetValue(day, out var existing);
-            var size = hasExisting ? Math.Max(existing!.CumulativeSize, point.CumulativeSize) : point.CumulativeSize;
-            var count = hasExisting ? Math.Max(existing!.CumulativeFileCount, point.CumulativeFileCount) : point.CumulativeFileCount;
-            byDay[day] = new GrowthTimelinePoint
+            if (!byDay.TryGetValue(day, out var existing) || point.CumulativeSize > existing.CumulativeSize)
             {
-                Date = day,
-                CumulativeSize = size,
-                CumulativeFileCount = count
-            };
+                byDay[day] = new GrowthTimelinePoint
+                {
+                    Date = day,
+                    CumulativeSize = point.CumulativeSize,
+                    CumulativeFileCount = point.CumulativeFileCount
+                };
+            }
         }
 
         var merged = byDay.Values.OrderBy(p => p.Date).ToList();

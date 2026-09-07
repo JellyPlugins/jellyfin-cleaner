@@ -475,7 +475,7 @@ public sealed class TimelineAggregatorTests
     }
 
     [Fact]
-    public void MergeDailySeries_OverlappingDay_HigherCumulativeWins()
+    public void MergeDailySeries_OverlappingDay_HigherPointWinsWhole()
     {
         var day = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var first = new List<GrowthTimelinePoint>
@@ -489,10 +489,11 @@ public sealed class TimelineAggregatorTests
 
         var merged = TimelineAggregator.MergeDailySeries(first, second);
 
-        // Size and count are compared independently; each keeps its own maximum.
+        // The whole point with the higher cumulative size wins; size and count are never mixed,
+        // so the higher-size point (100/5) is kept intact rather than fusing count 9 onto it.
         Assert.Single(merged);
         Assert.Equal(100, merged[0].CumulativeSize);
-        Assert.Equal(9, merged[0].CumulativeFileCount);
+        Assert.Equal(5, merged[0].CumulativeFileCount);
     }
 
     [Fact]

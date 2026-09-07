@@ -606,7 +606,8 @@ public sealed class BackupService : IBackupService
     ///     Merges an incoming day-based timeline with the current on-disk series so a restore fills
     ///     history in retroactively. The current file is read directly (the caller already holds the
     ///     timeline gate). A missing or non-day-based current file is ignored, leaving the incoming
-    ///     series as the result.
+    ///     series as the result. On an overlapping day the whole point with the higher cumulative
+    ///     size wins (TimelineAggregator.MergeDailySeries), the single merge rule shared with scans.
     /// </summary>
     /// <param name="timelinePath">The on-disk timeline path.</param>
     /// <param name="incoming">The sanitized day-based timeline from the backup.</param>
@@ -619,37 +620,7 @@ public sealed class BackupService : IBackupService
             return incoming;
         }
 
-        // Preserve the current on-disk point for any overlapping day. Independent per-field
-        // maxima would combine size from one point and count from another, producing a state
-        // that never existed (e.g. after deletions or an empty-state scan).
-        var byDay = new Dictionary<DateTime, GrowthTimelinePoint>();
-        foreach (var point in current.DataPoints)
-        {
-            var day = TimelineAggregator.GetBucketStart(point.Date, "daily");
-            byDay[day] = new GrowthTimelinePoint
-            {
-                Date = day,
-                CumulativeSize = point.CumulativeSize,
-                CumulativeFileCount = point.CumulativeFileCount
-            };
-        }
-
-        foreach (var point in incoming.DataPoints)
-        {
-            var day = TimelineAggregator.GetBucketStart(point.Date, "daily");
-            if (!byDay.ContainsKey(day))
-            {
-                byDay[day] = new GrowthTimelinePoint
-                {
-                    Date = day,
-                    CumulativeSize = point.CumulativeSize,
-                    CumulativeFileCount = point.CumulativeFileCount
-                };
-            }
-        }
-
-        var mergedPoints = byDay.Values.OrderBy(p => p.Date).ToList();
-        mergedPoints = TimelineAggregator.DeduplicateConsecutivePoints(mergedPoints);
+        var mergedPoints = TimelineAggregator.MergeDailySeries(current.DataPoints, incoming.DataPoints);
 
         var result = new GrowthTimelineResult
         {
