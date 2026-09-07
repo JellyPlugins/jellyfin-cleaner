@@ -454,6 +454,17 @@ public sealed class TimelineAggregatorTests
     }
 
     [Fact]
+    public void IsDayBased_DailyMarkerButNonUtcMidnightPoint_ReturnsFalse()
+    {
+        // Midnight but Unspecified kind: a daily point is UTC by construction, so a non-UTC point
+        // means the series was not written by the daily persistence path.
+        var timeline = new GrowthTimelineResult { Granularity = "daily" };
+        timeline.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Unspecified), CumulativeSize = 10, CumulativeFileCount = 1 });
+
+        Assert.False(TimelineAggregator.IsDayBased(timeline));
+    }
+
+    [Fact]
     public void MergeDailySeries_DisjointDays_UnionsAndSorts()
     {
         var first = new List<GrowthTimelinePoint>

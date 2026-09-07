@@ -27,8 +27,10 @@ async function currentLevel(page: Page): Promise<string> {
 }
 
 // Asserts no two X-axis labels overlap: their x positions must differ by a minimum gap.
+// Scopes to the x-axis label group so it never picks up y-axis tick text, and covers edge
+// labels too (which use start/end anchors, so a middle-only selector can be empty when zoomed in).
 async function assertNoLabelOverlap(page: Page): Promise<void> {
-  const xs = await page.locator('.trend-chart svg text[text-anchor="middle"]').evaluateAll(
+  const xs = await page.locator('.trend-chart svg .trend-xlabels text').evaluateAll(
     (nodes) => nodes.map((n) => Number((n as SVGTextElement).getAttribute('x'))).filter((v) => !Number.isNaN(v)),
   );
   const sorted = xs.slice().sort((a, b) => a - b);
@@ -81,15 +83,15 @@ test.describe('trend chart desktop zoom/pan', () => {
     }
     await expect.poll(async () => await page.locator('.trend-chart svg').count(), { timeout: 2_000 }).toBeGreaterThan(0);
 
-    const labelsBefore = await page.locator('.trend-chart svg text[text-anchor="middle"]').allTextContents();
+    const labelsBefore = await page.locator('.trend-chart svg .trend-xlabels text').allTextContents();
 
     await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2);
     await page.mouse.down();
     await page.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2, { steps: 10 });
     await page.mouse.up();
-    await expect.poll(async () => (await page.locator('.trend-chart svg text[text-anchor="middle"]').allTextContents()).join('|'), { timeout: 2_000 }).not.toBe(labelsBefore.join('|'));
+    await expect.poll(async () => (await page.locator('.trend-chart svg .trend-xlabels text').allTextContents()).join('|'), { timeout: 2_000 }).not.toBe(labelsBefore.join('|'));
 
-    const labelsAfter = await page.locator('.trend-chart svg text[text-anchor="middle"]').allTextContents();
+    const labelsAfter = await page.locator('.trend-chart svg .trend-xlabels text').allTextContents();
     expect(labelsAfter.join('|')).not.toBe(labelsBefore.join('|'));
     await assertNoLabelOverlap(page);
   });
@@ -103,7 +105,15 @@ test.describe('trend chart touch gestures', () => {
     test.skip((await chart.count()) === 0, 'no trend data on this server');
 
     const box = (await chart.boundingBox())!;
-    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    // A single-finger touchStart+touchEnd at the same point is a tap. Dispatched via CDP for a
+    // deterministic touch sequence (the same mechanism the pinch test uses).
+    const client = await page.context().newCDPSession(page);
+    await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: cx, y: cy }] });
+    await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+
     await expect(page.locator('.trend-tooltip')).toHaveClass(/visible/, { timeout: 5_000 });
   });
 
@@ -119,7 +129,7 @@ test.describe('trend chart touch gestures', () => {
 
     // Two-finger pinch-out (fingers moving apart) via CDP touch events => zoom in.
     const client = await page.context().newCDPSession(page);
-    async function touch(type: string, points: Array<{ x: number; y: number }>) {
+    async function touch(type: 'touchStart' | 'touchEnd' | 'touchMove' | 'touchCancel', points: Array<{ x: number; y: number }>) {
       await client.send('Input.dispatchTouchEvent', {
         type,
         touchPoints: points.map((p) => ({ x: p.x, y: p.y })),

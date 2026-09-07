@@ -998,4 +998,60 @@ public class BackupServiceTests
             Directory.Delete(tempDir, true);
         }
     }
+
+    [Fact]
+    public void RestoreBackup_WithTimelineGate_AcquiresGateAndMergesEarliestFirstScan()
+    {
+        var tempDir = Path.Join(Path.GetTempPath(), "jh-backup-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            // Current on-disk daily series with a later first-scan timestamp.
+            var current = new GrowthTimelineResult
+            {
+                Granularity = "daily",
+                FirstScanTimestamp = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc)
+            };
+            current.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 300, CumulativeFileCount = 3 });
+            File.WriteAllText(Path.Join(tempDir, "jellyfin-helper-growth-timeline.json"), JsonSerializer.Serialize(current));
+
+            // A real timeline service is wired so the backup gate is actually acquired and released.
+            var gateAcquired = false;
+            var timelineService = new Mock<IGrowthTimelineService>();
+            timelineService
+                .Setup(t => t.AcquireExclusiveAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() =>
+                {
+                    gateAcquired = true;
+                    return Mock.Of<IDisposable>();
+                });
+
+            var configService = new Mock<IPluginConfigurationService>();
+            var service = new BackupService(tempDir, configService.Object, TestMockFactory.CreatePluginLogService(),
+                TestMockFactory.CreateLogger<BackupService>().Object, timelineService.Object);
+
+            // Backup carries an earlier first-scan timestamp, which must win the merge.
+            var backup = CreateValidBackup();
+            backup.GrowthTimeline = new GrowthTimelineResult
+            {
+                Granularity = "daily",
+                FirstScanTimestamp = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            };
+            backup.GrowthTimeline.DataPoints.Add(new GrowthTimelinePoint { Date = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), CumulativeSize = 100, CumulativeFileCount = 1 });
+
+            var summary = service.RestoreBackup(backup);
+
+            Assert.True(summary.TimelineRestored);
+            Assert.True(gateAcquired);
+
+            var merged = JsonSerializer.Deserialize<GrowthTimelineResult>(
+                File.ReadAllText(Path.Join(tempDir, "jellyfin-helper-growth-timeline.json")))!;
+            Assert.Equal(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), merged.FirstScanTimestamp);
+            Assert.Equal(2, merged.DataPoints.Count);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
 }

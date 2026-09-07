@@ -428,10 +428,18 @@ public static class BackupValidator
             result.Warnings.Add($"Unknown timeline granularity '{marker}' is not daily and will be discarded on restore; history will be rebuilt from the baseline.");
         }
 
-        // Check for negative cumulative sizes and file counts (sanity check)
+        WarnOnNegativeCumulatives(result, timeline.DataPoints);
+    }
+
+    /// <summary>
+    ///     Adds at most one warning each for a negative cumulative size and a negative cumulative
+    ///     file count found anywhere in the series, then stops scanning.
+    /// </summary>
+    private static void WarnOnNegativeCumulatives(BackupValidationResult result, IEnumerable<GrowthTimelinePoint> points)
+    {
         var warnedNegativeSize = false;
         var warnedNegativeCount = false;
-        foreach (var point in timeline.DataPoints)
+        foreach (var point in points)
         {
             if (!warnedNegativeSize && point.CumulativeSize < 0)
             {

@@ -260,6 +260,26 @@ public class BackupValidatorTests
     }
 
     [Fact]
+    public void Validate_GrowthTimeline_MissingGranularity_AddsWarningWithMissingMarker()
+    {
+        // An empty granularity is no longer accepted silently; it is flagged as not-daily so restore
+        // discards it and rebuilds from the baseline.
+        var backup = CreateValidBackup();
+        var timeline = new GrowthTimelineResult { Granularity = string.Empty };
+        timeline.DataPoints.Add(new GrowthTimelinePoint
+        {
+            Date = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            CumulativeSize = 1,
+            CumulativeFileCount = 1
+        });
+        backup.GrowthTimeline = timeline;
+
+        var result = BackupValidator.Validate(backup);
+
+        Assert.Contains(result.Warnings, w => w.Contains("Unknown timeline granularity '<missing>'"));
+    }
+
+    [Fact]
     public void Validate_GrowthTimeline_Daily_NoGranularityWarning()
     {
         var backup = CreateValidBackup();

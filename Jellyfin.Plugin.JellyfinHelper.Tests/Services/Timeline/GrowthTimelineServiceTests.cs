@@ -890,4 +890,43 @@ public sealed class GrowthTimelineServiceTests : IDisposable
         Assert.Contains(result.DataPoints, p => p.Date == oldDate && p.CumulativeSize == 9999);
         Assert.Equal(0, result.DataPoints[^1].CumulativeSize);
     }
+
+    [Fact]
+    public async Task ComputeTimelineAsync_EmptyStateWithLegacyCoarseHistory_DiscardsAndPersistsDailyRemoval()
+    {
+        // Zero libraries plus a legacy coarse timeline on disk: the empty-state branch discards the
+        // coarse file, persists an empty daily marker so the stale file is not re-read, and drops
+        // the old coarse point entirely.
+        var timelinePath = Path.Join(_dataPath, "jellyfin-helper-growth-timeline.json");
+        await File.WriteAllTextAsync(
+            timelinePath,
+            "{\"granularity\":\"monthly\",\"firstScanTimestamp\":\"2020-01-01T00:00:00Z\"," +
+            "\"dataPoints\":[{\"date\":\"2020-01-01T00:00:00Z\",\"cumulativeSize\":9999,\"cumulativeFileCount\":5}]}");
+
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns([]);
+
+        var result = await _sut.ComputeTimelineAsync(CancellationToken.None);
+
+        Assert.Equal("daily", result.Granularity);
+        Assert.DoesNotContain(result.DataPoints, p => p.CumulativeSize == 9999);
+
+        // The discard was persisted: reloading yields the daily marker, not the coarse file.
+        var reloaded = await _sut.LoadTimelineAsync(CancellationToken.None);
+        Assert.NotNull(reloaded);
+        Assert.Equal("daily", reloaded!.Granularity);
+        Assert.DoesNotContain(reloaded.DataPoints, p => p.CumulativeSize == 9999);
+    }
+
+    [Fact]
+    public async Task AcquireExclusiveAsync_SerializesAccess_AndReleaseIsIdempotent()
+    {
+        // The gate is held until disposed, then frees the next waiter. A second acquire would block
+        // forever if release were skipped, so completing it proves the release path ran.
+        var first = await _sut.AcquireExclusiveAsync(CancellationToken.None);
+        first.Dispose();
+        first.Dispose(); // double dispose must be a no-op, not a second release
+
+        using var second = await _sut.AcquireExclusiveAsync(CancellationToken.None);
+        Assert.NotNull(second);
+    }
 }
