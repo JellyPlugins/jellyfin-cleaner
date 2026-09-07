@@ -703,6 +703,16 @@ function trendDeltaClass(delta) {
 }
 
 /**
+ * Returns the leading sign for a delta: '+' when positive, the given negative sign when negative,
+ * and '±' when zero. File counts use '' for negatives (the number already carries the minus).
+ */
+function trendDeltaSign(delta, negativeSign) {
+    if (delta > 0) return '+';
+    if (delta < 0) return negativeSign;
+    return '±';
+}
+
+/**
  * Creates the tooltip / crosshair / diff-panel controller. Kept out of attachTrendInteraction so
  * the pointer-to-point mapping and the "then vs now" diff rendering are isolated. The controller
  * reads live render state (svg element, projected points, current level) through getState(), which
@@ -795,7 +805,7 @@ function createTooltipController(chart, container, g, currentPt, getState) {
         var deltaSize = currentPt.s - pt.s;
         var deltaFiles = currentPt.c - pt.c;
         var pctRaw = currentPt.s > 0 ? (deltaSize / currentPt.s) * 100 : 0;
-        var sSign = deltaSize > 0 ? '+' : (deltaSize < 0 ? '-' : '\u00B1');
+        var sSign = trendDeltaSign(deltaSize, '-');
         var pctLabel = '';
         if (deltaSize !== 0 && pctRaw !== 0) {
             var pctDisplay = Number.parseFloat(pctRaw.toFixed(2));
@@ -804,7 +814,7 @@ function createTooltipController(chart, container, g, currentPt, getState) {
         diffSize.textContent = sSign + formatBytes(Math.abs(deltaSize)) + pctLabel;
         diffSize.className = 'trend-diff-stat trend-diff-size ' + trendDeltaClass(deltaSize);
 
-        var fSign = deltaFiles > 0 ? '+' : (deltaFiles < 0 ? '' : '\u00B1');
+        var fSign = trendDeltaSign(deltaFiles, '');
         diffFiles.textContent = fSign + deltaFiles + ' ' + T('trendFiles', 'media files');
         diffFiles.className = 'trend-diff-stat trend-diff-files ' + trendDeltaClass(deltaFiles);
 
@@ -831,6 +841,37 @@ function createTooltipController(chart, container, g, currentPt, getState) {
 }
 
 /**
+ * Creates the render loop. Owns the mutable per-frame render state (projected points, level) and
+ * the rAF-coalesced redraw, so attachTrendInteraction stays a thin wiring function. redraw mutates
+ * the existing SVG in place rather than reparsing markup, keeping pinch-zoom and pan smooth on
+ * touch devices.
+ */
+function createRenderLoop(chartState, svgEl, trendColors, metaLevelEl, initialFrame) {
+    var state = { pointData: initialFrame.pointData, level: initialFrame.level };
+    var redrawPending = false;
+
+    function redraw() {
+        if (!svgEl) return;
+        var frame = computeTrendFrame(chartState);
+        applyTrendFrame(svgEl, frame, trendColors);
+        state.pointData = frame.pointData;
+        state.level = frame.level;
+        if (metaLevelEl) metaLevelEl.textContent = state.level;
+    }
+
+    function scheduleRedraw() {
+        if (redrawPending) return;
+        redrawPending = true;
+        (window.requestAnimationFrame || function (cb) { return setTimeout(cb, 16); })(function () {
+            redrawPending = false;
+            redraw();
+        });
+    }
+
+    return { state: state, scheduleRedraw: scheduleRedraw };
+}
+
+/**
  * Attaches interactive tooltip/crosshair behavior to the trend chart.
  * Called after renderTrendChart HTML is inserted into the DOM.
  */
@@ -841,11 +882,7 @@ function attachTrendInteraction(container, chartState) {
     var g = TREND_GEOM;
     var chartW = g.width - g.padL - g.padR;
 
-    // Per-render state, refreshed by redraw(): the projected points and current level. Seeded from
-    // the initial frame so the first hover/tap works before any gesture.
     var initialFrame = computeTrendFrame(chartState);
-    var pointData = initialFrame.pointData;
-    var level = initialFrame.level;
     // Theme colors are read once here; per-frame redraws never call getComputedStyle so a gesture
     // cannot trigger a forced style recalc.
     var trendColors = readTrendColors();
@@ -856,35 +893,15 @@ function attachTrendInteraction(container, chartState) {
     var currentPt = { d: lastFull.date, s: lastFull.cumulativeSize, c: lastFull.cumulativeFileCount };
 
     var metaLevelEl = container.querySelector('.trend-meta-level');
-
-    var redrawPending = false;
-    function scheduleRedraw() {
-        if (redrawPending) return;
-        redrawPending = true;
-        (window.requestAnimationFrame || function (cb) { return setTimeout(cb, 16); })(function () {
-            redrawPending = false;
-            redraw();
-        });
-    }
-
-    // Mutates the existing SVG in place rather than reparsing markup, so pinch-zoom and pan stay
-    // smooth on touch devices. Listeners live on stable nodes and are never rebound.
-    function redraw() {
-        if (!svgEl) return;
-        var frame = computeTrendFrame(chartState);
-        applyTrendFrame(svgEl, frame, trendColors);
-        pointData = frame.pointData;
-        level = frame.level;
-        if (metaLevelEl) metaLevelEl.textContent = level;
-    }
+    var loop = createRenderLoop(chartState, svgEl, trendColors, metaLevelEl, initialFrame);
 
     var tip = createTooltipController(chart, container, g, currentPt, function () {
-        return { svgEl: svgEl, pointData: pointData, level: level };
+        return { svgEl: svgEl, pointData: loop.state.pointData, level: loop.state.level };
     });
     var onHover = tip.onHover;
     var hideTooltip = tip.hideTooltip;
 
-    var win = createWindowController(chart, chartState, g, chartW, g.width, g.height, scheduleRedraw);
+    var win = createWindowController(chart, chartState, g, chartW, g.width, g.height, loop.scheduleRedraw);
 
     setupWheelZoom(chart, {
         clientXToTime: win.clientXToTime,
