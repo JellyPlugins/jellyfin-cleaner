@@ -693,93 +693,67 @@ function createWindowController(chart, chartState, g, chartW, vbWidth, vbHeight,
 }
 
 /**
- * Attaches interactive tooltip/crosshair behavior to the trend chart.
- * Called after renderTrendChart HTML is inserted into the DOM.
+ * Formats a signed delta with an arrow-direction CSS class. Shared by the size and file-count
+ * rows of the diff panel so the sign/class branching lives in one place.
  */
-function attachTrendInteraction(container, chartState) {
-    var chart = container.querySelector('.trend-chart');
-    if (!chart || !chartState) return;
+function trendDeltaClass(delta) {
+    if (delta > 0) return 'diff-up';
+    if (delta < 0) return 'diff-down';
+    return 'diff-neutral';
+}
 
-    var g = TREND_GEOM;
+/**
+ * Creates the tooltip / crosshair / diff-panel controller. Kept out of attachTrendInteraction so
+ * the pointer-to-point mapping and the "then vs now" diff rendering are isolated. The controller
+ * reads live render state (svg element, projected points, current level) through getState(), which
+ * attachTrendInteraction refreshes on every redraw.
+ */
+function createTooltipController(chart, container, g, currentPt, getState) {
     var chartW = g.width - g.padL - g.padR;
     var vbWidth = g.width;
     var vbHeight = g.height;
 
-    // Per-render state, refreshed by redraw(): the projected points, current level.
-    // Seeded from the initial frame so the first hover/tap works before any gesture.
-    var initialFrame = computeTrendFrame(chartState);
-    var pointData = initialFrame.pointData;
-    var level = initialFrame.level;
-    // Theme colors are read once here; per-frame redraws never call getComputedStyle so a
-    // gesture cannot trigger a forced style recalc.
-    var trendColors = readTrendColors();
-    var svgEl = chart.querySelector('svg');
-    // "Now" is always the latest point of the full daily series, so the diff panel compares
-    // against the true latest value even when panned into the past.
-    var currentPt = (function () {
-        var last = chartState.fullDaily.at(-1);
-        return { d: last.date, s: last.cumulativeSize, c: last.cumulativeFileCount };
-    })();
-
-    var metaLevelEl = container.querySelector('.trend-meta-level');
-
-    var redrawPending = false;
-    function scheduleRedraw() {
-        if (redrawPending) return;
-        redrawPending = true;
-        (window.requestAnimationFrame || function (cb) { return setTimeout(cb, 16); })(function () {
-            redrawPending = false;
-            redraw();
-        });
-    }
-
-    // Mutates the existing SVG in place rather than reparsing markup, so pinch-zoom and pan
-    // stay smooth on touch devices. Listeners live on stable nodes and are never rebound.
-    function redraw() {
-        if (!svgEl) return;
-        var frame = computeTrendFrame(chartState);
-        applyTrendFrame(svgEl, frame, trendColors);
-        pointData = frame.pointData;
-        level = frame.level;
-        if (metaLevelEl) metaLevelEl.textContent = level;
-    }
+    var diffPanel = container.querySelector('.trend-diff-panel');
+    var diffDates = diffPanel ? diffPanel.querySelector('.trend-diff-dates') : null;
+    var diffThenSize = diffPanel ? diffPanel.querySelector('.trend-diff-then-size') : null;
+    var diffThenCount = diffPanel ? diffPanel.querySelector('.trend-diff-then-count') : null;
+    var diffNowDate = diffPanel ? diffPanel.querySelector('.trend-diff-now-date') : null;
+    var diffNowSize = diffPanel ? diffPanel.querySelector('.trend-diff-now-size') : null;
+    var diffNowCount = diffPanel ? diffPanel.querySelector('.trend-diff-now-count') : null;
+    var diffSize = diffPanel ? diffPanel.querySelector('.trend-diff-size') : null;
+    var diffFiles = diffPanel ? diffPanel.querySelector('.trend-diff-files') : null;
 
     function nearestByClientX(clientX) {
-        var rect = svgEl.getBoundingClientRect();
+        var s = getState();
+        var rect = s.svgEl.getBoundingClientRect();
         var scale = Math.min(rect.width / vbWidth, rect.height / vbHeight);
         var offsetX = (rect.width - vbWidth * scale) / 2;
-        var svgX = (clientX - rect.left - offsetX) / scale;
-        var chartX = svgX - g.padL;
+        var chartX = (clientX - rect.left - offsetX) / scale - g.padL;
         if (chartX < 0) chartX = 0;
         if (chartX > chartW) chartX = chartW;
-        // Nearest visible projected point by pixel x.
         var best = 0;
         var bestDist = Infinity;
-        var idx = 0;
-        for (const pt of pointData) {
-            var dist = Math.abs((pt.x - g.padL) - chartX);
+        for (var idx = 0; idx < s.pointData.length; idx++) {
+            var dist = Math.abs((s.pointData[idx].x - g.padL) - chartX);
             if (dist < bestDist) { bestDist = dist; best = idx; }
-            idx++;
         }
         return best;
     }
 
     function showTooltip(idx) {
-        if (idx < 0 || idx >= pointData.length) return;
+        var s = getState();
+        if (idx < 0 || idx >= s.pointData.length) return;
         var tooltip = chart.querySelector('.trend-tooltip');
         var crosshair = chart.querySelector('.trend-crosshair');
         var activeDot = chart.querySelector('.trend-active-dot');
         if (!tooltip || !crosshair || !activeDot) return;
 
-        var pt = pointData[idx];
-        var svgRect = svgEl.getBoundingClientRect();
+        var pt = s.pointData[idx];
+        var svgRect = s.svgEl.getBoundingClientRect();
         var chartRect = chart.getBoundingClientRect();
-
         var scale = Math.min(svgRect.width / vbWidth, svgRect.height / vbHeight);
-        var renderedW = vbWidth * scale;
-        var renderedH = vbHeight * scale;
-        var offsetX = (svgRect.width - renderedW) / 2;
-        var offsetY = (svgRect.height - renderedH) / 2;
+        var offsetX = (svgRect.width - vbWidth * scale) / 2;
+        var offsetY = (svgRect.height - vbHeight * scale) / 2;
         var pixelX = pt.x * scale + offsetX + (svgRect.left - chartRect.left);
         var pixelY = pt.y * scale + offsetY + (svgRect.top - chartRect.top);
 
@@ -789,7 +763,7 @@ function attachTrendInteraction(container, chartState) {
         activeDot.style.top = pixelY + 'px';
         activeDot.classList.add('visible');
 
-        tooltip.querySelector('.tt-date').textContent = formatGranularityLabel(pt.d, level);
+        tooltip.querySelector('.tt-date').textContent = formatGranularityLabel(pt.d, s.level);
         tooltip.querySelector('.tt-size').textContent = formatBytes(pt.s);
         tooltip.querySelector('.tt-files').textContent = pt.c + ' ' + T('trendFiles', 'media files');
 
@@ -805,69 +779,36 @@ function attachTrendInteraction(container, chartState) {
         tooltip.classList.add('visible');
     }
 
-    var diffPanel = container.querySelector('.trend-diff-panel');
-    var diffDates = diffPanel ? diffPanel.querySelector('.trend-diff-dates') : null;
-    var diffThenSize = diffPanel ? diffPanel.querySelector('.trend-diff-then-size') : null;
-    var diffThenCount = diffPanel ? diffPanel.querySelector('.trend-diff-then-count') : null;
-    var diffNowDate = diffPanel ? diffPanel.querySelector('.trend-diff-now-date') : null;
-    var diffNowSize = diffPanel ? diffPanel.querySelector('.trend-diff-now-size') : null;
-    var diffNowCount = diffPanel ? diffPanel.querySelector('.trend-diff-now-count') : null;
-    var diffSize = diffPanel ? diffPanel.querySelector('.trend-diff-size') : null;
-    var diffFiles = diffPanel ? diffPanel.querySelector('.trend-diff-files') : null;
-
     function updateDiffPanel(idx) {
+        var s = getState();
         if (!diffPanel || !diffDates || !diffSize || !diffFiles) return;
-        if (idx < 0 || idx >= pointData.length) return;
+        if (idx < 0 || idx >= s.pointData.length) return;
 
-        var pt = pointData[idx];
-        var hoveredLabel = formatGranularityLabel(pt.d, level);
-        var currentLabel = formatGranularityLabel(currentPt.d, level);
-
-        diffDates.textContent = hoveredLabel;
+        var pt = s.pointData[idx];
+        diffDates.textContent = formatGranularityLabel(pt.d, s.level);
         if (diffThenSize) diffThenSize.textContent = formatBytes(pt.s);
         if (diffThenCount) diffThenCount.textContent = pt.c + ' ' + T('trendFiles', 'media files');
-
-        if (diffNowDate) diffNowDate.textContent = currentLabel + ' (' + T('trendNow', 'now') + ')';
+        if (diffNowDate) diffNowDate.textContent = formatGranularityLabel(currentPt.d, s.level) + ' (' + T('trendNow', 'now') + ')';
         if (diffNowSize) diffNowSize.textContent = formatBytes(currentPt.s);
         if (diffNowCount) diffNowCount.textContent = currentPt.c + ' ' + T('trendFiles', 'media files');
 
         var deltaSize = currentPt.s - pt.s;
         var deltaFiles = currentPt.c - pt.c;
         var pctRaw = currentPt.s > 0 ? (deltaSize / currentPt.s) * 100 : 0;
-
-        var sSign;
-        if (deltaSize > 0) sSign = '+';
-        else if (deltaSize < 0) sSign = '-';
-        else sSign = '\u00B1';
+        var sSign = deltaSize > 0 ? '+' : (deltaSize < 0 ? '-' : '\u00B1');
         var pctLabel = '';
         if (deltaSize !== 0 && pctRaw !== 0) {
             var pctDisplay = Number.parseFloat(pctRaw.toFixed(2));
-            var pctSign = pctDisplay > 0 ? '+' : '';
-            pctLabel = ' (' + pctSign + pctDisplay + '%)';
+            pctLabel = ' (' + (pctDisplay > 0 ? '+' : '') + pctDisplay + '%)';
         }
         diffSize.textContent = sSign + formatBytes(Math.abs(deltaSize)) + pctLabel;
-        var deltaSizeClass;
-        if (deltaSize > 0) deltaSizeClass = 'diff-up';
-        else if (deltaSize < 0) deltaSizeClass = 'diff-down';
-        else deltaSizeClass = 'diff-neutral';
-        diffSize.className = 'trend-diff-stat trend-diff-size ' + deltaSizeClass;
+        diffSize.className = 'trend-diff-stat trend-diff-size ' + trendDeltaClass(deltaSize);
 
-        var fSign;
-        if (deltaFiles > 0) fSign = '+';
-        else if (deltaFiles < 0) fSign = '';
-        else fSign = '\u00B1';
+        var fSign = deltaFiles > 0 ? '+' : (deltaFiles < 0 ? '' : '\u00B1');
         diffFiles.textContent = fSign + deltaFiles + ' ' + T('trendFiles', 'media files');
-        var deltaFilesClass;
-        if (deltaFiles > 0) deltaFilesClass = 'diff-up';
-        else if (deltaFiles < 0) deltaFilesClass = 'diff-down';
-        else deltaFilesClass = 'diff-neutral';
-        diffFiles.className = 'trend-diff-stat trend-diff-files ' + deltaFilesClass;
+        diffFiles.className = 'trend-diff-stat trend-diff-files ' + trendDeltaClass(deltaFiles);
 
         diffPanel.classList.add('visible');
-    }
-
-    function hideDiffPanel() {
-        if (diffPanel) diffPanel.classList.remove('visible');
     }
 
     function hideTooltip() {
@@ -877,7 +818,7 @@ function attachTrendInteraction(container, chartState) {
         if (tooltip) tooltip.classList.remove('visible');
         if (crosshair) crosshair.classList.remove('visible');
         if (activeDot) activeDot.classList.remove('visible');
-        hideDiffPanel();
+        if (diffPanel) diffPanel.classList.remove('visible');
     }
 
     function onHover(clientX) {
@@ -886,22 +827,76 @@ function attachTrendInteraction(container, chartState) {
         updateDiffPanel(idx);
     }
 
-    var win = createWindowController(chart, chartState, g, chartW, vbWidth, vbHeight, scheduleRedraw);
-    var clientXToTime = win.clientXToTime;
-    var zoomAbout = win.zoomAbout;
-    var panByPixels = win.panByPixels;
+    return { onHover: onHover, hideTooltip: hideTooltip };
+}
+
+/**
+ * Attaches interactive tooltip/crosshair behavior to the trend chart.
+ * Called after renderTrendChart HTML is inserted into the DOM.
+ */
+function attachTrendInteraction(container, chartState) {
+    var chart = container.querySelector('.trend-chart');
+    if (!chart || !chartState) return;
+
+    var g = TREND_GEOM;
+    var chartW = g.width - g.padL - g.padR;
+
+    // Per-render state, refreshed by redraw(): the projected points and current level. Seeded from
+    // the initial frame so the first hover/tap works before any gesture.
+    var initialFrame = computeTrendFrame(chartState);
+    var pointData = initialFrame.pointData;
+    var level = initialFrame.level;
+    // Theme colors are read once here; per-frame redraws never call getComputedStyle so a gesture
+    // cannot trigger a forced style recalc.
+    var trendColors = readTrendColors();
+    var svgEl = chart.querySelector('svg');
+    // "Now" is always the latest point of the full daily series, so the diff panel compares against
+    // the true latest value even when panned into the past.
+    var lastFull = chartState.fullDaily.at(-1);
+    var currentPt = { d: lastFull.date, s: lastFull.cumulativeSize, c: lastFull.cumulativeFileCount };
+
+    var metaLevelEl = container.querySelector('.trend-meta-level');
+
+    var redrawPending = false;
+    function scheduleRedraw() {
+        if (redrawPending) return;
+        redrawPending = true;
+        (window.requestAnimationFrame || function (cb) { return setTimeout(cb, 16); })(function () {
+            redrawPending = false;
+            redraw();
+        });
+    }
+
+    // Mutates the existing SVG in place rather than reparsing markup, so pinch-zoom and pan stay
+    // smooth on touch devices. Listeners live on stable nodes and are never rebound.
+    function redraw() {
+        if (!svgEl) return;
+        var frame = computeTrendFrame(chartState);
+        applyTrendFrame(svgEl, frame, trendColors);
+        pointData = frame.pointData;
+        level = frame.level;
+        if (metaLevelEl) metaLevelEl.textContent = level;
+    }
+
+    var tip = createTooltipController(chart, container, g, currentPt, function () {
+        return { svgEl: svgEl, pointData: pointData, level: level };
+    });
+    var onHover = tip.onHover;
+    var hideTooltip = tip.hideTooltip;
+
+    var win = createWindowController(chart, chartState, g, chartW, g.width, g.height, scheduleRedraw);
 
     setupWheelZoom(chart, {
-        clientXToTime: clientXToTime,
-        zoomAbout: zoomAbout,
+        clientXToTime: win.clientXToTime,
+        zoomAbout: win.zoomAbout,
         hideTooltip: hideTooltip,
         domainStart: win.domainStart,
         domainEnd: win.domainEnd,
         chartState: chartState,
         minSpanMs: win.MIN_SPAN_MS
     });
-    setupDragPan(chart, panByPixels, hideTooltip);
-    setupTouchGestures(chart, clientXToTime, zoomAbout, panByPixels, hideTooltip, onHover);
+    setupDragPan(chart, win.panByPixels, hideTooltip);
+    setupTouchGestures(chart, win.clientXToTime, win.zoomAbout, win.panByPixels, hideTooltip, onHover);
 
     // Hover listeners are attached once to the stable <svg>. The SVG element is never replaced
     // (redraw mutates it in place), so these never need rebinding across gestures or redraws.

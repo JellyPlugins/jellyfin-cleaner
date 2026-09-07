@@ -148,9 +148,10 @@ public partial class TrendsHtmlTests : ConfigPageTestBase
     [Fact]
     public void Html_TrendChart_ContainsDiffPanelInteraction()
     {
-        // The interaction handler should update and hide the diff panel
+        // The tooltip controller updates the diff panel and hides it together with the tooltip.
         Assert.Contains("function updateDiffPanel", HtmlContent);
-        Assert.Contains("function hideDiffPanel", HtmlContent);
+        Assert.Contains("function createTooltipController", HtmlContent);
+        Assert.Contains("function hideTooltip", HtmlContent);
     }
 
     [Fact]
