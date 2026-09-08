@@ -639,7 +639,13 @@ function apiGetOptional(path, onSuccess, onNoContent, onError) {
             if (onNoContent) onNoContent();
             return;
         }
-        if (!response.ok) throw new Error('HTTP ' + response.status);
+        if (!response.ok) {
+            // Attach the HTTP status so describeApiError can classify it (e.g. 401/403
+            // -> "unauthorized"); a bare Error would be read as status 0 ("network").
+            var httpErr = new Error('HTTP ' + response.status);
+            httpErr.status = response.status;
+            throw httpErr;
+        }
         return response.json().then(onSuccess || function () {
         });
     }).catch(errHandler);

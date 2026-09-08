@@ -30,24 +30,32 @@ test('overview renders stat cards after scan', async ({ page }) => {
   ).toBeVisible({ timeout: 20_000 });
 });
 
-test('a browser refresh does not leave the stats admin-error banner stuck', async ({ page }) => {
-  // On refresh the stats request can fire before Jellyfin's ApiClient token is
-  // ready, briefly yielding 401/403. The plugin retries transient auth failures,
-  // so an admin must never be left looking at "Failed to load statistics. Make
-  // sure you are an administrator." Reload a few times and assert the banner is
-  // not stuck and the overview still populates.
+test('a transient auth failure on refresh is retried, not shown as a stuck admin error', async ({ page }) => {
+  // Regression guard for the refresh race: on reload the stats read can fire before
+  // Jellyfin's ApiClient token is ready and come back 401/403. The plugin must retry
+  // the idempotent Latest read instead of leaving the admin an error banner. We force
+  // the failure deterministically: the first two MediaStatistics/Latest requests are
+  // answered 403, the rest pass through. Without the retry this leaves the banner
+  // stuck; with it, the banner clears and the overview populates.
+  let latestHits = 0;
+  await page.route('**/JellyfinHelper/MediaStatistics/Latest', async (route) => {
+    latestHits += 1;
+    if (latestHits <= 2) {
+      await route.fulfill({ status: 403, contentType: 'application/json', body: '{}' });
+      return;
+    }
+    await route.continue();
+  });
+
   await openDashboard(page);
 
   const errBanner = page.locator('#overviewContent .error-msg', { hasText: /administrator/i });
 
-  for (let i = 0; i < 3; i++) {
-    await page.reload({ waitUntil: 'load' });
-    await expect(page.locator('.tab-bar')).toBeVisible({ timeout: 15_000 });
-    // Once loading settles the transient banner must be gone (retry resolves it).
-    await expect(errBanner).toBeHidden({ timeout: 20_000 });
-  }
-
-  // The overview must ultimately show real content, proving stats loaded.
+  // The forced 403s must have been consumed (proves the retry actually re-requested).
+  await expect.poll(() => latestHits, { timeout: 20_000 }).toBeGreaterThan(2);
+  // After the retries resolve, no stuck admin-error banner.
+  await expect(errBanner).toBeHidden({ timeout: 20_000 });
+  // And the overview ultimately shows real content, proving stats loaded post-retry.
   await expect(
     page.locator('#overviewContent .stat-card, #overviewContent .library-table').first(),
   ).toBeVisible({ timeout: 20_000 });
