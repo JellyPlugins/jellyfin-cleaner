@@ -925,13 +925,17 @@ function showTrashDeleteConfirmation(payload, paths) {
         msg.innerHTML = '<div style="opacity:0.6;">' + escHtml(T('trashDeleting', 'Deleting trash folders…')) + '</div>';
 
         apiDelete('JellyfinHelper/Trash/Folders', function (result) {
+            // Jellyfin 12 serializes controller DTOs in PascalCase (Deleted/Failed);
+            // Jellyfin 10.x used camelCase. Accept both.
+            var deletedCount = result && (result.Deleted != null ? result.Deleted : result.deleted);
+            var failedCount = result && (result.Failed != null ? result.Failed : result.failed);
             var summary = '';
             var statusClass = 'success-msg';
-            if (result.deleted > 0) {
-                summary += mi('check_circle') + ' ' + escHtml(T('trashDeletedCount', 'Deleted')) + ': ' + (Math.max(0, Number.parseInt(result.deleted, 10) || 0)) + ' ' + escHtml(T('folders', 'folders'));
+            if (deletedCount > 0) {
+                summary += mi('check_circle') + ' ' + escHtml(T('trashDeletedCount', 'Deleted')) + ': ' + (Math.max(0, Number.parseInt(deletedCount, 10) || 0)) + ' ' + escHtml(T('folders', 'folders'));
             }
-            if (result.failed > 0) {
-                summary += (summary ? ' | ' : '') + mi('error') + ' ' + escHtml(T('trashFailedCount', 'Failed')) + ': ' + (Math.max(0, Number.parseInt(result.failed, 10) || 0));
+            if (failedCount > 0) {
+                summary += (summary ? ' | ' : '') + mi('error') + ' ' + escHtml(T('trashFailedCount', 'Failed')) + ': ' + (Math.max(0, Number.parseInt(failedCount, 10) || 0));
                 statusClass = 'error-msg';
             }
             if (!summary) {
@@ -1172,8 +1176,12 @@ function attachSeerrHandlers() {
         btn.innerHTML = '<span class="btn-spinner"></span>' + escHtml(T('testing', 'Testing…'));
         apiPost('JellyfinHelper/Seerr/Test', {Url: url, ApiKey: key}, function (res) {
             btn.disabled = false;
-            if (res && res.success) {
-                _seerrTimer = showButtonFeedback(btn, true, res.message || 'OK', originalHtml);
+            // Jellyfin 12 serializes controller DTOs in PascalCase (Success/Message);
+            // Jellyfin 10.x used camelCase. Accept both.
+            var testOk = res && (res.Success || res.success);
+            var testMsg = res && (res.Message || res.message);
+            if (testOk) {
+                _seerrTimer = showButtonFeedback(btn, true, testMsg || 'OK', originalHtml);
                 // Auto-save settings after successful connection test (quiet to avoid double feedback)
                 var payload = buildSettingsPayload();
                 doSaveSettings(payload, {quiet: true, element: document.getElementById('arrCollapsibleHeaderSeerr')});
@@ -1182,7 +1190,7 @@ function attachSeerrHandlers() {
                 // Refresh the Discovery wrapper (depends on Seerr being configured)
                 refreshDiscoveryAccessState();
             } else {
-                _seerrTimer = showButtonFeedback(btn, false, res.message || 'Failed', originalHtml);
+                _seerrTimer = showButtonFeedback(btn, false, testMsg || 'Failed', originalHtml);
             }
         }, function () {
             btn.disabled = false;
@@ -1454,7 +1462,7 @@ function initLibraryMultiSelects(cfg) {
     }
 
     apiGet('JellyfinHelper/Configuration/Libraries', function (data) {
-        var libraries = (data && data.libraries) || [];
+        var libraries = (data && (data.Libraries || data.libraries)) || [];
         var excludedSet = parseCommaSeparatedSet(cfg.ExcludedLibraries || '');
 
         renderLibraryMultiSelect('cfgExcludedWrapper', libraries, excludedSet, 'excluded');
@@ -1463,6 +1471,21 @@ function initLibraryMultiSelects(cfg) {
         var excWrap = document.getElementById('cfgExcludedWrapper');
         if (excWrap) excWrap.innerHTML = '<input type="text" id="cfgExcludedFallback" value="' + escAttr(cfg.ExcludedLibraries || '') + '">';
     });
+}
+
+/**
+ * Reads a library entry's name across Jellyfin API casings. Jellyfin 12 serializes
+ * controller DTOs in PascalCase (Name).
+ */
+function libraryEntryName(entry) {
+    return (entry && (entry.Name || entry.name)) || '';
+}
+
+/**
+ * Reads a library entry's collection type across Jellyfin API casings (see libraryEntryName).
+ */
+function libraryEntryType(entry) {
+    return (entry && (entry.CollectionType || entry.collectionType)) || '';
 }
 
 /**
@@ -1488,7 +1511,7 @@ function renderLibraryMultiSelect(wrapperId, libraries, selectedSet, type) {
     // (renamed/deleted). Store them so getLibraryMultiSelectValue() can preserve them.
     var available = {};
     for (var ai = 0; ai < libraries.length; ai++) {
-        available[libraries[ai].name.toLowerCase()] = true;
+        available[libraryEntryName(libraries[ai]).toLowerCase()] = true;
     }
     var missingSelected = [];
     for (var key in selectedSet) {
@@ -1520,11 +1543,13 @@ function renderLibraryMultiSelect(wrapperId, libraries, selectedSet, type) {
     } else {
         for (var i = 0; i < libraries.length; i++) {
             var lib = libraries[i];
-            var isChecked = !!(selectedSet[lib.name.toLowerCase()]);
+            var libName = libraryEntryName(lib);
+            var libType = libraryEntryType(lib);
+            var isChecked = !!(selectedSet[libName.toLowerCase()]);
             var checkId = wrapperId + '_lib_' + i;
             h += '<div class="library-multiselect-item">';
-            h += '<input type="checkbox" id="' + checkId + '" value="' + escAttr(lib.name) + '"' + (isChecked ? ' checked' : '') + '>';
-            h += '<label for="' + checkId + '">' + escHtml(lib.name) + ' <span class="library-type-badge">' + escHtml(lib.collectionType) + '</span></label>';
+            h += '<input type="checkbox" id="' + checkId + '" value="' + escAttr(libName) + '"' + (isChecked ? ' checked' : '') + '>';
+            h += '<label for="' + checkId + '">' + escHtml(libName) + ' <span class="library-type-badge">' + escHtml(libType) + '</span></label>';
             h += '</div>';
         }
     }

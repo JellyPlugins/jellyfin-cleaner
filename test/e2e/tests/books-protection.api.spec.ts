@@ -16,6 +16,7 @@ interface Stats {
   TotalBookFileCount: number;
   TotalBookSize: number;
   TotalBookFormats: Record<string, number>;
+  BookRootPaths: string[];
 }
 
 let ctx: APIRequestContext;
@@ -103,6 +104,25 @@ test.describe('Book libraries are tracked in statistics but never deleted by cle
     for (const lib of stats.Books) {
       expect(lib.BookFileCount ?? 0, `Books entry ${lib.LibraryName} has files`).toBeGreaterThan(0);
     }
+  });
+
+  test('ROOT PATHS: BookRootPaths is emitted so the codec drill-down can group book files by library root', async () => {
+    // The Codec tab's book-format drill-down (renderFileTree in the UI) needs a
+    // BookRootPaths set to trim a common prefix, exactly like MovieRootPaths /
+    // TvShowRootPaths do. Before this field existed the book file tree fell back to
+    // an empty totals branch and rendered "No files found" even though books were
+    // present. This asserts the server now emits the field with the fixture root.
+    const stats = await getStats();
+
+    // The e2e fixture always provisions a Books library (global-setup ensures
+    // /media/Books with EPUB+PDF), so this must be present - do not skip, or the
+    // BookRootPaths contract would pass vacuously.
+    expect(stats.Books.length, 'Books fixture must be provisioned by global-setup').toBeGreaterThan(0);
+
+    expect(Array.isArray(stats.BookRootPaths), 'BookRootPaths is present as an array').toBe(true);
+    expect(stats.BookRootPaths.length, 'BookRootPaths is non-empty when a Book library exists').toBeGreaterThan(0);
+    // The fixture provisions the Books library at /media/Books.
+    expect(stats.BookRootPaths.some((r) => r.includes('Books')), 'BookRootPaths contains the book library root').toBe(true);
   });
 
   test('NO-DELETE: aggressive Activate-mode cleanup leaves every eBook file/folder intact', async () => {

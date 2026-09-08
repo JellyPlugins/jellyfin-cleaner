@@ -55,3 +55,54 @@ test('Health tab: clicking a health item opens its detail tree', async ({ page }
   const panel = page.locator('#healthDetailPanel');
   await expect(panel).toHaveClass(/file-tree-panel-visible/);
 });
+
+test('Codecs tab: clicking a book format shows the book file tree, not an empty state', async ({ page }) => {
+  // Regression guard for the book-format drill-down: under Jellyfin 12 the file
+  // tree renderer had no "books" section and excluded books from its file total,
+  // so clicking a book format (CBZ/EPUB/PDF) rendered "No files found." even
+  // though the chart above listed those formats. This clicks the bookFormats row
+  // and asserts a real books section with at least one file node appears.
+  await openDashboard(page);
+  await switchTab(page, 'codecs');
+
+  // The e2e fixture always provisions a Books library (EPUB+PDF), so the
+  // bookFormats breakdown must render. Do not skip on absence, or this regression
+  // guard would pass without ever exercising the book file-tree path.
+  const bookRow = page.locator('.codec-row.codec-clickable[data-chart="bookFormats"]').first();
+  await expect(bookRow, 'bookFormats breakdown row must render from the Books fixture').toBeVisible({ timeout: 20_000 });
+  await bookRow.click();
+
+  const panel = page.locator('#codecDetail_bookFormats');
+  await expect(panel).toHaveClass(/file-tree-panel-visible/);
+  // The books section must render (badge-books) and must NOT be the empty state.
+  await expect(panel.locator('.file-tree-section .badge-books')).toBeVisible();
+  await expect(panel.locator('.file-tree-empty')).toHaveCount(0);
+  // Book file paths are present in the tree (this is what BookFormatPaths feeds).
+  // They live inside collapsed folder nodes, so assert at least one exists, then
+  // expand the tree to prove a real leaf becomes visible - mirroring the codec test.
+  const leaves = panel.locator('.tree-leaf, .tree-leaf-file-name');
+  expect(await leaves.count(), 'book file leaves must be rendered').toBeGreaterThan(0);
+  const expandAll = panel.locator('[data-tree-action="expand"]');
+  if (await expandAll.count()) {
+    await expandAll.click();
+    await expect(leaves.first()).toBeVisible();
+  }
+});
+
+test('Settings tab: the Excluded Libraries multi-select lists libraries', async ({ page }) => {
+  // Regression guard for the empty "Excluded Libraries" dropdown: the frontend
+  // read data.libraries (camelCase) but Jellyfin 12 serializes the response as
+  // data.Libraries (PascalCase), so the list came back empty and the panel showed
+  // "No data". This asserts the multi-select is populated with real entries.
+  await openDashboard(page);
+  await switchTab(page, 'settings');
+
+  const wrapper = page.locator('#cfgExcludedWrapper');
+  await expect(wrapper.locator('.library-multiselect-toggle')).toBeVisible({ timeout: 20_000 });
+
+  // Open the dropdown panel and assert it contains selectable library entries
+  // rather than the "No data" fallback.
+  await wrapper.locator('.library-multiselect-toggle').click();
+  await expect(wrapper.locator('.library-multiselect-item').first()).toBeVisible();
+  expect(await wrapper.locator('.library-multiselect-item').count()).toBeGreaterThan(0);
+});

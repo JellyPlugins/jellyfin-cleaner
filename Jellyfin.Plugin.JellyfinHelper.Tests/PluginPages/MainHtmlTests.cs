@@ -233,4 +233,22 @@ public class MainHtmlTests : ConfigPageTestBase
         // btnScanLibraries gets its icon from SVG.REFRESH
         Assert.Contains("SVG.REFRESH", HtmlContent);
     }
+
+    [Fact]
+    public void Html_StatisticsLoad_RetriesTransientAuthFailures()
+    {
+        // On a browser refresh the persisted-statistics read can race ApiClient token
+        // readiness and return 401/403. The loader must retry that idempotent read
+        // (bounded) instead of immediately flashing the admin-error banner.
+        Assert.Contains("_latestStatsAuthRetries", HtmlContent);
+        Assert.Contains("_maxLatestStatsAuthRetries", HtmlContent);
+        Assert.Contains("describeApiError", HtmlContent);
+        // The retry must be gated on transient kinds only, so a genuine non-admin
+        // still sees the error after retries are exhausted.
+        Assert.Contains("kind === 'unauthorized'", HtmlContent);
+        // ScanLibraries starts work, so it must retry the Latest read - never re-issue
+        // the scan on a transient failure (which could trigger a duplicate scan).
+        Assert.Contains("setTimeout(loadLatestStatistics", HtmlContent);
+        Assert.DoesNotContain("setTimeout(loadStatistics, _", HtmlContent);
+    }
 }

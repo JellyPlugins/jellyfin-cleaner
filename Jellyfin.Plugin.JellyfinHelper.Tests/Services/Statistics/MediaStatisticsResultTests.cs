@@ -369,6 +369,16 @@ public class MediaStatisticsResultTests
     }
 
     [Fact]
+    public void BookRootPaths_AggregatesFromBooks()
+    {
+        var result = new MediaStatisticsResult();
+        var lib = new LibraryStatistics();
+        lib.RootPaths.Add("/media/books");
+        result.Books.Add(lib);
+        Assert.Contains("/media/books", result.BookRootPaths);
+    }
+
+    [Fact]
     public void OtherRootPaths_AggregatesFromOther()
     {
         var result = new MediaStatisticsResult();

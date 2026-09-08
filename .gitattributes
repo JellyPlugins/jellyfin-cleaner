@@ -17,6 +17,7 @@
 *.css text eol=lf
 *.js text eol=lf
 *.ts text eol=lf
+*.sh text eol=lf
 *.ruleset text eol=lf
 .editorconfig text eol=lf
 .gitignore text eol=lf

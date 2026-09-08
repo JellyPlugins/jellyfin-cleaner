@@ -203,6 +203,12 @@ public class LibraryStatistics
     public Dictionary<string, Collection<string>> ContainerFormatPaths { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Gets the book format file paths (format -> list of file paths). Populated for eBook
+    /// libraries so the codec-tab drill-down can list the files behind each book format.
+    /// </summary>
+    public Dictionary<string, Collection<string>> BookFormatPaths { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Gets the resolution file paths (resolution -> list of file paths).
     /// </summary>
     public Dictionary<string, Collection<string>> ResolutionPaths { get; } = new(StringComparer.OrdinalIgnoreCase);

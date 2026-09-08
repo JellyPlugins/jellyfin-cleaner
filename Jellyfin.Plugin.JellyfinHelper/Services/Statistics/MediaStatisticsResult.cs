@@ -221,25 +221,45 @@ public class MediaStatisticsResult
     /// Gets the set of root paths for all movie libraries.
     /// </summary>
     [JsonInclude]
-    public HashSet<string> MovieRootPaths => new(Movies.SelectMany(l => l.RootPaths), StringComparer.OrdinalIgnoreCase);
+    public HashSet<string> MovieRootPaths => AggregateRootPaths(Movies);
 
     /// <summary>
     /// Gets the set of root paths for all TV show libraries.
     /// </summary>
     [JsonInclude]
-    public HashSet<string> TvShowRootPaths => new(TvShows.SelectMany(l => l.RootPaths), StringComparer.OrdinalIgnoreCase);
+    public HashSet<string> TvShowRootPaths => AggregateRootPaths(TvShows);
 
     /// <summary>
     /// Gets the set of root paths for all music libraries.
     /// </summary>
     [JsonInclude]
-    public HashSet<string> MusicRootPaths => new(Music.SelectMany(l => l.RootPaths), StringComparer.OrdinalIgnoreCase);
+    public HashSet<string> MusicRootPaths => AggregateRootPaths(Music);
+
+    /// <summary>
+    /// Gets the set of root paths for all book libraries.
+    /// </summary>
+    [JsonInclude]
+    public HashSet<string> BookRootPaths => AggregateRootPaths(Books);
 
     /// <summary>
     /// Gets the set of root paths for all other libraries.
     /// </summary>
     [JsonInclude]
-    public HashSet<string> OtherRootPaths => new(Other.SelectMany(l => l.RootPaths), StringComparer.OrdinalIgnoreCase);
+    public HashSet<string> OtherRootPaths => AggregateRootPaths(Other);
+
+    private static HashSet<string> AggregateRootPaths(IEnumerable<LibraryStatistics> libraries)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var library in libraries)
+        {
+            foreach (var path in library.RootPaths)
+            {
+                result.Add(path);
+            }
+        }
+
+        return result;
+    }
 
     private static Dictionary<string, int> AggregateDictionaries(IEnumerable<Dictionary<string, int>> dictionaries)
     {

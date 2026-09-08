@@ -168,4 +168,13 @@ public class CodecsHtmlTests : ConfigPageTestBase
     {
         Assert.Contains("donut-tooltip", HtmlContent);
     }
+
+    [Fact]
+    public void Html_CollectCodecPaths_IncludesBookRootPaths()
+    {
+        // The book-format drill-down needs BookRootPaths so renderFileTree can trim a
+        // common prefix, matching movies/tvShows/music. Guards against the field being
+        // dropped from collectCodecPaths.rootPaths.
+        Assert.Contains("books: data.BookRootPaths || []", HtmlContent);
+    }
 }
