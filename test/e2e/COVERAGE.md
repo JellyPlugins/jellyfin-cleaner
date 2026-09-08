@@ -246,11 +246,16 @@ plugin stays Active after every call).
   specs now **self-provision** their preconditions (configure Mock Radarr / set a
   non-Deactivate recs mode via API in `beforeAll`) instead of relying on leftover state,
   so they run rather than skip.
+- **Refresh resilience**: after repeated hard reloads the transient "Failed to load
+  statistics. Make sure you are an administrator." banner is **not stuck** (the loader
+  retries transient 401/403 auth-not-ready failures) and the overview repopulates.
 
 ## 10. UI: interactions
 | Covered | File |
 |---|---|
 | Codec breakdown row → file tree; folder expand/collapse; Expand/Collapse All; re-click closes | `trees.ui.spec.ts` |
+| Book-format breakdown row → file tree shows a **Books section with files** (not "No files found") | `trees.ui.spec.ts` |
+| Excluded Libraries multi-select **lists libraries** (not "No data") | `trees.ui.spec.ts` |
 | Health item → detail tree | `trees.ui.spec.ts` |
 | Logs arrive + **download file**; level filter → PUT /LogLevel **succeeds + persists DEBUG**; clear → DELETE **succeeds + empty state** | `logs.ui.spec.ts` |
 | **Unsaved dialog**: dirty band; appears on leaving dirty tab; absent after save; Discard drops edit | `unsaved-dialog.ui.spec.ts` |
@@ -331,11 +336,12 @@ Filesystem-verified via `docker exec` (skips loudly without Docker):
 - **Book library protection** (`books-protection.api.spec.ts`): a Book (eBook)
   library is TRACKED but NEVER deleted. Stats expose `Books` / `TotalBookFileCount`
   / `TotalBookFormats` with the KNOWN fixtures' `EPUB`+`PDF` keys (per-format counts
-  sum to the total); and with the most aggressive cleanup config (empty-folder +
-  all stages Activate, `UseTrash:false`, `OrphanMinAgeDays:0`) every `.epub`/`.pdf`
-  file and its folder survive on disk and no `.jellyfin-trash` is created: the
-  regression guard for the eBook-collection data-loss bug (books excluded by
-  collection type, never scanned by cleanup).
+  sum to the total), plus `BookRootPaths` and per-library `BookFormatPaths` so the
+  codec-tab book drill-down can list files; and with the most aggressive cleanup
+  config (empty-folder + all stages Activate, `UseTrash:false`, `OrphanMinAgeDays:0`)
+  every `.epub`/`.pdf` file and its folder survive on disk and no `.jellyfin-trash`
+  is created: the regression guard for the eBook-collection data-loss bug (books
+  excluded by collection type, never scanned by cleanup).
 - **Growth timeline** (`growth-timeline-fs.api.spec.ts`): the cumulative series is
   non-empty and monotonically non-decreasing, latest totals are positive/coherent
   (bytes > 0, files > 0), directories-scanned positive, no future-dated point.
