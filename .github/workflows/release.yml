@@ -318,6 +318,10 @@ jobs:
       run: |
         sha256sum "${PLUGIN_NAME}_${VERSION}.zip" | cut -d ' ' -f1 > checksum_sha256.txt
         echo "CHECKSUM_SHA256=$(cat checksum_sha256.txt)" >> $GITHUB_ENV
+        # Jellyfin's InstallationManager verifies plugin packages with MD5, so the
+        # manifest checksum field must be MD5. SHA256 is kept only for release notes.
+        md5sum "${PLUGIN_NAME}_${VERSION}.zip" | cut -d ' ' -f1 > checksum_md5.txt
+        echo "CHECKSUM_MD5=$(cat checksum_md5.txt)" >> $GITHUB_ENV
 
     - name: Create tag
       if: env.TAG_EXISTS == 'false'
@@ -338,6 +342,7 @@ jobs:
           ${{ env.CHANGELOG }}
 
           ## Checksums
+          - **MD5:** `${{ env.CHECKSUM_MD5 }}`
           - **SHA256:** `${{ env.CHECKSUM_SHA256 }}`
 
           ## Installation
@@ -345,16 +350,17 @@ jobs:
         files: |
           ${{ env.PLUGIN_NAME }}_${{ env.VERSION }}.zip
           checksum_sha256.txt
+          checksum_md5.txt
 
     - name: Update manifest and build.yaml metadata
       if: env.TAG_EXISTS == 'false'
       run: |
         DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${VERSION}/${PLUGIN_NAME}_${VERSION}.zip"
 
-        jq --arg sha256 "$CHECKSUM_SHA256" \
+        jq --arg md5 "$CHECKSUM_MD5" \
            --arg url "$DOWNLOAD_URL" \
            '
-           .[0].versions[0].checksum = $sha256 |
+           .[0].versions[0].checksum = $md5 |
            .[0].versions[0].timestamp = (now | todateiso8601) |
            .[0].versions[0].sourceUrl = $url
            ' manifest.json > manifest.tmp
@@ -370,6 +376,7 @@ jobs:
         ' build.yaml
 
         echo "$CHECKSUM_SHA256" > checksum_sha256.txt
+        echo "$CHECKSUM_MD5" > checksum_md5.txt
 
     - name: Create metadata update PR
       if: env.TAG_EXISTS == 'false'
@@ -380,6 +387,7 @@ jobs:
         body: |
           Automated PR to update `manifest.json` and `build.yaml` with release metadata for version `${{ env.VERSION }}`.
 
+          - [PASS] MD5 (manifest checksum): `${{ env.CHECKSUM_MD5 }}`
           - [PASS] SHA256: `${{ env.CHECKSUM_SHA256 }}`
           - [PASS] Timestamp: updated
           - [PASS] Source URL: updated
