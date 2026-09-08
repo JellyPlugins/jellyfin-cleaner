@@ -80,6 +80,7 @@ function updateLastScanBadge(utcTimestamp) {
 // Load the latest persisted statistics (no new scan) and populate tabs if available
 function loadLatestStatistics() {
     apiGetOptional('JellyfinHelper/MediaStatistics/Latest', function (data) {
+        window.JellyfinHelper._statsAuthRetries = 0;
         if (data?.Libraries) {
             fillScanData(data);
             updateLastScanBadge(data.ScanTimestamp);
@@ -88,8 +89,25 @@ function loadLatestStatistics() {
         // 204 - no persisted data yet, auto-trigger initial scan.
         // loadStatistics() will call loadTrendData(true) and loadInsightsData()
         // on its own success path, so do not issue those calls here too.
+        window.JellyfinHelper._statsAuthRetries = 0;
         console.log('Jellyfin Helper: No persisted statistics (204), triggering initial scan...');
         loadStatistics();
+    }, function (err) {
+        // On refresh this can fire before the ApiClient token is ready (transient
+        // 401/403) or during a network blip. Retry a bounded number of times before
+        // giving up, so persisted stats still load without forcing a full rescan and
+        // without flashing the admin-permission error.
+        var d = describeApiError(err);
+        var transient = d.kind === 'unauthorized' || d.kind === 'network';
+        if (transient && window.JellyfinHelper._statsAuthRetries < _maxStatsAuthRetries) {
+            window.JellyfinHelper._statsAuthRetries++;
+            console.warn('Jellyfin Helper: latest statistics not ready yet (status=' + d.status
+                + '), retry ' + window.JellyfinHelper._statsAuthRetries + '/' + _maxStatsAuthRetries);
+            setTimeout(loadLatestStatistics, _statsAuthRetryDelayMs);
+            return;
+        }
+        window.JellyfinHelper._statsAuthRetries = 0;
+        _apiDefaultError('GET', 'JellyfinHelper/MediaStatistics/Latest')(err);
     });
 }
 
@@ -187,8 +205,17 @@ window.JellyfinHelper._pageInitialized = false;
 window.JellyfinHelper._initRetries = 0;
 window.JellyfinHelper._handlersBound = false;
 window.JellyfinHelper._pageLifecycleBound = false;
+window.JellyfinHelper._statsAuthRetries = 0;
 
 var _maxInitRetries = 20;
+
+// On a full-page refresh the plugin scripts can run before Jellyfin's ApiClient
+// has its access token ready, so the first stats request comes back 401/403.
+// That is transient: retry a few times with a short backoff before surfacing the
+// "you must be an administrator" message, so a genuine admin never sees the flash.
+var _maxStatsAuthRetries = 8;
+var _statsAuthRetryDelayMs = 400;
+
 
 function loadStatistics() {
     if (window.JellyfinHelper._statisticsInFlight) {
@@ -214,6 +241,7 @@ function loadStatistics() {
 
     apiGet('JellyfinHelper/MediaStatistics/ScanLibraries', function (data) {
         window.JellyfinHelper._statisticsInFlight = false;
+        window.JellyfinHelper._statsAuthRetries = 0;
         if (loading) {
             loading.style.display = 'none';
         }
@@ -231,6 +259,22 @@ function loadStatistics() {
         loadInsightsData();
     }, function (err) {
         window.JellyfinHelper._statisticsInFlight = false;
+
+        // A refresh can fire this request before Jellyfin's ApiClient token is
+        // ready, yielding a transient 401/403 (or a network blip). Retry a bounded
+        // number of times before showing the admin-permission message, so a real
+        // admin never sees a spurious error flash on reload.
+        var d = describeApiError(err);
+        var transient = d.kind === 'unauthorized' || d.kind === 'network';
+        if (transient && window.JellyfinHelper._statsAuthRetries < _maxStatsAuthRetries) {
+            window.JellyfinHelper._statsAuthRetries++;
+            console.warn('Jellyfin Helper: statistics not ready yet (status=' + d.status
+                + '), retry ' + window.JellyfinHelper._statsAuthRetries + '/' + _maxStatsAuthRetries);
+            setTimeout(loadStatistics, _statsAuthRetryDelayMs);
+            return;
+        }
+        window.JellyfinHelper._statsAuthRetries = 0;
+
         if (loading) {
             loading.style.display = 'none';
         }
