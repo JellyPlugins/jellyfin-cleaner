@@ -224,7 +224,7 @@ jobs:
             "status": "Active",
             "autoUpdate": true,
             "imageUrl": "https://raw.githubusercontent.com/JellyPlugins/jellyfin-helper/main/media/logo.png",
-            "imagePath": ("/config/plugins/Jellyfin Helper_" + $version + "/logo.png"),
+            "imagePath": "logo.png",
             "assemblies": []
           }' > package/meta.json
         cd package
