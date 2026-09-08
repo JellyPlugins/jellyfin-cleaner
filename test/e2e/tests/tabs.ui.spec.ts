@@ -29,3 +29,26 @@ test('overview renders stat cards after scan', async ({ page }) => {
     page.locator('#overviewContent .stat-card, #overviewContent .library-table').first(),
   ).toBeVisible({ timeout: 20_000 });
 });
+
+test('a browser refresh does not leave the stats admin-error banner stuck', async ({ page }) => {
+  // On refresh the stats request can fire before Jellyfin's ApiClient token is
+  // ready, briefly yielding 401/403. The plugin retries transient auth failures,
+  // so an admin must never be left looking at "Failed to load statistics. Make
+  // sure you are an administrator." Reload a few times and assert the banner is
+  // not stuck and the overview still populates.
+  await openDashboard(page);
+
+  const errBanner = page.locator('#overviewContent .error-msg', { hasText: /administrator/i });
+
+  for (let i = 0; i < 3; i++) {
+    await page.reload({ waitUntil: 'load' });
+    await expect(page.locator('.tab-bar')).toBeVisible({ timeout: 15_000 });
+    // Once loading settles the transient banner must be gone (retry resolves it).
+    await expect(errBanner).toBeHidden({ timeout: 20_000 });
+  }
+
+  // The overview must ultimately show real content, proving stats loaded.
+  await expect(
+    page.locator('#overviewContent .stat-card, #overviewContent .library-table').first(),
+  ).toBeVisible({ timeout: 20_000 });
+});
