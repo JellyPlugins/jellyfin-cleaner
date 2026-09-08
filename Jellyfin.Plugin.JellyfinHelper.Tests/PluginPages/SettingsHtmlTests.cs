@@ -326,4 +326,16 @@ public class SettingsHtmlTests : ConfigPageTestBase
         Assert.Contains("!seerrConfigured ? 'opacity:0.5;pointer-events:none;' : ''", HtmlContent);
         Assert.Contains("!seerrHasCfg ? 'opacity:0.5;pointer-events:none;' : ''", HtmlContent);
     }
+
+    [Fact]
+    public void Html_ExcludedLibraries_ReadsBothApiCasings()
+    {
+        // Jellyfin 12 serializes controller responses in PascalCase (data.Libraries),
+        // Jellyfin 10.x used camelCase (data.libraries). The multi-select must accept
+        // both, otherwise the dropdown shows "No data" on JF12. Guards the dual-casing
+        // read on the /Configuration/Libraries response and its entry fields.
+        Assert.Contains("data.Libraries || data.libraries", HtmlContent);
+        Assert.Contains("entry.Name || entry.name", HtmlContent);
+        Assert.Contains("entry.CollectionType || entry.collectionType", HtmlContent);
+    }
 }

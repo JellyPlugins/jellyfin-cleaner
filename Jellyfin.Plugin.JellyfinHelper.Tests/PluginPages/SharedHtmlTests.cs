@@ -399,4 +399,14 @@ public class SharedHtmlTests : ConfigPageTestBase
         var colorCount = Regex.Matches(match.Groups[1].Value, @"#[0-9a-fA-F]{6}").Count;
         Assert.True(colorCount >= 10, $"Expected at least 10 donut colors, found {colorCount}.");
     }
+
+    [Fact]
+    public void Html_RenderFileTree_RendersBooksSection()
+    {
+        // renderFileTree must render a Books section (badge-books) fed by result.books.
+        // Without it, a book-only drill-down showed "No files found" because totalFiles
+        // excluded books. Guards the books branch inside renderFileTree.
+        Assert.Contains("badge-books", HtmlContent);
+        Assert.Contains("buildPathTree(result.books, roots.books)", HtmlContent);
+    }
 }
