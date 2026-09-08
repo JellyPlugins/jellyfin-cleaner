@@ -245,6 +245,6 @@ public class MainHtmlTests : ConfigPageTestBase
         Assert.Contains("describeApiError", HtmlContent);
         // The retry must be gated on transient kinds only, so a genuine non-admin
         // still sees the error after retries are exhausted.
-        Assert.Matches(new Regex(@"kind\s*===\s*['""]unauthorized['""]"), HtmlContent);
+        Assert.Contains("kind === 'unauthorized'", HtmlContent);
     }
 }
