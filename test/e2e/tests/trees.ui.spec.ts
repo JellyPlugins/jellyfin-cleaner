@@ -65,13 +65,11 @@ test('Codecs tab: clicking a book format shows the book file tree, not an empty 
   await openDashboard(page);
   await switchTab(page, 'codecs');
 
+  // The e2e fixture always provisions a Books library (EPUB+PDF), so the
+  // bookFormats breakdown must render. Do not skip on absence, or this regression
+  // guard would pass without ever exercising the book file-tree path.
   const bookRow = page.locator('.codec-row.codec-clickable[data-chart="bookFormats"]').first();
-  // The bookFormats chart only renders when a Book library exists in the fixture.
-  if ((await bookRow.count()) === 0) {
-    test.skip(true, 'no book-format breakdown present in this fixture');
-    return;
-  }
-  await expect(bookRow).toBeVisible({ timeout: 20_000 });
+  await expect(bookRow, 'bookFormats breakdown row must render from the Books fixture').toBeVisible({ timeout: 20_000 });
   await bookRow.click();
 
   const panel = page.locator('#codecDetail_bookFormats');

@@ -114,10 +114,10 @@ test.describe('Book libraries are tracked in statistics but never deleted by cle
     // present. This asserts the server now emits the field with the fixture root.
     const stats = await getStats();
 
-    if (stats.Books.length === 0) {
-      test.skip(true, 'no Book library present in fixture (BookRootPaths contract verified vacuously)');
-      return;
-    }
+    // The e2e fixture always provisions a Books library (global-setup ensures
+    // /media/Books with EPUB+PDF), so this must be present - do not skip, or the
+    // BookRootPaths contract would pass vacuously.
+    expect(stats.Books.length, 'Books fixture must be provisioned by global-setup').toBeGreaterThan(0);
 
     expect(Array.isArray(stats.BookRootPaths), 'BookRootPaths is present as an array').toBe(true);
     expect(stats.BookRootPaths.length, 'BookRootPaths is non-empty when a Book library exists').toBeGreaterThan(0);
