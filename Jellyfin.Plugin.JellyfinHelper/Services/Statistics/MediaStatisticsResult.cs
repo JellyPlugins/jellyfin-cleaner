@@ -236,6 +236,12 @@ public class MediaStatisticsResult
     public HashSet<string> MusicRootPaths => new(Music.SelectMany(l => l.RootPaths), StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Gets the set of root paths for all book libraries.
+    /// </summary>
+    [JsonInclude]
+    public HashSet<string> BookRootPaths => new(Books.SelectMany(l => l.RootPaths), StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Gets the set of root paths for all other libraries.
     /// </summary>
     [JsonInclude]

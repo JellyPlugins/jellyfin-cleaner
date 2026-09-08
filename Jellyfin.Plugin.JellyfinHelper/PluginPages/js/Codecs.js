@@ -295,6 +295,7 @@ function collectCodecPaths(data, pathsProp, codecName, categories) {
             movies: data.MovieRootPaths || [],
             tvShows: data.TvShowRootPaths || [],
             music: data.MusicRootPaths || [],
+            books: data.BookRootPaths || [],
             other: data.OtherRootPaths || []
         }
     };

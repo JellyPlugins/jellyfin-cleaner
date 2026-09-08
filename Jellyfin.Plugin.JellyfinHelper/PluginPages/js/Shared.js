@@ -209,14 +209,15 @@ function renderFileTree(result, title) {
     var hasMovies = result.movies && result.movies.length > 0;
     var hasTvShows = result.tvShows && result.tvShows.length > 0;
     var hasMusic = result.music && result.music.length > 0;
+    var hasBooks = result.books && result.books.length > 0;
     var hasOther = result.other && result.other.length > 0;
-    var totalFiles = (result.movies ? result.movies.length : 0) + (result.tvShows ? result.tvShows.length : 0) + (result.music ? result.music.length : 0) + (result.other ? result.other.length : 0);
+    var totalFiles = (result.movies ? result.movies.length : 0) + (result.tvShows ? result.tvShows.length : 0) + (result.music ? result.music.length : 0) + (result.books ? result.books.length : 0) + (result.other ? result.other.length : 0);
 
     if (totalFiles === 0) {
         return '<div class="file-tree-empty">' + escHtml(T('noFilesFound', 'No files found.')) + '</div>';
     }
 
-    var sectionCount = (hasMovies ? 1 : 0) + (hasTvShows ? 1 : 0) + (hasMusic ? 1 : 0) + (hasOther ? 1 : 0);
+    var sectionCount = (hasMovies ? 1 : 0) + (hasTvShows ? 1 : 0) + (hasMusic ? 1 : 0) + (hasBooks ? 1 : 0) + (hasOther ? 1 : 0);
     var html = '<div class="file-tree-header">';
     html += '<span class="file-tree-title">' + escHtml(title) + '</span>';
     html += '<div style="display:flex;gap:0.5em;align-items:center;">';
@@ -250,6 +251,14 @@ function renderFileTree(result, title) {
         html += '<div class="file-tree-section-header"><span class="badge badge-music">' + escHtml(T('music', 'Music')) + '</span> <span class="file-tree-section-count">(' + result.music.length + ')</span></div>';
         html += '<div class="tree-view">';
         html += renderTreeLevel(buildPathTree(result.music, roots.music), 0, mi('music_note'));
+        html += '</div></div>';
+    }
+
+    if (hasBooks) {
+        html += '<div class="file-tree-section">';
+        html += '<div class="file-tree-section-header"><span class="badge badge-books">' + escHtml(T('books', 'Books')) + '</span> <span class="file-tree-section-count">(' + result.books.length + ')</span></div>';
+        html += '<div class="tree-view">';
+        html += renderTreeLevel(buildPathTree(result.books, roots.books), 0, mi('description'));
         html += '</div></div>';
     }
 
