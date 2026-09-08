@@ -414,6 +414,7 @@ public class MediaStatisticsService : IMediaStatisticsService
             var format = ext.TrimStart('.').ToUpperInvariant();
             stats.BookFormats[format] = stats.BookFormats.GetValueOrDefault(format) + 1;
             stats.BookFormatSizes[format] = stats.BookFormatSizes.GetValueOrDefault(format) + size;
+            FileSystemHelper.AddPath(stats.BookFormatPaths, format, file.FullName);
         }
         else
         {

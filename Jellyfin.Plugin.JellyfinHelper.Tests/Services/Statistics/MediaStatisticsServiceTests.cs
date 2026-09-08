@@ -401,6 +401,17 @@ public class MediaStatisticsServiceTests
         Assert.Equal(2_500, lib.BookFormatSizes["EPUB"]);
         Assert.Equal(4_000, lib.BookFormatSizes["PDF"]);
 
+        // Per-format file paths back the codec-tab drill-down (was missing, so the
+        // book drill-down always rendered "No files found").
+        Assert.Equal(2, lib.BookFormatPaths["EPUB"].Count);
+        Assert.Single(lib.BookFormatPaths["PDF"]);
+        Assert.Contains(TestPath("media", "books", "a.epub"), lib.BookFormatPaths["EPUB"]);
+        Assert.Contains(TestPath("media", "books", "b.epub"), lib.BookFormatPaths["EPUB"]);
+        Assert.Contains(TestPath("media", "books", "c.pdf"), lib.BookFormatPaths["PDF"]);
+
+        // BookRootPaths exposes the library root so the drill-down can trim a common prefix.
+        Assert.Contains(libraryPath, result.BookRootPaths);
+
         // Aggregated result-level breakdown mirrors the per-library data.
         Assert.Equal(2, result.TotalBookFormats["EPUB"]);
         Assert.Equal(3, result.TotalBookFileCount);
