@@ -147,7 +147,7 @@
   "radarrInstances": "Instances Radarr",
   "sonarrInstances": "Instances Sonarr",
   "arrInstanceLibraries": "Bibliothèques assignées",
-  "arrLibrariesAuto": "Automatique (associé par dossier racine)",
+  "arrLibrariesAuto": "Automatique (correspondance par dossier racine)",
   "compareWith": "Comparer avec",
   "compare": "Comparer",
   "arrSelectInstance": "Sélectionner une instance",

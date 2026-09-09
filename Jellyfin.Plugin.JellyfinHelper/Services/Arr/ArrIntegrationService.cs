@@ -402,30 +402,44 @@ public sealed class ArrIntegrationService : IArrIntegrationService
         ArgumentNullException.ThrowIfNull(libraries);
 
         var normalizedRoots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var rootSegments = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var root in rootFolderPaths)
         {
-            if (string.IsNullOrWhiteSpace(root))
+            if (!string.IsNullOrWhiteSpace(root))
             {
-                continue;
+                normalizedRoots.Add(NormalizePath(root));
             }
+        }
 
-            normalizedRoots.Add(NormalizePath(root));
-            rootSegments.Add(GetFolderName(root));
+        // Snapshot once so it can be enumerated twice (exact pass, then fallback pass).
+        var sameType = libraries
+            .Where(l => l.Locations is not null
+                && string.Equals(l.CollectionType, collectionType, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var normalizedLocationSet = new HashSet<string>(
+            sameType
+                .SelectMany(l => l.Locations)
+                .Where(loc => !string.IsNullOrWhiteSpace(loc))
+                .Select(NormalizePath),
+            StringComparer.OrdinalIgnoreCase);
+
+        // Basename fallback is only for roots with no exact same-type location match, so a container
+        // remap still resolves without letting one root's basename pull in an unrelated same-named library.
+        var fallbackSegments = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var root in normalizedRoots)
+        {
+            if (!normalizedLocationSet.Contains(root))
+            {
+                fallbackSegments.Add(GetFolderName(root));
+            }
         }
 
         var matched = new List<string>();
-        foreach (var (name, libraryType, locations) in libraries)
+        foreach (var (name, _, locations) in sameType)
         {
-            if (locations is null
-                || !string.Equals(libraryType, collectionType, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
             var isMatch = locations.Any(loc =>
                 !string.IsNullOrWhiteSpace(loc)
-                && (normalizedRoots.Contains(NormalizePath(loc)) || rootSegments.Contains(GetFolderName(loc))));
+                && (normalizedRoots.Contains(NormalizePath(loc)) || fallbackSegments.Contains(GetFolderName(loc))));
 
             if (isMatch)
             {

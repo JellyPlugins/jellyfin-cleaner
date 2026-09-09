@@ -1197,6 +1197,24 @@ public class ArrIntegrationServiceTests
     }
 
     [Fact]
+    public void MatchLibraries_ExactMatch_TakesPrecedenceOverBasename()
+    {
+        // The root matches one library's location exactly, so the basename must not also pull in an
+        // unrelated same-named library on a different mount.
+        var roots = new[] { "/mnt/hdd/movies" };
+        var libraries = new[]
+        {
+            ("HDD Movies", (string?)"movies", (IReadOnlyList<string>)["/mnt/hdd/movies"]),
+            ("SSD Movies", (string?)"movies", (IReadOnlyList<string>)["/mnt/ssd/movies"])
+        };
+
+        var matched = ArrIntegrationService.MatchLibrariesToRootFolders(roots, libraries, "movies");
+
+        Assert.Single(matched);
+        Assert.Contains("HDD Movies", matched);
+    }
+
+    [Fact]
     public void MatchLibraries_NoOverlap_ReturnsEmpty()
     {
         var roots = new[] { "/data/anime" };

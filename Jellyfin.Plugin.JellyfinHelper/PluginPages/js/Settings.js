@@ -1486,9 +1486,17 @@ function seedArrLibraryInitialValues(cfg) {
     for (const type of types) {
         var instances = resolveArrInstances(cfg, type);
         for (var i = 0; i < instances.length; i++) {
+            var stored = instances[i]?.Libraries || '';
             var wrap = document.getElementById(type + '_' + i + '_libs');
             if (wrap) {
-                wrap.dataset.initialValue = instances[i]?.Libraries || '';
+                wrap.dataset.initialValue = stored;
+                continue;
+            }
+            // A single instance renders no picker. Keep the stored value on the row so
+            // collectArrInstances falls back to it and a later re-add can restore it.
+            var row = document.querySelector('.arr-instance-row[data-type="' + type + '"][data-index="' + i + '"]');
+            if (row && stored) {
+                row.dataset.libsStash = stored;
             }
         }
     }

@@ -330,19 +330,20 @@ public sealed class ArrIntegrationControllerExtendedTests : IDisposable
     {
         var mock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
         mock.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
-        var isRootFolder = false;
         mock.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .Callback<HttpRequestMessage, CancellationToken>((req, _) =>
-                isRootFolder = req.RequestUri != null
-                    && req.RequestUri.AbsolutePath.Contains("rootfolder", StringComparison.OrdinalIgnoreCase))
-            .ReturnsAsync(() => new HttpResponseMessage
+            .ReturnsAsync((HttpRequestMessage req, CancellationToken _) =>
             {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(isRootFolder ? rootFolderJson : movieJson)
+                var isRootFolder = req.RequestUri != null
+                    && req.RequestUri.AbsolutePath.Contains("rootfolder", StringComparison.OrdinalIgnoreCase);
+                return new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(isRootFolder ? rootFolderJson : movieJson)
+                };
             });
         return mock;
     }
