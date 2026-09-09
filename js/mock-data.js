@@ -93,8 +93,8 @@ TrickplayTaskMode:"DryRun",EmptyMediaFolderTaskMode:"Activate",
 OrphanedSubtitleTaskMode:"DryRun",LinkRepairTaskMode:"Deactivate",
 UseTrash:true,TrashFolderPath:".jellyfin-trash",TrashRetentionDays:30,
 Language:"en",PluginLogLevel:"INFO",
-RadarrInstances:[{Name:"Radarr Main",Url:"http://192.168.1.100:7878",ApiKey:"demo-key-1234"},{Name:"Radarr 4K",Url:"http://192.168.1.100:7879",ApiKey:"demo-key-5678"}],
-SonarrInstances:[{Name:"Sonarr",Url:"http://192.168.1.100:8989",ApiKey:"demo-key-abcd"}],
+RadarrInstances:[{Name:"Radarr Main",Url:"http://192.168.1.100:7878",ApiKey:"demo-key-1234",Libraries:"Movies"},{Name:"Radarr 4K",Url:"http://192.168.1.100:7879",ApiKey:"demo-key-5678",Libraries:"Movies 4K"}],
+SonarrInstances:[{Name:"Sonarr",Url:"http://192.168.1.100:8989",ApiKey:"demo-key-abcd",Libraries:"TV Shows"},{Name:"Sonarr Anime",Url:"http://192.168.1.100:8990",ApiKey:"demo-key-efgh",Libraries:""}],
 SeerrUrl:"http://192.168.1.100:5055",SeerrApiKey:"demo-seerr-key",
 SeerrCleanupTaskMode:"DryRun",SeerrCleanupAgeDays:365,
 RecommendationsTaskMode:"Activate",DiscoveryUserAccessEnabled:true,ConfigVersion:3
@@ -168,7 +168,7 @@ LibrarySizes:{"Movies":_moviesLib.TotalSize,"TV Shows":_tvLib.TotalSize},
 ComputedAtUtc:new Date().toISOString()
 };
 
-var MOCK_LIBRARIES=[{name:"Movies",collectionType:"movies"},{name:"TV Shows",collectionType:"tvshows"},{name:"Music",collectionType:"music"}];
+var MOCK_LIBRARIES=[{name:"Movies",collectionType:"movies"},{name:"Movies 4K",collectionType:"movies"},{name:"TV Shows",collectionType:"tvshows"},{name:"Anime",collectionType:"tvshows"},{name:"Music",collectionType:"music"}];
 
 var MOCK_LIBRARY_PATHS={libraryPaths:[
 {name:"Movies",path:"/data/movies"},

@@ -146,6 +146,8 @@
   "instanceName": "Instansnamn",
   "radarrInstances": "Radarr-instanser",
   "sonarrInstances": "Sonarr-instanser",
+  "arrInstanceLibraries": "Tilldelade bibliotek",
+  "arrLibrariesAuto": "Automatiskt (matchat via rotmapp)",
   "compareWith": "Jämför med",
   "compare": "Jämför",
   "arrSelectInstance": "Välj en instans",

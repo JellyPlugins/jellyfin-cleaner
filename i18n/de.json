@@ -146,6 +146,8 @@
   "instanceName": "Instanzname",
   "radarrInstances": "Radarr-Instanzen",
   "sonarrInstances": "Sonarr-Instanzen",
+  "arrInstanceLibraries": "Zugewiesene Bibliotheken",
+  "arrLibrariesAuto": "Automatisch (über Stammordner zugeordnet)",
   "compareWith": "Vergleichen mit",
   "compare": "Vergleichen",
   "arrSelectInstance": "Instanz auswählen",
