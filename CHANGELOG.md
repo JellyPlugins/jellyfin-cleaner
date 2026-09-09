@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin plugin ecosystem.
 
+## [3.0.0.1] - 2026-09-09
+
+### Added
+- **Assign libraries to each Radarr/Sonarr instance.** If you run more than one instance of the same type (say a 1080p Radarr and a separate 4K Radarr), each instance can now be tied to the libraries it actually manages, so the Arr tab only compares an instance against its own libraries. Before this, a 4K instance would flag every 1080p film as "not in Radarr". With a single instance nothing changes and there is nothing to configure. Once you add a second instance of a type, each one gets a library picker in Settings that only lists the matching kind of library (movie libraries for Radarr, TV libraries for Sonarr), so you cannot accidentally point Radarr at an anime series library. Leaving the picker empty keeps it automatic: the plugin matches each instance to its libraries from the root folders it reports, falling back to the folder name when Radarr/Sonarr and Jellyfin see the same folder under different container paths. The assignment is included in backup and restore.
+
 ## [3.0.0.0] - 2026-09-08
 
 A major release for Jellyfin 12. Smarter, fairer recommendations; a redesigned

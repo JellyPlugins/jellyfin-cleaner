@@ -1,7 +1,7 @@
 ---
 name: "Jellyfin Helper"
 guid: "0c737645-5cbb-4bd8-80c7-d377b560aaa4"
-version: "3.0.0.0"
+version: "3.0.0.1"
 targetAbi: ""
 framework: "net10.0"
 overview: "Automated cleanup (trickplay, empty folders, subtitles, link repair for .strm & symlinks), Seerr request cleanup, media statistics with codec/health/dynamic-range analysis, ML-powered smart recommendations per user, user activity insights, library insights, backup/restore, trends, trash bin, plugin log viewer, multi-instance Arr integration with collapsible UI, unsaved settings alert, and multi-language 8-tab dashboard."
@@ -13,18 +13,10 @@ owner: "JellyPlugins"
 artifacts:
   - "Jellyfin.Plugin.JellyfinHelper.dll"
 changelog: |-
-  v3.0.0.0 - Major release for Jellyfin 12.0+
+  v3.0.0.1 - Per-instance library allocation for Arr
 
-  - Books in your library overview: eBook libraries now show their size and file count on the Overview tab and count towards your storage totals, and they're always protected from every cleanup task
-  - Smarter recommendations: a much bigger model, fairer suggestions for brand-new users, and more variety in your top picks (no more ten near-identical films in a row)
-  - Recommendations now also learn from franchises/collections, country of origin, collection & folder themes, whether a series is finished or ongoing, writers/creators, top-billed cast, and how rare a genre or studio is in your library (each signal is optional per item, so missing metadata never skews a pick)
-  - Fresh picks appear between nightly runs, and faster generation on big libraries
-  - Redesigned Settings, Health and Arr tabs with a live 'reachable' indicator, plus a sticky save bar and unsaved-changes warning
-  - Better on phones
-  - Stronger security: API keys are never shown to the browser, backups can leave keys out, and cleanup can never delete or touch anything outside your media libraries
-  - Safer trash and cleanup: turning retention off really turns it off, trashing a shortcut never removes the file it points to, and Windows shortcut handling is fixed
-  - More accurate library stats and safer Seerr request cleanup
-  - More reliable saves and backups (no more rare 'lost save' when antivirus is scanning)
-  - New end-to-end test suite runs the plugin inside a real Jellyfin 12 server on every change and proves cleanup stays inside your libraries
-  - Note: your recommendation model retrains from scratch after upgrading, so suggestions settle back in over the next scheduled runs
+  - Assign specific libraries to each Radarr/Sonarr instance so the Arr tab only compares an instance against the libraries it manages (fixes a 4K instance flagging every 1080p film as "not in Radarr")
+  - With a single instance nothing changes; once you add a second instance of a type, each one gets a library picker in Settings that only lists the matching kind of library (movies for Radarr, TV for Sonarr)
+  - Leave the picker empty to keep it automatic: instances are matched to libraries from their root folders, with a folder-name fallback for split container paths
+  - The assignment is included in backup and restore
   - Requires Jellyfin 12.0 - if you are on Jellyfin 10.x, stay on v2.1.0.6
