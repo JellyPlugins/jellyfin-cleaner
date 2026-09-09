@@ -147,7 +147,7 @@
   "radarrInstances": "Instâncias Radarr",
   "sonarrInstances": "Instâncias Sonarr",
   "arrInstanceLibraries": "Bibliotecas atribuídas",
-  "arrLibrariesAuto": "Automático (correspondido pela pasta raiz)",
+  "arrLibrariesAuto": "Automático (correspondência por pasta raiz)",
   "compareWith": "Comparar com",
   "compare": "Comparar",
   "arrSelectInstance": "Selecionar uma instância",
