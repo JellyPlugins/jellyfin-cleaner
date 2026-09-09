@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin plugin ecosystem.
 
-## [3.0.0.1] - 2026-09-09
+## [3.0.0.1] - 2026-09-10
 
 ### Added
 - **Assign libraries to each Radarr/Sonarr instance.** When you run more than one instance of the same type, each can be tied to the libraries it actually manages, so the Arr tab compares an instance only against its own libraries.
