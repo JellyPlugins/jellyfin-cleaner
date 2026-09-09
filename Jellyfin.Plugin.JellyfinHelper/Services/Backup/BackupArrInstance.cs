@@ -24,4 +24,10 @@ public class BackupArrInstance
     /// </summary>
     [JsonPropertyName("apiKey")]
     public string ApiKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the comma-separated assigned library names.
+    /// </summary>
+    [JsonPropertyName("libraries")]
+    public string Libraries { get; set; } = string.Empty;
 }

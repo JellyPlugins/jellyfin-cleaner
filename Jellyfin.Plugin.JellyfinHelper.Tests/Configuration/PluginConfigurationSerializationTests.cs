@@ -86,6 +86,31 @@ public class PluginConfigurationSerializationTests
     }
 
     [Fact]
+    public void XmlRoundTrip_ArrInstanceLibraries_PreservedPerInstance()
+    {
+        var config = new PluginConfiguration();
+        config.RadarrInstances.Add(new ArrInstanceConfig
+        {
+            Name = "Radarr 4K",
+            Url = "http://localhost:7878",
+            ApiKey = "rkey",
+            Libraries = "Movies 4K, Movies Remux"
+        });
+        config.SonarrInstances.Add(new ArrInstanceConfig
+        {
+            Name = "Sonarr Anime",
+            Url = "http://localhost:8989",
+            ApiKey = "skey",
+            Libraries = "Anime"
+        });
+
+        var restored = RoundTrip(config);
+
+        Assert.Equal("Movies 4K, Movies Remux", restored.RadarrInstances[0].Libraries);
+        Assert.Equal("Anime", restored.SonarrInstances[0].Libraries);
+    }
+
+    [Fact]
     public void XmlRoundTrip_MultipleSonarrInstances_AllPreserved()
     {
         var config = new PluginConfiguration();

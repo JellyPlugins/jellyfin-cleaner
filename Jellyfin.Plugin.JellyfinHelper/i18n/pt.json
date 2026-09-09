@@ -146,6 +146,8 @@
   "instanceName": "Nome da instância",
   "radarrInstances": "Instâncias Radarr",
   "sonarrInstances": "Instâncias Sonarr",
+  "arrInstanceLibraries": "Bibliotecas atribuídas",
+  "arrLibrariesAuto": "Automático (correspondência por pasta raiz)",
   "compareWith": "Comparar com",
   "compare": "Comparar",
   "arrSelectInstance": "Selecionar uma instância",

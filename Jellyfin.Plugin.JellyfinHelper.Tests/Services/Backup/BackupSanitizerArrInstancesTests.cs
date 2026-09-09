@@ -58,4 +58,21 @@ public class BackupSanitizerArrInstancesTests
             Assert.Equal(BackupValidator.MaxApiKeyLength, instance.ApiKey.Length);
         });
     }
+
+    [Fact]
+    public void Sanitize_ArrInstanceLibraries_TruncatedToMaxLength()
+    {
+        var data = new BackupData();
+        data.RadarrInstances.Add(new BackupArrInstance
+        {
+            Name = "R1",
+            Url = "http://r:7878",
+            ApiKey = "k",
+            Libraries = new string('L', BackupValidator.MaxArrLibrariesLength + 100)
+        });
+
+        BackupSanitizer.Sanitize(data);
+
+        Assert.Equal(BackupValidator.MaxArrLibrariesLength, data.RadarrInstances[0].Libraries.Length);
+    }
 }

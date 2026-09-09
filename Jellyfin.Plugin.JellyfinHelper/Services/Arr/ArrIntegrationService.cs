@@ -224,6 +224,57 @@ public sealed class ArrIntegrationService : IArrIntegrationService
     }
 
     /// <summary>
+    ///     Gets the configured root folder paths from a Radarr or Sonarr instance.
+    /// </summary>
+    /// <param name="baseUrl">The Arr base URL.</param>
+    /// <param name="apiKey">The Arr API key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The root folder paths, or null if the fetch failed.</returns>
+    public async Task<List<string>?> GetRootFoldersAsync(
+        string baseUrl,
+        string apiKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(apiKey))
+        {
+            return [];
+        }
+
+        EnsureApiKeyHeaderSafe(apiKey);
+
+        try
+        {
+            var json = await FetchJsonAsync(baseUrl, apiKey, "api/v3/rootfolder", cancellationToken).ConfigureAwait(false);
+            var folders = JsonSerializer.Deserialize<List<RootFolderDto>>(json, JsonOptions) ?? [];
+
+            return folders
+                .Select(f => f.Path ?? string.Empty)
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .ToList();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw; // Propagate user-initiated cancellation
+        }
+        catch (OperationCanceledException)
+        {
+            // HttpClient.Timeout elapsed - not a user cancellation; warn that the instance is unreachable.
+            _pluginLog.LogWarning(LogSource, $"Request to {SsrfGuard.SafeEndpointLabel(baseUrl)} timed out", null, _logger);
+            return null;
+        }
+        catch (ResponseTooLargeException ex)
+        {
+            _pluginLog.LogWarning(LogSource, $"Response too large from Arr at {SsrfGuard.SafeEndpointLabel(baseUrl)}", ex, _logger);
+            return null;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or ArgumentException)
+        {
+            _pluginLog.LogError(LogSource, $"Failed to fetch root folders from Arr at {SsrfGuard.SafeEndpointLabel(baseUrl)}", ex, _logger);
+            return null;
+        }
+    }
+
+    /// <summary>
     ///     Compares Radarr movies with Jellyfin library folder names.
     /// </summary>
     /// <param name="radarrMovies">Movies from Radarr.</param>
@@ -331,6 +382,72 @@ public sealed class ArrIntegrationService : IArrIntegrationService
         => path.TrimEnd('/', '\\').Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? string.Empty;
 
     /// <summary>
+    ///     Determines which Jellyfin libraries correspond to the given Arr root folders.
+    ///     A library matches when one of its locations equals a root folder path, or when their
+    ///     last path segments match. The segment fallback covers Arr and Jellyfin running in
+    ///     separate containers with different mount prefixes for the same physical folder.
+    ///     Only libraries whose collection type equals <paramref name="collectionType"/> are considered,
+    ///     so a Radarr instance never matches a TV library and vice versa.
+    /// </summary>
+    /// <param name="rootFolderPaths">Root folder paths reported by the Arr instance.</param>
+    /// <param name="libraries">The Jellyfin libraries as (name, collection type, locations) tuples.</param>
+    /// <param name="collectionType">The collection type the instance manages (e.g. "movies", "tvshows").</param>
+    /// <returns>The names of the libraries that match at least one root folder.</returns>
+    public static IReadOnlyList<string> MatchLibrariesToRootFolders(
+        IEnumerable<string> rootFolderPaths,
+        IEnumerable<(string Name, string? CollectionType, IReadOnlyList<string> Locations)> libraries,
+        string collectionType)
+    {
+        ArgumentNullException.ThrowIfNull(rootFolderPaths);
+        ArgumentNullException.ThrowIfNull(libraries);
+
+        var normalizedRoots = new HashSet<string>(
+            rootFolderPaths
+                .Where(root => !string.IsNullOrWhiteSpace(root))
+                .Select(NormalizePath),
+            StringComparer.OrdinalIgnoreCase);
+
+        // Snapshot once so it can be enumerated twice (exact pass, then fallback pass).
+        var sameType = libraries
+            .Where(l => l.Locations is not null
+                && string.Equals(l.CollectionType, collectionType, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var normalizedLocationSet = new HashSet<string>(
+            sameType
+                .SelectMany(l => l.Locations)
+                .Where(loc => !string.IsNullOrWhiteSpace(loc))
+                .Select(NormalizePath),
+            StringComparer.OrdinalIgnoreCase);
+
+        // Basename fallback is only for roots with no exact same-type location match, so a container
+        // remap still resolves without letting one root's basename pull in an unrelated same-named library.
+        var fallbackSegments = new HashSet<string>(
+            normalizedRoots
+                .Where(root => !normalizedLocationSet.Contains(root))
+                .Select(GetFolderName),
+            StringComparer.OrdinalIgnoreCase);
+
+        var matched = new List<string>();
+        foreach (var (name, _, locations) in sameType)
+        {
+            var isMatch = locations.Any(loc =>
+                !string.IsNullOrWhiteSpace(loc)
+                && (normalizedRoots.Contains(NormalizePath(loc)) || fallbackSegments.Contains(GetFolderName(loc))));
+
+            if (isMatch)
+            {
+                matched.Add(name);
+            }
+        }
+
+        return matched;
+    }
+
+    /// <summary>Trims trailing path separators so equal folders compare equal regardless of a trailing slash.</summary>
+    private static string NormalizePath(string path) => path.TrimEnd('/', '\\');
+
+    /// <summary>
     ///     Returns unchanged when it already uses OrdinalIgnoreCase; otherwise returns a new HashSet{T} with the same elements and the correct comparer.
     /// </summary>
     private static HashSet<string> EnsureOrdinalIgnoreCase(HashSet<string> set)
@@ -434,4 +551,8 @@ public sealed class ArrIntegrationService : IArrIntegrationService
 
         public int TotalEpisodeCount { get; set; }
     }
+
+    // Deserialization target for the root-folder endpoint. A record has no standalone set accessor,
+    // so the property is populated through the constructor by System.Text.Json.
+    private sealed record RootFolderDto(string? Path);
 }

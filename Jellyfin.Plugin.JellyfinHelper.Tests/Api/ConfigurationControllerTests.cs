@@ -225,6 +225,26 @@ public class ConfigurationControllerTests
     }
 
     [Fact]
+    public async Task UpdateConfiguration_ArrInstanceLibraries_SurvivesRebuild()
+    {
+        // RebuildArrInstances copies the Libraries assignment onto the stored instance;
+        // the value must round-trip through the save path unchanged.
+        var request = new ConfigurationUpdateRequest
+        {
+            RadarrInstances =
+            [
+                new ArrInstanceConfig { Name = "R1", Url = "http://r1:7878", ApiKey = "key1", Libraries = "Movies 4K" }
+            ]
+        };
+
+        var result = await _controller.UpdateConfigurationAsync(request, CancellationToken.None);
+
+        Assert.IsType<OkObjectResult>(result);
+        Assert.Single(_config.RadarrInstances);
+        Assert.Equal("Movies 4K", _config.RadarrInstances[0].Libraries);
+    }
+
+    [Fact]
     public async Task UpdateConfiguration_UnreachableArr_SavesButReturnsWarnings()
     {
         _arrServiceMock

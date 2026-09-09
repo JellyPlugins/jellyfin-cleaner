@@ -181,7 +181,8 @@ public sealed class BackupService : IBackupService
                 {
                     Name = instance.Name,
                     Url = instance.Url,
-                    ApiKey = instance.ApiKey
+                    ApiKey = instance.ApiKey,
+                    Libraries = instance.Libraries
                 });
         }
 
@@ -192,7 +193,8 @@ public sealed class BackupService : IBackupService
                 {
                     Name = instance.Name,
                     Url = instance.Url,
-                    ApiKey = instance.ApiKey
+                    ApiKey = instance.ApiKey,
+                    Libraries = instance.Libraries
                 });
         }
 
@@ -555,7 +557,8 @@ public sealed class BackupService : IBackupService
                 {
                     Name = BackupSanitizer.TruncateString(instance.Name, BackupValidator.MaxInstanceNameLength),
                     Url = BackupSanitizer.TruncateString(instance.Url, BackupValidator.MaxUrlLength),
-                    ApiKey = apiKey
+                    ApiKey = apiKey,
+                    Libraries = BackupSanitizer.TruncateString(instance.Libraries, BackupValidator.MaxArrLibrariesLength)
                 });
         }
 

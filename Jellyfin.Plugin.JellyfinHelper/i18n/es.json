@@ -146,6 +146,8 @@
   "instanceName": "Nombre de instancia",
   "radarrInstances": "Instancias Radarr",
   "sonarrInstances": "Instancias Sonarr",
+  "arrInstanceLibraries": "Bibliotecas asignadas",
+  "arrLibrariesAuto": "Automático (coincidencia por carpeta raíz)",
   "compareWith": "Comparar con",
   "compare": "Comparar",
   "arrSelectInstance": "Seleccionar una instancia",

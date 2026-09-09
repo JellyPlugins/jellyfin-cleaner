@@ -1461,16 +1461,83 @@ function initLibraryMultiSelects(cfg) {
         wrapper.dataset.initialValue = cfg.ExcludedLibraries || '';
     }
 
+    seedArrLibraryInitialValues(cfg);
+
     apiGet('JellyfinHelper/Configuration/Libraries', function (data) {
         var libraries = (data && (data.Libraries || data.libraries)) || [];
         var excludedSet = parseCommaSeparatedSet(cfg.ExcludedLibraries || '');
 
         renderLibraryMultiSelect('cfgExcludedWrapper', libraries, excludedSet, 'excluded');
+        renderArrLibraryMultiSelects(libraries);
     }, function () {
         // Fallback: show simple text input if API fails
         var excWrap = document.getElementById('cfgExcludedWrapper');
         if (excWrap) excWrap.innerHTML = '<input type="text" id="cfgExcludedFallback" value="' + escAttr(cfg.ExcludedLibraries || '') + '">';
+        renderArrLibraryFallbacks();
     });
+}
+
+/**
+ * Records each Arr instance's stored library assignment on its wrapper so the value survives
+ * a save that fires before the async library list has rendered the checkboxes.
+ */
+function seedArrLibraryInitialValues(cfg) {
+    var types = ['Radarr', 'Sonarr'];
+    for (const type of types) {
+        var instances = resolveArrInstances(cfg, type);
+        for (var i = 0; i < instances.length; i++) {
+            var stored = instances[i]?.Libraries || '';
+            var wrap = document.getElementById(type + '_' + i + '_libs');
+            if (wrap) {
+                wrap.dataset.initialValue = stored;
+                continue;
+            }
+            // A single instance renders no picker. Keep the stored value on the row so
+            // collectArrInstances falls back to it and a later re-add can restore it.
+            var row = document.querySelector('.arr-instance-row[data-type="' + type + '"][data-index="' + i + '"]');
+            if (row && stored) {
+                row.dataset.libsStash = stored;
+            }
+        }
+    }
+}
+
+/**
+ * Renders the per-instance library multi-select for every Arr instance wrapper present in the DOM,
+ * seeding the current selection from the wrapper's stored initial value. Radarr wrappers only list
+ * movie libraries and Sonarr wrappers only TV libraries, so a user cannot assign the wrong type.
+ */
+function renderArrLibraryMultiSelects(libraries) {
+    var wrappers = document.querySelectorAll('.arr-library-wrapper');
+    for (const wrap of wrappers) {
+        var selectedSet = parseCommaSeparatedSet(wrap.dataset.initialValue || '');
+        renderLibraryMultiSelect(wrap.id, filterLibrariesForArrType(libraries, wrap.dataset.arrType), selectedSet, 'arr');
+    }
+}
+
+/**
+ * Filters the library list to the collection type an Arr instance can manage:
+ * Radarr to movie libraries, Sonarr to TV libraries.
+ */
+function filterLibrariesForArrType(libraries, arrType) {
+    var wanted = arrType === 'Sonarr' ? 'tvshows' : 'movies';
+    var result = [];
+    for (const lib of libraries) {
+        if (libraryEntryType(lib).toLowerCase() === wanted) {
+            result.push(lib);
+        }
+    }
+    return result;
+}
+
+/**
+ * Fallback for when the library list cannot be fetched: render each Arr wrapper as a plain text input.
+ */
+function renderArrLibraryFallbacks() {
+    var wrappers = document.querySelectorAll('.arr-library-wrapper');
+    for (const wrap of wrappers) {
+        wrap.innerHTML = '<input type="text" value="' + escAttr(wrap.dataset.initialValue || '') + '">';
+    }
 }
 
 /**
@@ -1502,6 +1569,17 @@ function parseCommaSeparatedSet(str) {
     return set;
 }
 
+/**
+ * Returns the "nothing selected" summary label for a library multi-select, by widget type.
+ * The Arr instance picker treats an empty selection as automatic root-folder matching.
+ */
+function libraryMultiSelectEmptyLabel(type) {
+    if (type === 'arr') {
+        return T('arrLibrariesAuto', 'Automatic (matched by root folder)');
+    }
+    return T('libraryNoneExcluded', 'None excluded (default)');
+}
+
 /** * Renders a multi-select checkbox list widget inside the given wrapper element. * @param {string} wrapperId - The DOM id of the wrapper div. */
 function renderLibraryMultiSelect(wrapperId, libraries, selectedSet, type) {
     var wrapper = document.getElementById(wrapperId);
@@ -1522,7 +1600,7 @@ function renderLibraryMultiSelect(wrapperId, libraries, selectedSet, type) {
     wrapper.dataset.missingValues = missingSelected.join(', ');
 
     var selectedCount = Object.keys(selectedSet).length;
-    var noneSelectedLabel = T('libraryNoneExcluded', 'None excluded (default)');
+    var noneSelectedLabel = libraryMultiSelectEmptyLabel(type);
 
     var h = '<div class="library-multiselect" data-type="' + type + '">';
     // Summary/toggle button
@@ -1601,7 +1679,8 @@ function updateLibraryMultiSelectSummary(wrapperId) {
     var summary = wrapper.querySelector('.library-multiselect-summary');
     if (!summary) return;
 
-    var noneSelectedLabel = T('libraryNoneExcluded', 'None excluded (default)');
+    var widget = wrapper.querySelector('.library-multiselect');
+    var noneSelectedLabel = libraryMultiSelectEmptyLabel(widget ? widget.dataset.type : 'excluded');
 
     if (count === 0) {
         summary.textContent = noneSelectedLabel;

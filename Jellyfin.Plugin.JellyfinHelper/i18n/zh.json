@@ -146,6 +146,8 @@
   "instanceName": "实例名称",
   "radarrInstances": "Radarr 实例",
   "sonarrInstances": "Sonarr 实例",
+  "arrInstanceLibraries": "分配的媒体库",
+  "arrLibrariesAuto": "自动（按根文件夹匹配）",
   "compareWith": "与…比较",
   "compare": "比较",
   "arrSelectInstance": "选择一个实例",

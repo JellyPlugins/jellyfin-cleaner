@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Mime;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.JellyfinHelper.Configuration;
 using Jellyfin.Plugin.JellyfinHelper.Services.Arr;
 using Jellyfin.Plugin.JellyfinHelper.Services.Cleanup;
 using Jellyfin.Plugin.JellyfinHelper.Services.Common;
@@ -147,6 +148,8 @@ public class ArrIntegrationController : ControllerBase
             return BadRequest(new { message = "At least one Radarr instance must be configured." });
         }
 
+        var totalInstanceCount = instances.Count;
+
         if (index.HasValue)
         {
             if (index.Value < 0 || index.Value >= instances.Count)
@@ -158,7 +161,15 @@ public class ArrIntegrationController : ControllerBase
             instances = [instances[index.Value]];
         }
 
-        var movieFolders = GetJellyfinFolderNames("movies");
+        // Scope to the selected instance's libraries only when multiple instances exist; a single
+        // instance owns everything of its type, and the merge path compares against all libraries.
+        HashSet<string>? allowedLibraries = null;
+        if (index.HasValue && totalInstanceCount > 1)
+        {
+            allowedLibraries = await ResolveInstanceLibrariesAsync(instances[0], "movies", cancellationToken).ConfigureAwait(false);
+        }
+
+        var movieFolders = GetJellyfinFolderNames("movies", allowedLibraries);
 
         var allMovies = new List<ArrMovie>();
         var failedInstances = new List<string>();
@@ -217,6 +228,8 @@ public class ArrIntegrationController : ControllerBase
             return BadRequest(new { message = "At least one Sonarr instance must be configured." });
         }
 
+        var totalInstanceCount = instances.Count;
+
         if (index.HasValue)
         {
             if (index.Value < 0 || index.Value >= instances.Count)
@@ -228,7 +241,13 @@ public class ArrIntegrationController : ControllerBase
             instances = [instances[index.Value]];
         }
 
-        var tvFolders = GetJellyfinFolderNames("tvshows");
+        HashSet<string>? allowedLibraries = null;
+        if (index.HasValue && totalInstanceCount > 1)
+        {
+            allowedLibraries = await ResolveInstanceLibrariesAsync(instances[0], "tvshows", cancellationToken).ConfigureAwait(false);
+        }
+
+        var tvFolders = GetJellyfinFolderNames("tvshows", allowedLibraries);
 
         var allSeries = new List<ArrSeries>();
         var failedInstances = new List<string>();
@@ -266,15 +285,75 @@ public class ArrIntegrationController : ControllerBase
     }
 
     /// <summary>
-    ///     Gets the set of top-level folder names for a given collection type from Jellyfin libraries.
+    ///     Resolves the Jellyfin library names a given instance should be compared against.
+    ///     A manual override on the instance takes precedence; otherwise the libraries are matched
+    ///     from the instance's Arr root folders. Returns null when no scoping applies (compare all).
     /// </summary>
-    private HashSet<string> GetJellyfinFolderNames(string collectionType)
+    private async Task<HashSet<string>?> ResolveInstanceLibrariesAsync(
+        ArrInstanceConfig instance,
+        string collectionType,
+        CancellationToken cancellationToken)
+    {
+        var overrideNames = SplitLibraryNames(instance.Libraries);
+        if (overrideNames.Count > 0)
+        {
+            return overrideNames;
+        }
+
+        if (string.IsNullOrWhiteSpace(instance.Url) || string.IsNullOrWhiteSpace(instance.ApiKey))
+        {
+            return null;
+        }
+
+        var rootFolders = await _arrService.GetRootFoldersAsync(instance.Url, instance.ApiKey, cancellationToken)
+            .ConfigureAwait(false);
+        if (rootFolders is null || rootFolders.Count == 0)
+        {
+            return null;
+        }
+
+        var libraries = _libraryManager.GetVirtualFolders()
+            .Select(f => (f.Name, f.CollectionType?.ToString(), (IReadOnlyList<string>)(f.Locations ?? [])));
+        var matched = ArrIntegrationService.MatchLibrariesToRootFolders(rootFolders, libraries, collectionType);
+
+        return matched.Count > 0
+            ? new HashSet<string>(matched, StringComparer.OrdinalIgnoreCase)
+            : null;
+    }
+
+    private static HashSet<string> SplitLibraryNames(string? libraries)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(libraries))
+        {
+            return result;
+        }
+
+        foreach (var name in libraries.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            result.Add(name);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    ///     Gets the set of top-level folder names for a given collection type from Jellyfin libraries.
+    ///     When <paramref name="allowedLibraryNames"/> is non-null, only libraries whose name is in the
+    ///     set are considered.
+    /// </summary>
+    private HashSet<string> GetJellyfinFolderNames(string collectionType, HashSet<string>? allowedLibraryNames = null)
     {
         var folders = _libraryManager.GetVirtualFolders()
             .Where(f => string.Equals(
                 f.CollectionType?.ToString(),
                 collectionType,
                 StringComparison.OrdinalIgnoreCase));
+
+        if (allowedLibraryNames is not null)
+        {
+            folders = folders.Where(f => allowedLibraryNames.Contains(f.Name));
+        }
 
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 

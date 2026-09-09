@@ -11,6 +11,7 @@ using MediaBrowser.Model.IO;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
+using Moq.Protected;
 using Xunit;
 
 namespace Jellyfin.Plugin.JellyfinHelper.Tests.Api;
@@ -321,5 +322,297 @@ public sealed class ArrIntegrationControllerExtendedTests : IDisposable
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var data = Assert.IsType<ArrComparisonResult>(ok.Value);
         Assert.Single(data.InBoth);
+    }
+
+    // Routes responses by request path so a single client can answer both the movie fetch and the
+    // root-folder fetch that the auto-match path issues.
+    private static Mock<HttpMessageHandler> CreateRoutingHandler(string movieJson, string rootFolderJson)
+    {
+        var mock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
+        mock.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
+        mock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync((HttpRequestMessage req, CancellationToken _) =>
+            {
+                var isRootFolder = req.RequestUri != null
+                    && req.RequestUri.AbsolutePath.Contains("rootfolder", StringComparison.OrdinalIgnoreCase);
+                return new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(isRootFolder ? rootFolderJson : movieJson)
+                };
+            });
+        return mock;
+    }
+
+    private void SetupTwoMovieLibraries(out string fourKPath, out string hdPath)
+    {
+        var fourK = Path.Join(_tempPath, "Movies4K");
+        var hd = Path.Join(_tempPath, "Movies1080p");
+        Directory.CreateDirectory(fourK);
+        Directory.CreateDirectory(hd);
+        var fourKDir = Path.Join(fourK, "MovieA");
+        var hdDir = Path.Join(hd, "MovieB");
+        Directory.CreateDirectory(fourKDir);
+        Directory.CreateDirectory(hdDir);
+
+        _configHelperMock.Setup(c => c.GetTrashPath(It.IsAny<string>())).Returns("__no_trash__");
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders())
+            .Returns(
+            [
+                new VirtualFolderInfo { Name = "Movies 4K", Locations = [fourK], CollectionType = CollectionTypeOptions.movies },
+                new VirtualFolderInfo { Name = "Movies 1080p", Locations = [hd], CollectionType = CollectionTypeOptions.movies }
+            ]);
+
+        var fourKMeta = new FileSystemMetadata { Name = "MovieA", FullName = fourKDir, IsDirectory = true };
+        var hdMeta = new FileSystemMetadata { Name = "MovieB", FullName = hdDir, IsDirectory = true };
+        _fileSystemMock.Setup(f => f.GetDirectories(fourK, It.IsAny<bool>())).Returns([fourKMeta]);
+        _fileSystemMock.Setup(f => f.GetDirectories(hd, It.IsAny<bool>())).Returns([hdMeta]);
+
+        fourKPath = fourK;
+        hdPath = hd;
+    }
+
+    [Fact]
+    public async Task CompareRadarrAsync_ManualOverride_ScopesToAssignedLibraryOnly()
+    {
+        SetupTwoMovieLibraries(out _, out _);
+        var config = new PluginConfiguration();
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r1", ApiKey = "k1", Name = "4K", Libraries = "Movies 4K" });
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r2", ApiKey = "k2", Name = "HD" });
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(config);
+
+        // Radarr 4K has MovieA; MovieB (1080p library) must NOT surface as InJellyfinOnly.
+        var handler = CreateRoutingHandler("[{\"title\":\"MovieA\",\"path\":\"/m/MovieA\",\"hasFile\":true}]", "[]");
+        using var httpClient = new HttpClient(handler.Object);
+        _httpClientFactoryMock.Setup(f => f.CreateClient("ArrIntegration")).Returns(httpClient);
+
+        var result = await _controller.CompareRadarrAsync(0, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var data = Assert.IsType<ArrComparisonResult>(ok.Value);
+        Assert.Single(data.InBoth);
+        Assert.Contains("MovieA", data.InBoth);
+        Assert.DoesNotContain("MovieB", data.InJellyfinOnly);
+        Assert.Empty(data.InJellyfinOnly);
+    }
+
+    [Fact]
+    public async Task CompareRadarrAsync_AutoMatchByRootFolder_ScopesToMatchedLibrary()
+    {
+        SetupTwoMovieLibraries(out var fourKPath, out _);
+        var config = new PluginConfiguration();
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r1", ApiKey = "k1", Name = "4K" });
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r2", ApiKey = "k2", Name = "HD" });
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(config);
+
+        // No override: the instance's root folder points at the 4K library location, so only that
+        // library is compared and the 1080p MovieB stays out of InJellyfinOnly.
+        var rootJson = "[{\"path\":\"" + fourKPath.Replace("\\", "\\\\", StringComparison.Ordinal) + "\"}]";
+        var handler = CreateRoutingHandler("[{\"title\":\"MovieA\",\"path\":\"/m/MovieA\",\"hasFile\":true}]", rootJson);
+        using var httpClient = new HttpClient(handler.Object);
+        _httpClientFactoryMock.Setup(f => f.CreateClient("ArrIntegration")).Returns(httpClient);
+
+        var result = await _controller.CompareRadarrAsync(0, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var data = Assert.IsType<ArrComparisonResult>(ok.Value);
+        Assert.Single(data.InBoth);
+        Assert.DoesNotContain("MovieB", data.InJellyfinOnly);
+    }
+
+    [Fact]
+    public async Task CompareRadarrAsync_AutoMatchNoRootFolders_FallsBackToAllLibraries()
+    {
+        SetupTwoMovieLibraries(out _, out _);
+        var config = new PluginConfiguration();
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r1", ApiKey = "k1", Name = "4K" });
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r2", ApiKey = "k2", Name = "HD" });
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(config);
+
+        // Empty root folders -> no scoping -> both libraries compared, so MovieB is InJellyfinOnly.
+        var handler = CreateRoutingHandler("[{\"title\":\"MovieA\",\"path\":\"/m/MovieA\",\"hasFile\":true}]", "[]");
+        using var httpClient = new HttpClient(handler.Object);
+        _httpClientFactoryMock.Setup(f => f.CreateClient("ArrIntegration")).Returns(httpClient);
+
+        var result = await _controller.CompareRadarrAsync(0, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var data = Assert.IsType<ArrComparisonResult>(ok.Value);
+        Assert.Single(data.InBoth);
+        Assert.Contains("MovieB", data.InJellyfinOnly);
+    }
+
+    [Fact]
+    public async Task CompareRadarrAsync_SingleInstanceWithOverride_ComparesAllLibraries()
+    {
+        SetupTwoMovieLibraries(out _, out _);
+        var config = new PluginConfiguration();
+        // A single instance owns everything of its type; an override is ignored so both libraries compare.
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r1", ApiKey = "k1", Name = "Only", Libraries = "Movies 4K" });
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(config);
+
+        var handler = CreateRoutingHandler("[{\"title\":\"MovieA\",\"path\":\"/m/MovieA\",\"hasFile\":true}]", "[]");
+        using var httpClient = new HttpClient(handler.Object);
+        _httpClientFactoryMock.Setup(f => f.CreateClient("ArrIntegration")).Returns(httpClient);
+
+        var result = await _controller.CompareRadarrAsync(0, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var data = Assert.IsType<ArrComparisonResult>(ok.Value);
+        Assert.Contains("MovieB", data.InJellyfinOnly);
+    }
+
+    [Fact]
+    public async Task CompareRadarrAsync_NoLibrariesAssignedNoRootFolders_ComparesAllLibraries()
+    {
+        SetupTwoMovieLibraries(out _, out _);
+        var config = new PluginConfiguration();
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r1", ApiKey = "k1", Name = "4K" });
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r2", ApiKey = "k2", Name = "HD" });
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(config);
+
+        var handler = CreateRoutingHandler("[{\"title\":\"MovieA\",\"path\":\"/m/MovieA\",\"hasFile\":true}]", "[]");
+        using var httpClient = new HttpClient(handler.Object);
+        _httpClientFactoryMock.Setup(f => f.CreateClient("ArrIntegration")).Returns(httpClient);
+
+        var result = await _controller.CompareRadarrAsync(0, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var data = Assert.IsType<ArrComparisonResult>(ok.Value);
+        // Both libraries in scope: MovieA matches, MovieB is Jellyfin-only.
+        Assert.Single(data.InBoth);
+        Assert.Contains("MovieB", data.InJellyfinOnly);
+    }
+
+    [Fact]
+    public async Task CompareRadarrAsync_AllLibrariesAssigned_ComparesEveryLibrary()
+    {
+        SetupTwoMovieLibraries(out _, out _);
+        var config = new PluginConfiguration();
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r1", ApiKey = "k1", Name = "4K", Libraries = "Movies 4K, Movies 1080p" });
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r2", ApiKey = "k2", Name = "HD" });
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(config);
+
+        var handler = CreateRoutingHandler("[{\"title\":\"MovieA\",\"path\":\"/m/MovieA\",\"hasFile\":true}]", "[]");
+        using var httpClient = new HttpClient(handler.Object);
+        _httpClientFactoryMock.Setup(f => f.CreateClient("ArrIntegration")).Returns(httpClient);
+
+        var result = await _controller.CompareRadarrAsync(0, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var data = Assert.IsType<ArrComparisonResult>(ok.Value);
+        Assert.Single(data.InBoth);
+        Assert.Contains("MovieB", data.InJellyfinOnly);
+    }
+
+    [Fact]
+    public async Task CompareRadarrAsync_PartialLibrariesAssigned_ScopesToThoseOnly()
+    {
+        SetupTwoMovieLibraries(out _, out _);
+        var config = new PluginConfiguration();
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r1", ApiKey = "k1", Name = "4K", Libraries = "Movies 4K" });
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r2", ApiKey = "k2", Name = "HD" });
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(config);
+
+        var handler = CreateRoutingHandler("[{\"title\":\"MovieA\",\"path\":\"/m/MovieA\",\"hasFile\":true}]", "[]");
+        using var httpClient = new HttpClient(handler.Object);
+        _httpClientFactoryMock.Setup(f => f.CreateClient("ArrIntegration")).Returns(httpClient);
+
+        var result = await _controller.CompareRadarrAsync(0, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var data = Assert.IsType<ArrComparisonResult>(ok.Value);
+        // Only the 4K library is in scope, so the 1080p MovieB is not reported.
+        Assert.Single(data.InBoth);
+        Assert.Empty(data.InJellyfinOnly);
+    }
+
+    [Fact]
+    public async Task CompareRadarrAsync_OverrideNamingTvLibrary_IsIgnoredByCollectionTypeFilter()
+    {
+        // A Radarr override that names a TV library resolves to a name that matches no movie library,
+        // so GetJellyfinFolderNames filters it out and nothing is compared.
+        var tvPath = Path.Join(_tempPath, "Anime");
+        Directory.CreateDirectory(tvPath);
+        Directory.CreateDirectory(Path.Join(tvPath, "ShowX"));
+        var moviePath = Path.Join(_tempPath, "Movies");
+        Directory.CreateDirectory(moviePath);
+        Directory.CreateDirectory(Path.Join(moviePath, "MovieA"));
+
+        _configHelperMock.Setup(c => c.GetTrashPath(It.IsAny<string>())).Returns("__no_trash__");
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders())
+            .Returns(
+            [
+                new VirtualFolderInfo { Name = "Anime Series", Locations = [tvPath], CollectionType = CollectionTypeOptions.tvshows },
+                new VirtualFolderInfo { Name = "Movies", Locations = [moviePath], CollectionType = CollectionTypeOptions.movies }
+            ]);
+        _fileSystemMock.Setup(f => f.GetDirectories(It.IsAny<string>(), It.IsAny<bool>()))
+            .Returns([new FileSystemMetadata { Name = "MovieA", FullName = Path.Join(moviePath, "MovieA"), IsDirectory = true }]);
+
+        var config = new PluginConfiguration();
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r1", ApiKey = "k1", Name = "4K", Libraries = "Anime Series" });
+        config.RadarrInstances.Add(new ArrInstanceConfig { Url = "http://r2", ApiKey = "k2", Name = "HD" });
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(config);
+
+        var handler = CreateRoutingHandler("[{\"title\":\"MovieA\",\"path\":\"/m/MovieA\",\"hasFile\":true}]", "[]");
+        using var httpClient = new HttpClient(handler.Object);
+        _httpClientFactoryMock.Setup(f => f.CreateClient("ArrIntegration")).Returns(httpClient);
+
+        var result = await _controller.CompareRadarrAsync(0, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var data = Assert.IsType<ArrComparisonResult>(ok.Value);
+        // TV library filtered out by collection type; no movie library in scope.
+        Assert.Empty(data.InBoth);
+        Assert.Empty(data.InJellyfinOnly);
+    }
+
+    [Fact]
+    public async Task CompareSonarrAsync_ManyTvLibraries_PartialAssignmentScopesCorrectly()
+    {
+        // A user may keep several TV libraries of the same collection type (TV Shows, TV Shows 4K,
+        // Anime, Reality TV). Assigning only some to an instance must scope the compare to those.
+        var names = new[] { "TV Shows", "TV Shows 4K", "Anime", "Reality TV" };
+        var folders = new List<VirtualFolderInfo>();
+        foreach (var name in names)
+        {
+            var path = Path.Join(_tempPath, name.Replace(" ", string.Empty, StringComparison.Ordinal));
+            Directory.CreateDirectory(path);
+            Directory.CreateDirectory(Path.Join(path, "Show_" + name.Replace(" ", string.Empty, StringComparison.Ordinal)));
+            folders.Add(new VirtualFolderInfo { Name = name, Locations = [path], CollectionType = CollectionTypeOptions.tvshows });
+        }
+
+        _configHelperMock.Setup(c => c.GetTrashPath(It.IsAny<string>())).Returns("__no_trash__");
+        _libraryManagerMock.Setup(m => m.GetVirtualFolders()).Returns(folders);
+        _fileSystemMock.Setup(f => f.GetDirectories(It.IsAny<string>(), It.IsAny<bool>()))
+            .Returns<string, bool>((loc, _) =>
+            {
+                var leaf = Path.GetFileName(loc.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                return [new FileSystemMetadata { Name = "Show_" + leaf, FullName = Path.Join(loc, "Show_" + leaf), IsDirectory = true }];
+            });
+
+        var config = new PluginConfiguration();
+        config.SonarrInstances.Add(new ArrInstanceConfig { Url = "http://s1", ApiKey = "k1", Name = "Anime+4K", Libraries = "Anime, TV Shows 4K" });
+        config.SonarrInstances.Add(new ArrInstanceConfig { Url = "http://s2", ApiKey = "k2", Name = "Rest" });
+        _configHelperMock.Setup(c => c.GetConfig()).Returns(config);
+
+        var handler = CreateRoutingHandler("[]", "[]");
+        using var httpClient = new HttpClient(handler.Object);
+        _httpClientFactoryMock.Setup(f => f.CreateClient("ArrIntegration")).Returns(httpClient);
+
+        var result = await _controller.CompareSonarrAsync(0, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var data = Assert.IsType<ArrComparisonResult>(ok.Value);
+        // Only the two assigned libraries are in scope; their folders are Jellyfin-only (no series returned).
+        Assert.Equal(2, data.InJellyfinOnly.Count);
+        Assert.Contains("Show_Anime", data.InJellyfinOnly);
+        Assert.Contains("Show_TVShows4K", data.InJellyfinOnly);
+        Assert.DoesNotContain("Show_RealityTV", data.InJellyfinOnly);
+        Assert.DoesNotContain("Show_TVShows", data.InJellyfinOnly);
     }
 }

@@ -77,6 +77,22 @@ Beyond "does it route / does the UI render", the suite now proves features
   fails cleanly (`Success:false`, never 500) and never borrows another instance's credential. The
   mask is never forwarded upstream.
 
+## 6a. Per-instance library allocation → `arr-library-allocation.api.spec.ts`
+- `Libraries` assignment survives the `GET`/`PUT Configuration` round trip.
+- With multiple instances, a manual override scopes `Compare/Radarr` to the assigned library only.
+- A Radarr override naming a TV library resolves to an empty scope (collection-type filter), so
+  every bucket is empty. Proves a Radarr instance cannot take a TV library and vice versa.
+- With no override, the instance root folders (mock `/api/v3/rootfolder`) are auto-matched to the
+  library by last path segment, so the compare still returns the Radarr buckets.
+- A single instance ignores its override and compares all libraries of its type.
+
+## 6b. Per-instance library allocation (UI) → `arr-library-allocation.ui.spec.ts`
+- With two Radarr instances the Settings tab shows a per-instance library picker that lists only
+  movie libraries (Shows/Books excluded), proving the collection-type filter in the UI.
+- Deselecting all libraries autosaves an empty assignment (automatic root-folder matching).
+- Selecting a library autosaves that assignment.
+- The Arr tab Compare button still renders a result card with per-instance assignments set.
+
 ## 7. Hardening / edge cases → `hardening.api.spec.ts`
 - Invalid Arr URLs; no-instances → 400; out-of-range index.
 - Seerr unreachable → 502/504; trash traversal (`..`) + overlong path rejected.

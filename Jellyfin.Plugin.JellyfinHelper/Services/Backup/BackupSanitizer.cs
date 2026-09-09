@@ -196,6 +196,7 @@ public static class BackupSanitizer
             instance.Name = TruncateString(instance.Name, BackupValidator.MaxInstanceNameLength);
             instance.Url = TruncateString(instance.Url, BackupValidator.MaxUrlLength);
             instance.ApiKey = TruncateString(instance.ApiKey, BackupValidator.MaxApiKeyLength);
+            instance.Libraries = TruncateString(instance.Libraries, BackupValidator.MaxArrLibrariesLength);
         }
     }
 }

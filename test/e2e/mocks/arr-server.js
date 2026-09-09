@@ -29,6 +29,13 @@ const sonarrSeries = [
   { title: 'Ghost Series', year: 2018, imdbId: 'tt0200', tvdbId: 200, tmdbId: 1397, path: '/tv/Ghost Series', statistics: { episodeFileCount: 0, totalEpisodeCount: 10 } },
 ];
 
+// Root folders for the auto-match path. The last path segment is what the plugin falls back to
+// when Arr and Jellyfin mount the same physical folder under different prefixes.
+const rootFolders = [
+  { id: 1, path: '/movies', accessible: true },
+  { id: 2, path: '/tv', accessible: true },
+];
+
 function send(res, status, body) {
   const payload = typeof body === 'string' ? body : JSON.stringify(body);
   res.writeHead(status, { 'Content-Type': 'application/json' });
@@ -88,6 +95,7 @@ const server = http.createServer((req, res) => {
   }
   if (path === '/api/v3/movie') { send(res, 200, radarrMovies); return finish(path); }
   if (path === '/api/v3/series') { send(res, 200, sonarrSeries); return finish(path); }
+  if (path === '/api/v3/rootfolder') { send(res, 200, rootFolders); return finish(path); }
 
   send(res, 404, { error: 'not found' });
   return finish(path);

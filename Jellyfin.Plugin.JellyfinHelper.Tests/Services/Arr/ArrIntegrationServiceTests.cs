@@ -984,4 +984,319 @@ public class ArrIntegrationServiceTests
         Assert.Single(result.InJellyfinOnly);
         Assert.Contains("Old Show (2000)", result.InJellyfinOnly);
     }
+
+    [Fact]
+    public async Task GetRootFolders_EmptyUrl_ReturnsEmptyList()
+    {
+        var handler = CreateMockHandler(HttpStatusCode.OK, "[]");
+        var service = CreateService(handler.Object);
+
+        var folders = await service.GetRootFoldersAsync(string.Empty, "apikey");
+
+        Assert.NotNull(folders);
+        Assert.Empty(folders);
+    }
+
+    [Fact]
+    public async Task GetRootFolders_EmptyApiKey_ReturnsEmptyList()
+    {
+        var handler = CreateMockHandler(HttpStatusCode.OK, "[]");
+        var service = CreateService(handler.Object);
+
+        var folders = await service.GetRootFoldersAsync("http://localhost:7878", string.Empty);
+
+        Assert.NotNull(folders);
+        Assert.Empty(folders);
+    }
+
+    [Fact]
+    public async Task GetRootFolders_ValidResponse_ParsesPaths()
+    {
+        var json = """
+                   [
+                       {"path":"/movies-4k","accessible":true},
+                       {"path":"/movies-1080p","accessible":true}
+                   ]
+                   """;
+        var handler = CreateMockHandler(HttpStatusCode.OK, json);
+        var service = CreateService(handler.Object);
+
+        var folders = await service.GetRootFoldersAsync("http://localhost:7878", "testapikey");
+
+        Assert.NotNull(folders);
+        Assert.Equal(2, folders.Count);
+        Assert.Contains("/movies-4k", folders);
+        Assert.Contains("/movies-1080p", folders);
+    }
+
+    [Fact]
+    public async Task GetRootFolders_SkipsBlankPaths()
+    {
+        var json = """[{"path":"/movies"},{"path":""},{"path":null}]""";
+        var handler = CreateMockHandler(HttpStatusCode.OK, json);
+        var service = CreateService(handler.Object);
+
+        var folders = await service.GetRootFoldersAsync("http://localhost:7878", "testapikey");
+
+        Assert.NotNull(folders);
+        Assert.Single(folders);
+        Assert.Contains("/movies", folders);
+    }
+
+    [Fact]
+    public async Task GetRootFolders_CallsCorrectEndpoint()
+    {
+        using var response = new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent("[]")
+        };
+        var mockHandler = new Mock<HttpMessageHandler>(MockBehavior.Strict);
+        mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(req =>
+                    req.RequestUri != null &&
+                    req.RequestUri.AbsoluteUri == "http://localhost:7878/api/v3/rootfolder"),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(response)
+            .Verifiable();
+        mockHandler.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
+
+        var service = CreateService(mockHandler.Object);
+
+        await service.GetRootFoldersAsync("http://localhost:7878", "testapikey");
+
+        mockHandler.Verify();
+    }
+
+    [Fact]
+    public async Task GetRootFolders_ServerError_ReturnsNull()
+    {
+        var handler = CreateMockHandler(HttpStatusCode.InternalServerError, "Error");
+        var service = CreateService(handler.Object);
+
+        var folders = await service.GetRootFoldersAsync("http://localhost:7878", "testapikey");
+
+        Assert.Null(folders);
+    }
+
+    [Fact]
+    public async Task GetRootFolders_Timeout_ReturnsNull_AndLogsWarning()
+    {
+        var mock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
+        mock.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
+        mock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ThrowsAsync(new OperationCanceledException("HttpClient timeout"));
+
+        var service = CreateServiceWithMockLog(mock.Object, out var pluginLogMock);
+
+        var folders = await service.GetRootFoldersAsync("http://localhost:7878", "testapikey");
+
+        Assert.Null(folders);
+        pluginLogMock.Verify(
+            p => p.LogWarning(
+                "ArrIntegration",
+                It.Is<string>(msg => msg.Contains("timed out", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<Exception?>(),
+                It.IsAny<ILogger?>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task GetRootFolders_UserCancellation_RethrowsOperationCanceled()
+    {
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var mockHandler = new Mock<HttpMessageHandler>(MockBehavior.Strict);
+        mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ThrowsAsync(new TaskCanceledException("Request was canceled"));
+        mockHandler.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
+
+        var service = CreateService(mockHandler.Object);
+
+        await Assert.ThrowsAsync<TaskCanceledException>(() =>
+            service.GetRootFoldersAsync("http://localhost:7878", "testapikey", cts.Token));
+    }
+
+    [Fact]
+    public async Task GetRootFolders_ApiKeyWithCrLf_ThrowsArgumentException()
+    {
+        var handler = new Mock<HttpMessageHandler>();
+        var service = CreateService(handler.Object);
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.GetRootFoldersAsync("http://radarr.local", "key\r\nX-Injected: evil", CancellationToken.None));
+        Assert.Contains("CR, LF", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("file:///etc/passwd")]
+    [InlineData("ftp://internal.host/data")]
+    public async Task GetRootFolders_NonHttpScheme_ReturnsNull(string url)
+    {
+        var handler = CreateMockHandler(HttpStatusCode.OK, "[]");
+        var service = CreateService(handler.Object);
+
+        var result = await service.GetRootFoldersAsync(url, "apikey", CancellationToken.None);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void MatchLibraries_FullPathMatch_ReturnsLibrary()
+    {
+        var roots = new[] { "/data/movies-4k" };
+        var libraries = new[]
+        {
+            ("Movies 4K", (string?)"movies", (IReadOnlyList<string>)["/data/movies-4k"]),
+            ("Movies 1080p", (string?)"movies", (IReadOnlyList<string>)["/data/movies-1080p"])
+        };
+
+        var matched = ArrIntegrationService.MatchLibrariesToRootFolders(roots, libraries, "movies");
+
+        Assert.Single(matched);
+        Assert.Contains("Movies 4K", matched);
+    }
+
+    [Fact]
+    public void MatchLibraries_TrailingSlashDiffers_StillMatches()
+    {
+        var roots = new[] { "/data/movies-4k/" };
+        var libraries = new[] { ("Movies 4K", (string?)"movies", (IReadOnlyList<string>)["/data/movies-4k"]) };
+
+        var matched = ArrIntegrationService.MatchLibrariesToRootFolders(roots, libraries, "movies");
+
+        Assert.Single(matched);
+    }
+
+    [Fact]
+    public void MatchLibraries_DifferentMountPrefix_MatchesByBasename()
+    {
+        // Arr sees /media, Jellyfin sees /mnt/pool for the same physical folder; the last segment matches.
+        var roots = new[] { "/media/movies-4k" };
+        var libraries = new[]
+        {
+            ("Movies 4K", (string?)"movies", (IReadOnlyList<string>)["/mnt/pool/movies-4k"]),
+            ("Movies 1080p", (string?)"movies", (IReadOnlyList<string>)["/mnt/pool/movies-1080p"])
+        };
+
+        var matched = ArrIntegrationService.MatchLibrariesToRootFolders(roots, libraries, "movies");
+
+        Assert.Single(matched);
+        Assert.Contains("Movies 4K", matched);
+    }
+
+    [Fact]
+    public void MatchLibraries_ExactMatch_TakesPrecedenceOverBasename()
+    {
+        // The root matches one library's location exactly, so the basename must not also pull in an
+        // unrelated same-named library on a different mount.
+        var roots = new[] { "/mnt/hdd/movies" };
+        var libraries = new[]
+        {
+            ("HDD Movies", (string?)"movies", (IReadOnlyList<string>)["/mnt/hdd/movies"]),
+            ("SSD Movies", (string?)"movies", (IReadOnlyList<string>)["/mnt/ssd/movies"])
+        };
+
+        var matched = ArrIntegrationService.MatchLibrariesToRootFolders(roots, libraries, "movies");
+
+        Assert.Single(matched);
+        Assert.Contains("HDD Movies", matched);
+    }
+
+    [Fact]
+    public void MatchLibraries_NoOverlap_ReturnsEmpty()
+    {
+        var roots = new[] { "/data/anime" };
+        var libraries = new[] { ("Movies", (string?)"movies", (IReadOnlyList<string>)["/data/movies"]) };
+
+        var matched = ArrIntegrationService.MatchLibrariesToRootFolders(roots, libraries, "movies");
+
+        Assert.Empty(matched);
+    }
+
+    [Fact]
+    public void MatchLibraries_MultipleRootsAndLibraries_MatchesEach()
+    {
+        var roots = new[] { "/data/movies-4k", "/data/movies-remux" };
+        var libraries = new[]
+        {
+            ("4K", (string?)"movies", (IReadOnlyList<string>)["/data/movies-4k"]),
+            ("Remux", (string?)"movies", (IReadOnlyList<string>)["/data/movies-remux"]),
+            ("1080p", (string?)"movies", (IReadOnlyList<string>)["/data/movies-1080p"])
+        };
+
+        var matched = ArrIntegrationService.MatchLibrariesToRootFolders(roots, libraries, "movies");
+
+        Assert.Equal(2, matched.Count);
+        Assert.Contains("4K", matched);
+        Assert.Contains("Remux", matched);
+    }
+
+    [Fact]
+    public void MatchLibraries_LibraryWithMultipleLocations_MatchesOnAny()
+    {
+        var roots = new[] { "/data/movies-b" };
+        var libraries = new[] { ("Combined", (string?)"movies", (IReadOnlyList<string>)["/data/movies-a", "/data/movies-b"]) };
+
+        var matched = ArrIntegrationService.MatchLibrariesToRootFolders(roots, libraries, "movies");
+
+        Assert.Single(matched);
+    }
+
+    [Fact]
+    public void MatchLibraries_NullLocations_AreSkipped()
+    {
+        var roots = new[] { "/data/movies" };
+        var libraries = new[]
+        {
+            ("NoLocations", (string?)"movies", (IReadOnlyList<string>)null!),
+            ("Movies", (string?)"movies", (IReadOnlyList<string>)["/data/movies"])
+        };
+
+        var matched = ArrIntegrationService.MatchLibrariesToRootFolders(roots, libraries, "movies");
+
+        Assert.Single(matched);
+        Assert.Contains("Movies", matched);
+    }
+
+    [Fact]
+    public void MatchLibraries_BlankRootsAndLocations_AreIgnored()
+    {
+        var roots = new[] { string.Empty, "  " };
+        var libraries = new[] { ("Movies", (string?)"movies", (IReadOnlyList<string>)[string.Empty, "/data/movies"]) };
+
+        var matched = ArrIntegrationService.MatchLibrariesToRootFolders(roots, libraries, "movies");
+
+        Assert.Empty(matched);
+    }
+
+    [Fact]
+    public void MatchLibraries_WrongCollectionType_IsNotMatched()
+    {
+        // A TV library whose path collides with a Radarr root folder must never match for "movies".
+        var roots = new[] { "/data/anime" };
+        var libraries = new[]
+        {
+            ("Anime Series", (string?)"tvshows", (IReadOnlyList<string>)["/data/anime"]),
+            ("Movies", (string?)"movies", (IReadOnlyList<string>)["/data/movies"])
+        };
+
+        var matchedForMovies = ArrIntegrationService.MatchLibrariesToRootFolders(roots, libraries, "movies");
+        Assert.Empty(matchedForMovies);
+
+        var matchedForTv = ArrIntegrationService.MatchLibrariesToRootFolders(roots, libraries, "tvshows");
+        Assert.Single(matchedForTv);
+        Assert.Contains("Anime Series", matchedForTv);
+    }
 }

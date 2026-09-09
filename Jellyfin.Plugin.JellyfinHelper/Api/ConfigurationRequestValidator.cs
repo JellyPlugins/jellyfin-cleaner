@@ -293,6 +293,14 @@ public static class ConfigurationRequestValidator
     /// <returns>An error message string, or <c>null</c> when the instance is valid.</returns>
     private static string? ValidateSingleArrInstance(ArrInstanceConfig instance, string typeName, int index)
     {
+        // Libraries persists even for a blank instance (RebuildArrInstances copies every entry), so
+        // validate it before the blank-credential early return.
+        var librariesError = ValidateArrInstanceLibraries(instance, typeName, index);
+        if (librariesError != null)
+        {
+            return librariesError;
+        }
+
         // Skip completely empty instances (user may have added a blank row)
         if (string.IsNullOrWhiteSpace(instance.Url) && string.IsNullOrWhiteSpace(instance.ApiKey))
         {
@@ -350,6 +358,21 @@ public static class ConfigurationRequestValidator
         {
             return
                 $"{typeName} instance '{DescribeInstance(instance, index)}' has an invalid URL. Only http:// and https:// URLs are allowed.";
+        }
+
+        return null;
+    }
+
+    private static string? ValidateArrInstanceLibraries(ArrInstanceConfig instance, string typeName, int index)
+    {
+        if (instance.Libraries?.Length > 2048)
+        {
+            return $"{typeName} instance '{DescribeInstance(instance, index)}' library assignment must be 2048 characters or fewer.";
+        }
+
+        if (instance.Libraries != null && instance.Libraries.Any(char.IsControl))
+        {
+            return $"{typeName} instance '{DescribeInstance(instance, index)}' library assignment contains invalid characters.";
         }
 
         return null;

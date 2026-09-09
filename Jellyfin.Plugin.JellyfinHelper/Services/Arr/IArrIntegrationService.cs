@@ -38,4 +38,13 @@ public interface IArrIntegrationService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of series from Sonarr, or null if the fetch failed.</returns>
     Task<List<ArrSeries>?> GetSonarrSeriesAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the configured root folder paths from a Radarr or Sonarr instance.
+    /// </summary>
+    /// <param name="baseUrl">The Arr base URL.</param>
+    /// <param name="apiKey">The Arr API key.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The root folder paths, or null if the fetch failed.</returns>
+    Task<List<string>?> GetRootFoldersAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default);
 }
