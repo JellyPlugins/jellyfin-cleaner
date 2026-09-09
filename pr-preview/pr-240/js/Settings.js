@@ -1483,12 +1483,12 @@ function initLibraryMultiSelects(cfg) {
  */
 function seedArrLibraryInitialValues(cfg) {
     var types = ['Radarr', 'Sonarr'];
-    for (var t = 0; t < types.length; t++) {
-        var instances = resolveArrInstances(cfg, types[t]);
+    for (const type of types) {
+        var instances = resolveArrInstances(cfg, type);
         for (var i = 0; i < instances.length; i++) {
-            var wrap = document.getElementById(types[t] + '_' + i + '_libs');
+            var wrap = document.getElementById(type + '_' + i + '_libs');
             if (wrap) {
-                wrap.dataset.initialValue = (instances[i] && instances[i].Libraries) || '';
+                wrap.dataset.initialValue = instances[i]?.Libraries || '';
             }
         }
     }
@@ -1501,8 +1501,7 @@ function seedArrLibraryInitialValues(cfg) {
  */
 function renderArrLibraryMultiSelects(libraries) {
     var wrappers = document.querySelectorAll('.arr-library-wrapper');
-    for (var i = 0; i < wrappers.length; i++) {
-        var wrap = wrappers[i];
+    for (const wrap of wrappers) {
         var selectedSet = parseCommaSeparatedSet(wrap.dataset.initialValue || '');
         renderLibraryMultiSelect(wrap.id, filterLibrariesForArrType(libraries, wrap.dataset.arrType), selectedSet, 'arr');
     }
@@ -1515,9 +1514,9 @@ function renderArrLibraryMultiSelects(libraries) {
 function filterLibrariesForArrType(libraries, arrType) {
     var wanted = arrType === 'Sonarr' ? 'tvshows' : 'movies';
     var result = [];
-    for (var i = 0; i < libraries.length; i++) {
-        if (libraryEntryType(libraries[i]).toLowerCase() === wanted) {
-            result.push(libraries[i]);
+    for (const lib of libraries) {
+        if (libraryEntryType(lib).toLowerCase() === wanted) {
+            result.push(lib);
         }
     }
     return result;
@@ -1528,8 +1527,7 @@ function filterLibrariesForArrType(libraries, arrType) {
  */
 function renderArrLibraryFallbacks() {
     var wrappers = document.querySelectorAll('.arr-library-wrapper');
-    for (var i = 0; i < wrappers.length; i++) {
-        var wrap = wrappers[i];
+    for (const wrap of wrappers) {
         wrap.innerHTML = '<input type="text" value="' + escAttr(wrap.dataset.initialValue || '') + '">';
     }
 }

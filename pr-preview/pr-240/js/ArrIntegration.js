@@ -84,11 +84,18 @@ function collectArrInstances(type) {
         var urlEl = document.getElementById(prefix + '_url');
         var keyEl = document.getElementById(prefix + '_key');
         if (nameEl && urlEl && keyEl) {
+            // When only one instance of a type exists the picker is hidden, but a previously assigned
+            // value is stashed on the row so it survives the collapse and reappears if a second
+            // instance is added. Prefer the live picker; fall back to the stash.
+            var libsValue = getLibraryMultiSelectValue(prefix + '_libs');
+            if (!libsValue && rows[i].dataset.libsStash) {
+                libsValue = rows[i].dataset.libsStash;
+            }
             result.push({
                 Name: nameEl.value,
                 Url: urlEl.value,
                 ApiKey: keyEl.value,
-                Libraries: getLibraryMultiSelectValue(prefix + '_libs')
+                Libraries: libsValue
             });
         }
     }
@@ -152,19 +159,25 @@ function addArrInstance(type) {
 }
 
 // Adds or removes the per-instance library picker on each row of the given type so it appears only
-// when at least two instances of that type exist. Existing selections are preserved across the toggle.
+// when at least two instances of that type exist. Existing selections are preserved across the toggle:
+// on collapse the value is stashed on the row, on expand a recreated picker is seeded from that stash.
 function syncArrLibraryPickers(type) {
     var rows = document.querySelectorAll('.arr-instance-row[data-type="' + type + '"]');
     var showLibraries = rows.length > 1;
 
     if (!showLibraries) {
-        var existing = document.querySelectorAll('.arr-instance-row[data-type="' + type + '"] .arr-library-wrapper');
-        for (var e = 0; e < existing.length; e++) {
-            var lbl = existing[e].previousElementSibling;
-            if (lbl && lbl.tagName === 'LABEL') {
-                lbl.remove();
+        for (const soleRow of rows) {
+            var soleWrap = soleRow.querySelector('.arr-library-wrapper');
+            if (!soleWrap) {
+                continue;
             }
-            existing[e].remove();
+            // Preserve the assignment before the picker is torn down so a later re-add restores it.
+            soleRow.dataset.libsStash = getLibraryMultiSelectValue(soleWrap.id);
+            var soleLabel = soleWrap.previousElementSibling;
+            if (soleLabel?.tagName === 'LABEL') {
+                soleLabel.remove();
+            }
+            soleWrap.remove();
         }
         return;
     }
@@ -184,7 +197,10 @@ function syncArrLibraryPickers(type) {
             wrap.id = libsId;
             wrap.className = 'library-multiselect-wrapper arr-library-wrapper';
             wrap.dataset.arrType = type;
-            if (testBtn && testBtn.parentNode) {
+            // Seed a recreated picker from any value stashed while the type had a single instance.
+            wrap.dataset.initialValue = rows[i].dataset.libsStash || '';
+            delete rows[i].dataset.libsStash;
+            if (testBtn?.parentNode) {
                 testBtn.parentNode.appendChild(label);
                 testBtn.parentNode.appendChild(wrap);
             }
@@ -199,13 +215,14 @@ function syncArrLibraryPickers(type) {
     // Seed newly added pickers from the server's library list, mirroring initLibraryMultiSelects.
     apiGet('JellyfinHelper/Configuration/Libraries', function (data) {
         var libraries = (data && (data.Libraries || data.libraries)) || [];
-        for (var p = 0; p < pending.length; p++) {
-            renderLibraryMultiSelect(pending[p].id,
-                filterLibrariesForArrType(libraries, pending[p].dataset.arrType), {}, 'arr');
+        for (const wrapEl of pending) {
+            renderLibraryMultiSelect(wrapEl.id,
+                filterLibrariesForArrType(libraries, wrapEl.dataset.arrType),
+                parseCommaSeparatedSet(wrapEl.dataset.initialValue || ''), 'arr');
         }
     }, function () {
-        for (var q = 0; q < pending.length; q++) {
-            pending[q].innerHTML = '<input type="text" value="">';
+        for (const wrapEl of pending) {
+            wrapEl.innerHTML = '<input type="text" value="' + escAttr(wrapEl.dataset.initialValue || '') + '">';
         }
     });
 }
@@ -279,6 +296,17 @@ function removeArrInstance(type, index) {
             libsWrap.id = newLibsId;
             if (libsLabel) {
                 libsLabel.htmlFor = newLibsId;
+            }
+            // Rekey nested checkbox ids so a later re-add cannot collide with the old row's ids.
+            var libInputs = libsWrap.querySelectorAll('input[type="checkbox"]');
+            for (var li = 0; li < libInputs.length; li++) {
+                var oldCheckId = libInputs[li].id;
+                var newCheckId = newLibsId + '_lib_' + li;
+                libInputs[li].id = newCheckId;
+                var checkLabel = libsWrap.querySelector('label[for="' + oldCheckId + '"]');
+                if (checkLabel) {
+                    checkLabel.htmlFor = newCheckId;
+                }
             }
         }
     }
