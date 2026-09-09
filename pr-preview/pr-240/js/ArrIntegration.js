@@ -163,56 +163,63 @@ function addArrInstance(type) {
 // on collapse the value is stashed on the row, on expand a recreated picker is seeded from that stash.
 function syncArrLibraryPickers(type) {
     var rows = document.querySelectorAll('.arr-instance-row[data-type="' + type + '"]');
-    var showLibraries = rows.length > 1;
-
-    if (!showLibraries) {
-        for (const soleRow of rows) {
-            var soleWrap = soleRow.querySelector('.arr-library-wrapper');
-            if (!soleWrap) {
-                continue;
-            }
-            // Preserve the assignment before the picker is torn down so a later re-add restores it.
-            soleRow.dataset.libsStash = getLibraryMultiSelectValue(soleWrap.id);
-            var soleLabel = soleWrap.previousElementSibling;
-            if (soleLabel?.tagName === 'LABEL') {
-                soleLabel.remove();
-            }
-            soleWrap.remove();
-        }
-        return;
+    if (rows.length > 1) {
+        seedArrLibraryPickerElements(createArrLibraryPickerElements(rows, type));
+    } else {
+        stashAndRemoveArrLibraryPickers(rows);
     }
+}
 
+// Tears down each row's picker after stashing its current value so a later re-add can restore it.
+function stashAndRemoveArrLibraryPickers(rows) {
+    for (const row of rows) {
+        var wrap = row.querySelector('.arr-library-wrapper');
+        if (!wrap) {
+            continue;
+        }
+        row.dataset.libsStash = getLibraryMultiSelectValue(wrap.id);
+        var label = wrap.previousElementSibling;
+        if (label?.tagName === 'LABEL') {
+            label.remove();
+        }
+        wrap.remove();
+    }
+}
+
+// Creates a picker wrapper for any row of the given type that lacks one, seeding its initial value
+// from any stash left behind while the type had a single instance. Returns the newly created wrappers.
+function createArrLibraryPickerElements(rows, type) {
     var pending = [];
     for (var i = 0; i < rows.length; i++) {
-        var prefix = type + '_' + i;
-        var libsId = prefix + '_libs';
-        var wrap = document.getElementById(libsId);
-        if (!wrap) {
-            var testBtn = rows[i].querySelector('.btnTestArr');
-            var label = document.createElement('label');
-            label.htmlFor = libsId;
-            label.style.marginTop = '0.5em';
-            label.textContent = T('arrInstanceLibraries', 'Assigned Libraries');
-            wrap = document.createElement('div');
-            wrap.id = libsId;
-            wrap.className = 'library-multiselect-wrapper arr-library-wrapper';
-            wrap.dataset.arrType = type;
-            // Seed a recreated picker from any value stashed while the type had a single instance.
-            wrap.dataset.initialValue = rows[i].dataset.libsStash || '';
-            delete rows[i].dataset.libsStash;
-            if (testBtn?.parentNode) {
-                testBtn.parentNode.appendChild(label);
-                testBtn.parentNode.appendChild(wrap);
-            }
-            pending.push(wrap);
+        var libsId = type + '_' + i + '_libs';
+        if (document.getElementById(libsId)) {
+            continue;
         }
+        var testBtn = rows[i].querySelector('.btnTestArr');
+        var label = document.createElement('label');
+        label.htmlFor = libsId;
+        label.style.marginTop = '0.5em';
+        label.textContent = T('arrInstanceLibraries', 'Assigned Libraries');
+        var wrap = document.createElement('div');
+        wrap.id = libsId;
+        wrap.className = 'library-multiselect-wrapper arr-library-wrapper';
+        wrap.dataset.arrType = type;
+        wrap.dataset.initialValue = rows[i].dataset.libsStash || '';
+        delete rows[i].dataset.libsStash;
+        if (testBtn?.parentNode) {
+            testBtn.parentNode.appendChild(label);
+            testBtn.parentNode.appendChild(wrap);
+        }
+        pending.push(wrap);
     }
+    return pending;
+}
 
+// Fills freshly created pickers from the server's library list, mirroring initLibraryMultiSelects.
+function seedArrLibraryPickerElements(pending) {
     if (pending.length === 0) {
         return;
     }
-
-    // Seed newly added pickers from the server's library list, mirroring initLibraryMultiSelects.
     apiGet('JellyfinHelper/Configuration/Libraries', function (data) {
         var libraries = (data && (data.Libraries || data.libraries)) || [];
         for (const wrapEl of pending) {
