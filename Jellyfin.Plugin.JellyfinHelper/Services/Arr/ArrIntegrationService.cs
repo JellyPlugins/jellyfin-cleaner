@@ -401,14 +401,11 @@ public sealed class ArrIntegrationService : IArrIntegrationService
         ArgumentNullException.ThrowIfNull(rootFolderPaths);
         ArgumentNullException.ThrowIfNull(libraries);
 
-        var normalizedRoots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var root in rootFolderPaths)
-        {
-            if (!string.IsNullOrWhiteSpace(root))
-            {
-                normalizedRoots.Add(NormalizePath(root));
-            }
-        }
+        var normalizedRoots = new HashSet<string>(
+            rootFolderPaths
+                .Where(root => !string.IsNullOrWhiteSpace(root))
+                .Select(NormalizePath),
+            StringComparer.OrdinalIgnoreCase);
 
         // Snapshot once so it can be enumerated twice (exact pass, then fallback pass).
         var sameType = libraries
@@ -425,14 +422,11 @@ public sealed class ArrIntegrationService : IArrIntegrationService
 
         // Basename fallback is only for roots with no exact same-type location match, so a container
         // remap still resolves without letting one root's basename pull in an unrelated same-named library.
-        var fallbackSegments = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var root in normalizedRoots)
-        {
-            if (!normalizedLocationSet.Contains(root))
-            {
-                fallbackSegments.Add(GetFolderName(root));
-            }
-        }
+        var fallbackSegments = new HashSet<string>(
+            normalizedRoots
+                .Where(root => !normalizedLocationSet.Contains(root))
+                .Select(GetFolderName),
+            StringComparer.OrdinalIgnoreCase);
 
         var matched = new List<string>();
         foreach (var (name, _, locations) in sameType)
