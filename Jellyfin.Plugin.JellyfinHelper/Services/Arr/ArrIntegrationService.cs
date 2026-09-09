@@ -546,6 +546,6 @@ public sealed class ArrIntegrationService : IArrIntegrationService
 
     private sealed class RootFolderDto
     {
-        public string? Path { get; set; }
+        public string? Path { get; init; }
     }
 }

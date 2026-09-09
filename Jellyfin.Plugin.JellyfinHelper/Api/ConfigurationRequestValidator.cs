@@ -293,6 +293,14 @@ public static class ConfigurationRequestValidator
     /// <returns>An error message string, or <c>null</c> when the instance is valid.</returns>
     private static string? ValidateSingleArrInstance(ArrInstanceConfig instance, string typeName, int index)
     {
+        // Libraries persists even for a blank instance (RebuildArrInstances copies every entry), so
+        // validate it before the blank-credential early return.
+        var librariesError = ValidateArrInstanceLibraries(instance, typeName, index);
+        if (librariesError != null)
+        {
+            return librariesError;
+        }
+
         // Skip completely empty instances (user may have added a blank row)
         if (string.IsNullOrWhiteSpace(instance.Url) && string.IsNullOrWhiteSpace(instance.ApiKey))
         {
@@ -309,12 +317,6 @@ public static class ConfigurationRequestValidator
         if (urlError != null)
         {
             return urlError;
-        }
-
-        var librariesError = ValidateArrInstanceLibraries(instance, typeName, index);
-        if (librariesError != null)
-        {
-            return librariesError;
         }
 
         // If URL is set, API key must also be set

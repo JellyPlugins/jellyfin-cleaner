@@ -93,4 +93,18 @@ export function trackConsoleErrors(page: Page): string[] {
   return errors;
 }
 
+/**
+ * Expands a Settings-tab Arr collapsible section ("Radarr" / "Sonarr" / "Seerr") if it is collapsed.
+ * With two or more instances the section renders collapsed, and its header overlays the body and
+ * intercepts pointer events, so any interaction with inner controls must expand it first.
+ */
+export async function expandArrCollapsibleSection(page: Page, type: string): Promise<void> {
+  const header = page.locator(`#arrCollapsibleHeader${type}`);
+  await expect(header).toBeVisible({ timeout: 15_000 });
+  if ((await header.getAttribute('aria-expanded')) !== 'true') {
+    await header.click();
+    await expect(header).toHaveAttribute('aria-expanded', 'true', { timeout: 5_000 });
+  }
+}
+
 export { PLUGIN_GUID } from '../setup/api-client.ts';

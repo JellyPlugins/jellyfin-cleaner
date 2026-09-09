@@ -5,7 +5,7 @@
  * proves the scoping behaviour at the API level.
  */
 import { test, expect, type APIRequestContext } from '@playwright/test';
-import { openDashboard, switchTab } from './_ui-helpers.ts';
+import { openDashboard, switchTab, expandArrCollapsibleSection } from './_ui-helpers.ts';
 import { apiContext, loadAuth, p } from '../setup/api-client.ts';
 
 const ARR_URL = process.env.MOCK_ARR_URL ?? 'http://mock-arr:9000';
@@ -47,6 +47,7 @@ test.afterAll(async () => {
 test('Settings tab: a Radarr instance shows a library picker listing only movie libraries', async ({ page }) => {
   await openDashboard(page);
   await switchTab(page, 'settings');
+  await expandArrCollapsibleSection(page, 'Radarr');
 
   const wrapper = page.locator('#Radarr_0_libs');
   await expect(wrapper.locator('.library-multiselect-toggle')).toBeVisible({ timeout: 20_000 });
@@ -66,6 +67,7 @@ test('Settings tab: a Radarr instance shows a library picker listing only movie 
 test('Settings tab: deselecting all libraries persists as automatic (empty) and autosaves', async ({ page }) => {
   await openDashboard(page);
   await switchTab(page, 'settings');
+  await expandArrCollapsibleSection(page, 'Radarr');
 
   const wrapper = page.locator('#Radarr_0_libs');
   await expect(wrapper.locator('.library-multiselect-toggle')).toBeVisible({ timeout: 20_000 });
@@ -94,6 +96,7 @@ test('Settings tab: deselecting all libraries persists as automatic (empty) and 
 test('Settings tab: selecting a library persists that assignment and autosaves', async ({ page }) => {
   await openDashboard(page);
   await switchTab(page, 'settings');
+  await expandArrCollapsibleSection(page, 'Radarr');
 
   const wrapper = page.locator('#Radarr_0_libs');
   await expect(wrapper.locator('.library-multiselect-toggle')).toBeVisible({ timeout: 20_000 });

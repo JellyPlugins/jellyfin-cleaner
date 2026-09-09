@@ -1046,6 +1046,11 @@ public class ArrIntegrationServiceTests
     [Fact]
     public async Task GetRootFolders_CallsCorrectEndpoint()
     {
+        using var response = new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent("[]")
+        };
         var mockHandler = new Mock<HttpMessageHandler>(MockBehavior.Strict);
         mockHandler.Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -1054,7 +1059,7 @@ public class ArrIntegrationServiceTests
                     req.RequestUri != null &&
                     req.RequestUri.AbsoluteUri == "http://localhost:7878/api/v3/rootfolder"),
                 ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage { StatusCode = HttpStatusCode.OK, Content = new StringContent("[]") })
+            .ReturnsAsync(response)
             .Verifiable();
         mockHandler.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
 

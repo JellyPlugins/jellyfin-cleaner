@@ -387,6 +387,13 @@ public static class BackupValidator
             ValidateStringField(result, instance.ApiKey, $"{prefix}.ApiKey", MaxApiKeyLength);
             ValidateStringField(result, instance.Libraries, $"{prefix}.Libraries", MaxArrLibrariesLength);
 
+            // The sanitizer only truncates Libraries; reject control characters here to match
+            // ConfigurationRequestValidator so a crafted backup cannot persist them on restore.
+            if (instance.Libraries != null && instance.Libraries.Any(char.IsControl))
+            {
+                result.Errors.Add($"{prefix}.Libraries contains invalid control characters.");
+            }
+
             // Validate URL format
             if (string.IsNullOrEmpty(instance.Url))
             {

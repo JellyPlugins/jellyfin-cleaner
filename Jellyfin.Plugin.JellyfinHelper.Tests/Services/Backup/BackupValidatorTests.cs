@@ -236,6 +236,22 @@ public class BackupValidatorTests
         Assert.Contains(result.Errors, e => e.Contains("RadarrInstances[0].Libraries"));
     }
 
+    [Fact]
+    public void Validate_ArrInstances_LibrariesWithControlChar_ReturnsError()
+    {
+        var backup = CreateValidBackup();
+        backup.RadarrInstances.Add(new BackupArrInstance
+        {
+            Name = "R1",
+            Url = "http://radarr.local",
+            Libraries = "MoviesRemux"
+        });
+
+        var result = BackupValidator.Validate(backup);
+
+        Assert.Contains(result.Errors, e => e.Contains("RadarrInstances[0].Libraries") && e.Contains("control"));
+    }
+
     // Growth timeline
 
     [Fact]

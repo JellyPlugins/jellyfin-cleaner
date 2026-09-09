@@ -230,6 +230,25 @@ public class ConfigurationRequestValidatorTests
     }
 
     [Fact]
+    public void Validate_ReturnsError_WhenBlankArrInstanceHasInvalidLibraries()
+    {
+        // A blank instance (no URL/API key) is persisted verbatim, so an over-length Libraries value
+        // must still be rejected rather than slipping through the blank-credential early return.
+        var req = new ConfigurationUpdateRequest
+        {
+            OrphanMinAgeDays = 7,
+            TrashRetentionDays = 30,
+            RadarrInstances = new List<ArrInstanceConfig>
+            {
+                new() { Url = string.Empty, ApiKey = string.Empty, Name = "R1", Libraries = new string('L', 2049) }
+            }
+        };
+        var error = ConfigurationRequestValidator.Validate(req);
+        Assert.NotNull(error);
+        Assert.Contains("library", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void ValidateTrashPath_ReturnsNull_ForEmpty()
     {
         Assert.Null(ConfigurationRequestValidator.ValidateTrashPath(""));
