@@ -61,6 +61,11 @@ public static class BackupValidator
     internal const int MaxInstanceNameLength = 100;
 
     /// <summary>
+    ///     Maximum string length for the per-instance library assignment field.
+    /// </summary>
+    internal const int MaxArrLibrariesLength = 2048;
+
+    /// <summary>
     ///     Valid language codes.
     /// </summary>
     internal static readonly HashSet<string> ValidLanguages = new(StringComparer.OrdinalIgnoreCase)
@@ -380,6 +385,7 @@ public static class BackupValidator
             ValidateStringField(result, instance.Name, $"{prefix}.Name", MaxInstanceNameLength);
             ValidateStringField(result, instance.Url, $"{prefix}.Url", MaxUrlLength);
             ValidateStringField(result, instance.ApiKey, $"{prefix}.ApiKey", MaxApiKeyLength);
+            ValidateStringField(result, instance.Libraries, $"{prefix}.Libraries", MaxArrLibrariesLength);
 
             // Validate URL format
             if (string.IsNullOrEmpty(instance.Url))

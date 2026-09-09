@@ -607,7 +607,8 @@ public class ConfigurationController : ControllerBase
             {
                 Name = instance.Name,
                 Url = instance.Url,
-                ApiKey = ResolveApiKey(instance, previousInstances)
+                ApiKey = ResolveApiKey(instance, previousInstances),
+                Libraries = instance.Libraries
             });
         }
 

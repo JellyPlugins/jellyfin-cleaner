@@ -144,7 +144,8 @@ public sealed class ConfigurationResponse
                 {
                     Name = i.Name,
                     Url = i.Url,
-                    ApiKey = string.IsNullOrWhiteSpace(i.ApiKey) ? string.Empty : ApiKeyMask
+                    ApiKey = string.IsNullOrWhiteSpace(i.ApiKey) ? string.Empty : ApiKeyMask,
+                    Libraries = i.Libraries
                 })
                 .ToList(),
             SonarrInstances = config.SonarrInstances
@@ -152,7 +153,8 @@ public sealed class ConfigurationResponse
                 {
                     Name = i.Name,
                     Url = i.Url,
-                    ApiKey = string.IsNullOrWhiteSpace(i.ApiKey) ? string.Empty : ApiKeyMask
+                    ApiKey = string.IsNullOrWhiteSpace(i.ApiKey) ? string.Empty : ApiKeyMask,
+                    Libraries = i.Libraries
                 })
                 .ToList()
         };

@@ -146,6 +146,8 @@
   "instanceName": "Örnek Adı",
   "radarrInstances": "Radarr Örnekleri",
   "sonarrInstances": "Sonarr Örnekleri",
+  "arrInstanceLibraries": "Atanan Kitaplıklar",
+  "arrLibrariesAuto": "Otomatik (kök klasöre göre eşleştirildi)",
   "compareWith": "Karşılaştır",
   "compare": "Karşılaştır",
   "arrSelectInstance": "Bir örnek seçin",

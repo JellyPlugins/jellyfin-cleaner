@@ -6,8 +6,9 @@ var _testTimers = {};
 function renderArrInstances(type, instances) {
     var h = '';
     var count = instances ? instances.length : 0;
+    var showLibraries = count > 1;
     for (var i = 0; i < count; i++) {
-        h += renderArrInstanceRow(type, i, instances[i]);
+        h += renderArrInstanceRow(type, i, instances[i], showLibraries);
     }
     h += '<div id="' + type + 'AddBtnWrap">';
     h += '<button type="button" class="action-btn" id="btnAdd' + type + '"' +
@@ -18,7 +19,7 @@ function renderArrInstances(type, instances) {
     return h;
 }
 
-function renderArrInstanceRow(type, index, inst) {
+function renderArrInstanceRow(type, index, inst, showLibraries) {
     var prefix = type + '_' + index;
     var name = inst ? (inst.Name || '') : '';
     var url = inst ? (inst.Url || '') : '';
@@ -49,6 +50,14 @@ function renderArrInstanceRow(type, index, inst) {
         + prefix + '_btnTest" data-type="' + type + '" data-index="' + index
         + '" style="padding:0.3em 0.8em;font-size:0.85em;">' + mi('extension') + T(
             'testConnection', 'Test Connection') + '</button>';
+    if (showLibraries) {
+        var libsId = prefix + '_libs';
+        h += '<label for="' + libsId + '" style="margin-top:0.5em;">' + T('arrInstanceLibraries',
+            'Assigned Libraries') + '</label>';
+        h += '<div id="' + libsId + '" class="library-multiselect-wrapper arr-library-wrapper" data-arr-type="'
+            + type + '"></div>';
+    }
+
     h += '</div>';
     return h;
 }
@@ -75,7 +84,12 @@ function collectArrInstances(type) {
         var urlEl = document.getElementById(prefix + '_url');
         var keyEl = document.getElementById(prefix + '_key');
         if (nameEl && urlEl && keyEl) {
-            result.push({Name: nameEl.value, Url: urlEl.value, ApiKey: keyEl.value});
+            result.push({
+                Name: nameEl.value,
+                Url: urlEl.value,
+                ApiKey: keyEl.value,
+                Libraries: getLibraryMultiSelectValue(prefix + '_libs')
+            });
         }
     }
     return result;
@@ -134,6 +148,66 @@ function addArrInstance(type) {
         }
     }
     updateArrCollapsibleCount(type);
+    syncArrLibraryPickers(type);
+}
+
+// Adds or removes the per-instance library picker on each row of the given type so it appears only
+// when at least two instances of that type exist. Existing selections are preserved across the toggle.
+function syncArrLibraryPickers(type) {
+    var rows = document.querySelectorAll('.arr-instance-row[data-type="' + type + '"]');
+    var showLibraries = rows.length > 1;
+
+    if (!showLibraries) {
+        var existing = document.querySelectorAll('.arr-instance-row[data-type="' + type + '"] .arr-library-wrapper');
+        for (var e = 0; e < existing.length; e++) {
+            var lbl = existing[e].previousElementSibling;
+            if (lbl && lbl.tagName === 'LABEL') {
+                lbl.remove();
+            }
+            existing[e].remove();
+        }
+        return;
+    }
+
+    var pending = [];
+    for (var i = 0; i < rows.length; i++) {
+        var prefix = type + '_' + i;
+        var libsId = prefix + '_libs';
+        var wrap = document.getElementById(libsId);
+        if (!wrap) {
+            var testBtn = rows[i].querySelector('.btnTestArr');
+            var label = document.createElement('label');
+            label.htmlFor = libsId;
+            label.style.marginTop = '0.5em';
+            label.textContent = T('arrInstanceLibraries', 'Assigned Libraries');
+            wrap = document.createElement('div');
+            wrap.id = libsId;
+            wrap.className = 'library-multiselect-wrapper arr-library-wrapper';
+            wrap.dataset.arrType = type;
+            if (testBtn && testBtn.parentNode) {
+                testBtn.parentNode.appendChild(label);
+                testBtn.parentNode.appendChild(wrap);
+            }
+            pending.push(wrap);
+        }
+    }
+
+    if (pending.length === 0) {
+        return;
+    }
+
+    // Seed newly added pickers from the server's library list, mirroring initLibraryMultiSelects.
+    apiGet('JellyfinHelper/Configuration/Libraries', function (data) {
+        var libraries = (data && (data.Libraries || data.libraries)) || [];
+        for (var p = 0; p < pending.length; p++) {
+            renderLibraryMultiSelect(pending[p].id,
+                filterLibrariesForArrType(libraries, pending[p].dataset.arrType), {}, 'arr');
+        }
+    }, function () {
+        for (var q = 0; q < pending.length; q++) {
+            pending[q].innerHTML = '<input type="text" value="">';
+        }
+    });
 }
 
 // Note: This function performs multiple sequential DOM queries and updates. With MAX_ARR_INSTANCES = 3, layout thrashing is not a practical concern.
@@ -198,12 +272,22 @@ function removeArrInstance(type, index) {
             testBtn.dataset.index = i;
             testBtn.id = prefix + '_btnTest';
         }
+        var libsWrap = remaining[i].querySelector('.arr-library-wrapper');
+        if (libsWrap) {
+            var newLibsId = prefix + '_libs';
+            var libsLabel = remaining[i].querySelector('label[for="' + libsWrap.id + '"]');
+            libsWrap.id = newLibsId;
+            if (libsLabel) {
+                libsLabel.htmlFor = newLibsId;
+            }
+        }
     }
     var btn = document.getElementById('btnAdd' + type);
     if (btn && remaining.length < MAX_ARR_INSTANCES) {
         btn.style.display = '';
     }
     updateArrCollapsibleCount(type);
+    syncArrLibraryPickers(type);
 
     // Auto-save settings after removal and show feedback on collapsible header
     var arrCollapsibleHeader = document.getElementById('arrCollapsibleHeader' + type);

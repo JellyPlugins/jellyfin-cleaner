@@ -129,6 +129,21 @@ public class ConfigurationResponseTests
     // Non-key fields pass through unchanged
 
     [Fact]
+    public void FromConfig_ArrInstanceLibraries_MappedForBothTypes()
+    {
+        var config = new PluginConfiguration();
+        config.RadarrInstances.Add(new ArrInstanceConfig
+        { Name = "R1", Url = "http://radarr", ApiKey = "rk", Libraries = "Movies 4K, Movies Remux" });
+        config.SonarrInstances.Add(new ArrInstanceConfig
+        { Name = "S1", Url = "http://sonarr", ApiKey = "sk", Libraries = "Anime" });
+
+        var response = ConfigurationResponse.FromConfig(config);
+
+        Assert.Equal("Movies 4K, Movies Remux", response.RadarrInstances[0].Libraries);
+        Assert.Equal("Anime", response.SonarrInstances[0].Libraries);
+    }
+
+    [Fact]
     public void FromConfig_NonKeyFields_PassThroughUnchanged()
     {
         var config = new PluginConfiguration

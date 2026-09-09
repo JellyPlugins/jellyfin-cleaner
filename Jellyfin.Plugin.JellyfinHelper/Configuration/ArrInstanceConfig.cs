@@ -19,4 +19,12 @@ public class ArrInstanceConfig
     ///     Gets or sets the API key.
     /// </summary>
     public string ApiKey { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Gets or sets the comma-separated Jellyfin library names this instance manages, used to scope the Arr-tab comparison.
+    ///     An empty value means the libraries are matched automatically from the instance's Radarr/Sonarr root folders; a non-empty
+    ///     value is a manual override. Stored as a comma-separated string (not a list) to keep XML/JSON round-trip parity with the
+    ///     existing ExcludedLibraries field.
+    /// </summary>
+    public string Libraries { get; set; } = string.Empty;
 }

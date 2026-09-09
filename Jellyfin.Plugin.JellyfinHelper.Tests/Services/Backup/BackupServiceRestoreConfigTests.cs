@@ -411,6 +411,34 @@ public sealed class BackupServiceRestoreConfigTests : IDisposable
         Assert.Equal("sonarr-live-key", liveConfig.SonarrInstances[0].ApiKey);
     }
 
+    [Fact]
+    public void CreateBackup_ArrInstanceLibraries_SurviveFullRestoreCycle()
+    {
+        // A library assignment set on a live instance must survive CreateBackup -> RestoreArrInstances.
+        var sourceConfig = new PluginConfiguration();
+        sourceConfig.RadarrInstances.Add(new ArrInstanceConfig
+        { Name = "R1", Url = "http://r:7878", ApiKey = "rk", Libraries = "Movies 4K" });
+        var sourceMock = new Mock<IPluginConfigurationService>();
+        sourceMock.Setup(c => c.GetConfiguration()).Returns(sourceConfig);
+        sourceMock.Setup(c => c.IsInitialized).Returns(true);
+        sourceMock.Setup(c => c.PluginVersion).Returns("1.0.0");
+        var exporter = new BackupService(
+            _tempDir,
+            sourceMock.Object,
+            TestMockFactory.CreatePluginLogService(),
+            TestMockFactory.CreateLogger<BackupService>().Object);
+
+        var backup = exporter.CreateBackup(includeSecrets: true);
+
+        Assert.Equal("Movies 4K", backup.RadarrInstances[0].Libraries);
+
+        var (service, liveConfig, _) = CreateServiceWithInitializedConfig();
+        service.RestoreBackup(backup);
+
+        Assert.Single(liveConfig.RadarrInstances);
+        Assert.Equal("Movies 4K", liveConfig.RadarrInstances[0].Libraries);
+    }
+
     public static TheoryData<int, int> SeerrCleanupAgeDaysApplyClampCases() => new()
     {
         { 0, 0 },

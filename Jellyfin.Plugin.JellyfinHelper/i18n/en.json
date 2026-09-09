@@ -146,6 +146,8 @@
   "instanceName": "Instance Name",
   "radarrInstances": "Radarr Instances",
   "sonarrInstances": "Sonarr Instances",
+  "arrInstanceLibraries": "Assigned Libraries",
+  "arrLibrariesAuto": "Automatic (matched by root folder)",
   "compareWith": "Compare with",
   "compare": "Compare",
   "arrSelectInstance": "Select an instance",

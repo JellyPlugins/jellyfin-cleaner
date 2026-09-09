@@ -220,6 +220,22 @@ public class BackupValidatorTests
         Assert.DoesNotContain(result.Errors, e => e.Contains("SonarrInstances[1]"));
     }
 
+    [Fact]
+    public void Validate_ArrInstances_LibrariesTooLong_ReturnsError()
+    {
+        var backup = CreateValidBackup();
+        backup.RadarrInstances.Add(new BackupArrInstance
+        {
+            Name = "R1",
+            Url = "http://radarr.local",
+            Libraries = new string('L', BackupValidator.MaxArrLibrariesLength + 1)
+        });
+
+        var result = BackupValidator.Validate(backup);
+
+        Assert.Contains(result.Errors, e => e.Contains("RadarrInstances[0].Libraries"));
+    }
+
     // Growth timeline
 
     [Fact]

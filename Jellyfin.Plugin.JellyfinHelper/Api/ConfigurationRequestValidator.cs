@@ -311,6 +311,12 @@ public static class ConfigurationRequestValidator
             return urlError;
         }
 
+        var librariesError = ValidateArrInstanceLibraries(instance, typeName, index);
+        if (librariesError != null)
+        {
+            return librariesError;
+        }
+
         // If URL is set, API key must also be set
         if (string.IsNullOrWhiteSpace(instance.Url) || !string.IsNullOrWhiteSpace(instance.ApiKey))
         {
@@ -350,6 +356,21 @@ public static class ConfigurationRequestValidator
         {
             return
                 $"{typeName} instance '{DescribeInstance(instance, index)}' has an invalid URL. Only http:// and https:// URLs are allowed.";
+        }
+
+        return null;
+    }
+
+    private static string? ValidateArrInstanceLibraries(ArrInstanceConfig instance, string typeName, int index)
+    {
+        if (instance.Libraries?.Length > 2048)
+        {
+            return $"{typeName} instance '{DescribeInstance(instance, index)}' library assignment must be 2048 characters or fewer.";
+        }
+
+        if (instance.Libraries != null && instance.Libraries.Any(char.IsControl))
+        {
+            return $"{typeName} instance '{DescribeInstance(instance, index)}' library assignment contains invalid characters.";
         }
 
         return null;

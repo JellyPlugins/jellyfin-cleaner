@@ -178,6 +178,58 @@ public class ConfigurationRequestValidatorTests
     }
 
     [Fact]
+    public void Validate_ReturnsError_WhenArrInstanceLibrariesTooLong()
+    {
+        // Over-length library assignment (2049 chars) must be rejected; Url+ApiKey are set so the
+        // instance is not skipped as empty.
+        var req = new ConfigurationUpdateRequest
+        {
+            OrphanMinAgeDays = 7,
+            TrashRetentionDays = 30,
+            RadarrInstances = new List<ArrInstanceConfig>
+            {
+                new() { Url = "http://radarr.local", ApiKey = "key", Name = "R1", Libraries = new string('L', 2049) }
+            }
+        };
+        var error = ConfigurationRequestValidator.Validate(req);
+        Assert.NotNull(error);
+        Assert.Contains("library", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_ReturnsError_WhenArrInstanceLibrariesContainsControlChar()
+    {
+        // A bell control character (U+0007) embedded in the assignment must be rejected.
+        var req = new ConfigurationUpdateRequest
+        {
+            OrphanMinAgeDays = 7,
+            TrashRetentionDays = 30,
+            RadarrInstances = new List<ArrInstanceConfig>
+            {
+                new() { Url = "http://radarr.local", ApiKey = "key", Name = "R1", Libraries = "MoviesRemux" }
+            }
+        };
+        var error = ConfigurationRequestValidator.Validate(req);
+        Assert.NotNull(error);
+        Assert.Contains("library", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_ReturnsNull_WhenArrInstanceLibrariesIsNormalCommaSeparated()
+    {
+        var req = new ConfigurationUpdateRequest
+        {
+            OrphanMinAgeDays = 7,
+            TrashRetentionDays = 30,
+            RadarrInstances = new List<ArrInstanceConfig>
+            {
+                new() { Url = "http://radarr.local", ApiKey = "key", Name = "R1", Libraries = "Movies 4K, Movies Remux" }
+            }
+        };
+        Assert.Null(ConfigurationRequestValidator.Validate(req));
+    }
+
+    [Fact]
     public void ValidateTrashPath_ReturnsNull_ForEmpty()
     {
         Assert.Null(ConfigurationRequestValidator.ValidateTrashPath(""));
