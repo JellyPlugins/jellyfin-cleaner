@@ -552,8 +552,7 @@ public sealed class ArrIntegrationService : IArrIntegrationService
         public int TotalEpisodeCount { get; set; }
     }
 
-    private sealed class RootFolderDto
-    {
-        public string? Path { get; init; }
-    }
+    // Deserialization target for the root-folder endpoint. A record has no standalone set accessor,
+    // so the property is populated through the constructor by System.Text.Json.
+    private sealed record RootFolderDto(string? Path);
 }
