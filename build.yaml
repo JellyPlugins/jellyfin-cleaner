@@ -15,8 +15,10 @@ artifacts:
 changelog: |-
   v3.0.0.1 - Per-instance library allocation for Arr
 
-  - Assign specific libraries to each Radarr/Sonarr instance so the Arr tab only compares an instance against the libraries it manages (fixes a 4K instance flagging every 1080p film as "not in Radarr")
-  - With a single instance nothing changes; once you add a second instance of a type, each one gets a library picker in Settings that only lists the matching kind of library (movies for Radarr, TV for Sonarr)
-  - Leave the picker empty to keep it automatic: instances are matched to libraries from their root folders, with a folder-name fallback for split container paths
-  - The assignment is included in backup and restore
+  - Assign specific Jellyfin libraries to each Radarr/Sonarr instance, so the Arr tab compares an instance only against the libraries it manages
+  - With two or more instances of a type, each gets a picker in Settings listing only the matching kind of library (movies for Radarr, TV for Sonarr)
+  - Leave a picker empty to keep it automatic: instances are matched to libraries from their root folders
+  - Assignments are kept across backup and restore
+  - Fixes a 4K instance flagging every 1080p film as "not in Radarr"
+  - Tested by 5498 unit tests and 318 end-to-end tests
   - Requires Jellyfin 12.0 - if you are on Jellyfin 10.x, stay on v2.1.0.6

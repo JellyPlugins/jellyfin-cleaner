@@ -8,7 +8,17 @@ and this project uses 4-part versioning (`x.x.x.x`) consistent with the Jellyfin
 ## [3.0.0.1] - 2026-09-09
 
 ### Added
-- **Assign libraries to each Radarr/Sonarr instance.** If you run more than one instance of the same type (say a 1080p Radarr and a separate 4K Radarr), each instance can now be tied to the libraries it actually manages, so the Arr tab only compares an instance against its own libraries. Before this, a 4K instance would flag every 1080p film as "not in Radarr". With a single instance nothing changes and there is nothing to configure. Once you add a second instance of a type, each one gets a library picker in Settings that only lists the matching kind of library (movie libraries for Radarr, TV libraries for Sonarr), so you cannot accidentally point Radarr at an anime series library. Leaving the picker empty keeps it automatic: the plugin matches each instance to its libraries from the root folders it reports, falling back to the folder name when Radarr/Sonarr and Jellyfin see the same folder under different container paths. The assignment is included in backup and restore.
+- **Assign libraries to each Radarr/Sonarr instance.** When you run more than one instance of the same type, each can be tied to the libraries it actually manages, so the Arr tab compares an instance only against its own libraries.
+- **Type-aware picker.** With two or more instances of a type, each gets a library picker in Settings that lists only the matching kind of library (movies for Radarr, TV for Sonarr).
+- **Automatic by default.** Leave a picker empty and the plugin matches each instance to its libraries from the root folders it reports, so most setups need no configuration.
+- **Kept across backups.** Assignments are included in backup and restore.
+
+### Fixed
+- **No more false "not in Radarr".** A 4K instance no longer flags every 1080p film as missing when several instances manage different libraries.
+
+### Tests
+- **End-to-end: 318 tests across 50 files.**
+- **Unit: 5498 total.**
 
 ## [3.0.0.0] - 2026-09-08
 
